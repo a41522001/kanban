@@ -1,0 +1,16 @@
+{
+  "name": "@kanban/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./api": {
+      "types": "./api.ts"
+    },
+    "./auth": {
+      "types": "./auth.ts"
+    },
+    "./socket": {
+      "types": "./socket.ts"
+    }
+  }
+}

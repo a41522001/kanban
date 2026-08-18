@@ -1,0 +1,10 @@
+packages:
+  - frontend
+  - backend
+  - packages/*
+allowBuilds:
+  '@prisma/engines': true
+  '@scarf/scarf': set this to true or false
+  bcrypt: true
+  prisma: true
+  unrs-resolver: true

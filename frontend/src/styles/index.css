@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+@import './components/btn.css';
+@import './components/input.css';
+
+@theme {
+  /* Pages and surfaces */
+  --color-auth-page: #f7f8fa;
+  --color-board-page: #e9ecf1;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f7f8fa;
+
+  /* Content */
+  --color-content-primary: #29324a;
+  --color-content-secondary: #697287;
+  --color-content-tertiary: #8b95a8;
+  --color-content-on-dark: #f7f8fa;
+  --color-content-on-dark-muted: #bfc7d7;
+
+  /* Borders */
+  --color-border: #d7dce5;
+  --color-border-strong: #cdd3de;
+
+  /* Primary action */
+  --color-action-primary: #df6e51;
+  --color-action-primary-hover: #c4573e;
+  --color-action-primary-soft: #fce5df;
+
+  /* Kanban flow states */
+  --color-flow-ready: #df6e51;
+  --color-flow-active: #a9d2c8;
+  --color-flow-active-strong: #6ea99e;
+  --color-flow-active-soft: #e3f1ec;
+  --color-flow-review: #e6b960;
+  --color-flow-review-soft: #fff1d8;
+  --color-flow-done: #907ece;
+  --color-flow-done-soft: #e9e6f7;
+
+  /* Shape, depth, and type */
+  --radius-control: 0.5625rem;
+  --radius-surface: 0.75rem;
+  --radius-frame: 1.125rem;
+  --shadow-card: 0 4px 14px rgb(41 50 74 / 10%);
+  --font-sans: 'Noto Sans TC', 'PingFang TC', Arial, sans-serif;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}

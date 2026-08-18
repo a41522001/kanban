@@ -1,0 +1,19 @@
+name: kanban
+services:
+  postgres:
+    image: postgres:18.1
+    volumes:
+      - kanban-postgres:/var/lib/postgresql
+    ports:
+      - 5432:5432
+    env_file: ./backend/.env
+
+  redis:
+    image: redis:8.8-alpine
+    volumes:
+      - kanban-redis:/data
+    ports:
+      - 6379:6379
+volumes:
+  kanban-postgres:
+  kanban-redis:

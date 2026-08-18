@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:4001
+@testEmail = jeffery+flowboard@example.com
+@testPassword = password123
+
+### 註冊成功
+# 第一次執行後，若需要再測試，請修改 @testEmail。
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "{{testPassword}}",
+  "name": "Jeffery"
+}
+
+### 註冊相同 Email：預期 409 Conflict
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "{{testPassword}}",
+  "name": "Jeffery"
+}
+
+### 登入成功：預期 200，response header 包含 Set-Cookie: sessionId=...
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "{{testPassword}}"
+}
+
+### 登入失敗：預期 401 Unauthorized
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{testEmail}}",
+  "password": "wrong-password"
+}
+
+### 驗證失敗：預期 400 Bad Request
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "short",
+  "name": ""
+}
+
+### 多餘欄位：預期 400 Bad Request
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "another@example.com",
+  "password": "password123",
+  "name": "Another User",
+  "role": "admin"
+}

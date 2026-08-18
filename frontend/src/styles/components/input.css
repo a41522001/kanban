@@ -1,0 +1,3 @@
+.input {
+  @apply border border-border focus:outline-border-strong rounded-lg p-4 bg-white;
+}

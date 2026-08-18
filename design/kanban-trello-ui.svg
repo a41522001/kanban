@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="2020" viewBox="0 0 3000 2020">
+  <defs>
+    <filter id="s" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#29324A" flood-opacity=".10"/></filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.label{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.display{font-size:38px;font-weight:750;letter-spacing:-.03em}.title{font-size:25px;font-weight:700}.body{font-size:15px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;letter-spacing:.05em;fill:#697287}.inverse{fill:#F7F8FA}.soft{fill:#BFC7D7}.btn{font-size:14px;font-weight:700;fill:#FFF9F4}.card-title{font-size:14px;font-weight:650}.col{font-size:14px;font-weight:700}.chip{font-size:11px;font-weight:700}
+    </style>
+    <g id="logo"><rect width="18" height="25" rx="4" fill="#DF6E51"/><rect x="24" y="8" width="18" height="17" rx="4" fill="#A9D2C8"/><text x="56" y="21" class="title inverse">Flowboard</text></g>
+    <g id="flow"><path d="M8 10h36m12 0h36m12 0h36" stroke="#AAB3C2" stroke-width="2" stroke-linecap="round"/><circle cx="0" cy="10" r="7" fill="#DF6E51"/><circle cx="48" cy="10" r="7" fill="#A9D2C8"/><circle cx="96" cy="10" r="7" fill="#E6B960"/><circle cx="144" cy="10" r="7" fill="#907ECE"/></g>
+    <g id="card-a" filter="url(#s)"><rect width="246" height="126" rx="9" fill="#FFF"/><rect x="14" y="14" width="48" height="20" rx="10" fill="#FCE5DF"/><text x="38" y="28" text-anchor="middle" class="chip" fill="#A9432E">API</text><text x="14" y="58" class="card-title">建立使用者註冊 API</text><text x="14" y="82" class="small">Auth · Backend</text><circle cx="220" cy="98" r="13" fill="#907ECE"/><text x="220" y="102" text-anchor="middle" class="small inverse">J</text></g>
+    <g id="card-b" filter="url(#s)"><rect width="246" height="118" rx="9" fill="#FFF"/><rect x="14" y="14" width="64" height="20" rx="10" fill="#E3F1EC"/><text x="46" y="28" text-anchor="middle" class="chip" fill="#3E756B">Session</text><text x="14" y="58" class="card-title">Session Cookie 驗證流程</text><text x="14" y="82" class="small">Redis · Auth</text><rect x="14" y="98" width="116" height="6" rx="3" fill="#DFE4E9"/><rect x="14" y="98" width="72" height="6" rx="3" fill="#6EA99E"/></g>
+  </defs>
+  <!-- One canonical board base across desktop and mobile: #E9ECF1. -->
+  <rect width="3000" height="2020" fill="#E9ECF1"/>
+
+  <text x="40" y="48" class="label">01 / LOGIN / 1440 × 900</text>
+  <g id="desktop-login">
+    <rect x="40" y="80" width="1440" height="900" rx="18" fill="#F7F8FA"/>
+    <path d="M40 98q0-18 18-18h482v900H58q-18 0-18-18z" fill="#29324A"/>
+    <use href="#logo" transform="translate(96 136)"/>
+    <g transform="translate(96 310)">
+      <text class="display inverse">不只同步訊息，</text><text y="48" class="display inverse">也同步下一步。</text>
+      <text y="92" class="body soft">把工作切成能推進的小塊，讓每個人看見流程正在往哪裡走。</text>
+      <g transform="translate(0 145)"><use href="#flow"/><rect y="40" width="114" height="70" rx="9" fill="#36405A"/><rect x="134" y="40" width="114" height="70" rx="9" fill="#F7F8FA"/><rect x="268" y="40" width="114" height="70" rx="9" fill="#36405A"/><rect x="18" y="58" width="58" height="7" rx="3" fill="#F7F8FA"/><rect x="152" y="58" width="58" height="7" rx="3" fill="#29324A"/><rect x="286" y="58" width="58" height="7" rx="3" fill="#F7F8FA"/><rect x="18" y="80" width="76" height="5" rx="3" fill="#BFC7D7"/><rect x="152" y="80" width="76" height="5" rx="3" fill="#9AA4B8"/><rect x="286" y="80" width="76" height="5" rx="3" fill="#BFC7D7"/></g>
+      <circle cx="8" cy="328" r="4" fill="#DF6E51"/><text x="24" y="333" class="body inverse">讓團隊看見狀態，而不是追問狀態</text>
+      <circle cx="8" cy="364" r="4" fill="#A9D2C8"/><text x="24" y="369" class="body inverse">每一次異動都有清楚的下一步</text>
+    </g>
+    <text x="96" y="928" class="tiny soft">FLOWBOARD / REAL-TIME COLLABORATION</text>
+    <!-- Open form surface: no floating marketing-card treatment. -->
+    <g transform="translate(790 228)">
+      <text class="tiny">登入你的工作區</text><text y="50" class="display">回到正在推進的工作</text><text y="84" class="body" fill="#697287">輸入帳號後，繼續上次停下的地方。</text>
+      <text y="148" class="body" font-weight="700">電子郵件</text><rect y="164" width="450" height="50" rx="9" fill="#FFF" stroke="#CDD3DE"/><text x="16" y="195" class="body" fill="#8B95A8">you@example.com</text>
+      <text y="266" class="body" font-weight="700">密碼</text><rect y="282" width="450" height="50" rx="9" fill="#FFF" stroke="#CDD3DE"/><text x="16" y="313" class="body" fill="#8B95A8">••••••••••••</text><text x="450" y="358" text-anchor="end" class="body" fill="#C4573E">忘記密碼？</text>
+      <rect y="392" width="450" height="52" rx="9" fill="#DF6E51"/><text x="225" y="424" text-anchor="middle" class="btn">登入 Flowboard</text>
+      <line x1="0" y1="494" x2="450" y2="494" stroke="#D9DEE7"/><rect x="205" y="482" width="40" height="24" fill="#F7F8FA"/><text x="225" y="499" text-anchor="middle" class="small">或</text>
+      <rect y="534" width="450" height="50" rx="9" fill="#FFF" stroke="#CDD3DE"/><circle cx="190" cy="559" r="10" fill="#29324A"/><text x="210" y="564" class="body" font-weight="700">使用 Google 繼續</text><text x="225" y="656" text-anchor="middle" class="body">第一次使用？ <tspan fill="#C4573E" font-weight="700">建立帳號</tspan></text>
+    </g>
+  </g>
+
+  <text x="1520" y="48" class="label">02 / SIGNUP / 1440 × 900</text>
+  <g id="desktop-signup">
+    <rect x="1520" y="80" width="1440" height="900" rx="18" fill="#F7F8FA"/><path d="M1520 98q0-18 18-18h418v900h-418q-18 0-18-18z" fill="#29324A"/><use href="#logo" transform="translate(1576 136)"/>
+    <g transform="translate(1576 322)"><text class="display inverse">從第一張卡片，</text><text y="48" class="display inverse">開始建立節奏。</text><text y="92" class="body soft">建立工作區，再邀請團隊一起把工作往前推。</text><g transform="translate(0 142)"><rect width="300" height="162" rx="12" fill="#36405A"/><rect x="22" y="24" width="116" height="8" rx="4" fill="#A9D2C8"/><rect x="22" y="52" width="256" height="42" rx="8" fill="#F7F8FA"/><rect x="40" y="68" width="112" height="6" rx="3" fill="#29324A"/><circle cx="245" cy="73" r="12" fill="#DF6E51"/><rect x="22" y="108" width="192" height="32" rx="8" fill="#4A556F"/></g></g>
+    <text x="1576" y="928" class="tiny soft">ONE WORKSPACE / ONE SHARED FLOW</text>
+    <g transform="translate(2165 146)">
+      <text class="tiny">建立帳號</text><text y="48" class="display">開始你的工作區</text><text y="82" class="body" fill="#697287">只需要一分鐘，之後可以再邀請成員。</text>
+      <text y="136" class="body" font-weight="700">顯示名稱</text><rect y="152" width="480" height="46" rx="9" fill="#FFF" stroke="#CDD3DE"/><text x="16" y="181" class="body" fill="#8B95A8">例如：Jeffery</text>
+      <text y="246" class="body" font-weight="700">電子郵件</text><rect y="262" width="480" height="46" rx="9" fill="#FFF" stroke="#CDD3DE"/><text x="16" y="291" class="body" fill="#8B95A8">you@example.com</text>
+      <text y="356" class="body" font-weight="700">密碼</text><rect y="372" width="480" height="46" rx="9" fill="#FFF" stroke="#CDD3DE"/><text x="16" y="401" class="body" fill="#8B95A8">至少 8 個字元</text><rect y="434" width="112" height="4" rx="2" fill="#6EA99E"/><rect x="122" y="434" width="112" height="4" rx="2" fill="#6EA99E"/><rect x="244" y="434" width="112" height="4" rx="2" fill="#D9DEE7"/><rect x="366" y="434" width="112" height="4" rx="2" fill="#D9DEE7"/>
+      <text y="506" class="body" font-weight="700">確認密碼</text><rect y="522" width="480" height="46" rx="9" fill="#FFF" stroke="#CDD3DE"/><text x="16" y="551" class="body" fill="#8B95A8">再次輸入密碼</text><rect y="600" width="18" height="18" rx="4" fill="#29324A"/><path d="M4 609l4 4 7-8" stroke="#FFF" stroke-width="2" fill="none"/>
+      <text x="30" y="614" class="small">我同意服務條款與隱私權政策</text><rect y="652" width="480" height="52" rx="9" fill="#DF6E51"/><text x="240" y="684" text-anchor="middle" class="btn">建立工作區</text><text x="240" y="758" text-anchor="middle" class="body">已經有帳號？ <tspan fill="#C4573E" font-weight="700">返回登入</tspan></text>
+    </g>
+  </g>
+
+  <text x="40" y="1028" class="label">03 / BOARD / 1440 × 900</text>
+  <g id="desktop-board">
+    <rect x="40" y="1060" width="1440" height="900" rx="18" fill="#E9ECF1"/><path d="M40 1078q0-18 18-18h1404q18 0 18 18v58H40z" fill="#29324A"/>
+    <g transform="translate(72 1079)"><use href="#logo" transform="scale(.88)"/><text x="178" y="19" class="small soft">工作區</text><text x="244" y="19" class="small soft">最近</text><rect x="1198" y="-4" width="30" height="30" rx="8" fill="#44506A"/><text x="1213" y="17" text-anchor="middle" class="title inverse">+</text><circle cx="1266" cy="11" r="15" fill="#A9D2C8"/><text x="1266" y="15" text-anchor="middle" class="small">J</text></g>
+    <g transform="translate(72 1164)"><text class="title">產品開發看板</text><text y="27" class="small">WebSocket 練習專案</text><use href="#flow" transform="translate(1050 3)"/><rect x="1254" y="-8" width="112" height="36" rx="8" fill="#29324A"/><text x="1310" y="15" text-anchor="middle" class="small inverse">邀請成員</text></g>
+    <!-- fixed-width columns make horizontal scrolling deliberate on narrow viewports -->
+    <g transform="translate(72 1240)"><rect width="270" height="670" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/><rect x="14" y="18" width="5" height="28" rx="2.5" fill="#DF6E51"/><text x="32" y="37" class="col">準備開始</text><text x="240" y="37" class="small">03</text><use href="#card-a" transform="translate(12 62)"/><g transform="translate(12 202)" filter="url(#s)"><rect width="246" height="112" rx="9" fill="#FFF"/><rect x="14" y="14" width="54" height="20" rx="10" fill="#FFF1D8"/><text x="14" y="58" class="card-title">登入頁表單驗證</text><text x="14" y="82" class="small">Frontend</text></g><g transform="translate(12 326)" filter="url(#s)"><rect width="246" height="96" rx="9" fill="#FFF"/><text x="14" y="40" class="card-title">整理 Socket.IO 事件命名</text><text x="14" y="66" class="small">文件 · 8 月 16 日</text></g><text x="18" y="462" class="body" fill="#697287">＋ 新增卡片</text></g>
+    <g transform="translate(358 1240)"><rect width="270" height="670" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/><rect x="14" y="18" width="5" height="28" rx="2.5" fill="#A9D2C8"/><text x="32" y="37" class="col">正在進行</text><text x="240" y="37" class="small">02</text><use href="#card-b" transform="translate(12 62)"/><g transform="translate(12 194)" filter="url(#s)"><rect width="246" height="112" rx="9" fill="#FFF"/><rect x="14" y="14" width="62" height="20" rx="10" fill="#E9E6F7"/><text x="14" y="58" class="card-title">Socket handshake middleware</text><text x="14" y="82" class="small">今天到期</text></g><text x="18" y="350" class="body" fill="#697287">＋ 新增卡片</text></g>
+    <g transform="translate(644 1240)"><rect width="270" height="670" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/><rect x="14" y="18" width="5" height="28" rx="2.5" fill="#E6B960"/><text x="32" y="37" class="col">等待檢視</text><text x="240" y="37" class="small">02</text><g transform="translate(12 62)" filter="url(#s)"><rect width="246" height="122" rx="9" fill="#FFF"/><rect x="14" y="14" width="52" height="20" rx="10" fill="#FCE5DF"/><text x="14" y="58" class="card-title">AuthService 錯誤處理</text><text x="14" y="82" class="small">等待 review</text></g><g transform="translate(12 196)" filter="url(#s)"><rect width="246" height="106" rx="9" fill="#FFF"/><text x="14" y="40" class="card-title">更新 session 文件</text><text x="14" y="66" class="small">2 則留言</text></g></g>
+    <g transform="translate(930 1240)"><rect width="270" height="670" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/><rect x="14" y="18" width="5" height="28" rx="2.5" fill="#907ECE"/><text x="32" y="37" class="col">已完成</text><text x="240" y="37" class="small">02</text><g transform="translate(12 62)" filter="url(#s)"><rect width="246" height="108" rx="9" fill="#FFF"/><text x="14" y="42" class="card-title">建立 Redis 連線模組</text><text x="14" y="68" class="small">完成於今天</text><circle cx="218" cy="82" r="12" fill="#A9D2C8"/><path d="M212 82l4 4 8-9" stroke="#29324A" stroke-width="2" fill="none"/></g></g>
+  </g>
+
+  <text x="1520" y="1028" class="label">04 / CARD DETAIL / 1440 × 900</text>
+  <g id="desktop-card-detail">
+    <rect x="1520" y="1060" width="1440" height="900" rx="18" fill="#E9ECF1"/><rect x="1520" y="1060" width="1440" height="900" rx="18" fill="#29324A" opacity=".30"/><rect x="1744" y="1132" width="992" height="760" rx="14" fill="#F7F8FA" filter="url(#s)"/>
+    <g transform="translate(1792 1186)"><rect width="62" height="22" rx="11" fill="#E3F1EC"/><text x="31" y="15" text-anchor="middle" class="tiny" fill="#3E756B">進行中</text><text y="72" class="display">Session Cookie 驗證流程</text><text y="108" class="body" fill="#697287">位於「正在進行」· 建立於今天 10:42</text><line x1="0" y1="144" x2="610" y2="144" stroke="#D7DCE5"/><text y="186" class="body" font-weight="700">描述</text><text y="218" class="body">使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。</text><text y="286" class="body" font-weight="700">Checklist</text><rect y="308" width="20" height="20" rx="5" fill="#6EA99E"/><path d="M5 318l4 4 7-8" stroke="#FFF" stroke-width="2" fill="none"/><text x="32" y="323" class="body">Session repository 完成</text><rect y="344" width="20" height="20" rx="5" fill="#6EA99E"/><path d="M5 354l4 4 7-8" stroke="#FFF" stroke-width="2" fill="none"/><text x="32" y="359" class="body">Cookie 設定完成</text><rect y="380" width="20" height="20" rx="5" fill="#FFF" stroke="#AAB3C2"/><text x="32" y="395" class="body">Socket handshake 驗證</text></g>
+    <g transform="translate(2450 1190)"><text class="tiny">卡片操作</text><rect y="28" width="238" height="42" rx="8" fill="#FFF" stroke="#D7DCE5"/><text x="16" y="54" class="body">移動至…</text><rect y="82" width="238" height="42" rx="8" fill="#FFF" stroke="#D7DCE5"/><text x="16" y="108" class="body">設定到期日</text><rect y="136" width="238" height="42" rx="8" fill="#FFF" stroke="#D7DCE5"/><text x="16" y="162" class="body">新增成員</text><text y="236" class="body" fill="#B94B36">封存卡片</text></g><text x="2686" y="1179" class="title" fill="#697287">×</text>
+  </g>
+</svg>
