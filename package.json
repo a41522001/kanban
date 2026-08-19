@@ -5,7 +5,12 @@
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend start:dev",
     "build": "pnpm --filter frontend build && pnpm --filter backend build",
-    "lint": "pnpm --filter frontend lint && pnpm --filter backend lint"
+    "lint": "pnpm --filter frontend lint && pnpm --filter backend lint",
+    "test:backend": "pnpm --filter backend test",
+    "test:backend:watch": "pnpm --filter backend test:watch",
+    "test:backend:cov": "pnpm --filter backend test:cov",
+    "test:backend:debug": "pnpm --filter backend test:debug",
+    "test:backend:e2e": "pnpm --filter backend test:e2e"
   },
   "license": "ISC",
   "devEngines": {
