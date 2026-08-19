@@ -14,7 +14,7 @@ interface ClientToServerEvents {
 }
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-  'http://localhost:4001',
+  import.meta.env.VITE_API_URL,
   {
     autoConnect: false,
     withCredentials: true,
