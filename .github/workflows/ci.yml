@@ -1,0 +1,15 @@
+name: ci
+
+on:
+  push:
+    branches: [main, dev]
+    
+  workflow_dispatch:
+
+jobs:
+  test: 
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: test
+        run: echo "hello world"
