@@ -1,7 +1,12 @@
-export type FieldErrors = Record<string, string[]>;
-export interface ApiResponse<T> {
+export interface FieldError<TValue = unknown> {
+  value: TValue | null;
+  messages: string[];
+}
+
+export type FieldErrors = Record<string, FieldError>;
+export interface ApiResponse<TData> {
   code: number;
-  data: T | null;
+  data: TData | null;
   message: string;
   time: string;
   error: FieldErrors | null;

@@ -1,9 +1,10 @@
 import { AppExceptionOptions } from '@/types';
+import { FieldErrors } from '@kanban/contracts/api';
 import { HttpException } from '@nestjs/common';
 
 export class AppException extends HttpException {
   public readonly code: number;
-  public readonly errors?: Record<string, string[]>;
+  public readonly errors?: FieldErrors | null;
   constructor({ status, code, message, errors }: AppExceptionOptions) {
     super(
       {
