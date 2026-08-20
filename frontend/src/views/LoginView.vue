@@ -91,13 +91,19 @@
             <label for="email" class="text-content-primary font-bold">{{
               t('auth.fields.email.label')
             }}</label>
-            <Input id="email" clearable :placeholder="t('auth.fields.email.placeholder')" />
+            <Input
+              v-model="loginForm.email"
+              id="email"
+              clearable
+              :placeholder="t('auth.fields.email.placeholder')"
+            />
           </div>
           <div class="mb-7 flex flex-col gap-3.5 sm:mb-9">
             <label for="password" class="text-content-primary font-bold">{{
               t('auth.fields.password.label')
             }}</label>
             <input
+              v-model="loginForm.password"
               id="password"
               type="password"
               class="input"
@@ -108,7 +114,7 @@
             class="text-action-primary-hover ms-auto mb-6 sm:mb-8 hover:text-action-primary cursor-pointer"
             >{{ t('auth.login.forgotPassword') }}</span
           >
-          <Btn>{{ t('auth.login.submit') }}</Btn>
+          <Btn @click="handleLogin">{{ t('auth.login.submit') }}</Btn>
         </form>
         <div class="flex items-center sm:my-9 my-6">
           <span class="h-px grow bg-[#D9DEE7]"></span>
@@ -138,10 +144,34 @@ import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
 import Btn from '@/components/common/Btn.vue';
 import Input from '@/components/common/Input.vue';
+import { reactive } from 'vue';
+import type { LoginRequest } from '@kanban/contracts/auth';
+import { loginApi } from '@/services/auth';
+import { useAlertStore } from '@/stores/alert';
+import { useLoadingStore } from '@/stores/loading';
+const loadingStore = useLoadingStore();
+const alertStore = useAlertStore();
 const { t } = useI18n();
 const router = useRouter();
+const loginForm = reactive<LoginRequest>({
+  email: '',
+  password: '',
+});
 const goSignupPage = () => {
   router.push({ name: 'signup' });
+};
+const handleLogin = async (event: Event) => {
+  event.preventDefault();
+  try {
+    loadingStore.showLoading('登入中');
+    const res = await loginApi(loginForm);
+    alertStore.openAlert({ content: res.message });
+  } catch (error: unknown) {
+    const err = error as Error;
+    alertStore.openAlert({ content: err.message });
+  } finally {
+    loadingStore.hideLoading();
+  }
 };
 </script>
 <style scoped></style>

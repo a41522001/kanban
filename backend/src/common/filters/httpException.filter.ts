@@ -11,7 +11,7 @@ import { ApiResponse } from '@kanban/contracts/api';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const status =
@@ -29,13 +29,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     };
     // App自訂錯誤
     if (exception instanceof AppException) {
-      console.log('是AppException');
-      console.log(exception.code);
-      console.log(exception.message);
-      console.log(exception.errors);
       apiResponse.code = exception.code;
       apiResponse.message = exception.message;
-      apiResponse.error = exception?.errors ?? null;
+      apiResponse.error = exception.errors ?? null;
       response.status(status).json(apiResponse);
       return;
     }
