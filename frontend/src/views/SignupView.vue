@@ -1,11 +1,7 @@
 <template>
   <main class="min-h-full h-full lg:grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
     <aside class="hidden bg-content-primary lg:grid 2xl:p-15 lg:p-10 lg:grid-rows-[auto_1fr_auto]">
-      <div class="flex gap-2">
-        <span class="bg-action-primary w-5.5 h-7 rounded-lg mr-1"></span>
-        <span class="bg-flow-active w-5.5 h-5 rounded-lg mr-4 mt-auto"></span>
-        <h1 class="text-content-on-dark font-bold text-2xl leading-none">{{ t('brand.name') }}</h1>
-      </div>
+      <Logo class="text-content-on-dark" />
 
       <div class="flex grow flex-col justify-center">
         <p class="text-[32px] text-content-on-dark font-bold">
@@ -78,6 +74,11 @@
 
     <section class="flex justify-center px-6 py-8 sm:px-8 sm:py-10 lg:items-center lg:px-10">
       <div class="w-full max-w-md flex flex-col">
+        <div class="flex flex-col gap-6 mb-2 lg:hidden">
+          <Logo class="text-content-primary" />
+          <span class="w-10 h-1 bg-action-primary rounded-xl" />
+        </div>
+
         <p class="text-content-secondary text-sm">{{ t('auth.signup.eyebrow') }}</p>
         <p class="my-2 text-3xl font-bold text-content-primary sm:my-3 sm:text-4xl">
           {{ t('auth.signup.title') }}
@@ -163,6 +164,7 @@
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
+import Logo from '@/components/common/Logo.vue';
 import Btn from '@/components/common/Btn.vue';
 const { t } = useI18n();
 const router = useRouter();
