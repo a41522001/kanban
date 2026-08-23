@@ -22,6 +22,12 @@ jobs:
         with:
           node-version: 24
 
+      - name: print node version
+        run: node -v
+
+      - name: print npm version
+        run: npm -v
+        
       - name: 安裝依賴
         run: npm ci
 
