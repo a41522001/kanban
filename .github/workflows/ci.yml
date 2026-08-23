@@ -20,14 +20,14 @@ jobs:
       - name: 安裝Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 24.19.0
 
       - name: print node version
         run: node -v
 
       - name: print npm version
         run: npm -v
-        
+
       - name: 安裝依賴
         run: npm ci
 
