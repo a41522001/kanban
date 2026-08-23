@@ -15,24 +15,18 @@ jobs:
         run: echo "hello world"
 
       - name: 抓取程式碼
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: 安裝Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: 24.19.0
-
-      - name: print node version
-        run: node -v
-
-      - name: print npm version
-        run: npm -v
-
-      - name: 安裝依賴
-        run: npm ci
+          node-version: 24
 
       - name: 安裝pnpm
         run: npm i -g pnpm
+
+      - name: 安裝依賴
+        run: pnpm install --frozen-lockfile
 
       - name: 執行測試
         run: pnpm run test:backend
