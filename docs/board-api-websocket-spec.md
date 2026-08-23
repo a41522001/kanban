@@ -13,22 +13,22 @@
 
 ### 1.1 HTTP 與 Socket.IO 的責任
 
-| 類型             | 使用方式                | 原因                                    |
-| ---------------- | ----------------------- | --------------------------------------- |
-| Session Auth     | HTTP                    | 瀏覽器透過 HttpOnly Cookie 保存 Session |
-| Board 清單       | HTTP                    | 一次性查詢，不需要即時 room             |
-| 建立 Board       | HTTP                    | 建立時尚未存在可加入的 room             |
-| Board snapshot   | HTTP                    | 初始載入與完整 resync                   |
-| Board 成員管理   | HTTP                    | 低頻管理操作，適合 request/response     |
-| Column/Card 異動 | Socket.IO command + ack | 需要即時廣播、冪等與 concurrency 控制   |
-| Presence         | Socket.IO               | 僅代表目前連線狀態                      |
+| 類型                         | 使用方式                | 原因                                    |
+| ---------------------------- | ----------------------- | --------------------------------------- |
+| Session Auth                 | HTTP                    | 瀏覽器透過 HttpOnly Cookie 保存 Session |
+| Workspace／Project CRUD      | HTTP                    | 低頻結構操作，不需要 Board room         |
+| Workspace／Project 成員管理  | HTTP                    | 低頻管理操作，適合 request/response     |
+| Category／Label 建立與查詢   | HTTP                    | Project scope metadata，不屬於單一 Board command |
+| Board snapshot               | HTTP                    | 初始載入與完整 resync                   |
+| Column/Card 異動             | Socket.IO command + ack | 需要即時廣播、冪等與 concurrency 控制   |
+| Presence                     | Socket.IO               | 僅代表目前連線狀態                      |
 
 同一個 Column/Card 寫入操作不要同時提供 REST 與 Socket.IO 兩條主要路徑。例如建立卡片只使用 `card:create`，不另外提供 `POST /cards`。這可以避免兩套 validation、broadcast、idempotency 與錯誤語意。
 
 ### 1.2 命名
 
 - Database model 使用 `BoardColumn`，避免 `List` 與一般陣列概念混淆。
-- REST path 使用複數名詞，例如 `/boards`、`/members`。
+- REST path 使用複數名詞，例如 `/workspaces`、`/projects`、`/members`。
 - Client command 使用動詞原形，例如 `card:create`。
 - Server domain event 使用完成式，例如 `card:created`。
 - Room name 只能由 Server 產生，格式為 `board:{boardId}`。
@@ -36,7 +36,7 @@
 
 ### 1.3 Authoritative state
 
-PostgreSQL 是 Board、Column、Card 與 membership 的最終資料來源。Pinia optimistic state、Socket.IO room 與 Redis 都不是持久化真相。
+PostgreSQL 是 Workspace、Project、Board、Column、Card 與 membership 的最終資料來源。Pinia optimistic state、Socket.IO room 與 Redis 都不是持久化真相。
 
 每次成功 command 都應回傳或廣播 Server 產生的 authoritative entity，Client 不應假設自己的 optimistic 結果一定是最終結果。
 
@@ -44,11 +44,13 @@ PostgreSQL 是 Board、Column、Card 與 membership 的最終資料來源。Pini
 
 ### 2.1 第一版包含
 
-- 使用者建立 Board。
-- 建立 Board 時產生四個預設 Column。
-- 取得目前使用者可存取的 Board 清單。
+- 建立／列出 Workspace；建立者自動成為 WorkspaceMember `OWNER`。
+- 建立／列出 Project；建立者自動成為 ProjectMember `OWNER`。
+- 建立 Project 時，在同一 transaction 產生主要 Board 與四個預設 Columns。
+- WorkspaceMember 的 `OWNER`、`MEMBER` 權限。
+- ProjectMember 的 `OWNER`、`EDITOR`、`VIEWER` 權限；Project 下所有 Boards 共用。
 - 取得單一 Board snapshot。
-- Board member 的 `OWNER`、`EDITOR`、`VIEWER` 權限。
+- Project scope 的 CardCategory 與 CardLabel。
 - 加入與離開 Board room。
 - 建立、修改、移動與封存 Card。
 - 建立、修改與移動 Column。
@@ -64,6 +66,8 @@ PostgreSQL 是 Board、Column、Card 與 membership 的最終資料來源。Pini
 - Attachment。
 - Card assignee。
 - Email invitation workflow。
+- Board 個別 membership／ProjectMember 權限覆寫。
+- 自訂 Workspace／Project role。
 - Notification center。
 - Redis adapter 與多個 Socket.IO instance。
 - RabbitMQ。
@@ -76,35 +80,75 @@ PostgreSQL 是 Board、Column、Card 與 membership 的最終資料來源。Pini
 
 以下只表達欄位與關係，實際 Prisma 語法可在實作 schema 時再確認。
 
+#### Workspace
+
+| 欄位          | 型別                | 說明          |
+| ------------- | ------------------- | ------------- |
+| `id`          | UUID                | Workspace ID  |
+| `name`        | varchar(100)        | Workspace 名稱|
+| `createdById` | UUID                | 建立者        |
+| `archivedAt`  | timestamp, nullable | 封存時間      |
+| `createdAt`   | timestamp           | 建立時間      |
+| `updatedAt`   | timestamp           | 最後修改時間  |
+
+Workspace 不保存 `PERSONAL`／`TEAM` 類型；只有一位成員時是個人使用，加入其他成員後就是團隊使用。
+
+#### WorkspaceMember
+
+| 欄位          | 型別      | 說明              |
+| ------------- | --------- | ----------------- |
+| `workspaceId` | UUID      | Workspace ID      |
+| `userId`      | UUID      | User ID           |
+| `role`        | enum      | `OWNER`、`MEMBER` |
+| `joinedAt`    | timestamp | 加入時間          |
+
+Primary key 使用 `(workspaceId, userId)`。建立 Workspace 時，建立者自動成為 `OWNER`。
+
+#### Project
+
+| 欄位          | 型別                   | 說明                             |
+| ------------- | ---------------------- | -------------------------------- |
+| `id`          | UUID                   | Project ID                       |
+| `workspaceId` | UUID                   | 所屬 Workspace                   |
+| `name`        | varchar(100)           | Project 名稱                     |
+| `description` | varchar(500), nullable | 簡短描述                         |
+| `status`      | enum                   | `ACTIVE`、`ON_HOLD`、`COMPLETED` |
+| `createdById` | UUID                   | 建立者                           |
+| `archivedAt`  | timestamp, nullable    | 封存時間                         |
+| `createdAt`   | timestamp              | 建立時間                         |
+| `updatedAt`   | timestamp              | 最後修改時間                     |
+
+Project status 與 archivedAt 是不同概念；完成 Project 不會自動移動或修改任何 Card。
+
+#### ProjectMember
+
+| 欄位        | 型別      | 說明                        |
+| ----------- | --------- | --------------------------- |
+| `projectId` | UUID      | Project ID                  |
+| `userId`    | UUID      | User ID                     |
+| `role`      | enum      | `OWNER`、`EDITOR`、`VIEWER` |
+| `joinedAt`  | timestamp | 加入時間                    |
+
+Primary key 使用 `(projectId, userId)`。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember。Board 不建立獨立 membership；所有 Boards 透過 ProjectMember 繼承權限。
+
 #### Board
 
 | 欄位          | 型別                   | 說明                                  |
 | ------------- | ---------------------- | ------------------------------------- |
 | `id`          | UUID                   | Board ID                              |
+| `projectId`   | UUID                   | 所屬 Project                          |
 | `name`        | varchar(100)           | Board 名稱                            |
 | `description` | varchar(500), nullable | 簡短描述                              |
+| `isPrimary`   | boolean                | 是否為 Project 主要 Board             |
+| `position`    | integer                | 同一 Project 內排序位置               |
 | `createdById` | UUID                   | 建立者                                |
 | `version`     | integer                | Board metadata optimistic concurrency |
 | `revision`    | bigint                 | 每次 Board domain mutation 遞增       |
+| `archivedAt`  | timestamp, nullable    | 封存時間                              |
 | `createdAt`   | timestamp              | 建立時間                              |
 | `updatedAt`   | timestamp              | 最後修改時間                          |
 
-`revision` 對 JavaScript client 一律序列化成字串，避免超過安全整數範圍。
-
-#### BoardMember
-
-| 欄位       | 型別      | 說明                        |
-| ---------- | --------- | --------------------------- |
-| `boardId`  | UUID      | Board ID                    |
-| `userId`   | UUID      | User ID                     |
-| `role`     | enum      | `OWNER`、`EDITOR`、`VIEWER` |
-| `joinedAt` | timestamp | 加入時間                    |
-
-建議 constraint：
-
-- Primary key：`(boardId, userId)`。
-- 每個 Board 至少保留一位 `OWNER`。
-- 建立 Board 時，建立者自動成為 `OWNER`。
+同一個 Project 同時只能有一個未封存的 primary Board。使用 PostgreSQL partial unique index 保護 `projectId + isPrimary = true + archivedAt IS NULL`。`revision` 對 JavaScript client 一律序列化成字串。
 
 #### BoardColumn
 
@@ -119,12 +163,42 @@ PostgreSQL 是 Board、Column、Card 與 membership 的最終資料來源。Pini
 | `createdAt` | timestamp   | 建立時間                                           |
 | `updatedAt` | timestamp   | 修改時間                                           |
 
+#### CardCategory
+
+| 欄位             | 型別        | 說明                         |
+| ---------------- | ----------- | ---------------------------- |
+| `id`             | UUID        | Category ID                  |
+| `projectId`      | UUID        | 所屬 Project                 |
+| `name`           | varchar(50) | 顯示名稱                     |
+| `normalizedName` | varchar(50) | Server 正規化名稱            |
+| `colorKey`       | varchar(20) | 前端色票 key，不保存實際色碼 |
+| `createdById`    | UUID        | 建立者                       |
+| `createdAt`      | timestamp   | 建立時間                     |
+| `updatedAt`      | timestamp   | 修改時間                     |
+
+`(projectId, normalizedName)` 建立 unique constraint。colorKey 使用 shared contract whitelist 驗證，不使用 PostgreSQL enum。
+
+#### CardLabel
+
+| 欄位             | 型別        | 說明              |
+| ---------------- | ----------- | ----------------- |
+| `id`             | UUID        | Label ID          |
+| `projectId`      | UUID        | 所屬 Project      |
+| `name`           | varchar(50) | 顯示名稱          |
+| `normalizedName` | varchar(50) | Server 正規化名稱 |
+| `createdById`    | UUID        | 建立者            |
+| `createdAt`      | timestamp   | 建立時間          |
+| `updatedAt`      | timestamp   | 修改時間          |
+
+`(projectId, normalizedName)` 建立 unique constraint。
+
 #### Card
 
 | 欄位          | 型別                | 說明                                |
 | ------------- | ------------------- | ----------------------------------- |
 | `id`          | UUID                | Card ID                             |
 | `columnId`    | UUID                | 所屬 Column                         |
+| `categoryId`  | UUID, nullable      | Project scope Category              |
 | `title`       | varchar(200)        | Card 標題                           |
 | `description` | text, nullable      | Card 描述                           |
 | `position`    | integer             | 同一 Column 內排序位置              |
@@ -135,7 +209,17 @@ PostgreSQL 是 Board、Column、Card 與 membership 的最終資料來源。Pini
 | `createdAt`   | timestamp           | 建立時間                            |
 | `updatedAt`   | timestamp           | 修改時間                            |
 
-Card 的狀態由所屬 Column 決定，不額外保存 `status`，避免兩個欄位互相矛盾。
+Card 的狀態由所屬 Column 決定，不額外保存 `status`。Category 必須和 Card 所在 Board 屬於同一個 Project。
+
+#### CardLabelAssignment
+
+| 欄位         | 型別      | 說明     |
+| ------------ | --------- | -------- |
+| `cardId`     | UUID      | Card ID  |
+| `labelId`    | UUID      | Label ID |
+| `assignedAt` | timestamp | 指派時間 |
+
+Primary key 使用 `(cardId, labelId)`。Label 必須和 Card 所在 Board 屬於同一個 Project。跨 table scope 由 application service 驗證。
 
 #### CommandReceipt
 
@@ -180,29 +264,104 @@ Client 傳 `beforeCardId` 或 `afterCardId`，不要直接傳可信任的 `posit
 packages/contracts/
 ├── api.ts
 ├── auth.ts
+├── workspace.ts
+├── project.ts
 ├── board.ts
 ├── board-socket.ts
 └── socket.ts
 ```
 
-`board.ts` 放 HTTP 與 domain DTO；`board-socket.ts` 放 command、event 與 ack；`socket.ts` 只組合完整的 Client/Server event maps。
+`workspace.ts`、`project.ts`、`board.ts` 放 HTTP 與 domain DTO；`board-socket.ts` 放 Board command、event 與 ack；`socket.ts` 只組合完整的 Client/Server event maps。
 
 ### 4.1 DTO 基礎型別
 
 ```ts
-export type BoardRole = "OWNER" | "EDITOR" | "VIEWER";
+export type WorkspaceRole = "OWNER" | "MEMBER";
+export type ProjectRole = "OWNER" | "EDITOR" | "VIEWER";
+export type ProjectStatus = "ACTIVE" | "ON_HOLD" | "COMPLETED";
 export type ColumnColorKey = "ready" | "active" | "review" | "done";
+export type CardCategoryColorKey =
+  | "coral" | "rose" | "orange" | "amber" | "lime" | "mint" | "teal"
+  | "cyan" | "blue" | "indigo" | "lavender" | "violet" | "pink" | "slate";
 
-export interface BoardMemberDto {
+export interface MemberUserDto {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
-  role: BoardRole;
+}
+
+export interface WorkspaceMemberDto extends MemberUserDto {
+  role: WorkspaceRole;
+  joinedAt: string;
+}
+
+export interface ProjectMemberDto extends MemberUserDto {
+  role: ProjectRole;
+  joinedAt: string;
+}
+
+export interface WorkspaceDto {
+  id: string;
+  name: string;
+  createdById: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceListItemDto extends WorkspaceDto {
+  currentUserRole: WorkspaceRole;
+  memberCount: number;
+  accessibleProjectCount: number;
+}
+
+export interface BoardSummaryDto {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  isPrimary: boolean;
+  position: number;
+  archivedAt: string | null;
+  updatedAt: string;
+}
+
+export interface ProjectDto {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  createdById: string;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectSummaryDto extends ProjectDto {
+  currentUserRole: ProjectRole;
+  primaryBoard: Pick<BoardSummaryDto, "id" | "name"> | null;
+  memberCount: number;
+}
+
+export interface CardCategoryDto {
+  id: string;
+  projectId: string;
+  name: string;
+  colorKey: CardCategoryColorKey;
+}
+
+export interface CardLabelDto {
+  id: string;
+  projectId: string;
+  name: string;
 }
 
 export interface CardDto {
   id: string;
   columnId: string;
+  categoryId: string | null;
+  labelIds: string[];
   title: string;
   description: string | null;
   position: number;
@@ -226,12 +385,23 @@ export interface BoardColumnDto {
 
 export interface BoardSnapshotDto {
   id: string;
+  projectId: string;
   name: string;
   description: string | null;
+  isPrimary: boolean;
+  position: number;
   version: number;
   revision: string;
-  currentUserRole: BoardRole;
-  members: BoardMemberDto[];
+  currentUserRole: ProjectRole;
+  project: {
+    id: string;
+    workspaceId: string;
+    name: string;
+    status: ProjectStatus;
+  };
+  members: ProjectMemberDto[];
+  categories: CardCategoryDto[];
+  labels: CardLabelDto[];
   columns: BoardColumnDto[];
   createdAt: string;
   updatedAt: string;
@@ -244,7 +414,7 @@ export interface BoardSnapshotDto {
 
 ### 5.1 Authentication
 
-- 所有 `/boards` endpoints 都套用 `SessionGuard`。
+- 所有 `/workspaces`、`/projects`、`/boards` endpoints 都套用 `SessionGuard`。
 - Session ID 只能從 HttpOnly Cookie 取得。
 - Request body 與 query 中的 `userId` 不可作為目前使用者身份。
 - CORS 必須只允許設定中的 frontend origin，並開啟 credentials。
@@ -290,19 +460,31 @@ Validation error：
 | `3002` | 404         | Column 不存在                      |
 | `3003` | 404         | Card 不存在                        |
 | `3004` | 409         | Member 已存在                      |
+| `3005` | 404         | Workspace 不存在或不可存取         |
+| `3006` | 404         | Project 不存在或不可存取           |
+| `3007` | 404         | Card category 不存在               |
+| `3008` | 404         | Card label 不存在                  |
 | `4001` | 409         | Version conflict                   |
 | `4002` | 409         | Command ID 被不同 payload 重複使用 |
 | `4003` | 409         | 最後一位 Owner 不可移除或降級      |
 | `4290` | 429         | Rate limit exceeded                |
 | `5000` | 500         | 非預期錯誤                         |
 
-對沒有 membership 的使用者，建議回覆 `404` 而不是透露 Board 存在但禁止存取。登入但角色不足、且已確認是 member 時才回 `403`。
+對沒有 membership 的使用者，建議回覆 `404`，避免透露 Workspace、Project 或 Board 是否存在。已確認具有 membership、但角色不足時才回 `403`。
 
-## 6. Board REST API
+Board 的授權路徑固定為：
 
-### 6.1 `GET /boards`
+```text
+Board → Project → ProjectMember
+```
 
-取得目前使用者可存取的 Board 清單。
+`WorkspaceMember` 只代表使用者屬於該工作區；是否能讀寫某個 Project 與其 Boards，仍由 `ProjectMember` 決定。
+
+## 6. Workspace、Project 與 Board REST API
+
+### 6.1 `GET /workspaces`
+
+取得目前使用者加入的 Workspace 清單。
 
 Query：
 
@@ -311,38 +493,48 @@ Query：
 | `cursor` | 否   | 上一頁回傳的 opaque cursor |
 | `limit`  | 否   | 預設 20，最大 50           |
 
-Response data：
+Response data 使用 cursor envelope，`items` 為 `WorkspaceListItemDto[]`。排序建議：`updatedAt DESC, id DESC`。
 
-```ts
-interface BoardListResponse {
-  items: Array<{
-    id: string;
-    name: string;
-    description: string | null;
-    role: BoardRole;
-    memberCount: number;
-    updatedAt: string;
-  }>;
-  nextCursor: string | null;
-}
-```
+### 6.2 `POST /workspaces`
 
-排序建議：`updatedAt DESC, id DESC`。Cursor 應封裝排序欄位，不要直接使用 page number，以降低新增資料造成的跳頁問題。
-
-### 6.2 `POST /boards`
-
-建立 Board，並在同一個 transaction 內：
-
-1. 建立 Board。
-2. 將建立者加入為 `OWNER`。
-3. 建立四個預設 Column。
+建立 Workspace，並在同一個 transaction 內將建立者加入 `WorkspaceMember`，角色為 `OWNER`。
 
 Request：
 
 ```json
 {
-  "name": "產品開發看板",
-  "description": "WebSocket 練習專案"
+  "name": "Jeffery 的工作區"
+}
+```
+
+成功：`201 Created`，回傳 `WorkspaceDto` 加上 `currentUserRole: "OWNER"`。
+
+### 6.3 `GET /workspaces/:workspaceId/projects`
+
+取得目前使用者在該 Workspace 中實際具有 `ProjectMember` 關係的 Projects。只有 `WorkspaceMember`、但未加入某個 Project，不應在此清單看見該 Project。
+
+Query 可沿用 cursor pagination，`items` 為 `ProjectSummaryDto[]`。每個 Project summary 包含：
+
+- `id`、`name`、`description`、`status`。
+- 目前使用者的 `ProjectRole`。
+- primary Board 的 `id` 與名稱，供前端直接導頁。
+- Project member 數與 `updatedAt`。
+
+### 6.4 `POST /workspaces/:workspaceId/projects`
+
+Workspace 的 `OWNER` 或 `MEMBER` 都可以建立 Project。Server 必須在同一個 transaction 內：
+
+1. 建立 Project。
+2. 將建立者加入 `ProjectMember`，角色為 `OWNER`。
+3. 建立一個 `isPrimary = true` 的 Board。
+4. 在 primary Board 建立四個預設 Columns。
+
+Request：
+
+```json
+{
+  "name": "Kanban Side Project",
+  "description": "練習 NestJS、WebSocket、Redis 與 Message Queue"
 }
 ```
 
@@ -355,51 +547,81 @@ Request：
 | 等待檢視 | `review` | 3072     |
 | 已完成   | `done`   | 4096     |
 
-成功：`201 Created`，回傳 `BoardSnapshotDto` 或建立後導頁所需的 Board summary。建議直接回 snapshot，讓 Client 不需要立刻再請求一次。
+成功：`201 Created`，回傳：
 
-### 6.3 `GET /boards/:boardId`
+```ts
+interface CreateProjectResponse {
+  project: ProjectDto;
+  currentUserRole: "OWNER";
+  primaryBoard: BoardSummaryDto;
+}
+```
+
+前端接著以 `GET /boards/:boardId` 取得 snapshot。
+
+### 6.5 `GET /projects/:projectId`
+
+需要 `ProjectMember`。回傳：
+
+```ts
+interface ProjectDetailResponse {
+  project: ProjectDto;
+  currentUserRole: ProjectRole;
+  members: ProjectMemberDto[];
+  boards: BoardSummaryDto[];
+  categories: CardCategoryDto[];
+  labels: CardLabelDto[];
+}
+```
+
+這個 endpoint 不塞入所有 Cards。
+
+### 6.6 `GET /boards/:boardId`
 
 取得完整 authoritative snapshot。
 
 Server 行為：
 
-1. 驗證 membership。
-2. 查詢 Board、members、columns 與未封存 cards。
+1. 由 Board 找到 Project，驗證 `ProjectMember`。
+2. 查詢 Board、Project members、categories、labels、columns 與未封存 cards。
 3. 依 `position` 排序 Columns 與 Cards。
 4. 回傳 `BoardSnapshotDto`。
 
-成功：`200 OK`。
-
-這個 endpoint 用於：
+成功：`200 OK`。這個 endpoint 用於：
 
 - 第一次進入 Board。
 - Socket reconnect 後無法 replay。
 - Client 偵測 event revision gap。
 - Version conflict 後需要完整校正。
 
-### 6.4 `DELETE /boards/:boardId`
+### 6.7 Board 建立、封存與刪除
 
-僅 `OWNER` 可執行。第一版可以延後。
+第一版一個 Project 只需要建立時自動產生的 primary Board，因此可延後獨立的 Board CRUD。未來若開放多 Board：
 
-建議採 soft delete，成功後 Server 應向 Board room 發送 `board:deleted`，再讓所有 sockets 離開該 room。
+- `POST /projects/:projectId/boards`：`OWNER`、`EDITOR` 可建立。
+- `DELETE /boards/:boardId`：僅 `OWNER`，優先採 soft delete。
+- primary Board 不可直接刪除；必須先指定另一個 primary Board，或封存整個 Project。
+- Board 被封存或刪除後，向 room 發出 `board:deleted` 或新增明確的 `board:archived` event，並讓 sockets 離開 room。
 
-成功：`204 No Content`。若要維持現有 envelope，則使用 `200 OK` 並回傳 `data: null`，專案內應統一選一種方式。
+## 7. Member 與 Card metadata REST API
 
-## 7. Board member REST API
+### 7.1 Workspace members
 
-Member management 可以在 Card flow 穩定後再實作。
+- `GET /workspaces/:workspaceId/members`：Workspace member 可讀。
+- `POST /workspaces/:workspaceId/members`：僅 Workspace `OWNER`，第一版只加入已註冊使用者。
+- `PATCH /workspaces/:workspaceId/members/:userId`：僅 `OWNER`；不可將最後一位 Workspace `OWNER` 降級。
+- `DELETE /workspaces/:workspaceId/members/:userId`：僅 `OWNER` 或成員自行離開；不可移除最後一位 `OWNER`。
 
-### 7.1 `GET /boards/:boardId/members`
+若使用者被移出 Workspace，Server 必須同步移除其下所有 `ProjectMember` 關係，或拒絕操作直到 Project memberships 已處理完畢；實作時應放在同一個 transaction，避免殘留越權資料。
 
-- `VIEWER` 以上可讀。
-- 回傳 `BoardMemberDto[]`。
+### 7.2 Project members
 
-### 7.2 `POST /boards/:boardId/members`
+- `GET /projects/:projectId/members`：Project member 可讀。
+- `POST /projects/:projectId/members`：僅 Project `OWNER`；目標使用者必須已是 `WorkspaceMember`。
+- `PATCH /projects/:projectId/members/:userId`：僅 `OWNER`；不可將最後一位 Project `OWNER` 降級。
+- `DELETE /projects/:projectId/members/:userId`：`OWNER` 或成員自行離開；不可移除最後一位 `OWNER`。
 
-- 僅 `OWNER`。
-- 第一版只允許加入已註冊使用者。
-
-Request：
+新增 Request：
 
 ```json
 {
@@ -408,28 +630,40 @@ Request：
 }
 ```
 
-成功後可透過使用者專屬 room `user:{userId}` 發出 `board:membership-added`；尚未實作 user room 時，使用者下次取得 Board list 即可看到。
+Project member 被移除或降級後，權限異動立即套用到該 Project 的所有 Boards。Server 必須讓被移除者的 sockets 離開相關 Board rooms，發送 `board:access-revoked`，Client 導回 Project 或 Workspace 頁面。
 
-### 7.3 `PATCH /boards/:boardId/members/:userId`
+### 7.3 `GET /projects/:projectId/card-categories`
 
-- 僅 `OWNER`。
-- 修改 `EDITOR`/`VIEWER` role。
-- 不可將最後一位 `OWNER` 降級。
+Project member 可讀，回傳 `CardCategoryDto[]`。因 snapshot 已包含 categories，此 endpoint 主要供獨立管理頁面或重新整理選項使用。
 
-Request：
+### 7.4 `POST /projects/:projectId/card-categories`
+
+Project `OWNER`、`EDITOR` 可建立。
 
 ```json
 {
-  "role": "VIEWER"
+  "name": "前端",
+  "colorKey": "blue"
 }
 ```
 
-### 7.4 `DELETE /boards/:boardId/members/:userId`
+Category 名稱在同一 Project 內建議做 trim 後的 case-insensitive unique。`colorKey` 只能是前後端共用的允許值，不接受任意色碼。
 
-- `OWNER` 可移除 member。
-- Member 可移除自己，但最後一位 `OWNER` 不可離開。
-- 移除後，Server 必須讓該使用者所有 sockets 離開 Board room。
-- 若使用者仍在 Board 畫面，發送 `board:access-revoked`，Client 導回 Board list。
+### 7.5 `GET /projects/:projectId/card-labels`
+
+Project member 可讀，回傳 `CardLabelDto[]`。
+
+### 7.6 `POST /projects/:projectId/card-labels`
+
+Project `OWNER`、`EDITOR` 可建立。
+
+```json
+{
+  "name": "高優先"
+}
+```
+
+Label 名稱的正規化與唯一性原則同 Category，但 Label 第一版不保存顏色。更新與刪除 endpoints 可在 Card CRUD 穩定後補上；刪除已被使用的 Category/Label 時，第一版建議採封存或拒絕刪除，避免歷史資料突然失去語意。
 
 ## 8. Socket.IO connection authentication
 
@@ -466,7 +700,7 @@ Client 監聽 `connect_error`；收到 `2001` 時清除前端使用者狀態並�
 ### 8.2 Session lifecycle
 
 - Socket 連線成功不代表 Session 永遠有效。
-- 每個敏感 command 至少重新確認 `socket.data.userId` 與 Board membership。
+- 每個敏感 command 至少重新確認 `socket.data.userId` 與該 Board 所屬 Project 的 `ProjectMember`。
 - 若系統支援 Session 主動撤銷，應能 disconnect 該使用者的 sockets。
 - 不記錄 raw Session ID、Cookie、password 或完整敏感 payload。
 
@@ -479,7 +713,7 @@ Client 監聽 `connect_error`；收到 `2001` 時清除前端使用者狀態並�
 | `board:{boardId}` | Board domain events 與 presence      |
 | `user:{userId}`   | 成員異動、權限撤銷等個人通知；可延後 |
 
-Client 只傳 `boardId`。Server 在驗證 UUID 與 membership 後自行組出 room name。
+Client 只傳 `boardId`。Server 在驗證 UUID，並透過 `Board → Project → ProjectMember` 完成授權後，自行組出 room name。
 
 ### 9.2 Role permissions
 
@@ -490,10 +724,10 @@ Client 只傳 `boardId`。Server 在驗證 UUID 與 membership 後自行組出 r
 | 建立/修改/移動 Card   | 是    | 是     | 否     |
 | 建立/修改/移動 Column | 是    | 是     | 否     |
 | 修改 Board metadata   | 是    | 否     | 否     |
-| 管理 members          | 是    | 否     | 否     |
+| 管理 Project members  | 是    | 否     | 否     |
 | 刪除 Board            | 是    | 否     | 否     |
 
-加入 room 時驗證一次不夠。每個 command 都必須再次驗證目前 membership 與 role，因為使用者可能在連線期間被移除或降級。
+加入 room 時驗證一次不夠。每個 command 都必須再次驗證目前 `ProjectMember` 與 role，因為使用者可能在連線期間被移除或降級。
 
 ## 10. Socket.IO 共用契約
 
@@ -682,7 +916,7 @@ type BoardJoinAck =
 Server 流程：
 
 1. 驗證 `boardId` 格式。
-2. 查詢 membership；無法存取時回 `3001`。
+2. 由 Board 找到 Project，再查詢目前使用者的 `ProjectMember`；無法存取時回 `3001`。
 3. 加入 `board:{boardId}`。
 4. 比較 `lastKnownRevision` 與 Server revision。
 5. 相同則回 `UP_TO_DATE`。
@@ -822,6 +1056,8 @@ interface CreateCardCommand extends CommandMeta {
   title: string;
   description?: string;
   dueAt?: string;
+  categoryId?: string | null;
+  labelIds?: string[];
   beforeCardId?: string;
   afterCardId?: string;
 }
@@ -833,6 +1069,8 @@ Rules：
 - `description` 設定合理上限，例如 10,000 字元。
 - `dueAt` 必須是可解析的 ISO 8601 timestamp，Server 轉 UTC 保存。
 - Column 必須屬於 meta 中的 Board。
+- `categoryId` 若有值，必須屬於 Board 所在的 Project。
+- 所有 `labelIds` 必須屬於同一 Project；Server 先去重，再寫入 `CardLabelAssignment`。
 - 未指定位置時放在 Column 最後。
 
 成功 broadcast：
@@ -854,6 +1092,8 @@ interface UpdateCardCommand extends CommandMeta {
     title?: string;
     description?: string | null;
     dueAt?: string | null;
+    categoryId?: string | null;
+    labelIds?: string[];
   };
 }
 ```
@@ -862,6 +1102,8 @@ Rules：
 
 - Patch 至少一個欄位。
 - Card 必須透過 Column 關係屬於指定 Board。
+- `categoryId` 與 `labelIds` 必須屬於 Board 所在的 Project；明確的 `categoryId: null` 代表清除 Category。
+- 有傳 `labelIds` 時視為完整取代目前 Labels，Server 在同一個 transaction 更新 assignments；未傳則維持不變。
 - 使用 `WHERE id = cardId AND version = expectedVersion` 或等價 transaction 檢查。
 - 成功後 `version + 1`。
 
@@ -922,7 +1164,7 @@ Server 設定 `archivedAt`，不 hard delete。成功 broadcast `card:archived`�
 收到 command
   → runtime validation
   → 取得 socket.data.userId
-  → 驗證 Board membership 與 role
+  → Board 找到 Project，驗證 ProjectMember 與 role
   → 檢查 commandId 是否已處理
   → 檢查 resource 是否屬於 Board
   → transaction：version check + mutation + revision + receipt/event
@@ -931,7 +1173,7 @@ Server 設定 `archivedAt`，不 hard delete。成功 broadcast `card:archived`�
   → ack sender
 ```
 
-Gateway 只負責傳輸層：validation、取得 socket context、呼叫 application service、broadcast/ack。Transaction、membership policy、idempotency 與 domain rules 不要寫在 Gateway callback 裡。
+Gateway 只負責傳輸層：validation、取得 socket context、呼叫 application service、broadcast/ack。Transaction、ProjectMember policy、idempotency 與 domain rules 不要寫在 Gateway callback 裡。
 
 建議 backend 結構：
 
@@ -1157,8 +1399,8 @@ TypeScript interface 不會在 runtime 保護 Server。Socket payload 必須使�
 
 - 不信任 client 傳來的 user identity。
 - 不只驗證 Board ID，還要驗證 Card → Column → Board 關係。
-- Join room 與每個 command 都檢查 membership。
-- Membership 被移除後立即 leave room。
+- Join room 與每個 command 都透過 `Board → Project → ProjectMember` 檢查權限。
+- ProjectMember 被移除後，立即離開該 Project 的所有 Board rooms。
 - Error response 不回傳其他 Board 的 entity data。
 
 ### 21.3 Cookie 與 origin
@@ -1236,7 +1478,7 @@ board:leave
 
 ### 24.1 Unit tests
 
-- Board policy role matrix。
+- Workspace／Project policy role matrix。
 - Position 計算與 rebalance。
 - Payload validation。
 - Version conflict。
@@ -1248,14 +1490,14 @@ board:leave
 
 使用真實 PostgreSQL、Redis 與兩個 Socket.IO clients：
 
-1. 非 member 無法 join。
+1. 非 Project member 無法 join。
 2. Viewer 可 join 但無法建立 Card。
 3. Editor 建立 Card，兩個 clients 都收到同一 `card:created`。
 4. Sender 收到成功 ack。
 5. Retry 相同 command ID 不建立第二張 Card。
 6. 兩個 clients 使用相同 Card version 修改，只有一個成功。
 7. 移動 Card 後 snapshot 與 event 結果一致。
-8. Member 被移除後無法再收到 Board events。
+8. Project member 被移除後無法再收到該 Project 的 Board events。
 
 ### 24.3 Playwright multi-user tests
 
@@ -1268,24 +1510,25 @@ board:leave
 
 ## 25. 實作階段
 
-### Phase 1：Board read model
+### Phase 1：Workspace、Project 與 Board read model
 
-- Prisma：Board、BoardMember、BoardColumn、Card。
-- `POST /boards`。
-- `GET /boards`。
+- Prisma：Workspace、WorkspaceMember、Project、ProjectMember、Board、BoardColumn、CardCategory、CardLabel、Card、CardLabelAssignment。
+- `POST /workspaces`、`GET /workspaces`。
+- `POST /workspaces/:workspaceId/projects`、`GET /workspaces/:workspaceId/projects`。
+- `GET /projects/:projectId`。
 - `GET /boards/:boardId` snapshot。
-- Frontend 使用 snapshot render Board。
+- Frontend 使用 Workspace/Project 清單導頁，再以 snapshot render Board。
 
-驗收：登入使用者可建立 Board，重新整理後仍看見相同 Columns/Cards。
+驗收：登入使用者可建立 Workspace 與 Project；Project 自動包含 primary Board、四個預設 Columns，重新整理後資料仍一致。
 
 ### Phase 2：Socket Session 與 room
 
 - Handshake Cookie authentication。
 - `socket.data.userId`。
 - `board:join`、`board:leave`。
-- Membership authorization。
+- 透過 ProjectMember authorization。
 
-驗收：非 member 無法 join；Client payload 偽造 user ID 沒有作用。
+驗收：非 Project member 無法 join；Client payload 偽造 user ID 沒有作用。
 
 ### Phase 3：基本 Card commands
 
@@ -1333,7 +1576,7 @@ board:leave
 
 ### Phase 8：Members 與 presence
 
-- Member endpoints。
+- WorkspaceMember／ProjectMember endpoints。
 - Access revoked。
 - Presence socket count。
 
@@ -1343,20 +1586,24 @@ board:leave
 
 以下不阻塞 Phase 1，但進入對應功能前需要決定：
 
-1. Board 是否允許多位 Owner。
-2. 新增 member 是直接加入，還是需要 invitation acceptance。
-3. Column 是否允許刪除；含 Cards 時如何處理。
-4. Card archive 是否提供復原與 archive list。
-5. Version conflict UI 是直接採 Server 版本，還是提供草稿比較。
-6. Presence 是否只顯示 online，還是需要「正在編輯」狀態。
-7. BoardEvent 保存時間與每次 replay 上限。
+1. 新增 Workspace／Project member 是直接加入，還是需要 invitation acceptance。
+2. Workspace `OWNER` 是否自動看見所有 Projects；目前規格採「仍須有 ProjectMember」的最小權限模型。
+3. Project 是否允許多位 `OWNER`；不論結果為何，都不可移除或降級最後一位 Owner。
+4. Column 是否允許刪除；含 Cards 時如何處理。
+5. 使用中的 Category／Label 是禁止刪除、封存，還是從 Cards 解除關聯。
+6. Card archive 是否提供復原與 archive list。
+7. Version conflict UI 是直接採 Server 版本，還是提供草稿比較。
+8. Presence 是否只顯示 online，還是需要「正在編輯」狀態。
+9. BoardEvent 保存時間與每次 replay 上限。
 
 ## 27. 第一個建議 vertical slice
 
 不要先一次建立所有 events。最適合的第一條完整切片是：
 
 ```text
-GET Board snapshot
+POST Workspace
+  → POST Project（同 transaction 建立 primary Board 與四個 Columns）
+  → GET Board snapshot
   → board:join
   → card:create
   → PostgreSQL 寫入

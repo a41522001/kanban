@@ -2,6 +2,10 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
+enum WorkspaceRole {
+  OWNER
+  MEMBER
+}
 
 generator client {
   provider     = "prisma-client"
@@ -22,5 +26,38 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  createdWorkspaces    Workspace[]       @relation("WorkspaceCreatedBy")
+  workspaceMemberships WorkspaceMember[]
+
   @@map("users")
+}
+
+model Workspace {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  archivedAt  DateTime? @map("archived_at")
+
+  createdBy User              @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  members   WorkspaceMember[]
+
+  @@index([createdById])
+  @@index([archivedAt])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole @default(MEMBER)
+  joinedAt    DateTime      @default(now()) @map("joined_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
 }

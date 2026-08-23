@@ -65,7 +65,7 @@ type SocketAck<T> =
 ## 5. Room 與權限
 
 - Board room 命名統一，例如 board:{boardId}。
-- joinBoard 前重新確認使用者是 BoardMember。
+- joinBoard 前由 Board 找到 Project，再確認使用者具有有效的 ProjectMember。
 - 每一個 mutation event 都再次確認資源權限，不能只依賴已加入 room。
 - 離開 Board 頁面時主動 leave room，disconnect 時由 Socket.IO 自動清除連線 room。
 - 成功寫入 DB 並 commit 後，才向 room broadcast domain event。
@@ -114,8 +114,8 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 ### Room 與權限
 
-- Board member 可加入 room。
-- 非成員無法加入 room。
+- Project member 可加入其 Project 下的 Board room。
+- 非 Project member 無法加入 room。
 - Viewer 無法修改卡片。
 - 已被移除的成員，即使仍在 room，也無法執行下一個 mutation。
 
@@ -141,4 +141,3 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 - [ ] 統一 Socket error code。
 - [ ] 建立 reconnect recovery 流程。
 - [ ] connection、permission、event、reconnect 測試通過。
-

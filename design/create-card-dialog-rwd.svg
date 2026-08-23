@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="980" viewBox="0 0 560 980">
+  <defs>
+    <filter id="sheet-shadow" x="-15%" y="-10%" width="130%" height="125%"><feDropShadow dx="0" dy="-8" stdDeviation="18" flood-color="#111827" flood-opacity=".22"/></filter>
+    <clipPath id="phone-frame"><rect x="84" y="80" width="390" height="844" rx="24"/></clipPath>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}
+      .spec{font-size:14px;font-weight:700;letter-spacing:.1em;fill:#697287}
+      .title{font-size:20px;font-weight:700}
+      .section{font-size:14px;font-weight:700}
+      .body{font-size:16px}
+      .small{font-size:12px;fill:#697287}
+      .tiny{font-size:11px;fill:#697287}
+      .button{font-size:14px;font-weight:700;fill:#FFF9F4}
+      .button-secondary{font-size:14px;font-weight:700;fill:#29324A}
+      .chip{font-size:11px;font-weight:700}
+    </style>
+    <g id="close-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m5 5 14 14M19 5 5 19"/></g>
+    <g id="check-icon" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 8-9"/></g>
+    <g id="chevron-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"/></g>
+    <g id="plus-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></g>
+  </defs>
+
+  <!-- Mobile uses a bottom sheet so the board remains a stable spatial context. -->
+  <rect width="560" height="980" fill="#E9ECF1"/>
+  <text x="84" y="48" class="spec">MOBILE / CREATE CARD SHEET / 390 × 844</text>
+  <g id="mobile-create-card" clip-path="url(#phone-frame)">
+    <rect x="84" y="80" width="390" height="844" rx="24" fill="#E9ECF1"/>
+    <rect x="84" y="80" width="390" height="56" fill="#29324A"/>
+    <text x="108" y="114" fill="#F7F8FA" font-size="18" font-weight="700">Flowboard</text>
+    <text x="108" y="172" class="tiny">Flowboard 即時協作　/　主要看板</text>
+    <text x="108" y="204" class="title">產品開發看板</text>
+    <g transform="translate(108 236)">
+      <rect width="288" height="472" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+      <rect x="16" y="16" width="4" height="28" rx="2" fill="#DF6E51"/>
+      <text x="32" y="36" class="section">準備開始</text>
+      <rect x="12" y="64" width="264" height="108" rx="10" fill="#FFF"/>
+      <text x="28" y="108" class="body" font-size="14" font-weight="700">規劃工作區首頁資訊架構</text>
+      <text x="28" y="136" class="small">UX · Frontend</text>
+      <text x="20" y="212" class="body" font-size="14" fill="#697287">＋ 新增卡片</text>
+    </g>
+    <rect x="84" y="80" width="390" height="844" fill="#29324A" opacity=".64"/>
+
+    <g id="create-card-bottom-sheet" filter="url(#sheet-shadow)">
+      <rect x="84" y="214" width="390" height="710" rx="20" fill="#FFFFFF"/>
+      <rect x="244" y="226" width="70" height="4" rx="2" fill="#C4CBD7"/>
+      <text x="108" y="270" class="title">新增卡片</text>
+      <g transform="translate(406 242)" color="#697287"><rect width="44" height="44" rx="10" fill="#F7F8FA"/><use href="#close-icon" transform="translate(10 10)"/></g>
+
+      <g id="mobile-target" transform="translate(108 294)">
+        <rect width="342" height="44" rx="10" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="12" y="8" width="4" height="28" rx="2" fill="#DF6E51"/>
+        <text x="28" y="27" class="small">新增至　</text><text x="76" y="27" class="section">準備開始</text>
+      </g>
+
+      <g id="mobile-title-field" transform="translate(108 362)">
+        <text class="section">卡片標題</text><text x="70" class="section" fill="#C4573E">＊</text>
+        <rect y="16" width="342" height="52" rx="10" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/>
+        <text x="16" y="49" class="body">建立使用者註冊 API</text>
+      </g>
+
+      <g id="mobile-category-field" transform="translate(108 454)">
+        <text class="section">類別</text><text x="42" class="small">選填</text>
+        <rect y="16" width="342" height="52" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+        <rect x="16" y="30" width="40" height="24" rx="12" fill="#E3F1EC"/>
+        <text x="36" y="46" text-anchor="middle" class="chip" fill="#31665D">後端</text>
+        <text x="72" y="49" class="body">後端</text>
+        <g transform="translate(302 34)" color="#697287"><use href="#chevron-icon"/></g>
+      </g>
+
+      <g id="mobile-color-picker" transform="translate(108 542)">
+        <text class="section">類別色彩</text><text x="84" class="small">共 14 色</text>
+        <!-- Six per row keeps every tap target at 44px with at least 8px spacing. -->
+        <g transform="translate(0 16)">
+          <g><rect width="44" height="44" rx="10" fill="#FCE5DF"/><circle cx="22" cy="22" r="13" fill="#9F3F2C"/></g>
+          <g transform="translate(60 0)"><rect width="44" height="44" rx="10" fill="#FDE7EE"/><circle cx="22" cy="22" r="13" fill="#92324E"/></g>
+          <g transform="translate(120 0)"><rect width="44" height="44" rx="10" fill="#FFEAD6"/><circle cx="22" cy="22" r="13" fill="#934510"/></g>
+          <g transform="translate(180 0)"><rect width="44" height="44" rx="10" fill="#FFF1D8"/><circle cx="22" cy="22" r="13" fill="#7A4D00"/></g>
+          <g transform="translate(240 0)"><rect width="44" height="44" rx="10" fill="#EDF7DB"/><circle cx="22" cy="22" r="13" fill="#496D17"/></g>
+          <g transform="translate(300 0)"><rect width="44" height="44" rx="10" fill="#FFFFFF" stroke="#29324A" stroke-width="2"/><circle cx="22" cy="22" r="13" fill="#E3F1EC" stroke="#31665D" stroke-width="2"/><g transform="translate(12 12)" color="#31665D"><use href="#check-icon"/></g></g>
+          <g transform="translate(0 56)"><rect width="44" height="44" rx="10" fill="#DEF3F1"/><circle cx="22" cy="22" r="13" fill="#1F6868"/></g>
+          <g transform="translate(60 56)"><rect width="44" height="44" rx="10" fill="#E0F3F9"/><circle cx="22" cy="22" r="13" fill="#216A85"/></g>
+          <g transform="translate(120 56)"><rect width="44" height="44" rx="10" fill="#E4EEFB"/><circle cx="22" cy="22" r="13" fill="#315B8F"/></g>
+          <g transform="translate(180 56)"><rect width="44" height="44" rx="10" fill="#E9EAFF"/><circle cx="22" cy="22" r="13" fill="#45488E"/></g>
+          <g transform="translate(240 56)"><rect width="44" height="44" rx="10" fill="#E9E6F7"/><circle cx="22" cy="22" r="13" fill="#55438F"/></g>
+          <g transform="translate(300 56)"><rect width="44" height="44" rx="10" fill="#F1E6FA"/><circle cx="22" cy="22" r="13" fill="#633C95"/></g>
+          <g transform="translate(0 112)"><rect width="44" height="44" rx="10" fill="#FBE6F1"/><circle cx="22" cy="22" r="13" fill="#923565"/></g>
+          <g transform="translate(60 112)"><rect width="44" height="44" rx="10" fill="#E8EBF0"/><circle cx="22" cy="22" r="13" fill="#465066"/></g>
+        </g>
+      </g>
+
+      <g id="mobile-labels-field" transform="translate(108 738)">
+        <text class="section">標籤</text><text x="42" class="small">選填</text>
+        <rect y="16" width="342" height="52" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+        <rect x="12" y="28" width="48" height="28" rx="14" fill="#EEF0F4"/>
+        <text x="36" y="47" text-anchor="middle" class="chip">Auth</text>
+        <rect x="68" y="28" width="68" height="28" rx="14" fill="#EEF0F4"/>
+        <text x="102" y="47" text-anchor="middle" class="chip">Backend</text>
+        <text x="152" y="48" class="small">輸入後按 Enter 新增</text>
+      </g>
+
+      <line x1="84" y1="836" x2="474" y2="836" stroke="#D7DCE5"/>
+      <g id="mobile-footer" transform="translate(108 852)">
+        <rect width="152" height="48" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+        <text x="76" y="30" text-anchor="middle" class="button-secondary">取消</text>
+        <g transform="translate(164 0)">
+          <rect width="178" height="48" rx="10" fill="#B94B36"/>
+          <g transform="translate(32 16)" color="#FFF9F4"><use href="#plus-icon"/></g>
+          <text x="106" y="30" text-anchor="middle" class="button">建立卡片</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

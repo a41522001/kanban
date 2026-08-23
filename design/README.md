@@ -9,6 +9,8 @@
 - `board-overview.svg`：目前版 Board 桌機設計，包含 Workspace／Project／Board 路徑、四個預設欄位、拖曳把手與新增欄位入口。
 - `board-overview-rwd.svg`：目前版 Board 的 Tablet 768 × 1024 與 Mobile 390 × 844 版型。
 - `board-drag-states.svg`：卡片拖曳、Drop target、soft lock、手機長按及「移動至…」替代操作的元件狀態稿。
+- `create-card-dialog.svg`：桌機版新增卡片 Dialog，包含目標欄位、標題、類別、14 色票、標籤與操作列。
+- `create-card-dialog-rwd.svg`：Mobile 390 × 844 的新增卡片 bottom sheet；所有色票與操作按鈕皆保留觸控尺寸。
 
 ## 視覺規則
 

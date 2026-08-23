@@ -1,5 +1,5 @@
 <template>
-  <main class="min-h-full h-full">
+  <main class="min-h-full h-full bg-board-page">
     <header class="bg-content-primary px-7 py-4">
       <div class="flex justify-between">
         <Logo class="text-content-on-dark" />
@@ -11,17 +11,26 @@
       <section
         v-for="column in boardColumns"
         :key="column.id"
-        class="w-72 shrink-0 bg-auth-page border-border-strong border rounded-xl p-4"
+        class="w-72 shrink-0 bg-auth-page border-border-strong border rounded-xl p-4 pb-20"
       >
         <div class="flex gap-3 mb-3">
           <span class="w-2 h-6 rounded-2xl" :class="columnAccentClass[column.colorKey]"></span>
           <span class="text-content-primary font-bold">{{ column.title }}</span>
         </div>
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3 mb-3">
           <BoardCard v-for="card in column.cards" :key="card.id" :card="card" />
         </div>
+        <Btn
+          class="px-0 flex gap-3 bg-auth-page hover:bg-auth-page text-content-primary hover:text-content-secondary"
+          @click="dialog = true"
+        >
+          <Plus :size="16" />
+          <span>新增卡片</span>
+        </Btn>
       </section>
     </div>
+    <!-- 新增卡片Dialog -->
+    <DialogAddCard v-model="dialog" />
   </main>
 </template>
 
@@ -29,9 +38,12 @@
 import Avatar from '@/components/common/Avatar.vue';
 import Logo from '@/components/common/Logo.vue';
 import BoardCard from '@/components/board/BoardCard.vue';
+import DialogAddCard from '@/components/board/DialogAddCard.vue';
+import Btn from '@/components/common/Btn.vue';
 import type { BoardColumnData } from '@/types/board';
 import { ref } from 'vue';
-
+import { Plus } from 'lucide-vue-next';
+const dialog = ref<boolean>(false);
 const columnAccentClass = {
   ready: 'bg-flow-ready',
   active: 'bg-flow-active',
