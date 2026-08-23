@@ -7,9 +7,26 @@ on:
   workflow_dispatch:
 
 jobs:
-  test: 
+  test-backend: 
     runs-on: ubuntu-latest
 
     steps: 
       - name: test
         run: echo "hello world"
+
+      - name: 抓取程式碼
+        uses: actions/checkout@v6
+
+      - name: 安裝Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 安裝pnpm
+        run: npm i -g pnpm
+
+      - name: 執行測試
+        run: pnpm run test:backend
