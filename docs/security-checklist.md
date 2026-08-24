@@ -39,11 +39,11 @@
 ## 5. Authorization 與資源隔離
 
 - [ ] 每次資源操作都從 Session 取得 userId。
-- [ ] 查詢 Board、Card 等資源時同時驗證 membership，避免 BOLA/IDOR。
+- [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
-- [ ] Viewer、Editor、Owner 的權限集中定義並有測試。
+- [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
 - [ ] 修改、刪除與邀請成員等敏感操作有 audit log。
-- [ ] 被移除成員的既有 Socket 連線不能繼續修改資料。
+- [ ] 被移除的 ProjectMember 必須離開該 Project 的所有 Board rooms，既有 Socket 不能繼續修改資料。
 
 ## 6. API 與錯誤處理
 
@@ -114,4 +114,3 @@
 - Database 或 Redis 直接暴露公網。
 - 無可驗證的 PostgreSQL backup 與 restore 流程。
 - Exception response 可能洩漏 stack trace 或資料庫細節。
-

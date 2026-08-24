@@ -49,7 +49,7 @@
 ### 03 Board room 與 authorization
 
 - 每個 board 對應 room。
-- Join 前檢查 board membership。
+- Join 前透過 `Board → Project → ProjectMember` 檢查權限；不建立 BoardMember。
 - Event 中的 board/card 資源重新驗證權限。
 - Disconnect 後 presence 正確更新。
 

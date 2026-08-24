@@ -8,6 +8,8 @@ import { SocketModule } from './socket/socket.module';
 import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from 'nestjs-pino';
 import type { Env } from './config/env';
+import { WorkspaceModule } from './workspace/workspace.module';
+import { UserModule } from './user/user.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -56,6 +58,8 @@ import type { Env } from './config/env';
     SessionModule,
     SocketModule,
     AuthModule,
+    WorkspaceModule,
+    UserModule,
   ],
   controllers: [],
   providers: [],

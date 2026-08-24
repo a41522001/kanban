@@ -35,6 +35,36 @@
   --color-flow-done: #907ece;
   --color-flow-done-soft: #e9e6f7;
 
+  /* Card category color pairs */
+  --color-category-coral: #9f3f2c;
+  --color-category-coral-soft: #fce5df;
+  --color-category-rose: #92324e;
+  --color-category-rose-soft: #fde7ee;
+  --color-category-orange: #934510;
+  --color-category-orange-soft: #ffead6;
+  --color-category-mint: #31665d;
+  --color-category-mint-soft: #e3f1ec;
+  --color-category-amber: #7a4d00;
+  --color-category-amber-soft: #fff1d8;
+  --color-category-lime: #496d17;
+  --color-category-lime-soft: #edf7db;
+  --color-category-teal: #1f6868;
+  --color-category-teal-soft: #def3f1;
+  --color-category-cyan: #216a85;
+  --color-category-cyan-soft: #e0f3f9;
+  --color-category-lavender: #55438f;
+  --color-category-lavender-soft: #e9e6f7;
+  --color-category-indigo: #45488e;
+  --color-category-indigo-soft: #e9eaff;
+  --color-category-violet: #633c95;
+  --color-category-violet-soft: #f1e6fa;
+  --color-category-pink: #923565;
+  --color-category-pink-soft: #fbe6f1;
+  --color-category-blue: #315b8f;
+  --color-category-blue-soft: #e4eefb;
+  --color-category-slate: #465066;
+  --color-category-slate-soft: #e8ebf0;
+
   /* Shape, depth, and type */
   --radius-control: 0.5625rem;
   --radius-surface: 0.75rem;

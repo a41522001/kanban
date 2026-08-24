@@ -2,14 +2,11 @@ import {
   Body,
   ConflictException,
   Controller,
-  Get,
   HttpCode,
   HttpStatus,
   Post,
   Req,
   Res,
-  UnauthorizedException,
-  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -23,12 +20,10 @@ import {
 } from '@nestjs/swagger';
 import type { Response, Request } from 'express';
 import type { Env } from '@/config/env';
-import type { PublicUser } from '@kanban/contracts/auth';
 import { clearCookie, getCookieOptions } from '@/common/utils/cookie';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
-import { SessionGuard } from '@/session/session.guard';
 import { ApiResult } from '@kanban/contracts/api';
 import { AppException } from '@/common/exceptions/app.exception';
 
@@ -131,63 +126,6 @@ export class AuthController {
     return {
       message: '登入成功',
     };
-  }
-
-  /** 取得UserInfo */
-  @ApiOperation({ summary: '取得目前登入的使用者資訊' })
-  @ApiCookieAuth()
-  @ApiOkResponse({
-    description: '目前登入的使用者資訊',
-    schema: {
-      type: 'object',
-      properties: {
-        code: { type: 'number', example: 1 },
-        data: {
-          type: 'object',
-          properties: {
-            email: {
-              type: 'string',
-              format: 'email',
-              example: 'jeffery@example.com',
-            },
-            displayName: { type: 'string', example: 'Jeffery' },
-            avatarUrl: {
-              type: 'string',
-              format: 'uri',
-              nullable: true,
-              example: null,
-            },
-          },
-          required: ['email', 'displayName', 'avatarUrl'],
-        },
-        message: { type: 'string', example: '請求成功' },
-        time: { type: 'string', format: 'date-time' },
-        error: {
-          type: 'object',
-          nullable: true,
-          example: null,
-          additionalProperties: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-        },
-      },
-      required: ['code', 'data', 'message', 'time', 'error'],
-    },
-  })
-  @ApiUnauthorizedResponse({ description: 'Session 不存在或已失效' })
-  @Get('userInfo')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(SessionGuard)
-  async userInfo(@Req() req: Request): Promise<ApiResult<PublicUser>> {
-    if (!req.userId) {
-      throw new UnauthorizedException();
-    }
-    const user = await this.authService.getUserInfo(req.userId);
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    return { data: user };
   }
 
   /** 登出 */
