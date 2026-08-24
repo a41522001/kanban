@@ -8,9 +8,3 @@ export interface LoginRequest {
   email: string;
   password: string;
 }
-
-export interface PublicUser {
-  email: string;
-  displayName: string;
-  avatarUrl: string | null;
-}

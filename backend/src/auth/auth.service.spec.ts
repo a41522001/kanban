@@ -1,13 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
-import { AuthRepository } from './auth.repository';
 import { SessionService } from '@/session/session.service';
 import bcrypt from 'bcrypt';
+import { UserService } from '@/user/user.service';
 describe('AuthService', () => {
   let authService: AuthService;
+  let userService: UserService;
   let sessionService: SessionService;
-  let repository: jest.Mocked<AuthRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -27,21 +27,19 @@ describe('AuthService', () => {
           },
         },
         {
-          provide: AuthRepository,
+          provide: UserService,
           useValue: {
-            create: jest.fn(),
+            createUser: jest.fn(),
             getByEmail: jest.fn(),
             getById: jest.fn(),
-            updateUserName: jest.fn(),
-            updateAvatar: jest.fn(),
           },
         },
       ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
+    userService = module.get<UserService>(UserService);
     sessionService = module.get<SessionService>(SessionService);
-    repository = module.get(AuthRepository);
   });
   /** 註冊 */
   describe('signup', () => {
@@ -53,10 +51,10 @@ describe('AuthService', () => {
 
     it('註冊成功', async () => {
       const getByEmailSpy = jest
-        .spyOn(repository, 'getByEmail')
+        .spyOn(userService, 'getByEmail')
         .mockResolvedValue(null);
       const createSpy = jest
-        .spyOn(repository, 'create')
+        .spyOn(userService, 'createUser')
         .mockResolvedValue(undefined);
 
       const result = await authService.signup(req);
@@ -75,7 +73,7 @@ describe('AuthService', () => {
 
     it('註冊失敗, 使用者已存在', async () => {
       const getByEmailSpy = jest
-        .spyOn(repository, 'getByEmail')
+        .spyOn(userService, 'getByEmail')
         .mockResolvedValue({
           id: '1',
           displayName: req.name,
@@ -85,7 +83,7 @@ describe('AuthService', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-      const createSpy = jest.spyOn(repository, 'create');
+      const createSpy = jest.spyOn(userService, 'createUser');
       const result = await authService.signup(req);
       expect(result).toBe(false);
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
@@ -101,7 +99,7 @@ describe('AuthService', () => {
     };
     it('查不到User', async () => {
       const getByEmailSpy = jest
-        .spyOn(repository, 'getByEmail')
+        .spyOn(userService, 'getByEmail')
         .mockResolvedValue(null);
       const saveSpy = jest.spyOn(sessionService, 'save');
       const result = await authService.login(req);
@@ -114,7 +112,7 @@ describe('AuthService', () => {
     it('密碼錯誤', async () => {
       const wrongPasswordHash = await bcrypt.hash('another-password', 4);
       const getByEmailSpy = jest
-        .spyOn(repository, 'getByEmail')
+        .spyOn(userService, 'getByEmail')
         .mockResolvedValue({
           id: '1',
           displayName: 'test',
@@ -137,7 +135,7 @@ describe('AuthService', () => {
       const sessionId = 'session-id';
       const userId = '1';
       const getByEmailSpy = jest
-        .spyOn(repository, 'getByEmail')
+        .spyOn(userService, 'getByEmail')
         .mockResolvedValue({
           id: userId,
           displayName: 'test',
@@ -158,38 +156,7 @@ describe('AuthService', () => {
       expect(result).toBe(sessionId);
     });
   });
-  /** 取得UserInfo */
-  describe('userInfo', () => {
-    it('取得成功', async () => {
-      const mockUser = {
-        id: '1',
-        displayName: 'test',
-        email: 'test@test.com',
-      };
-      const user = {
-        ...mockUser,
-        passwordHash: 'passwordHash',
-        avatarUrl: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const getById = jest.spyOn(repository, 'getById').mockResolvedValue(user);
-      const result = await authService.getUserInfo(mockUser.id);
-      expect(result!.email).toBe(mockUser.email);
-      expect(result!.displayName).toBe(mockUser.displayName);
-      expect(getById).toHaveBeenCalledTimes(1);
-      expect(getById).toHaveBeenCalledWith(mockUser.id);
-    });
 
-    it('取得失敗', async () => {
-      const userId = '';
-      const getById = jest.spyOn(repository, 'getById').mockResolvedValue(null);
-      const result = await authService.getUserInfo(userId);
-      expect(result).toBeNull();
-      expect(getById).toHaveBeenCalledTimes(1);
-      expect(getById).toHaveBeenCalledWith(userId);
-    });
-  });
   /** 登出 */
   describe('logout', () => {
     it('登出', async () => {

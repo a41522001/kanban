@@ -1,10 +1,10 @@
 import type { User } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
-import type { CreateUserData } from './auth.type';
+import type { CreateUserData } from './user.type';
 
 @Injectable()
-export class AuthRepository {
+export class UserRepository {
   constructor(private readonly prismaService: PrismaService) {}
   /** 新增 */
   async create(data: CreateUserData): Promise<void> {

@@ -9,6 +9,9 @@
     "./auth": {
       "types": "./auth.ts"
     },
+    "./user": {
+      "types": "./user.ts"
+    },
     "./socket": {
       "types": "./socket.ts"
     }
