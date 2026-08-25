@@ -8,7 +8,7 @@ import { SocketModule } from './socket/socket.module';
 import { AuthModule } from './auth/auth.module';
 import { LoggerModule } from 'nestjs-pino';
 import type { Env } from './config/env';
-import { WorkspaceModule } from './workspace/workspace.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
 import { UserModule } from './user/user.module';
 @Module({
   imports: [
@@ -58,7 +58,7 @@ import { UserModule } from './user/user.module';
     SessionModule,
     SocketModule,
     AuthModule,
-    WorkspaceModule,
+    WorkspacesModule,
     UserModule,
   ],
   controllers: [],

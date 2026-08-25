@@ -14,6 +14,9 @@
     },
     "./socket": {
       "types": "./socket.ts"
+    },
+    "./workspaces": {
+      "types": "./workspaces.ts"
     }
   }
 }
