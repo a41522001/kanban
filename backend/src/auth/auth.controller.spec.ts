@@ -2,10 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-
+import type { Response } from 'express';
 describe('authController', () => {
   let authService: AuthService;
   let controller: AuthController;
+  const createResponse = (data: any): Response => {
+    return { ...data } as Response;
+  };
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -44,7 +47,7 @@ describe('authController', () => {
       const spy = jest.spyOn(authService, 'signup').mockResolvedValue(true);
       const result = await controller.signup(req);
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(req);
+      expect(spy).toHaveBeenCalledWith();
       expect(result).toEqual(res);
     });
     it('註冊失敗', async () => {
@@ -52,6 +55,23 @@ describe('authController', () => {
       await expect(controller.signup(req)).rejects.toThrow('Email 已被註冊');
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith(req);
+    });
+  });
+
+  /** 登入 */
+  describe('login', () => {
+    const req = {
+      email: 'test@test.com',
+      password: 'testtest',
+    };
+    it('登入成功', async () => {
+      const sessionId = 'testsessionId';
+      const res = createResponse({});
+      const spy = jest.spyOn(authService, 'login').mockResolvedValue(sessionId);
+      const result = await controller.login(req, res);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(req);
+      expect(result).toEqual({ message: '登入成功' });
     });
   });
 });

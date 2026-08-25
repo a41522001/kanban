@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="84 80 390 844">
+<defs><style>text{font-family:'Noto Sans TC',Arial,sans-serif;fill:#29324A}.spec{font-size:12px;font-weight:700;fill:#697287;letter-spacing:.8px}.tiny{font-size:12px;fill:#697287}.small{font-size:14px;fill:#697287}.body{font-size:16px}.label{font-size:14px;font-weight:700}.title{font-size:24px;font-weight:700}.inverse{fill:#F7F8FA}</style></defs>
+<g id="mobile-card-detail-current">
+    <rect x="84" y="80" width="390" height="844" rx="24" fill="#E9ECF1"/>
+    <rect x="84" y="80" width="390" height="56" fill="#29324A"/>
+    <g id="mobile-header" transform="translate(104 96)"><text y="18" class="title inverse">←</text><text x="48" y="18" class="label inverse">卡片詳情</text><circle cx="350" cy="12" r="16" fill="#A9D2C8"/><text x="350" y="17" text-anchor="middle" class="tiny" font-weight="700">J</text></g>
+    <g id="scrolling-content" transform="translate(108 164)">
+      <text class="tiny">Flowboard 即時協作　/　主要看板　/　正在進行</text>
+      <rect y="32" width="64" height="24" rx="12" fill="#E3F1EC"/><text x="32" y="49" text-anchor="middle" class="tiny" style="fill:#31665D">後端</text>
+      <text y="96" class="title">Session Cookie</text><text y="126" class="title">驗證流程</text><text y="156" class="small">位於「正在進行」 · 建立於今天</text>
+      <line y1="184" x2="342" y2="184" stroke="#D7DCE5"/>
+      <g id="description" transform="translate(0 216)"><text class="label">描述</text><text y="30" class="body">Cookie 保存隨機 session id；</text><text y="56" class="body">Redis 保存雜湊後的 session key。</text></g>
+      <g id="checklist" transform="translate(0 312)"><text class="label">Checklist</text>
+        <g transform="translate(0 28)"><rect width="24" height="24" rx="6" fill="#E3F1EC"/><text x="12" y="18" text-anchor="middle" class="tiny" style="fill:#31665D">✓</text><text x="40" y="18" class="body">Session repository 完成</text></g>
+        <g transform="translate(0 68)"><rect width="24" height="24" rx="6" fill="#E3F1EC"/><text x="12" y="18" text-anchor="middle" class="tiny" style="fill:#31665D">✓</text><text x="40" y="18" class="body">Cookie 設定完成</text></g>
+        <g transform="translate(0 108)"><rect width="24" height="24" rx="6" fill="#FFF" stroke="#CDD3DE"/><text x="40" y="18" class="body">Socket handshake 驗證</text></g>
+      </g>
+      <g id="activity" transform="translate(0 476)"><text class="label">活動紀錄</text><text y="30" class="small">Mia 完成 Cookie 設定 · 12 分鐘前</text></g>
+    </g>
+    <g id="bottom-action"><rect x="84" y="844" width="390" height="80" rx="20" fill="#FFF"/><line x1="84" y1="844" x2="474" y2="844" stroke="#D7DCE5"/><rect x="100" y="860" width="358" height="48" rx="10" fill="#29324A"/><text x="279" y="890" text-anchor="middle" class="label inverse">↔　移動卡片</text></g>
+  </g>
+</svg>

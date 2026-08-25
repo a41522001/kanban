@@ -1,50 +1,59 @@
-# Flowboard 視覺稿（v2）
+# Flowboard SVG design source
 
-## 檔案
+SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為原生 Figma Frame、Auto Layout、Component、Variant、Variables 與 Styles，不能把 SVG 匯入後當成完成品。
 
-- `kanban-trello-ui.svg`：包含 Login、Signup、Kanban Board、Card Detail 四個 1440 × 900 畫面。
-- `kanban-trello-rwd.svg`：包含 Mobile Login、Mobile Signup、Tablet Board、Mobile Board、Mobile Card Detail。
-- `workspace-overview.svg`：工作區總覽桌機版，包含工作區切換、最近開啟、所有專案與成員概況。
-- `workspace-overview-rwd.svg`：工作區總覽的 Tablet 768 × 1024 與 Mobile 390 × 844 版型。
-- `board-overview.svg`：目前版 Board 桌機設計，包含 Workspace／Project／Board 路徑、四個預設欄位、拖曳把手與新增欄位入口。
-- `board-overview-rwd.svg`：目前版 Board 的 Tablet 768 × 1024 與 Mobile 390 × 844 版型。
-- `board-drag-states.svg`：卡片拖曳、Drop target、soft lock、手機長按及「移動至…」替代操作的元件狀態稿。
-- `create-card-dialog.svg`：桌機版新增卡片 Dialog，包含目標欄位、標題、類別、14 色票、標籤與操作列。
-- `create-card-dialog-rwd.svg`：Mobile 390 × 844 的新增卡片 bottom sheet；所有色票與操作按鈕皆保留觸控尺寸。
+## Source of truth
 
-## 視覺規則
+| Area | Desktop | Tablet | Mobile | Status |
+| --- | --- | --- | --- | --- |
+| Login | `auth-login.svg` | — | `auth-login-mobile.svg` | Current |
+| Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
+| Workspace | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
+| Board | `board-overview.svg` | `board-overview-tablet.svg` | `board-overview-mobile.svg` | Current |
+| Create card | `create-card-dialog.svg` | — | `create-card-dialog-mobile.svg` | Current |
+| Card detail | `card-detail.svg` | — | `card-detail-mobile.svg` | Current |
+| Drag and collaboration | `board-drag-states.svg` | — | — | Current spec page |
+| System states | `board-system-states.svg` | — | — | Current spec page |
 
-這版以「工作筆記／流程軌跡」為方向，不使用漸層，也不以大型浮動白卡片作為主要視覺。
+## Legacy boundary
 
-| 用途                     | Token               | 色碼      |
-| ------------------------ | ------------------- | --------- |
-| Board base（所有裝置）   | Mist                | `#E9ECF1` |
-| Auth surface（所有裝置） | Paper               | `#F7F8FA` |
-| 導覽與結構色             | Ink                 | `#29324A` |
-| 主要操作與目前進度       | Signal coral        | `#DF6E51` |
-| 主要按鈕底色             | Signal coral strong | `#B94B36` |
-| 成功／進行中             | Soft mint           | `#A9D2C8` |
-| 提醒                     | Warm amber          | `#E6B960` |
-| 補充分類                 | Muted violet        | `#907ECE` |
+所有合併多頁稿與舊 `*-rwd.svg` 都已移至 `design/archive/`，只作歷史追溯，不可再作為 Figma Generator 的輸入。`design` 根目錄中的每一個 SVG 都只代表一個畫面或一個規格頁。
 
-桌面和手機共用相同的 base token：登入頁為 `#F7F8FA`，看板為 `#E9ECF1`。手機版只拿掉桌面側欄與縮短文字，不會更換色系或改用漸層。
+## Board v2 contract
 
-看板的四個欄位保留固定寬度；平板與手機透過水平捲動檢視下一欄，而不是把欄位壓窄。
+- Desktop 為 `1440 × 900`，全寬專注模式，沒有 persistent Sidebar。
+- Header 有 Brand、工作區／最近導覽、Create、Avatar。
+- Board heading 有 Breadcrumb、同步狀態、Collaborator avatars、Project members action。
+- Column 寬度固定：Desktop／Tablet `280px`、Mobile `288px`。
+- Tablet 與 Mobile 透過水平捲動瀏覽欄位，並保留 scroll indicator；不可壓縮欄寬。
+- `44 × 44` Card drag handle 與 `40 × 40` Column drag handle 是操作元件，不是裝飾文字。
+- Board 必須包含進度、完成、soft lock、Add card、Add column 等不同卡片／欄位語意。
 
-資訊層級定義為 `Workspace → Project → Board`。工作區包含多個專案，每個專案至少有一個主要看板；使用者先在工作區總覽選擇專案，再進入該專案的主要 Board。桌機使用左側工作區導覽；平板與手機收斂成頁首選擇器。
+## Card data contract
 
-所有頁面間距遵循 4px spacing grid，常用層級為 `4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64`。元件尺寸與視覺對齊可做光學微調，但元件之間的 padding、gap 與 section spacing 必須使用 4px 的倍數。
+資料模型與 `frontend/src/types/board.ts` 對齊：
 
-## 匯入 Figma
+```text
+Card
+├── title (required)
+├── category? { name, colorKey }
+└── labels[]
+```
 
-1. 開啟目標 Figma Design 檔。
-2. 將需要的 SVG 直接拖曳進畫布，或使用 **File → Place image**。
-3. Workspace 與 Board 請優先使用 `workspace-overview*`、`board-overview*`；`kanban-trello-*` 內嵌的舊 Board 畫面只保留作為 v2 歷史參考。
-4. 匯入後取消群組，再依照 SVG 內的 group id 整理為對應 Frame 與 Component。
+類別色彩使用 `frontend/src/constants/cardCategoryColors.ts` 的 14 個限定色：`coral`、`rose`、`orange`、`amber`、`lime`、`mint`、`teal`、`cyan`、`blue`、`indigo`、`lavender`、`violet`、`pink`、`slate`。色彩屬於 Category，不是獨立 Card 欄位；Labels 為可多選 token input。
 
-## 注意事項
+## Single-page file rule
 
-- SVG 會保留可編輯的向量、文字與群組。
-- SVG 不會自動建立 Figma Variables、Auto Layout、Components 或 prototype interactions。
-- 畫面使用 `Noto Sans TC`；若 Figma 無法取得該字型，可能顯示替代字型。
-- 等 Figma MCP 額度恢復後，可再將這份視覺稿整理成正式元件與 Auto Layout。
+- Desktop、Tablet、Mobile 必須是不同 SVG 檔案。
+- Login 與 Signup 必須是不同 SVG 檔案。
+- 禁止在同一 SVG 內橫向或縱向排列多個產品畫面。
+- `board-drag-states.svg` 與 `board-system-states.svg` 是狀態規格頁，允許在同一規格頁內展示多個 Variant。
+- 新增裝置版本時使用 `*-tablet.svg`、`*-mobile.svg` 命名，不再使用含混的 `*-rwd.svg`。
+
+## Figma regeneration gate
+
+- Board 不引用 `design/archive/` 內的舊稿。
+- Card Detail 改為 v2 外殼，不直接沿用舊 Board 版型。
+- Create Card 的 14 色順序與前端常數一致。
+- Drag specs 的六種狀態皆有 Component / Variant 對應。
+- 所有新增狀態都有 Desktop 或 Mobile 的明確畫面。
