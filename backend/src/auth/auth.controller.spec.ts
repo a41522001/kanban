@@ -7,7 +7,8 @@ describe('authController', () => {
   let authService: AuthService;
   let controller: AuthController;
   const createResponse = (data: any): Response => {
-    return { ...data } as Response;
+    const cookie = jest.fn();
+    return { ...data, cookie } as Response;
   };
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -47,7 +48,7 @@ describe('authController', () => {
       const spy = jest.spyOn(authService, 'signup').mockResolvedValue(true);
       const result = await controller.signup(req);
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith();
+      expect(spy).toHaveBeenCalledWith(req);
       expect(result).toEqual(res);
     });
     it('註冊失敗', async () => {
