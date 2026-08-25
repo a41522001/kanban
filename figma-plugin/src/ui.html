@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flowboard Design Generator</title>
+    <style>
+      :root { color: #29324a; font-family: Inter, "Noto Sans TC", sans-serif; }
+      body { margin: 0; padding: 16px; background: #f7f8fa; }
+      h1 { margin: 0 0 6px; font-size: 18px; }
+      p { margin: 0 0 16px; color: #697287; font-size: 12px; line-height: 1.5; }
+      .actions { display: grid; gap: 8px; }
+      button { border: 1px solid #d7dce5; border-radius: 9px; background: #fff; color: #29324a; cursor: pointer; font: inherit; font-weight: 700; padding: 11px 12px; text-align: left; }
+      button:hover { border-color: #df6e51; }
+      button.primary { border-color: #df6e51; background: #df6e51; color: #fff9f4; }
+      #status { min-height: 36px; margin-top: 14px; color: #697287; font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <h1>Flowboard Design Generator · v2</h1>
+    <p>依單頁 SVG 規格建立原生 Variables、Components；所有 Screen Frame 依功能分區放在同一個 Figma Screens Page。</p>
+    <div class="actions">
+      <button class="primary" data-action="all">Generate All</button>
+      <button data-action="foundations">Foundations</button>
+      <button data-action="components">Components</button>
+      <button data-action="screens">Screens</button>
+    </div>
+    <div id="status">Ready.</div>
+    <script>
+      const status = document.getElementById('status');
+      document.querySelectorAll('button').forEach((button) => {
+        button.addEventListener('click', () => {
+          status.textContent = 'Generating native Figma nodes…';
+          parent.postMessage({ pluginMessage: { type: 'generate', action: button.dataset.action } }, '*');
+        });
+      });
+      onmessage = (event) => {
+        const message = event.data.pluginMessage;
+        if (message?.type === 'status') status.textContent = message.text;
+      };
+    </script>
+  </body>
+</html>
