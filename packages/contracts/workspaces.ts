@@ -1,4 +1,4 @@
-type WorkspaceRole = 'OWNER' | 'MEMBER';
+export type WorkspaceRole = 'OWNER' | 'MEMBER';
 export interface CreateWorkspaceDto {
   name: string;
 }

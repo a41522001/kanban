@@ -1,4 +1,3 @@
-import type { Env } from '@/config/env';
 import { SessionGuard } from '@/session/session.guard';
 import { ApiResult } from '@kanban/contracts/api';
 import type { PublicUser } from '@kanban/contracts/user';
@@ -11,7 +10,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+// import { ConfigService } from '@nestjs/config';
 import {
   ApiCookieAuth,
   ApiOkResponse,
@@ -22,10 +21,7 @@ import type { Request } from 'express';
 import { UserService } from './user.service';
 @Controller('user')
 export class UserController {
-  constructor(
-    private readonly configService: ConfigService<Env>,
-    private readonly userService: UserService,
-  ) {}
+  constructor(private readonly userService: UserService) {}
   /** 取得UserInfo */
   @ApiOperation({ summary: '取得目前登入的使用者資訊' })
   @ApiCookieAuth()
