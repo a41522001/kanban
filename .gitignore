@@ -24,3 +24,4 @@ backend/src/generated/prisma/
 .windsurf/
 /backend/.claude/
 /backend/.agents/
+!.env.e2e.example
