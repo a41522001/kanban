@@ -22,3 +22,5 @@ backend/src/generated/prisma/
 !.agents/skills/figma-plugin-native-design/**
 .claude/
 .windsurf/
+/backend/.claude/
+/backend/.agents/
