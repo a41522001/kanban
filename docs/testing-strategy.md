@@ -13,7 +13,7 @@
 適合：
 
 - AuthService branch。
-- SessionService hash、parse 與 delete 行為。
+- SessionService 建立、驗證、輪轉結果 mapping 與 delete 行為。
 - Validation formatter。
 - Guards、filters、interceptors。
 - Socket command handler 的 authorization 與 ack mapping。
@@ -62,18 +62,40 @@
 
 ### SessionService
 
-- [ ] Save 產生不可預測 session ID。
-- [ ] Repository 只收到 hash，不收到 raw session ID。
-- [ ] Get valid JSON。
-- [ ] Get missing session。
-- [ ] Get malformed JSON。
-- [ ] Delete。
+- [ ] `saveCurrentSession` 產生不可預測的 Base64URL Session ID。
+- [ ] Repository 只收到 SHA-256 Hash，不收到 Raw Session ID。
+- [ ] 建立時正確計算 UTC `rotateAtMs`、`expiresAtMs` 與 `MAX_DEVICE`。
+- [ ] Grace 直接驗證成功且不輪轉。
+- [ ] Current 未到 `rotateAtMs` 時直接驗證成功。
+- [ ] Lua 回 `MISSING` 時驗證失敗。
+- [ ] Lua 回 `CURRENT`／`GRACE` 時只回 `userId`。
+- [ ] Lua 回 `ROTATED` 時才回候選的新 Raw Session ID。
+- [ ] Delete 只傳入 Hash；完成 revoke 後改測整個 family／index 的副作用。
+
+### Session schema
+
+- [x] Current Redis Hash 字串欄位轉成 domain 型別。
+- [x] Grace Redis Hash 字串欄位轉成 domain 型別。
+- [x] 無法轉換的數字欄位 fail closed。
+
+### SessionRepository 與 Lua integration
+
+- [ ] 建立 Hash、`PEXPIREAT` 與 ZSET member 的結果正確。
+- [ ] 已過期的 ZSET member 會先清理。
+- [ ] 第六個登入淘汰最早到期的 Current 與 Previous Grace。
+- [ ] 多個並行登入後 `ZCARD <= MAX_DEVICE`。
+- [ ] 多個並行輪轉只有一個 `ROTATED`，其餘為 `GRACE`。
+- [ ] 輪轉後舊 key 約 20 秒到期，新 key 與 ZSET score 正確。
+- [ ] 無效／缺欄位 Hash 不會被信任。
+- [ ] Logout／revoke 原子刪除 Hash 與 ZSET member。
 
 ### Common
 
-- [ ] Validation formatter。
-- [ ] AppException。
-- [ ] HttpExceptionFilter。
+- [x] Validation formatter 與 sensitive value 遮蔽。
+- [x] ValidationPipe 拒絕額外欄位。
+- [x] ValidationPipe + HttpExceptionFilter HTTP integration。
+- [x] HttpExceptionFilter 保留 AppException 並隱藏未知錯誤。
+- [ ] AppException 單獨的 constructor／default 測試。
 - [ ] WrapResponseInterceptor。
 - [ ] Cookie options development/production。
 
@@ -83,6 +105,7 @@
 - [ ] Cookie type invalid。
 - [ ] Session missing/expired。
 - [ ] Session valid and request.userId assigned。
+- [ ] `ROTATED` 時只設定一次新 Cookie，其他狀態不設定。
 
 ## 4. Integration Test Infrastructure
 
@@ -102,6 +125,8 @@ REDIS_URL=redis://localhost:6379/1
 - 測試資料使用固定 factory。
 - Integration test 可 serial 執行，避免共享 DB 互相污染。
 - CI 使用 service containers 啟動 PostgreSQL 與 Redis。
+
+目前 `backend/test/app.e2e-spec.ts` 仍是 Nest 預設的 `GET /` 範例，不符合現有 routes；`jest-e2e.json` 也尚未對齊 `@/` path alias 與 Prisma generated module imports。正式撰寫 E2E 前先修復 bootstrap，並在 `afterAll` 關閉 Nest application、Redis 與 Prisma，避免 open handles。
 
 ## 5. Test Data Factory
 
@@ -184,3 +209,10 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - CI 不輸出 Password、Cookie、Session ID。
 - 同一套指令可在 Windows 開發機與 Linux CI 執行。
 
+## 11. 目前最優先的測試順序
+
+1. SessionService unit tests：先驗證分支與 Lua reply mapping。
+2. 真實 Redis 的 create／rotate Lua integration tests，包含並行競爭。
+3. 原子 logout／revoke 完成後補撤銷測試。
+4. 修復 Nest E2E 設定，完成 login → userInfo → rotation → logout flow。
+5. Frontend Auth 與 Socket.IO handshake 完成後再加入 Playwright multi-user tests。

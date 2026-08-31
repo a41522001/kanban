@@ -6,21 +6,24 @@
 
 ## 2. Authentication 與 Session
 
-- [ ] Password 只保存 bcrypt hash，不保存或記錄明文。
+- [x] Password 只保存 bcrypt hash，不保存明文。
 - [ ] 限制並驗證 password 長度；注意 bcrypt 只處理前 72 bytes。
 - [ ] Login 與 signup 有 rate limit，並考慮 IP 與帳號兩個維度。
-- [ ] Login 失敗回應不洩漏帳號是否存在。
-- [ ] 成功登入後 rotation Session ID，避免 session fixation。
-- [ ] Logout 刪除 server-side Session，並清除 Cookie。
-- [ ] Session 有 idle timeout 與 absolute expiration。
-- [ ] Redis Session value 只保存必要資訊。
+- [x] Login 失敗統一回覆帳號或密碼錯誤，不洩漏帳號是否存在。
+- [x] 每次成功登入都產生新的高熵 Session ID，不接受 client 指定 ID。
+- [ ] Logout 原子撤銷 Current、Previous Grace 與 ZSET member，並清除 Cookie；目前只刪除請求攜帶的 Hash。
+- [x] Current Session 使用 Redis 絕對到期時間，輪轉後重新取得 7 天效期；普通請求不延長 TTL。
+- [ ] 若產品需要 idle timeout 或 family absolute lifetime，另行設計；目前兩者都沒有。
+- [x] Redis 不保存 Raw Session ID，只保存必要 identity／lifecycle 欄位與 SHA-256 Hash 索引。
+- [x] 每位使用者最多 5 個 Current Sessions；超額登入由原子 Lua 淘汰最早到期的裝置。
+- [x] 輪轉後舊 Session 僅保留 20 秒 Grace，且不能再次輪轉或更新 Cookie。
 - [ ] 變更密碼後可撤銷既有 Session。
 
 ## 3. Cookie、CORS 與 CSRF
 
-- [ ] Cookie 啟用 HttpOnly。
-- [ ] Production Cookie 啟用 Secure。
-- [ ] SameSite 根據同站或跨站部署模式明確設定。
+- [x] Cookie 啟用 HttpOnly。
+- [x] Production Cookie 啟用 Secure。
+- [ ] SameSite 根據最終同站或跨站部署模式確認；程式目前 production 使用 `None`。
 - [ ] Cookie Path、Domain 與 Max-Age 使用最小必要範圍。
 - [ ] CORS origin 使用 allowlist，不以星號搭配 credentials。
 - [ ] 若使用跨站 Cookie，所有 mutation API 有 CSRF token 或等價防護。
@@ -28,17 +31,18 @@
 
 ## 4. Validation 與輸入處理
 
-- [ ] Global ValidationPipe 啟用 whitelist、transform、forbidNonWhitelisted。
+- [x] Global ValidationPipe 啟用 whitelist、transform、forbidNonWhitelisted。
 - [ ] DTO 對 email、password、UUID、字串長度與必要欄位有明確限制。
 - [ ] Nested DTO 使用 ValidateNested 與 Type。
 - [ ] 不直接把 request body 傳給 Prisma，避免 mass assignment。
 - [ ] 檔案、URL、富文字與 Markdown 等輸入另做類型專用驗證。
-- [ ] Validation error 的 value 經過遮蔽，不回傳 password、token 等敏感值。
+- [x] Validation error 的 value 經過遮蔽，不回傳 password、token 等敏感值。
 - [ ] 對大型 payload 設定 body size limit。
 
 ## 5. Authorization 與資源隔離
 
-- [ ] 每次資源操作都從 Session 取得 userId。
+- [x] 目前 protected HTTP controller 從 SessionGuard 取得 userId，不接受 body 內的 userId 作為身分。
+- [ ] `GET /workspaces/:workspaceId/members` 必須先驗證目前使用者是該 WorkspaceMember；目前只驗證有登入，存在 BOLA 風險。
 - [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
 - [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
@@ -47,10 +51,10 @@
 
 ## 6. API 與錯誤處理
 
-- [ ] Production response 不回傳 stack trace、SQL、Prisma detail 或內部路徑。
+- [x] Global HTTP filter 對未知 exception 回 generic 500，不回 stack 或內部細節。
 - [ ] 錯誤有穩定 code，message 可調整但不作為前端邏輯依據。
 - [ ] 401、403、404 的使用策略一致，避免洩漏不該知道的資源存在性。
-- [ ] Global Exception Filter 能處理未知 exception 並回一致格式。
+- [x] Global Exception Filter 由 `APP_FILTER` 註冊，能處理未知 exception 並回一致格式。
 - [ ] 每個 request 有 requestId，可與 log 對照。
 - [ ] Security headers 由 Helmet 或 reverse proxy 統一設定。
 
@@ -80,8 +84,8 @@
 - [ ] CI/CD secrets 不寫入 image layer、artifact 或 log。
 - [ ] Production secrets 與 development secrets 完全分離。
 - [ ] Secret rotation 有操作流程，不依賴修改原始碼。
-- [ ] 啟動時驗證必要環境變數，缺少時 fail fast。
-- [ ] 不使用可預測或範例值作為 production Session secret。
+- [x] 啟動時以 Zod 驗證必要環境變數，缺少時 fail fast。
+- [x] Session 是高熵 opaque ID + server-side Redis record，不使用簽章用 Session secret；此架構不需要配置 Session secret。
 
 ## 10. Logging 與個資
 

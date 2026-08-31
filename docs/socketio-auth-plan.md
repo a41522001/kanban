@@ -11,7 +11,7 @@
 
 1. 前端建立 Socket.IO connection，瀏覽器自動帶上 Session Cookie。
 2. Socket.IO middleware 讀取 handshake headers 中的 Cookie。
-3. 解析 Session ID，透過 SessionService 向 Redis 查詢 Session。
+3. 解析 Session ID，透過 `SessionService.authenticateSession()` 驗證 Redis Session。
 4. 驗證成功後，把 userId 寫入 socket.data。
 5. 驗證失敗時拒絕連線，前端從 connect_error 取得穩定的 error code。
 
@@ -86,9 +86,19 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 ## 7. Session 過期與登出
 
 - Session 過期：server 拒絕新連線或下一次敏感事件，回 SESSION_EXPIRED。
-- 使用者登出：刪除 Redis Session，並關閉該 Session 對應的 Socket 連線。
+- 使用者登出：完整 revoke 完成後，關閉該裝置或使用者對應的 Socket 連線。
 - 若暫時無法維護 Session 到 socketId 的索引，至少讓後續事件重新檢查 Session；安全性較高但 Redis 查詢較多。
-- Session rotation 後，舊 Session 必須失效，Socket 需重新連線。
+- HTTP Session 輪轉後，舊 Session 會保留固定 20 秒 Grace，供已送出的並行請求完成；不能描述成「立即失效」。
+- 已建立的 Socket 不會因瀏覽器 Cookie 更新而自動改變 `socket.data`，也不會在每個 event 自動重新握手。敏感 command 是否重新驗證 Session、何時要求 reconnect，必須明確實作。
+
+### 7.1 輪轉與 Socket handshake 的限制
+
+目前 `authenticateSession()` 可能在驗證時觸發輪轉，HTTP Guard 可以用 response `Set-Cookie` 回傳新 Session ID；Socket.IO middleware 沒有直接沿用這段 Guard response 行為。因此接 Session handshake 前必須先選定並測試以下策略之一：
+
+1. Handshake 只接受／驗證既有 Session，不在 middleware 觸發輪轉；之後由正常 HTTP request 完成輪轉。
+2. 明確在 Engine.IO handshake response 設定 Cookie，並以真實瀏覽器測試 Cookie 是否可靠更新。
+
+第一版建議採策略 1，避免同一個 service 在 HTTP 與 Socket transport 上產生不同的 Cookie 副作用。若沿用現有 `authenticateSession()`，則需要新增不輪轉的驗證模式，不能只忽略回傳的 `rotatedSessionId`，否則 Redis 已切換至新 Current，但瀏覽器沒有取得新 Cookie。
 
 ## 8. Logging
 
@@ -131,6 +141,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 - 重連後重新加入 room 並取得最新 snapshot。
 - 登出後原連線無法繼續操作。
 - Session 過期後前端導向登入流程。
+- Handshake 遇到已到輪轉時間的 Current Session 時，不會造成「Redis 已輪轉但瀏覽器未取得新 Cookie」。
 
 ## 10. 完成條件
 

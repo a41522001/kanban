@@ -29,12 +29,16 @@ Internal Docker network
 
 需要明確管理的設定：
 
-- NODE_ENV、PORT
-- DATABASE_URL
-- REDIS_URL 或 Redis host/port/password
-- FRONTEND_URL、CORS origins
-- Session Cookie name、secret、TTL、Secure、SameSite、Domain
-- Log level
+- `NODE_ENV`、`PORT`
+- `DATABASE_URL`
+- `REDIS_URL`
+- `FRONTEND_URL`
+- `SALT_ROUNDS`
+- `SESSION_EXPIRE_DAY`、`SESSION_ROTATE_MINUTE`、`MAX_DEVICE`
+
+目前 Cookie name、20 秒 Grace、SameSite 與 Domain 不是環境變數；若部署需要調整，應先集中成 typed config，不要在不同 Controller／Guard 各自新增常數。Session 採 opaque random ID + Redis record，不需要簽章用 Session secret。
+
+目前 `REDIS_URL` schema 只接受 `redis://`。若 production Redis 要使用 TLS 的 `rediss://`，必須先修改 env schema 與連線設定並完成部署測試。
 
 啟動時使用 schema 驗證環境變數，缺少必要值就直接停止。
 
@@ -127,8 +131,8 @@ Deployment concurrency 設為 1，避免兩次 migration 或部署同時執行�
 - GitHub Actions 使用 environment secrets。
 - VPS 的 secrets 放在限制權限的 env file 或 secret manager。
 - 不把 secrets 放進 compose.yaml、Dockerfile、image build args 或 CI log。
-- 建立 Session secret、DB password、Redis password 的 rotation runbook。
-- 若 secret 洩漏，需能快速撤銷 Session 並重新部署。
+- 建立 DB password、Redis credential 與其他 production secrets 的 rotation runbook。
+- Raw Session ID 洩漏時需能快速撤銷單一裝置、單一使用者或全部 Sessions；目前 revoke 能力尚未完成，公開部署前必須補齊。
 
 ## 9. Logging 與監控
 
@@ -180,4 +184,3 @@ Session 可視為可重建資料。Redis 遺失時允許所有使用者重新登
 - [ ] Backup 成功且 restore drill 通過。
 - [ ] Log rotation、health check、uptime 與 disk alert 完成。
 - [ ] Rollback 步驟由另一個終端實際演練。
-

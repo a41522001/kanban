@@ -30,10 +30,10 @@
 
 待改善：
 
-- `HttpExceptionFilter`、Redis、Socket.IO 仍使用 `console.*`。
+- Redis 與 Socket.IO 仍使用 `console.*`；`HttpExceptionFilter` 尚未寫入 logger。
 - 尚未定義 request ID 策略。
 - 尚未定義共用 log schema 與 event naming。
-- Exception Filter 以 `new HttpExceptionFilter()` 建立，無法使用 Nest DI 注入 logger。
+- `HttpExceptionFilter` 已由 `APP_FILTER` 註冊，可使用 Nest DI；測試內手動建立 Filter 不代表 production registration。
 - 缺少 Auth、Session、Redis、Prisma、Socket.IO application events。
 - 缺少 redaction、request ID 與 error logging 測試。
 - 尚未規劃 production log retention、aggregation 與 alert。
@@ -331,12 +331,15 @@ Client 固定收到安全內容：
 
 | Event | Level | 建議欄位 |
 |---|---|---|
-| `session.created` | info/debug | `userId`, `ttlSeconds` |
+| `session.created` | info/debug | `userId`, `expiresAtMs`, `generation` |
+| `session.rotated` | info/debug | `userId`, `generation`, `gracePeriodMs` |
+| `session.grace_accepted` | debug | `userId` |
+| `session.device_evicted` | info | `userId`, `reason` |
 | `session.not_found` | debug | `reason` |
 | `session.malformed` | warn | `reason` |
-| `session.deleted` | info/debug | `deleted` |
+| `session.revoked` | info/debug | `userId`, `deleted`, `reason` |
 
-不可記錄 raw session ID 或 session ID hash。
+不可記錄 raw Session ID、Session ID Hash、`previousSessionIdHash` 或 Redis Session key。`familyId` 若不是排查所必需也不記錄；需要關聯時先定義專用的不可逆、低權限 observability ID。
 
 ### 9.3 Redis
 
@@ -566,4 +569,3 @@ Side project 建議：
 - 任意 log 都找不到 password、Cookie、raw session ID 或 token。
 - `backend/src` 不再使用 `console.*`。
 - 同一個 exception 不會被不同層重複記錄。
-

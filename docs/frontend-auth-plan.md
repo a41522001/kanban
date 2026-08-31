@@ -8,7 +8,7 @@
 
 ~~~text
 App 啟動
-→ GET /auth/userInfo with credentials
+→ GET /user/userInfo with credentials
 → 成功：Auth Store 設為 authenticated
 → 401：Auth Store 設為 anonymous
 → 完成初始化後才判斷 protected route
@@ -20,7 +20,7 @@ Login：
 Login form
 → POST /auth/login
 → Browser 保存 HttpOnly Cookie
-→ GET /auth/userInfo 或更新 Store
+→ GET /user/userInfo 或更新 Store
 → 導向原本要前往的頁面
 ~~~
 
@@ -28,7 +28,7 @@ Logout：
 
 ~~~text
 POST /auth/logout
-→ Server 刪除 Redis Session 並清除 Cookie
+→ Server 撤銷目前裝置 Session family 並清除 Cookie
 → 清空 Auth Store
 → 中斷 Socket
 → 導向 Login
@@ -96,7 +96,7 @@ Store 至少包含：
 - confirmPassword 只存在 frontend，不傳給 backend，除非 contract 改變。
 - Signup success 後決定自動登入或導向 Login；需明確選一種。
 
-Decision pending：Signup 完成後是否自動建立 Session。
+目前 backend signup 只建立帳號，不建立 Session。第一版 frontend 在 signup 成功後導向 Login；若未來改成自動登入，必須同步修改 API contract 與測試。
 
 ## 6. Route Guard
 
@@ -154,3 +154,5 @@ Decision pending：Signup 完成後是否自動建立 Session。
 - FieldErrors 可顯示在對應欄位。
 - Password、Session ID 不進入 localStorage、Pinia persistence 或 log。
 - Logout 後 HTTP 與 Socket 都無法繼續使用舊 Session。
+
+最後一項是完整驗收目標；目前 backend 的 logout 仍只刪除請求攜帶的單一 Session Hash，必須先完成 `session-architecture.md` 所列的 revoke 工作，前端才可依賴此保證。
