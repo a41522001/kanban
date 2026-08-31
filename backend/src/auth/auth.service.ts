@@ -39,7 +39,7 @@ export class AuthService {
 
     const isCorrect = await decodePassword(password, user.passwordHash);
     if (isCorrect) {
-      const sessionId = await this.sessionService.save(user.id);
+      const sessionId = await this.sessionService.saveCurrentSession(user.id);
       return sessionId;
     }
 

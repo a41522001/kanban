@@ -27,16 +27,22 @@ import { SignupDto } from './dto/signup.dto';
 import { ApiResult } from '@kanban/contracts/api';
 import { AppException } from '@/common/exceptions/app.exception';
 
-const sessionCookieName = 'sessionId';
-const sessionCookieMaxAge = 1000 * 60 * 60 * 24 * 7;
-
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly configService: ConfigService<Env>,
     private readonly authService: AuthService,
-  ) {}
+  ) {
+    this.sessionCookieMaxAge =
+      1000 *
+      60 *
+      60 *
+      24 *
+      this.configService.getOrThrow('SESSION_EXPIRE_DAY', { infer: true });
+  }
+  private sessionCookieName: string = 'sessionId';
+  private sessionCookieMaxAge: number;
 
   /** 註冊 */
   @ApiOperation({ summary: '使用者註冊' })
@@ -118,9 +124,9 @@ export class AuthController {
       });
     }
 
-    res.cookie(sessionCookieName, sessionId, {
+    res.cookie(this.sessionCookieName, sessionId, {
       ...getCookieOptions(this.configService),
-      maxAge: sessionCookieMaxAge,
+      maxAge: this.sessionCookieMaxAge,
     });
 
     return {
@@ -164,7 +170,7 @@ export class AuthController {
       await this.authService.logout(sessionId);
     }
 
-    clearCookie(this.configService, res, sessionCookieName);
+    clearCookie(this.configService, res, this.sessionCookieName);
     return {
       message: '登出成功',
     };

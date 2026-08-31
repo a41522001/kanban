@@ -16,13 +16,13 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn().mockReturnValue(4),
+            getOrThrow: jest.fn().mockReturnValue(3),
           },
         },
         {
           provide: SessionService,
           useValue: {
-            save: jest.fn(),
+            saveCurrentSession: jest.fn(),
             delete: jest.fn(),
           },
         },
@@ -101,7 +101,7 @@ describe('AuthService', () => {
       const getByEmailSpy = jest
         .spyOn(userService, 'getByEmail')
         .mockResolvedValue(null);
-      const saveSpy = jest.spyOn(sessionService, 'save');
+      const saveSpy = jest.spyOn(sessionService, 'saveCurrentSession');
       const result = await authService.login(req);
       expect(result).toBeNull();
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
@@ -122,7 +122,7 @@ describe('AuthService', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-      const saveSpy = jest.spyOn(sessionService, 'save');
+      const saveSpy = jest.spyOn(sessionService, 'saveCurrentSession');
       const result = await authService.login(req);
       expect(result).toBeNull();
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
@@ -146,7 +146,7 @@ describe('AuthService', () => {
           updatedAt: new Date(),
         });
       const saveSpy = jest
-        .spyOn(sessionService, 'save')
+        .spyOn(sessionService, 'saveCurrentSession')
         .mockResolvedValue(sessionId);
       const result = await authService.login(req);
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
