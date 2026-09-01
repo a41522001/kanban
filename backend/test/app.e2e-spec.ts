@@ -20,36 +20,37 @@ describe('AppController (e2e)', () => {
     password: 'testtest',
     name: 'test',
   };
-  it('/auth/signup (POST)', async () => {
-    const agent = request.agent(app.getHttpServer());
-    const response = await agent.post('/auth/signup').send(user).expect(201);
 
-    expect(response.body).toMatchObject({
+  it('註冊且登入後可取得使用者資訊，登出後 Session 失效', async () => {
+    const { email, password } = user;
+    const agent = request.agent(app.getHttpServer());
+    // 註冊
+    const signupResponse = await agent
+      .post('/auth/signup')
+      .send(user)
+      .expect(201);
+    // 登入
+    expect(signupResponse.body).toMatchObject({
       code: 1,
       data: null,
       message: '註冊成功',
       error: null,
     });
-  });
-
-  it('/auth/login (POST)', async () => {
-    const { email, password } = user;
-    const agent = request.agent(app.getHttpServer());
-    const response = await agent
+    await agent
       .post('/auth/login')
       .send({
         email,
         password,
       })
       .expect(200);
-
-    expect(response.body).toMatchObject({
-      code: 1,
-      data: null,
-      message: '登入成功',
-      error: null,
-    });
+    // 取得userInfo
+    await agent.get('/user/userInfo').expect(200);
+    // 登出
+    await agent.post('/auth/logout').expect(200);
+    // 取得userInfo
+    await agent.get('/user/userInfo').expect(401);
   });
+
   afterAll(async () => {
     await app.close();
   });
