@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
+import { NotFoundException } from '@nestjs/common';
 
 describe('WorkspacesService', () => {
   let workspacesService: WorkspacesService;
@@ -15,6 +16,7 @@ describe('WorkspacesService', () => {
             create: jest.fn(),
             getByUserId: jest.fn(),
             getSingleWorkspaceMember: jest.fn(),
+            findMembership: jest.fn(),
           },
         },
       ],
@@ -126,6 +128,7 @@ describe('WorkspacesService', () => {
     type WorkspaceMemberResponse = Awaited<
       ReturnType<WorkspacesRepository['getSingleWorkspaceMember']>
     >[number];
+    const userId = '1';
     const workspaceId = 'testworkspaceId';
     const member1 = {
       id: '1',
@@ -174,23 +177,40 @@ describe('WorkspacesService', () => {
       const getSingleWorkspaceMemberSpy = jest
         .spyOn(workspacesRepository, 'getSingleWorkspaceMember')
         .mockResolvedValue(workspaceMemberResponse);
-
-      const result =
-        await workspacesService.getSingleWorkspaceMember(workspaceId);
+      const findMembershipSpy = jest
+        .spyOn(workspacesRepository, 'findMembership')
+        .mockResolvedValue({
+          id: 'membership-1',
+          workspace: {
+            archivedAt: null,
+          },
+        });
+      const result = await workspacesService.getSingleWorkspaceMember(
+        userId,
+        workspaceId,
+      );
       expect(result).toEqual(expectResult);
       expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(1);
       expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(workspaceId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
     });
 
     it('沒有data的情況', async () => {
       const getSingleWorkspaceMemberSpy = jest
         .spyOn(workspacesRepository, 'getSingleWorkspaceMember')
         .mockResolvedValue([]);
-      const result =
-        await workspacesService.getSingleWorkspaceMember(workspaceId);
-      expect(result).toEqual([]);
-      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(1);
-      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(workspaceId);
+      const findMembershipSpy = jest
+        .spyOn(workspacesRepository, 'findMembership')
+        .mockResolvedValue(null);
+
+      await expect(
+        workspacesService.getSingleWorkspaceMember(userId, workspaceId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(0);
     });
   });
 });

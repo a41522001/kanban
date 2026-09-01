@@ -49,9 +49,12 @@ export class WorkspacesController {
   @Get(':workspaceId/members')
   async getListWorkspaceMembers(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() req: Request,
   ): Promise<ApiResult<WorkspaceMemberDto[]>> {
-    const result =
-      await this.workspacesService.getSingleWorkspaceMember(workspaceId);
+    const result = await this.workspacesService.getSingleWorkspaceMember(
+      req.userId!,
+      workspaceId,
+    );
     return { data: result };
   }
 }
