@@ -10,7 +10,7 @@
     "test:backend:watch": "pnpm --filter backend test:watch",
     "test:backend:cov": "pnpm --filter backend test:cov",
     "test:backend:debug": "pnpm --filter backend test:debug",
-    "test:backend:e2e": "pnpm --filter backend test:e2e"
+    "test:backend:e2e": "node scripts/runBackend.e2e.mjs"
   },
   "license": "ISC",
   "devEngines": {

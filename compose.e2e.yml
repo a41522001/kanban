@@ -10,7 +10,13 @@ services:
     ports:
       - "5433:5432"
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanban_e2e -d kanban_e2e"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
 
   redis-e2e:
     image: redis:8.8-alpine
@@ -18,3 +24,9 @@ services:
       - "6380:6379"
     tmpfs:
       - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 2s
