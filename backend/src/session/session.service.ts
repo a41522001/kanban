@@ -1,43 +1,130 @@
 import { Injectable } from '@nestjs/common';
 import { SessionRepository } from './session.repository';
-import { createHash, randomBytes } from 'node:crypto';
-import type { Session } from './session.type';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import type {
+  AuthenticateSessionResult,
+  CurrentSession,
+  StoredSession,
+} from './session.type';
+import { DateTime } from 'luxon';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '@/config/env';
 @Injectable()
 export class SessionService {
-  constructor(private readonly sessionRepository: SessionRepository) {}
-  private readonly sessionTtlSeconds = 60 * 60 * 24 * 7;
+  constructor(
+    private readonly configService: ConfigService<Env>,
+    private readonly sessionRepository: SessionRepository,
+  ) {}
   /** hash session id */
   private hashSessionId = (sessionId: string): string => {
     return createHash('sha256').update(sessionId).digest('hex');
   };
-  /** 儲存 */
-  async save(userId: string): Promise<string> {
+
+  /** 儲存最新的session */
+  async saveCurrentSession(userId: string): Promise<string> {
+    const sessionExpireDay = this.configService.getOrThrow(
+      'SESSION_EXPIRE_DAY',
+      { infer: true },
+    );
+
+    const sessionRotateMinute = this.configService.getOrThrow(
+      'SESSION_ROTATE_MINUTE',
+      { infer: true },
+    );
+    const now = DateTime.utc();
+    const nowMs = now.toMillis();
+    const expiresAtMs = now.plus({ days: sessionExpireDay }).toMillis();
+    const rotateAtMs = now.plus({ minutes: sessionRotateMinute }).toMillis();
+    const maxDevice = this.configService.getOrThrow('MAX_DEVICE', {
+      infer: true,
+    });
     const sessionId = randomBytes(32).toString('base64url');
     const sessionIdHash = this.hashSessionId(sessionId);
-    const session: Session = {
+    const familyId = randomUUID();
+
+    const session: CurrentSession = {
       userId,
-      createdAt: new Date().toISOString(),
+      familyId,
+      state: 'current',
+      generation: 1,
+      familyCreatedAtMs: nowMs,
+      tokenIssuedAtMs: nowMs,
+      expiresAtMs,
+      rotateAtMs,
     };
-    await this.sessionRepository.save(
+    await this.sessionRepository.createCurrentSession(
       sessionIdHash,
       session,
-      this.sessionTtlSeconds,
+      maxDevice,
     );
     return sessionId;
   }
-  /** 取得 */
-  async get(sessionId: string): Promise<Session | null> {
-    const sessionIdHash = this.hashSessionId(sessionId);
-    const result = await this.sessionRepository.get(sessionIdHash);
-    try {
-      if (result) {
-        return JSON.parse(result) as Session;
-      } else {
-        return null;
-      }
-    } catch {
+  async authenticateSession(
+    sessionId: string,
+  ): Promise<AuthenticateSessionResult | null> {
+    const oldSessionIdHash = this.hashSessionId(sessionId);
+    const session = await this.sessionRepository.getSession(oldSessionIdHash);
+    if (!session) {
       return null;
     }
+    if (session.state === 'grace') {
+      return {
+        userId: session.userId,
+      };
+    }
+    const now = DateTime.utc();
+    const nowMs = now.toMillis();
+    if (session.rotateAtMs > nowMs) {
+      return {
+        userId: session.userId,
+      };
+    }
+
+    const sessionExpireDay = this.configService.getOrThrow(
+      'SESSION_EXPIRE_DAY',
+      { infer: true },
+    );
+
+    const sessionRotateMinute = this.configService.getOrThrow(
+      'SESSION_ROTATE_MINUTE',
+      { infer: true },
+    );
+    const newSessionId = randomBytes(32).toString('base64url');
+    const newSessionIdHash = this.hashSessionId(newSessionId);
+    const newRotateAtMs = now.plus({ minutes: sessionRotateMinute }).toMillis();
+    const newExpiresAtMs = now.plus({ days: sessionExpireDay }).toMillis();
+    const graceUntilMs = now.plus({ seconds: 20 }).toMillis();
+    const rotateResult = await this.sessionRepository.rotateSession({
+      oldSessionIdHash,
+      newSessionIdHash,
+      userId: session.userId,
+      nowMs,
+      newRotateAtMs,
+      newExpiresAtMs,
+      graceUntilMs,
+    });
+
+    switch (rotateResult.status) {
+      case 'MISSING':
+        return null;
+
+      case 'CURRENT':
+      case 'GRACE':
+        return {
+          userId: rotateResult.userId,
+        };
+
+      case 'ROTATED':
+        return {
+          userId: rotateResult.userId,
+          rotatedSessionId: newSessionId,
+        };
+    }
+  }
+  /** 取得 */
+  async getSession(sessionId: string): Promise<StoredSession | null> {
+    const sessionIdHash = this.hashSessionId(sessionId);
+    return this.sessionRepository.getSession(sessionIdHash);
   }
   /** 刪除 */
   async delete(sessionId: string): Promise<boolean> {

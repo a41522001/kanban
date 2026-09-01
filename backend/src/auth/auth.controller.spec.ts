@@ -28,7 +28,8 @@ describe('authController', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('development'),
+            get: jest.fn().mockReturnValue('test'),
+            getOrThrow: jest.fn().mockReturnValue(7),
           },
         },
         {
