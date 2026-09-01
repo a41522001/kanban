@@ -8,6 +8,7 @@ import type {
   WorkspaceMemberDto,
   WorkspaceRole,
 } from '@kanban/contracts/workspaces';
+import { NotFoundException } from '@nestjs/common';
 describe('WorkspaceController', () => {
   let controller: WorkspacesController;
   let workspacesService: WorkspacesService;
@@ -116,6 +117,8 @@ describe('WorkspaceController', () => {
 
   /** 取得單一工作區的所有成員 */
   describe('getListWorkspaceMembers', () => {
+    const userId = 'testId';
+    const request = createRequest(userId);
     it('有data的情況', async () => {
       const workspaceId = '1';
       const member1 = {
@@ -134,12 +137,18 @@ describe('WorkspaceController', () => {
       const getSingleWorkspaceMemberSpy = jest
         .spyOn(workspacesService, 'getSingleWorkspaceMember')
         .mockResolvedValue(workspaceMemberDto);
-      const result = await controller.getListWorkspaceMembers(workspaceId);
+      const result = await controller.getListWorkspaceMembers(
+        workspaceId,
+        request,
+      );
       const ownerLength = result.data!.filter((item) => item.role === 'OWNER');
       expect(ownerLength).toHaveLength(1);
       expect(result).toEqual({ data: workspaceMemberDto });
       expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(1);
-      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(workspaceId);
+      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(
+        userId,
+        workspaceId,
+      );
     });
 
     it('沒有data的情況', async () => {
@@ -147,10 +156,33 @@ describe('WorkspaceController', () => {
       const getSingleWorkspaceMemberSpy = jest
         .spyOn(workspacesService, 'getSingleWorkspaceMember')
         .mockResolvedValue([]);
-      const result = await controller.getListWorkspaceMembers(workspaceId);
+      const result = await controller.getListWorkspaceMembers(
+        workspaceId,
+        request,
+      );
       expect(result).toEqual({ data: [] });
       expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(1);
-      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(workspaceId);
+      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(
+        userId,
+        workspaceId,
+      );
+    });
+
+    it('出錯的情況', async () => {
+      const workspaceId = '1';
+      const getSingleWorkspaceMemberSpy = jest
+        .spyOn(workspacesService, 'getSingleWorkspaceMember')
+        .mockRejectedValue(
+          new NotFoundException('找不到工作區或你沒有存取權限'),
+        );
+      await expect(
+        controller.getListWorkspaceMembers(workspaceId, request),
+      ).rejects.toThrow(NotFoundException);
+      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(1);
+      expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledWith(
+        userId,
+        workspaceId,
+      );
     });
   });
 });

@@ -7,7 +7,7 @@ import { AppModule } from './../src/app.module';
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -15,11 +15,42 @@ describe('AppController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
   });
+  const user = {
+    email: 'test@test.com',
+    password: 'testtest',
+    name: 'test',
+  };
+  it('/auth/signup (POST)', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const response = await agent.post('/auth/signup').send(user).expect(201);
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+    expect(response.body).toMatchObject({
+      code: 1,
+      data: null,
+      message: '註冊成功',
+      error: null,
+    });
+  });
+
+  it('/auth/login (POST)', async () => {
+    const { email, password } = user;
+    const agent = request.agent(app.getHttpServer());
+    const response = await agent
+      .post('/auth/login')
+      .send({
+        email,
+        password,
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      code: 1,
+      data: null,
+      message: '登入成功',
+      error: null,
+    });
+  });
+  afterAll(async () => {
+    await app.close();
   });
 });
