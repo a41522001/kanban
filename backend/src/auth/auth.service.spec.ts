@@ -24,6 +24,7 @@ describe('AuthService', () => {
           useValue: {
             saveCurrentSession: jest.fn(),
             delete: jest.fn(),
+            revokeSession: jest.fn(),
           },
         },
         {
@@ -161,7 +162,7 @@ describe('AuthService', () => {
   describe('logout', () => {
     it('登出', async () => {
       const sessionId = 'sessionId';
-      const deleteSession = jest.spyOn(sessionService, 'delete');
+      const deleteSession = jest.spyOn(sessionService, 'revokeSession');
       await authService.logout(sessionId);
       expect(deleteSession).toHaveBeenCalledTimes(1);
       expect(deleteSession).toHaveBeenCalledWith(sessionId);
