@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { WorkspacesRepository } from './workspaces.repository';
 import type {
   WorkspaceDto,
@@ -38,8 +38,18 @@ export class WorkspacesService {
 
   /** 取得單一工作區的所有成員 */
   async getSingleWorkspaceMember(
+    userId: string,
     workspaceId: string,
   ): Promise<WorkspaceMemberDto[]> {
+    const membership = await this.workspaceRepository.findMembership(
+      userId,
+      workspaceId,
+    );
+
+    if (!membership || membership.workspace.archivedAt) {
+      throw new NotFoundException('找不到工作區或你沒有存取權限');
+    }
+
     const result =
       await this.workspaceRepository.getSingleWorkspaceMember(workspaceId);
     return result.map(({ id, role, user }) => {

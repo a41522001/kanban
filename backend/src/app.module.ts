@@ -15,11 +15,12 @@ import { UserModule } from './user/user.module';
 import { HttpExceptionFilter } from './common/filters/httpException.filter';
 import { createValidationPipe } from './common/pipes/validation.pipe';
 import { WrapResponseInterceptor } from './common/interceptors/wrapResponse.interceptor';
-
+const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath,
       validate: (config) => envSchema.parse(config),
     }),
     LoggerModule.forRootAsync({

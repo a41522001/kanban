@@ -83,6 +83,26 @@ export class WorkspacesRepository {
     return result;
   }
 
+  /** 找尋成員關係 */
+  async findMembership(userId: string, workspaceId: string) {
+    return this.prismaService.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+      select: {
+        id: true,
+        workspace: {
+          select: {
+            archivedAt: true,
+          },
+        },
+      },
+    });
+  }
+
   /** 取得單一工作區的所有成員 */
   async getSingleWorkspaceMember(
     workspaceId: string,
