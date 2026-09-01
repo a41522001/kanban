@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-08-31。
+最後檢視：2026-09-01。
 
 ## Native WebSocket
 
@@ -26,7 +26,7 @@
 | Session 建立與 Hash schema | 已完成 | Raw ID 只在 Cookie，Redis 使用 SHA-256 Hash key |
 | Session 輪轉 | 已完成核心流程 | 15 分鐘 request-driven rotation、20 秒 Grace、Lua 原子競爭 |
 | 5 裝置限制 | 已完成核心流程 | ZSET + create Lua 原子清理與淘汰 |
-| Session revoke／logout 一致性 | 進行中 | 目前 logout 只刪除單一 Hash，尚未同步清理 Current、Grace 與 ZSET |
+| Session revoke／logout | 已完成最小版本 | `revokeSession` Lua 原子刪除請求攜帶的 Session Hash 與使用者 ZSET member；Controller 一律清除 Cookie |
 | 統一 API response 與錯誤 | 已完成 | ValidationPipe、AppException、全域 Filter、欄位錯誤遮蔽 |
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
 | Workspace 基礎 | 已完成部分 | 建立、列出、成員清單；成員清單的 membership authorization 尚未補 |
@@ -40,15 +40,16 @@
 
 - Backend 目前有 Auth、User、Workspace、Validation、Filter 與 Session schema 的 unit／integration-style specs。
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
-- `backend/test/app.e2e-spec.ts` 仍是 Nest 預設 `GET /` 範例；E2E Jest 設定也尚未對齊 path alias 與 Prisma generated imports，不能視為可用的正式 E2E。
+- Backend E2E 已使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；目前覆蓋 signup → login → userInfo → logout → userInfo 401。
+- `pnpm test:backend:e2e` 已在本機與 GitHub Actions 跑過；runner 結束後會移除 E2E containers、network 與暫存 volumes。
 - 進度只在實際跑過對應指令後標記完成，不以「已有 spec 檔」代替通過結果。
 
 ## 下一步
 
-1. 完成 Session 原子 logout／revoke 與測試。
-2. 修復 backend E2E bootstrap、path mapping、資源清理與真實 auth flow。
-3. 完成 Frontend Auth vertical slice。
-4. 將同一套 Session 驗證接到 Socket.IO handshake。
+1. 完成 Frontend Auth vertical slice。
+2. 將同一套 Session 驗證接到 Socket.IO handshake。
+3. 補 SessionService 與真實 Redis Lua integration tests。
+4. 開始 Board／Project read model。
 
 ## 更新方式
 

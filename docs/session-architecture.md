@@ -16,7 +16,8 @@
 | Current／Grace runtime schema | 已實作 |
 | 原子輪轉與 20 秒 Grace | 已實作於 rotate Lua |
 | Guard 驗證與輪轉成功後更新 Cookie | 已實作 |
-| Logout 同步清理 Current、Grace 與 ZSET | 尚未完成；目前只刪除請求攜帶的 Hash |
+| 最小 logout／revoke | 已實作於 revoke Lua；原子刪除請求攜帶的 Hash 與 ZSET member |
+| Current、Previous Grace 與整個 family 的完整撤銷 | 尚未完成 |
 | Service／Repository／Lua 整合測試 | 尚未完成 |
 
 ## 2. 不變條件
@@ -57,11 +58,11 @@ Browser Cookie
 - `SessionGuard`：讀 Cookie、呼叫驗證、設定 `request.userId`；輪轉成功時設定新 Cookie。
 - `SessionService`：產生 Raw ID、Hash、family ID 與 UTC 時間，負責流程編排。
 - `SessionRepository`：組 Redis keys、解析 Hash schema、呼叫內建 scripts。
-- `session.script.ts`：`createCurrentSession` 與 `rotateSession` 的實際執行時 Lua source。
+- `session.script.ts`：`createCurrentSession`、`rotateSession` 與 `revokeSession` 的實際執行時 Lua source。
 
 目前沒有 `SessionRotationInterceptor`。Service 會先判斷是否需要輪轉，但 Lua 仍會重新檢查 Redis 當下狀態，處理高併發競爭。
 
-獨立的 `backend/src/session/session.rotateSession.lua` 不是執行時來源；修改腳本時以 `session.script.ts` 為準，避免兩份內容漂移。
+獨立的 `backend/src/session/session.rotateSession.lua` 與 `session.revokeSession.lua` 不是執行時來源；修改腳本時以 `session.script.ts` 為準，避免兩份內容漂移。
 
 ## 5. Cookie
 
@@ -205,18 +206,21 @@ type AuthenticateSessionResult = {
 
 ## 11. Logout 與撤銷現況
 
-`POST /auth/logout` 目前會清除 Cookie，並用 `SessionRepository.delete()` 刪除請求攜帶的單一 Session Hash。
+`POST /auth/logout` 會在 `finally` 清除瀏覽器 Cookie。若 request 攜帶字串型別的 `sessionId`，流程如下：
 
-尚未做到：
+1. `SessionService` 將 Raw Session ID SHA-256 hash，並讀取 Session 取得 `userId`。
+2. `revokeSession` Lua 原子執行 `DEL session:token:<hash>` 與 `ZREM user:sessions:<userId> <hash>`。
+3. Session 已不存在時視為 no-op，logout 仍回成功並清除 Cookie。
 
-- 從 `user:sessions:<userId>` 移除對應 Current member。
-- Current logout 時一起刪除 `previousSessionIdHash` 指向的 Grace。
-- Grace logout 時找到並撤銷同 family 的新 Current。
+這是 side project 採用的最小撤銷範圍：刪除「本次 Cookie 指向的 Session」與它的 Current 索引。Lua 沒有額外讀取 Session 欄位，因此保持簡短。
+
+目前刻意未處理：
+
+- Current logout 時同步刪除 `previousSessionIdHash` 指向的 Grace；舊 Grace 最多仍可存活 20 秒。
+- 攜帶 Grace Cookie 登出時撤銷同 family 的新 Current。
 - 變更密碼後撤銷全部 Sessions，或主動撤銷指定裝置。
 
-Current logout 可在不改 schema 的情況下，用 Lua 讀取 `userId` 與 `previousSessionIdHash`，原子刪除 Current、Previous Grace 與 ZSET member。
-
-最小 Grace schema 沒有指向新 Current 的反向欄位，所以「攜帶 Grace Cookie 登出時撤銷新 Current」目前做不到。若需要此保證，必須新增 family/current 索引或調整 Grace schema；這是公開上線前仍需處理的限制。
+若未來需要完整 family revoke，必須新增 family/current 索引或在 Grace schema 保存反向連結；不在目前 MVP 範圍。
 
 ## 12. 設定
 
@@ -263,15 +267,15 @@ Cookie name `sessionId` 與 Grace 20 秒目前是程式常數，尚未環境變�
 
 ### 撤銷
 
-- Current logout 原子刪除 Current、Previous Grace 與 ZSET member。
-- 登出後 Cookie 被清除。
-- 裝置淘汰後 Current 與 Previous Grace 都無法使用。
-- ZSET 不殘留已撤銷 member。
+- [x] Logout 原子刪除請求攜帶的 Session Hash 與 ZSET member。
+- [x] 登出後 Cookie 被清除；E2E 驗證後續 `GET /user/userInfo` 回 401。
+- [ ] Current logout 時同步刪除 Previous Grace。
+- [ ] Grace Cookie logout 時撤銷同 family 的新 Current。
+- [ ] ZSET 不殘留已撤銷 member 的 Redis integration test。
 
 ## 15. 後續工作
 
-1. 完成原子 logout／revoke，並決定 Grace Cookie logout 的保證範圍。
-2. 補齊 SessionService、SessionRepository 與兩支 Lua 的 unit／integration tests。
-3. 決定無效 Session 回 401 時是否由 Server 主動清除 Cookie；目前未實作。
-4. Socket.IO 接入前，決定 handshake 是否允許觸發輪轉；不能讓 Redis 已輪轉但瀏覽器沒有收到新 Cookie。
-5. 若提供裝置管理頁，再新增 device metadata 與 revoke endpoint，不提前把 user-agent 塞進核心 Session Hash。
+1. 補齊 SessionService、SessionRepository 與三支 Lua 的 unit／integration tests。
+2. 決定無效 Session 回 401 時是否由 Server 主動清除 Cookie；目前未實作。
+3. Socket.IO 接入前，決定 handshake 是否允許觸發輪轉；不能讓 Redis 已輪轉但瀏覽器沒有收到新 Cookie。
+4. 若提供裝置管理頁，再新增 device metadata 與 revoke endpoint，不提前把 user-agent 塞進核心 Session Hash。

@@ -13,7 +13,7 @@
 適合：
 
 - AuthService branch。
-- SessionService 建立、驗證、輪轉結果 mapping 與 delete 行為。
+- SessionService 建立、驗證、輪轉結果 mapping 與 revoke 行為。
 - Validation formatter。
 - Guards、filters、interceptors。
 - Socket command handler 的 authorization 與 ack mapping。
@@ -58,7 +58,7 @@
 - [x] Login success and session creation。
 - [x] GetUserInfo success。
 - [x] GetUserInfo not found。
-- [x] Logout deletes session。
+- [x] Logout 呼叫 Session revoke。
 
 ### SessionService
 
@@ -70,7 +70,8 @@
 - [ ] Lua 回 `MISSING` 時驗證失敗。
 - [ ] Lua 回 `CURRENT`／`GRACE` 時只回 `userId`。
 - [ ] Lua 回 `ROTATED` 時才回候選的新 Raw Session ID。
-- [ ] Delete 只傳入 Hash；完成 revoke 後改測整個 family／index 的副作用。
+- [ ] Revoke 將 Raw Session ID hash，讀取 userId 後呼叫 Repository。
+- [ ] Session 不存在時 revoke 為 no-op。
 
 ### Session schema
 
@@ -87,7 +88,7 @@
 - [ ] 多個並行輪轉只有一個 `ROTATED`，其餘為 `GRACE`。
 - [ ] 輪轉後舊 key 約 20 秒到期，新 key 與 ZSET score 正確。
 - [ ] 無效／缺欄位 Hash 不會被信任。
-- [ ] Logout／revoke 原子刪除 Hash 與 ZSET member。
+- [ ] Logout／revoke 原子刪除請求攜帶的 Hash 與 ZSET member。
 
 ### Common
 
@@ -126,7 +127,9 @@ REDIS_URL=redis://localhost:6379/1
 - Integration test 可 serial 執行，避免共享 DB 互相污染。
 - CI 使用 service containers 啟動 PostgreSQL 與 Redis。
 
-目前 `backend/test/app.e2e-spec.ts` 仍是 Nest 預設的 `GET /` 範例，不符合現有 routes；`jest-e2e.json` 也尚未對齊 `@/` path alias 與 Prisma generated module imports。正式撰寫 E2E 前先修復 bootstrap，並在 `afterAll` 關閉 Nest application、Redis 與 Prisma，避免 open handles。
+目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
+
+目前 E2E 覆蓋 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401，使用同一個 Supertest agent 驗證 HttpOnly Cookie flow。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
 
 ## 5. Test Data Factory
 
@@ -189,17 +192,22 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 9. CI Pipeline
 
-建議順序：
+目前 GitHub Actions 已執行：
+
+1. 安裝 dependencies。
+2. Prisma generate。
+3. 由 `.env.e2e.example` 建立 `.env.e2e`。
+4. Backend E2E。
+5. Backend unit tests。
+
+後續目標順序：
 
 1. Install with frozen lockfile。
 2. Type-check。
 3. Lint。
 4. Unit tests。
 5. Build。
-6. 啟動 PostgreSQL/Redis。
-7. Migration deploy。
-8. Integration tests。
-9. Playwright。
+6. Playwright。
 
 ## 10. 驗收條件
 
@@ -211,8 +219,8 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 11. 目前最優先的測試順序
 
-1. SessionService unit tests：先驗證分支與 Lua reply mapping。
-2. 真實 Redis 的 create／rotate Lua integration tests，包含並行競爭。
-3. 原子 logout／revoke 完成後補撤銷測試。
-4. 修復 Nest E2E 設定，完成 login → userInfo → rotation → logout flow。
-5. Frontend Auth 與 Socket.IO handshake 完成後再加入 Playwright multi-user tests。
+1. Frontend Auth vertical slice 的 unit／component tests。
+2. SessionService unit tests：驗證分支與 Lua reply mapping。
+3. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
+4. Socket.IO Session handshake integration tests。
+5. Frontend Auth 與 Socket.IO handshake 完成後加入 Playwright multi-user tests。

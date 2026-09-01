@@ -4,14 +4,13 @@
 
 ## 目前優先順序
 
-1. [Session 架構與輪轉](session-architecture.md)：完成 revoke／logout 一致性與整合測試。
-2. [測試策略](testing-strategy.md)：修復 backend E2E 設定並覆蓋 Session Lua。
-3. [Frontend Auth vertical slice](frontend-auth-plan.md)。
-4. [Socket.IO Session handshake](socketio-auth-plan.md)。
-5. [Kanban domain 與一致性](kanban-domain-plan.md)。
-6. [API contract 與錯誤處理](api-contract-plan.md)。
-7. [Logging 計畫](logging-plan.md)。
-8. [安全檢查表](security-checklist.md)與[部署計畫](deployment-plan.md)。
+1. [Frontend Auth vertical slice](frontend-auth-plan.md)。
+2. [Socket.IO Session handshake](socketio-auth-plan.md)。
+3. [Session 架構與輪轉](session-architecture.md)：補 SessionService 與 Lua 的單元／Redis integration tests。
+4. [Kanban domain 與一致性](kanban-domain-plan.md)。
+5. [API contract 與錯誤處理](api-contract-plan.md)。
+6. [Logging 計畫](logging-plan.md)。
+7. [安全檢查表](security-checklist.md)與[部署計畫](deployment-plan.md)。
 
 ## 既有路線
 
