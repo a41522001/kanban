@@ -47,6 +47,6 @@ export class AuthService {
   }
   /** 登出 */
   async logout(sessionId: string): Promise<void> {
-    await this.sessionService.delete(sessionId);
+    await this.sessionService.revokeSession(sessionId);
   }
 }

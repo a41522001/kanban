@@ -3,7 +3,6 @@
 @testPassword = password123
 
 ### 註冊成功
-# 第一次執行後，若需要再測試，請修改 @testEmail。
 POST {{baseUrl}}/auth/signup
 Content-Type: application/json
 

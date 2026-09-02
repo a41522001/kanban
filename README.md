@@ -20,6 +20,8 @@ kanban/
 - Redis Session：Cookie 保存 raw session ID；Redis key 使用 SHA-256 hash。
 - Signup、login、userInfo、logout API。
 - HttpOnly session cookie 與 Session Guard。
+- Session rotation、5 裝置限制，以及最小 revoke（原子刪除請求 Session 與 ZSET member）。
+- Auth lifecycle E2E：signup → login → userInfo → logout → userInfo 401；本機與 GitHub Actions 都會使用隔離 PostgreSQL／Redis 執行。
 - 統一成功 response envelope：
 
 ```json
@@ -39,7 +41,6 @@ kanban/
 
 ## 尚未完成
 
-- ValidationPipe 將欄位錯誤格式化成 `Record<string, string[]>`。
 - 前端 Auth API 串接與登入狀態恢復。
 - Socket.IO session cookie handshake。
 - Board、list、card schema 與 room authorization。
@@ -66,6 +67,20 @@ pnpm dev:frontend
 - Redis：`localhost:6379`
 
 Backend 需要先建立 `backend/.env`，並提供 `DATABASE_URL`、`REDIS_URL`、`FRONTEND_URL`、`SALT_ROUNDS` 等環境變數。
+
+## Backend E2E
+
+執行完整的 Auth lifecycle E2E：
+
+```sh
+pnpm test:backend:e2e
+```
+
+它會啟動暫存的 PostgreSQL 與 Redis、套用 migration、執行測試，最後移除 E2E containers 與 volumes。本機第一次執行前，建立 E2E 設定：
+
+```sh
+cp backend/.env.e2e.example backend/.env.e2e
+```
 
 ## Session Auth 流程
 

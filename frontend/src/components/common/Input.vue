@@ -7,11 +7,14 @@
       :type="type"
       :disabled="disabled"
       :readonly="readonly"
+      :aria-invalid="invalid || undefined"
       :class="
         cn(
           'w-full rounded-control border border-border bg-surface px-4 py-3 text-content-primary placeholder:text-content-tertiary transition-[border-color,box-shadow] duration-150',
           'focus-visible:border-action-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20',
-          'disabled:cursor-not-allowed disabled:opacity-50',
+          'disabled:cursor-not-allowed disabled:opacity-50 read-only:cursor-default read-only:bg-surface-subtle',
+          invalid &&
+            'border-feedback-danger focus-visible:border-feedback-danger focus-visible:ring-feedback-danger/20',
           clearable && 'pr-10',
           props.class,
         )
@@ -36,6 +39,10 @@ import { X } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { cn } from '@/utils/cn';
 
+defineOptions({
+  inheritAttrs: false,
+});
+
 interface Props {
   class?: string;
   id?: string;
@@ -43,6 +50,7 @@ interface Props {
   clearable?: boolean;
   disabled?: boolean;
   readonly?: boolean;
+  invalid?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -51,6 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
   clearable: false,
   disabled: false,
   readonly: false,
+  invalid: false,
 });
 
 const model = defineModel<string>({ default: '' });

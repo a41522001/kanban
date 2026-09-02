@@ -25,6 +25,10 @@
   --color-action-primary-hover: #c4573e;
   --color-action-primary-soft: #fce5df;
 
+  /* Feedback */
+  --color-feedback-danger: #b33b2e;
+  --color-feedback-danger-soft: #fce8e5;
+
   /* Kanban flow states */
   --color-flow-ready: #df6e51;
   --color-flow-active: #a9d2c8;

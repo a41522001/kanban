@@ -13,7 +13,7 @@
 適合：
 
 - AuthService branch。
-- SessionService hash、parse 與 delete 行為。
+- SessionService 建立、驗證、輪轉結果 mapping 與 revoke 行為。
 - Validation formatter。
 - Guards、filters、interceptors。
 - Socket command handler 的 authorization 與 ack mapping。
@@ -58,22 +58,45 @@
 - [x] Login success and session creation。
 - [x] GetUserInfo success。
 - [x] GetUserInfo not found。
-- [x] Logout deletes session。
+- [x] Logout 呼叫 Session revoke。
 
 ### SessionService
 
-- [ ] Save 產生不可預測 session ID。
-- [ ] Repository 只收到 hash，不收到 raw session ID。
-- [ ] Get valid JSON。
-- [ ] Get missing session。
-- [ ] Get malformed JSON。
-- [ ] Delete。
+- [ ] `saveCurrentSession` 產生不可預測的 Base64URL Session ID。
+- [ ] Repository 只收到 SHA-256 Hash，不收到 Raw Session ID。
+- [ ] 建立時正確計算 UTC `rotateAtMs`、`expiresAtMs` 與 `MAX_DEVICE`。
+- [ ] Grace 直接驗證成功且不輪轉。
+- [ ] Current 未到 `rotateAtMs` 時直接驗證成功。
+- [ ] Lua 回 `MISSING` 時驗證失敗。
+- [ ] Lua 回 `CURRENT`／`GRACE` 時只回 `userId`。
+- [ ] Lua 回 `ROTATED` 時才回候選的新 Raw Session ID。
+- [ ] Revoke 將 Raw Session ID hash，讀取 userId 後呼叫 Repository。
+- [ ] Session 不存在時 revoke 為 no-op。
+
+### Session schema
+
+- [x] Current Redis Hash 字串欄位轉成 domain 型別。
+- [x] Grace Redis Hash 字串欄位轉成 domain 型別。
+- [x] 無法轉換的數字欄位 fail closed。
+
+### SessionRepository 與 Lua integration
+
+- [ ] 建立 Hash、`PEXPIREAT` 與 ZSET member 的結果正確。
+- [ ] 已過期的 ZSET member 會先清理。
+- [ ] 第六個登入淘汰最早到期的 Current 與 Previous Grace。
+- [ ] 多個並行登入後 `ZCARD <= MAX_DEVICE`。
+- [ ] 多個並行輪轉只有一個 `ROTATED`，其餘為 `GRACE`。
+- [ ] 輪轉後舊 key 約 20 秒到期，新 key 與 ZSET score 正確。
+- [ ] 無效／缺欄位 Hash 不會被信任。
+- [ ] Logout／revoke 原子刪除請求攜帶的 Hash 與 ZSET member。
 
 ### Common
 
-- [ ] Validation formatter。
-- [ ] AppException。
-- [ ] HttpExceptionFilter。
+- [x] Validation formatter 與 sensitive value 遮蔽。
+- [x] ValidationPipe 拒絕額外欄位。
+- [x] ValidationPipe + HttpExceptionFilter HTTP integration。
+- [x] HttpExceptionFilter 保留 AppException 並隱藏未知錯誤。
+- [ ] AppException 單獨的 constructor／default 測試。
 - [ ] WrapResponseInterceptor。
 - [ ] Cookie options development/production。
 
@@ -83,6 +106,7 @@
 - [ ] Cookie type invalid。
 - [ ] Session missing/expired。
 - [ ] Session valid and request.userId assigned。
+- [ ] `ROTATED` 時只設定一次新 Cookie，其他狀態不設定。
 
 ## 4. Integration Test Infrastructure
 
@@ -102,6 +126,10 @@ REDIS_URL=redis://localhost:6379/1
 - 測試資料使用固定 factory。
 - Integration test 可 serial 執行，避免共享 DB 互相污染。
 - CI 使用 service containers 啟動 PostgreSQL 與 Redis。
+
+目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
+
+目前 E2E 覆蓋 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401，使用同一個 Supertest agent 驗證 HttpOnly Cookie flow。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
 
 ## 5. Test Data Factory
 
@@ -164,17 +192,22 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 9. CI Pipeline
 
-建議順序：
+目前 GitHub Actions 已執行：
+
+1. 安裝 dependencies。
+2. Prisma generate。
+3. 由 `.env.e2e.example` 建立 `.env.e2e`。
+4. Backend E2E。
+5. Backend unit tests。
+
+後續目標順序：
 
 1. Install with frozen lockfile。
 2. Type-check。
 3. Lint。
 4. Unit tests。
 5. Build。
-6. 啟動 PostgreSQL/Redis。
-7. Migration deploy。
-8. Integration tests。
-9. Playwright。
+6. Playwright。
 
 ## 10. 驗收條件
 
@@ -184,3 +217,10 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - CI 不輸出 Password、Cookie、Session ID。
 - 同一套指令可在 Windows 開發機與 Linux CI 執行。
 
+## 11. 目前最優先的測試順序
+
+1. Frontend Auth vertical slice 的 unit／component tests。
+2. SessionService unit tests：驗證分支與 Lua reply mapping。
+3. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
+4. Socket.IO Session handshake integration tests。
+5. Frontend Auth 與 Socket.IO handshake 完成後加入 Playwright multi-user tests。

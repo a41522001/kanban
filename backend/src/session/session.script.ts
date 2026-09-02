@@ -25,6 +25,11 @@ type RotateSessionScriptInput = {
   newExpiresAtMs: number;
   graceUntilMs: number;
 };
+type RevokeSessionScriptInput = {
+  sessionKey: string;
+  userSessionsKey: string;
+  sessionIdHash: string;
+};
 type RawRotateSessionReply =
   ['MISSING'] | ['GRACE', string] | ['CURRENT', string] | ['ROTATED', string];
 
@@ -376,9 +381,35 @@ const ROTATE_SESSION_SCRIPT = defineScript({
   },
 });
 
+const REVOKE_SESSION_SCRIPT = defineScript({
+  SCRIPT: `
+    local sessionKey = KEYS[1]
+    local userSessionsKey = KEYS[2]
+    local sessionIdHash = ARGV[1]
+
+    local isDelete = redis.call('DEL', sessionKey)
+    redis.call('ZREM', userSessionsKey, sessionIdHash)
+    if isDelete == 1 then
+      return 'REVOKED'
+    end
+
+    return 'MISSING'
+  `,
+  NUMBER_OF_KEYS: 2,
+  parseCommand(parser, input: RevokeSessionScriptInput) {
+    parser.pushKey(input.sessionKey);
+    parser.pushKey(input.userSessionsKey);
+
+    parser.push(input.sessionIdHash);
+  },
+  transformReply(reply: string): string {
+    return reply;
+  },
+});
 export const SESSION_SCRIPTS = {
   createCurrentSession: CREATE_CURRENT_SESSION_SCRIPT,
   rotateSession: ROTATE_SESSION_SCRIPT,
+  revokeSession: REVOKE_SESSION_SCRIPT,
 };
 
 export type SessionScripts = typeof SESSION_SCRIPTS;

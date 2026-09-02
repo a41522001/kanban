@@ -10,7 +10,7 @@
 Vue 3 browser WebSocket
 → Express + ws
 → Socket.IO
-→ JWT、room、ack、冪等與 Kanban 狀態同步
+→ Redis Session Cookie、room、ack、冪等與 Kanban 狀態同步
 ```
 
 每週約投入 5 小時，不設定完成期限。
@@ -53,7 +53,7 @@ Vue 3 browser WebSocket
 核心順序：
 
 1. 用 Socket.IO 重建最小連線與 typed events。
-2. JWT access token handshake authentication。
+2. HttpOnly Session Cookie handshake authentication；HTTP 與 Socket.IO 共用 Redis Session。
 3. Board room 與 server-side authorization。
 4. Card create / move / edit 的 acknowledgement。
 5. Timeout、retry、command ID 與 idempotency。

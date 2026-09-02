@@ -11,9 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps: 
-      - name: test
-        run: echo "hello world"
-
       - name: 抓取程式碼
         uses: actions/checkout@v7
 
@@ -32,5 +29,11 @@ jobs:
         working-directory: ./backend
         run: npx prisma generate
 
-      - name: 執行測試
+      - name: 建立 E2E 環境設定
+        run: cp backend/.env.e2e.example backend/.env.e2e
+
+      - name: 執行 Backend E2E
+        run: pnpm test:backend:e2e
+
+      - name: 執行單元測試
         run: pnpm run test:backend

@@ -7,6 +7,8 @@
 - 目標：先完成單節點下可靠的多人 Kanban，再考慮 Redis adapter、多節點與 RabbitMQ。
 - 已存在的 Auth API、HTTP response envelope 與 Session Cookie 機制維持不變。
 
+目前只有 Workspace 基礎模型與建立／列表／成員查詢已開始實作；Project、Board 與下列 Socket commands 仍是目標規格。現有 `GET /workspaces/:workspaceId/members` 尚未檢查呼叫者的 Workspace membership，實作後續功能前必須先補上 authorization。
+
 這份文件描述預期契約，不代表所有功能必須一次完成。建議依照「實作階段」逐步交付，每一階段都應可獨立驗收。
 
 ## 1. 核心決策
@@ -97,12 +99,13 @@ Workspace 不保存 `PERSONAL`／`TEAM` 類型；只有一位成員時是個人�
 
 | 欄位          | 型別      | 說明              |
 | ------------- | --------- | ----------------- |
+| `id`          | UUID      | Membership ID     |
 | `workspaceId` | UUID      | Workspace ID      |
 | `userId`      | UUID      | User ID           |
 | `role`        | enum      | `OWNER`、`MEMBER` |
 | `joinedAt`    | timestamp | 加入時間          |
 
-Primary key 使用 `(workspaceId, userId)`。建立 Workspace 時，建立者自動成為 `OWNER`。
+目前 Prisma schema 使用 `id` 作 primary key，並以 `(workspaceId, userId)` unique constraint 防止重複 membership。建立 Workspace 時，建立者自動成為 `OWNER`。
 
 #### Project
 
@@ -264,14 +267,16 @@ Client 傳 `beforeCardId` 或 `afterCardId`，不要直接傳可信任的 `posit
 packages/contracts/
 ├── api.ts
 ├── auth.ts
-├── workspace.ts
+├── workspaces.ts
 ├── project.ts
 ├── board.ts
 ├── board-socket.ts
 └── socket.ts
 ```
 
-`workspace.ts`、`project.ts`、`board.ts` 放 HTTP 與 domain DTO；`board-socket.ts` 放 Board command、event 與 ack；`socket.ts` 只組合完整的 Client/Server event maps。
+`workspaces.ts`、`project.ts`、`board.ts` 放 HTTP 與 domain DTO；`board-socket.ts` 放 Board command、event 與 ack；`socket.ts` 只組合完整的 Client/Server event maps。
+
+以下是 Board vertical slice 的目標 contract，不是目前 `packages/contracts/workspaces.ts` 的完成狀態。目前的 `WorkspaceDto` 尚未回傳 `createdById`、`archivedAt`，`WorkspaceListItemDto` 也尚未有 member／project counts；實作 Phase 1 時必須同一個變更內更新 contracts、Service mapping、Swagger 與測試。
 
 ### 4.1 DTO 基礎型別
 
@@ -290,9 +295,11 @@ export interface MemberUserDto {
   avatarUrl: string | null;
 }
 
-export interface WorkspaceMemberDto extends MemberUserDto {
+export interface WorkspaceMemberDto {
+  memberId: string;
+  displayName: string;
+  avatarUrl: string | null;
   role: WorkspaceRole;
-  joinedAt: string;
 }
 
 export interface ProjectMemberDto extends MemberUserDto {
@@ -437,15 +444,20 @@ Validation error：
 
 ```json
 {
-  "code": 1001,
+  "code": 0,
   "data": null,
-  "message": "輸入資料驗證失敗",
+  "message": "請求參數錯誤",
   "time": "2026-08-20T10:00:00.000Z",
   "error": {
-    "name": ["看板名稱不可為空", "看板名稱最多 100 個字元"]
+    "name": {
+      "value": "",
+      "messages": ["看板名稱不可為空"]
+    }
   }
 }
 ```
+
+目前 backend validation 使用 application code `0`，並因 `stopAtFirstError: true` 每個欄位只回第一個錯誤。下表的 `1001` 等 code 是後續集中 ErrorCode 後的目標值，不能在 contracts 尚未修改前直接使用。
 
 ### 5.3 建議 application error codes
 
@@ -609,8 +621,8 @@ Server 行為：
 
 - `GET /workspaces/:workspaceId/members`：Workspace member 可讀。
 - `POST /workspaces/:workspaceId/members`：僅 Workspace `OWNER`，第一版只加入已註冊使用者。
-- `PATCH /workspaces/:workspaceId/members/:userId`：僅 `OWNER`；不可將最後一位 Workspace `OWNER` 降級。
-- `DELETE /workspaces/:workspaceId/members/:userId`：僅 `OWNER` 或成員自行離開；不可移除最後一位 `OWNER`。
+- `PATCH /workspaces/:workspaceId/members/:memberId`：僅 `OWNER`；不可將最後一位 Workspace `OWNER` 降級。
+- `DELETE /workspaces/:workspaceId/members/:memberId`：僅 `OWNER` 或成員自行離開；不可移除最後一位 `OWNER`。
 
 若使用者被移出 Workspace，Server 必須同步移除其下所有 `ProjectMember` 關係，或拒絕操作直到 Project memberships 已處理完畢；實作時應放在同一個 transaction，避免殘留越權資料。
 

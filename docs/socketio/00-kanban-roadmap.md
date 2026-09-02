@@ -21,7 +21,8 @@
 
 - pnpm monorepo：frontend、backend、`@kanban/contracts`。
 - PostgreSQL + Prisma User model。
-- Redis Session：隨機 session ID 只存在 HttpOnly Cookie，Redis 使用 SHA-256 hash 作 key。
+- Redis Session：隨機 Session ID 只存在 HttpOnly Cookie，Redis 使用 SHA-256 Hash 作 key。
+- Session Current／Grace schema、15 分鐘輪轉、20 秒 Grace、5 裝置 ZSET 與原子 Lua 核心流程。
 - Signup、login、userInfo、logout HTTP API。
 - Session Guard 將已驗證的 `userId` 放到 Express Request。
 - 成功 API envelope：`code`、`data`、`message`、`time`、`error`。
@@ -30,13 +31,15 @@
 - Swagger `/api/docs`。
 - 最小 Socket.IO connection 與 typed `demo:echo` event。
 
+尚未完成的 Session 收尾：logout／revoke 尚未同步清除 Current、Previous Grace 與 ZSET，Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
+
 ## 小章順序
 
 ### 01 前端 Auth vertical slice
 
 - Login、signup UI 串接 HTTP API。
 - `credentials: 'include'` 讓瀏覽器保存並帶上 HttpOnly session cookie。
-- App 初始化時呼叫 `GET /auth/userInfo` 恢復登入狀態。
+- App 初始化時呼叫 `GET /user/userInfo` 恢復登入狀態。
 - Logout 清除 session 並更新前端狀態。
 
 ### 02 Session Cookie Socket.IO handshake

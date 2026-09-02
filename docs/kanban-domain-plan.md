@@ -37,12 +37,13 @@
 
 ### WorkspaceMember
 
+- id
 - workspaceId
 - userId
 - role：`OWNER`、`MEMBER`
 - joinedAt
 
-`workspaceId + userId` 使用 composite primary key。WorkspaceMember 代表使用者能進入工作區；實際能否進入 Project 仍由 ProjectMember 決定。
+目前 Prisma schema 使用獨立 UUID `id` 作為 primary key，並以 `@@unique([workspaceId, userId])` 防止重複 membership。API 的 `WorkspaceMemberDto.memberId` 對應此 `id`。WorkspaceMember 代表使用者能進入工作區；實際能否進入 Project 仍由 ProjectMember 決定。
 
 ### Project
 
@@ -295,7 +296,8 @@ Board room domain events 只描述已 commit 的事實：
 ## 10. Prisma 與資料庫約束
 
 - 所有外鍵明確設定 delete 行為。
-- WorkspaceMember、ProjectMember、CardLabelAssignment 使用 composite primary key。
+- WorkspaceMember 使用獨立 UUID primary key，加上 `(workspaceId, userId)` unique constraint。
+- ProjectMember、CardLabelAssignment 預計使用 composite primary key；實作 ProjectMember 時再以當時的 API mutation 路徑確認是否也需要獨立 member ID。
 - Project 內 Category／Label 使用 normalizedName unique constraint。
 - CardCategory.colorKey 使用 varchar + shared contract whitelist，不使用 PostgreSQL enum。
 - ProjectStatus、WorkspaceRole、ProjectRole 是穩定 domain values，可使用 Prisma/PostgreSQL enum。

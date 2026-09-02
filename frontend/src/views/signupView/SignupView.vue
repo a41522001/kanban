@@ -72,7 +72,9 @@
       </p>
     </aside>
 
-    <section class="flex justify-center px-6 py-8 sm:px-8 sm:py-10 lg:items-center lg:px-10">
+    <section
+      class="flex justify-center px-6 py-8 sm:px-8 sm:py-10 lg:items-center lg:px-10 bg-auth-page"
+    >
       <div class="w-full max-w-md flex flex-col">
         <div class="flex flex-col gap-6 mb-2 lg:hidden">
           <Logo class="text-content-primary" />
@@ -90,10 +92,10 @@
             <label for="name" class="text-content-primary font-bold">{{
               t('auth.fields.name.label')
             }}</label>
-            <input
+            <Input
+              v-model="signupForm.displayName"
               id="name"
               type="text"
-              class="input"
               :placeholder="t('auth.fields.name.placeholder')"
             />
           </div>
@@ -101,10 +103,10 @@
             <label for="email" class="text-content-primary font-bold">{{
               t('auth.fields.email.label')
             }}</label>
-            <input
+            <Input
+              v-model="signupForm.email"
               id="email"
-              type="text"
-              class="input"
+              type="email"
               :placeholder="t('auth.fields.email.placeholder')"
             />
           </div>
@@ -112,10 +114,10 @@
             <label for="password" class="text-content-primary font-bold">{{
               t('auth.fields.password.label')
             }}</label>
-            <input
+            <Input
+              v-model="signupForm.password"
               id="password"
               type="password"
-              class="input"
               :placeholder="t('auth.fields.password.placeholder')"
             />
           </div>
@@ -123,20 +125,25 @@
             <label for="confirmPassword" class="text-content-primary font-bold">{{
               t('auth.fields.confirmPassword.label')
             }}</label>
-            <input
+            <Input
+              v-model="signupForm.confirmPassword"
               id="confirmPassword"
               type="password"
-              class="input"
               :placeholder="t('auth.fields.confirmPassword.placeholder')"
             />
           </div>
           <div class="mb-7 sm:mb-9 flex items-center">
-            <input id="policy" type="checkbox" class="me-2 accent-black" />
+            <input
+              v-model="signupForm.checkPolicy"
+              id="policy"
+              type="checkbox"
+              class="me-2 accent-black"
+            />
             <label for="policy" class="text-content-secondary text-sm">{{
               t('auth.signup.agreeToPolicy')
             }}</label>
           </div>
-          <Btn>{{ t('auth.signup.submit') }}</Btn>
+          <Btn :disabled="createWorkspaceBtnDisable">{{ t('auth.signup.submit') }}</Btn>
         </form>
         <div class="flex items-center sm:my-9 my-6">
           <span class="h-px grow bg-[#D9DEE7]"></span>
@@ -166,8 +173,31 @@ import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
 import Logo from '@/components/common/Logo.vue';
 import Btn from '@/components/common/Btn.vue';
+import Input from '@/components/common/Input.vue';
+import type { SignupForm } from './signup';
+import { computed, ref } from 'vue';
 const { t } = useI18n();
 const router = useRouter();
+const signupForm = ref<SignupForm>({
+  displayName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  checkPolicy: false,
+});
+const createWorkspaceBtnDisable = computed(() => {
+  const isDisplayNameEmpty = signupForm.value.displayName.trim() === '';
+  const isEmailEmpty = signupForm.value.email.trim() === '';
+  const isPasswordEmpty = signupForm.value.password.trim() === '';
+  const isConfirmPasswordEmpty = signupForm.value.confirmPassword.trim() === '';
+  return (
+    isDisplayNameEmpty ||
+    isEmailEmpty ||
+    isPasswordEmpty ||
+    isConfirmPasswordEmpty ||
+    !signupForm.value.checkPolicy
+  );
+});
 const goLoginPage = () => {
   router.push({ name: 'login' });
 };

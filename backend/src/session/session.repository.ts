@@ -14,6 +14,7 @@ type RotateSessionParams = {
   newExpiresAtMs: number;
   graceUntilMs: number;
 };
+
 @Injectable()
 export class SessionRepository {
   constructor(private readonly redisService: RedisService) {}
@@ -157,7 +158,7 @@ export class SessionRepository {
     // await deleteMulti.exec();
   }
 
-  /** 取得 */
+  /** 取得Session */
   async getSession(sessionIdHash: string): Promise<StoredSession | null> {
     const client = this.redisService.getClient();
     const key = redisKeys.session(sessionIdHash);
@@ -174,6 +175,19 @@ export class SessionRepository {
     }
 
     return result.data;
+  }
+
+  /** 撤銷session */
+  async revokeSession(userId: string, sessionIdHash: string) {
+    const sessionKey = redisKeys.session(sessionIdHash);
+    const userSessionsKey = redisKeys.userSessions(userId);
+    const client = this.redisService.getClient();
+    const result = await client.revokeSession({
+      sessionKey,
+      userSessionsKey,
+      sessionIdHash,
+    });
+    return result;
   }
 
   /** 刪除 */

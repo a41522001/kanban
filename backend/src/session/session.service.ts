@@ -59,6 +59,8 @@ export class SessionService {
     );
     return sessionId;
   }
+
+  /** 認證session */
   async authenticateSession(
     sessionId: string,
   ): Promise<AuthenticateSessionResult | null> {
@@ -120,6 +122,16 @@ export class SessionService {
           rotatedSessionId: newSessionId,
         };
     }
+  }
+  /** 撤銷Session */
+  async revokeSession(sessionId: string): Promise<void> {
+    const sessionIdHash = this.hashSessionId(sessionId);
+    const session = await this.sessionRepository.getSession(sessionIdHash);
+    if (session === null) {
+      return;
+    }
+    const userId = session.userId;
+    await this.sessionRepository.revokeSession(userId, sessionIdHash);
   }
   /** 取得 */
   async getSession(sessionId: string): Promise<StoredSession | null> {

@@ -166,11 +166,13 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<ApiResult<void>> {
     const { sessionId } = req.cookies;
-    if (typeof sessionId === 'string') {
-      await this.authService.logout(sessionId);
+    try {
+      if (typeof sessionId === 'string') {
+        await this.authService.logout(sessionId);
+      }
+    } finally {
+      clearCookie(this.configService, res, this.sessionCookieName);
     }
-
-    clearCookie(this.configService, res, this.sessionCookieName);
     return {
       message: '登出成功',
     };
