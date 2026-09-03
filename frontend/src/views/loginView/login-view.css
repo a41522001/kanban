@@ -1,0 +1,151 @@
+@reference '../../styles/index.css';
+
+.login {
+  @apply min-h-full lg:grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)];
+}
+
+.login__sidebar {
+  @apply hidden bg-content-primary lg:grid lg:grid-rows-[auto_1fr_auto] lg:p-10 2xl:p-15;
+}
+
+.login__sidebar-logo {
+  @apply text-content-on-dark;
+}
+
+.login__sidebar-content {
+  @apply flex grow flex-col justify-center;
+}
+
+.login__sidebar-title {
+  @apply text-[32px] font-bold text-content-on-dark;
+}
+
+.login__sidebar-title--spaced {
+  @apply mb-7;
+}
+
+.login__sidebar-description {
+  @apply mb-15 text-content-on-dark-muted;
+}
+
+.login__timeline {
+  @apply relative space-y-7;
+}
+
+.login__timeline::before {
+  @apply absolute top-4 bottom-4 left-4 w-px bg-content-on-dark/20;
+  content: '';
+}
+
+.login__timeline-item {
+  @apply relative z-10 flex gap-4;
+}
+
+.login__timeline-step {
+  @apply flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ring-4 ring-content-primary;
+}
+
+.login__timeline-step--primary {
+  @apply bg-action-primary text-content-on-dark;
+}
+
+.login__timeline-step--active {
+  @apply bg-flow-active text-content-primary;
+}
+
+.login__timeline-step--pending {
+  @apply border border-content-on-dark/30 bg-content-primary text-content-on-dark;
+}
+
+.login__timeline-content {
+  @apply pt-1;
+}
+
+.login__timeline-title {
+  @apply text-sm font-bold text-content-on-dark;
+}
+
+.login__timeline-description {
+  @apply mt-1 text-sm leading-6 text-content-on-dark-muted;
+}
+
+.login__tagline {
+  @apply max-w-sm text-sm leading-6 text-content-on-dark-muted;
+}
+
+.login__content {
+  @apply flex justify-center bg-auth-page px-6 py-8 sm:px-8 sm:py-10 lg:items-center lg:px-10;
+}
+
+.login__panel {
+  @apply flex w-full max-w-md flex-col;
+}
+
+.login__mobile-brand {
+  @apply mb-2 flex flex-col gap-6 lg:hidden;
+}
+
+.login__mobile-logo {
+  @apply text-content-primary;
+}
+
+.login__mobile-accent {
+  @apply h-1 w-10 rounded-xl bg-action-primary;
+}
+
+.login__eyebrow,
+.login__description {
+  @apply text-sm text-content-secondary;
+}
+
+.login__title {
+  @apply my-2 text-3xl font-bold text-content-primary sm:my-3 sm:text-4xl;
+}
+
+.login__form {
+  @apply mt-8 flex flex-col sm:mt-11;
+}
+
+.login__field {
+  @apply mb-7 flex flex-col gap-3.5 sm:mb-9;
+}
+
+.login__label {
+  @apply font-bold text-content-primary;
+}
+
+.login__forgot-password {
+  @apply ms-auto mb-6 cursor-pointer text-action-primary-hover hover:text-action-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 sm:mb-8;
+}
+
+.login__divider {
+  @apply my-6 flex items-center sm:my-9;
+}
+
+.login__divider-line {
+  @apply h-px grow bg-border;
+}
+
+.login__divider-text {
+  @apply p-2 text-xs text-content-secondary;
+}
+
+.login__google-button {
+  @apply mb-10 bg-surface text-content-primary hover:bg-surface-subtle sm:mb-15;
+}
+
+.login__google-icon {
+  @apply me-3;
+}
+
+.login__signup-prompt {
+  @apply flex justify-center;
+}
+
+.login__signup-text {
+  @apply text-content-primary;
+}
+
+.login__signup-link {
+  @apply cursor-pointer font-bold text-action-primary-hover hover:text-action-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20;
+}

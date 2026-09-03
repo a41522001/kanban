@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { ApiCode } from '@kanban/contracts/api';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -31,7 +32,7 @@ describe('AppController (e2e)', () => {
       .expect(201);
     // 登入
     expect(signupResponse.body).toMatchObject({
-      code: 1,
+      code: ApiCode.Success,
       data: null,
       message: '註冊成功',
       error: null,

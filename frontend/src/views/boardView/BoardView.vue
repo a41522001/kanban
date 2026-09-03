@@ -1,29 +1,22 @@
 <template>
-  <main class="min-h-full h-full bg-board-page">
-    <header class="bg-content-primary px-7 py-4">
-      <div class="flex justify-between">
-        <Logo class="text-content-on-dark" />
+  <main class="board">
+    <header class="board__header">
+      <div class="board__header-content">
+        <Logo class="board__logo" />
         <Avatar name="Jeffery" />
       </div>
     </header>
 
-    <div class="flex gap-4 overflow-x-auto overscroll-x-contain p-4">
-      <section
-        v-for="column in boardColumns"
-        :key="column.id"
-        class="w-72 shrink-0 bg-auth-page border-border-strong border rounded-xl p-4 pb-20"
-      >
-        <div class="flex gap-3 mb-3">
-          <span class="w-2 h-6 rounded-2xl" :class="columnAccentClass[column.colorKey]"></span>
-          <span class="text-content-primary font-bold">{{ column.title }}</span>
+    <div class="board__columns">
+      <section v-for="column in boardColumns" :key="column.id" class="board__column">
+        <div class="board__column-header">
+          <span class="board__column-accent" :class="columnAccentClass[column.colorKey]"></span>
+          <span class="board__column-title">{{ column.title }}</span>
         </div>
-        <div class="flex flex-col gap-3 mb-3">
+        <div class="board__cards">
           <BoardCard v-for="card in column.cards" :key="card.id" :card="card" />
         </div>
-        <Btn
-          class="px-0 flex gap-3 bg-auth-page hover:bg-auth-page text-content-primary hover:text-content-secondary"
-          @click="dialog = true"
-        >
+        <Btn class="board__add-card-button" @click="dialog = true">
           <Plus :size="16" />
           <span>新增卡片</span>
         </Btn>
@@ -43,12 +36,13 @@ import Btn from '@/components/common/Btn.vue';
 import type { BoardColumnData } from '@/types/board';
 import { ref } from 'vue';
 import { Plus } from 'lucide-vue-next';
+
 const dialog = ref<boolean>(false);
 const columnAccentClass = {
-  ready: 'bg-flow-ready',
-  active: 'bg-flow-active',
-  review: 'bg-flow-review',
-  done: 'bg-flow-done',
+  ready: 'board__column-accent--ready',
+  active: 'board__column-accent--active',
+  review: 'board__column-accent--review',
+  done: 'board__column-accent--done',
 } as const;
 
 const boardColumns = ref<BoardColumnData[]>([
@@ -202,3 +196,5 @@ const boardColumns = ref<BoardColumnData[]>([
   },
 ]);
 </script>
+
+<style scoped src="./board-view.css"></style>

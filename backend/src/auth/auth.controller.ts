@@ -1,6 +1,5 @@
 import {
   Body,
-  ConflictException,
   Controller,
   HttpCode,
   HttpStatus,
@@ -24,7 +23,7 @@ import { clearCookie, getCookieOptions } from '@/common/utils/cookie';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
-import { ApiResult } from '@kanban/contracts/api';
+import { ApiCode, type ApiResult } from '@kanban/contracts/api';
 import { AppException } from '@/common/exceptions/app.exception';
 
 @ApiTags('Auth')
@@ -75,7 +74,11 @@ export class AuthController {
     const isRegistered = await this.authService.signup(signupDto);
 
     if (!isRegistered) {
-      throw new ConflictException('Email 已被註冊');
+      throw new AppException({
+        code: ApiCode.EmailAlreadyRegistered,
+        message: 'Email 已被註冊',
+        status: HttpStatus.CONFLICT,
+      });
     }
 
     return {
@@ -118,9 +121,9 @@ export class AuthController {
 
     if (!sessionId) {
       throw new AppException({
-        code: 0,
+        code: ApiCode.InvalidCredentials,
         message: '帳號或密碼錯誤',
-        status: 401,
+        status: HttpStatus.UNAUTHORIZED,
       });
     }
 

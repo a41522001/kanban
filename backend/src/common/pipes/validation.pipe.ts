@@ -2,7 +2,7 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { formatValidationErrors } from '@/common/utils';
 import { HttpStatus, ValidationPipe } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
-
+import { ApiCode } from '@kanban/contracts/api';
 /**
  * 建立全域 request validation pipe。
  *
@@ -18,7 +18,7 @@ export const createValidationPipe = (): ValidationPipe =>
     exceptionFactory: (errors: ValidationError[]): AppException =>
       new AppException({
         status: HttpStatus.BAD_REQUEST,
-        code: 0,
+        code: ApiCode.ValidationError,
         message: '請求參數錯誤',
         errors: formatValidationErrors(errors),
       }),

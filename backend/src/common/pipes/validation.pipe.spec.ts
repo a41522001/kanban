@@ -2,6 +2,7 @@ import type { ArgumentMetadata } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
 import { LoginDto } from '@/auth/dto/login.dto';
 import { AppException } from '@/common/exceptions/app.exception';
+import { ApiCode } from '@kanban/contracts/api';
 import { createValidationPipe } from './validation.pipe';
 
 const loginBodyMetadata: ArgumentMetadata = {
@@ -51,7 +52,7 @@ describe('createValidationPipe', () => {
     });
 
     expect(exception.getStatus()).toBe(HttpStatus.BAD_REQUEST);
-    expect(exception.code).toBe(0);
+    expect(exception.code).toBe(ApiCode.ValidationError);
     expect(exception.message).toBe('請求參數錯誤');
     expect(exception.errors).toEqual({
       email: {

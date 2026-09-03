@@ -3,6 +3,9 @@ export const zhTW = {
     name: 'Flowboard',
     tagline: 'FLOWBOARD / REAL-TIME COLLABORATION',
   },
+  alert: {
+    title: '系統提示',
+  },
   auth: {
     sidebar: {
       login: {
@@ -60,6 +63,7 @@ export const zhTW = {
       description: '輸入帳號後，繼續上次停下的地方。',
       forgotPassword: '忘記密碼？',
       submit: '登入 Flowboard',
+      submitting: '登入中…',
       noAccount: '第一次使用？',
       createAccount: '建立帳號',
     },
@@ -69,6 +73,7 @@ export const zhTW = {
       description: '只需要一分鐘，之後可以再邀請成員。',
       agreeToPolicy: '我同意服務條款與隱私權政策',
       submit: '建立工作區',
+      submitting: '建立帳號中…',
       hasAccount: '已經有帳號？',
       signIn: '返回登入',
     },
@@ -76,8 +81,15 @@ export const zhTW = {
   validation: {
     required: '此欄位為必填',
     email: '請輸入有效的電子郵件',
+    displayNameMaxLength: '名稱不可超過 100 個字元',
+    emailMaxLength: 'Email 長度不可超過 320 個字元',
+    passwordMinLength: '密碼至少需要 8 個字元',
+    passwordMaxLength: '密碼不可超過 72 個字元',
+    passwordMismatch: '兩次輸入的密碼不一致',
+    policyRequired: '請先同意服務條款與隱私權政策',
   },
   error: {
     invalidCredentials: '電子郵件或密碼錯誤',
+    requestFailed: '目前無法完成請求，請稍後再試。',
   },
 };

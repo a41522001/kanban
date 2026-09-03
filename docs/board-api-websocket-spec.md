@@ -444,7 +444,7 @@ Validation error：
 
 ```json
 {
-  "code": 0,
+  "code": 1000,
   "data": null,
   "message": "請求參數錯誤",
   "time": "2026-08-20T10:00:00.000Z",
@@ -457,32 +457,13 @@ Validation error：
 }
 ```
 
-目前 backend validation 使用 application code `0`，並因 `stopAtFirstError: true` 每個欄位只回第一個錯誤。下表的 `1001` 等 code 是後續集中 ErrorCode 後的目標值，不能在 contracts 尚未修改前直接使用。
+目前 backend validation 使用 `ApiCode.ValidationError`（`1000`），並因 `stopAtFirstError: true` 每個欄位只回第一個錯誤。HTTP application code 的現行規範以 [API contract 與錯誤處理規格](./api-contract-plan.md) 為準。
 
-### 5.3 建議 application error codes
+### 5.3 Board 功能新增 code
 
-| Code   | HTTP status | 說明                               |
-| ------ | ----------- | ---------------------------------- |
-| `1`    | 2xx         | 成功                               |
-| `1001` | 400         | Validation failed                  |
-| `1002` | 400         | Invalid cursor/query               |
-| `2001` | 401         | Session 不存在或失效               |
-| `2002` | 403         | 權限不足                           |
-| `3001` | 404         | Board 不存在或不可存取             |
-| `3002` | 404         | Column 不存在                      |
-| `3003` | 404         | Card 不存在                        |
-| `3004` | 409         | Member 已存在                      |
-| `3005` | 404         | Workspace 不存在或不可存取         |
-| `3006` | 404         | Project 不存在或不可存取           |
-| `3007` | 404         | Card category 不存在               |
-| `3008` | 404         | Card label 不存在                  |
-| `4001` | 409         | Version conflict                   |
-| `4002` | 409         | Command ID 被不同 payload 重複使用 |
-| `4003` | 409         | 最後一位 Owner 不可移除或降級      |
-| `4290` | 429         | Rate limit exceeded                |
-| `5000` | 500         | 非預期錯誤                         |
+Board／Project 功能尚未實作時，不預先把設計草案中的數字視為正式 contract。實作某個錯誤情境前，必須先在 `packages/contracts/api.ts` 新增 `ApiCode`，再同步更新 API contract、HTTP／Socket 測試與前端處理。
 
-對沒有 membership 的使用者，建議回覆 `404`，避免透露 Workspace、Project 或 Board 是否存在。已確認具有 membership、但角色不足時才回 `403`。
+對沒有 membership 的使用者，建議回覆 `404`，避免透露 Workspace、Project 或 Board 是否存在。已確認具有 membership、但角色不足時才回 `403`。實作時仍需提供對應的穩定 `ApiCode`；不可重用目前 `InvalidCredentials`（`2001`）或 `EmailAlreadyRegistered`（`2002`）。
 
 Board 的授權路徑固定為：
 
