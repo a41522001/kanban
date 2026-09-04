@@ -1,6 +1,36 @@
 enum WorkspaceRole {
+  /// 可管理工作區設定、成員與邀請的擁有者。
   OWNER
+  /// 可進入工作區，但管理能力受權限政策限制的一般成員。
   MEMBER
+}
+
+enum NotificationType {
+  /// 使用者收到工作區邀請。
+  WORKSPACE_INVITED
+  /// 有使用者加入工作區。
+  WORKSPACE_MEMBER_JOINED
+  /// 使用者被加入 Project。
+  PROJECT_MEMBER_ADDED
+  /// 卡片被指派給使用者。
+  CARD_ASSIGNED
+  /// 使用者在卡片或其留言中被提及。
+  CARD_MENTIONED
+  /// 排程到期後建立的卡片提醒。
+  CARD_REMINDER
+}
+
+enum NotificationResourceType {
+  /// 指向尚待接受、拒絕或過期的工作區邀請。
+  WORKSPACE_INVITATION
+  /// 指向工作區本身。
+  WORKSPACE
+  /// 指向 Project。
+  PROJECT
+  /// 指向 Board。
+  BOARD
+  /// 指向 Card。
+  CARD
 }
 
 generator client {
@@ -14,30 +44,53 @@ datasource db {
 }
 
 model User {
+  /// 使用者的穩定識別碼。
   id           String   @id @default(uuid()) @db.Uuid
+  /// 登入帳號；全系統唯一，最大長度 320。
   email        String   @unique @db.VarChar(320)
+  /// 顯示在介面與通知中的名稱。
   displayName  String   @db.VarChar(100)
+  /// 密碼雜湊；絕不保存或回傳原始密碼。
   passwordHash String   @map("password_hash")
+  /// 選填的使用者頭像 URL。
   avatarUrl    String?  @map("avatar_url")
+  /// 帳號建立時間。
   createdAt    DateTime @default(now()) @map("created_at")
+  /// 帳號資料最後更新時間。
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  createdWorkspaces    Workspace[]       @relation("WorkspaceCreatedBy")
-  workspaceMemberships WorkspaceMember[]
+  /// 此使用者建立的工作區。
+  createdWorkspaces     Workspace[]       @relation("WorkspaceCreatedBy")
+  /// 此使用者加入的工作區 membership。
+  workspaceMemberships  WorkspaceMember[]
+  /// 此使用者收到的通知。
+  receivedNotifications Notification[]    @relation("NotificationRecipient")
+  /// 此使用者觸發的通知；系統事件沒有 actor。
+  actedNotifications    Notification[]    @relation("NotificationActor")
 
   @@map("users")
 }
 
 model Workspace {
+  /// 工作區的穩定識別碼。
   id          String    @id @default(uuid()) @db.Uuid
+  /// 工作區顯示名稱，最大長度 100。
   name        String    @db.VarChar(100)
+  /// 建立工作區的使用者 ID。
   createdById String    @map("created_by_id") @db.Uuid
+  /// 工作區建立時間。
   createdAt   DateTime  @default(now()) @map("created_at")
+  /// 工作區資料最後更新時間。
   updatedAt   DateTime  @updatedAt @map("updated_at")
+  /// 軟刪除／封存時間；null 代表工作區仍可使用。
   archivedAt  DateTime? @map("archived_at")
 
-  createdBy User              @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  members   WorkspaceMember[]
+  /// 建立者；不可隨意刪除仍有工作區的使用者。
+  createdBy     User              @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  /// 可進入此工作區的使用者與其角色。
+  members       WorkspaceMember[]
+  /// 帶有此工作區脈絡的通知。
+  notifications Notification[]
 
   @@index([createdById])
   @@index([archivedAt])
@@ -45,17 +98,69 @@ model Workspace {
 }
 
 model WorkspaceMember {
+  /// Membership 的獨立識別碼；供未來角色變更、移除與邀請流程指向。
   id          String        @id @default(uuid()) @db.Uuid
+  /// 所屬工作區 ID。
   workspaceId String        @map("workspace_id") @db.Uuid
+  /// 加入工作區的使用者 ID。
   userId      String        @map("user_id") @db.Uuid
+  /// 此使用者在工作區內的角色。
   role        WorkspaceRole @default(MEMBER)
+  /// 使用者實際成為成員的時間。
   joinedAt    DateTime      @default(now()) @map("joined_at")
 
+  /// 所屬工作區；工作區硬刪除時 membership 一併刪除。
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// 成員使用者；使用者硬刪除時 membership 一併刪除。
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
   @@index([userId])
   @@index([workspaceId])
   @@map("workspace_members")
+}
+
+model Notification {
+  /// 通知本身的穩定識別碼，也是前端通知列表的 key。
+  id              String  @id @default(uuid()) @db.Uuid
+  /// 收件者；通知列表與未讀數都以此使用者查詢。
+  recipientUserId String  @map("recipient_user_id") @db.Uuid
+  /// 觸發通知的使用者；系統排程提醒可為 null。
+  actorUserId     String? @map("actor_user_id") @db.Uuid
+  /// 通知所屬工作區脈絡；系統層級通知可為 null。
+  workspaceId     String? @map("workspace_id") @db.Uuid
+
+  /// 通知的業務語意，決定前端文案與行為。
+  type         NotificationType
+  /// polymorphic resource 的種類；不以此欄位建立資料庫外鍵。
+  resourceType NotificationResourceType @map("resource_type")
+  /// polymorphic resource 的 UUID；實際存在性與存取權由 application service 驗證。
+  resourceId   String?                  @map("resource_id") @db.Uuid
+
+  /// 每個 NotificationType 定義的結構化資料；不存翻譯後文案、token 或敏感資料。
+  payload   Json    @db.JsonB
+  /// 同一收件者的事件去重 key；null 代表不需要去重。
+  dedupeKey String? @map("dedupe_key") @db.VarChar(160)
+
+  /// 首次標示已讀的時間；null 代表未讀。
+  readAt    DateTime? @map("read_at")
+  /// 通知不再可操作或顯示的時間；一般通知可為 null。
+  expiresAt DateTime? @map("expires_at")
+  /// 通知建立時間；通知內容建立後不修改。
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  /// 收件者；刪除使用者時移除其通知。
+  recipient User       @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  /// 觸發者；刪除使用者時保留通知並將 actor 設為 null。
+  actor     User?      @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  /// 工作區脈絡；刪除工作區時保留通知並清除工作區連結。
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  /// 同一收件者不可收到相同 dedupe key 的通知；不同收件者可各自收到。
+  @@unique([recipientUserId, dedupeKey])
+  /// 支援通知列表、未讀篩選與依建立時間倒序查詢。
+  @@index([recipientUserId, readAt, createdAt(sort: Desc)])
+  /// 支援工作區脈絡下的通知查詢。
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("notifications")
 }
