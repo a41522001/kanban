@@ -30,17 +30,19 @@
 - Pino HTTP request log，並 redact Cookie、Authorization、password、Set-Cookie。
 - Swagger `/api/docs`。
 - 最小 Socket.IO connection 與 typed `demo:echo` event。
+- Frontend Auth vertical slice：signup、login、userInfo session restore、protected route、logout、表單驗證與共用 UI 基礎。
 
-尚未完成的 Session 收尾：logout／revoke 尚未同步清除 Current、Previous Grace 與 ZSET，Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
+尚未完成的 Session 收尾：logout／revoke 僅刪除本次 Cookie 對應的 Session 與 ZSET member，尚未處理 Current／Previous Grace family 的完整撤銷；Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
 
 ## 小章順序
 
-### 01 前端 Auth vertical slice
+### 01 前端 Auth vertical slice（已完成核心流程）
 
-- Login、signup UI 串接 HTTP API。
-- `credentials: 'include'` 讓瀏覽器保存並帶上 HttpOnly session cookie。
-- App 初始化時呼叫 `GET /user/userInfo` 恢復登入狀態。
-- Logout 清除 session 並更新前端狀態。
+- [x] Login、signup UI 串接 HTTP API。
+- [x] `credentials: 'include'` 讓瀏覽器保存並帶上 HttpOnly session cookie。
+- [x] 首次前往 protected route 時呼叫 `GET /user/userInfo` 恢復登入狀態。
+- [x] Logout 清除 session 並更新前端狀態。
+- [ ] Playwright 的瀏覽器 Auth E2E 與 redirect target。
 
 ### 02 Session Cookie Socket.IO handshake
 

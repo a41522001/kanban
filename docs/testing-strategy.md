@@ -172,20 +172,20 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ### Unit
 
-- Auth store state transitions。
-- API error mapping。
-- Form validation rendering。
+- [x] Auth／User Store session restore、request 去重與 reset。
+- [x] Login／Signup form validation pure functions。
+- [ ] API error mapping 共用層。
 - Socket ack state machine。
 
 ### Component
 
-- Login/Signup submit、loading、field errors、general error。
-- Route guard redirect。
-- Logout state reset。
+- [ ] Login/Signup submit、loading、field errors、general error。
+- [ ] Route guard redirect。
+- [ ] Logout state reset。
 
 ### Playwright
 
-- Signup → Login → Refresh → UserInfo → Logout。
+- [ ] Signup → Login → Refresh → UserInfo → Logout。
 - Cookie 由瀏覽器保存，但 JavaScript 無法讀取 HttpOnly Cookie。
 - 未登入無法進入 protected route。
 - 兩個 browser contexts 的 Board 同步。

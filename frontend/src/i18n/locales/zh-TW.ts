@@ -6,6 +6,12 @@ export const zhTW = {
   alert: {
     title: '系統提示',
   },
+  userMenu: {
+    open: '開啟帳號選單',
+    accountSettings: '帳號設定',
+    logout: '登出',
+    loggingOut: '登出中…',
+  },
   auth: {
     sidebar: {
       login: {

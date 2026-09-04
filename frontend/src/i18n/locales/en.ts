@@ -6,6 +6,12 @@ export const en = {
   alert: {
     title: 'System message',
   },
+  userMenu: {
+    open: 'Open account menu',
+    accountSettings: 'Account settings',
+    logout: 'Sign out',
+    loggingOut: 'Signing out…',
+  },
   auth: {
     sidebar: {
       login: {

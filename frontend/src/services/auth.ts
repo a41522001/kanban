@@ -17,3 +17,11 @@ export const loginApi = async (data: LoginRequest): Promise<ApiResponse<null>> =
   });
   return res.data;
 };
+
+export const logoutApi = async (): Promise<ApiResponse<null>> => {
+  const res = await api<ApiResponse<null>>({
+    url: '/auth/logout',
+    method: 'post',
+  });
+  return res.data;
+};
