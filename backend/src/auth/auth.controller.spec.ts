@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import type { Response, Request } from 'express';
 import { AppException } from '@/common/exceptions/app.exception';
+import { ApiCode } from '@kanban/contracts/api';
 describe('authController', () => {
   let authService: AuthService;
   let controller: AuthController;
@@ -65,7 +66,21 @@ describe('authController', () => {
     });
     it('註冊失敗', async () => {
       const spy = jest.spyOn(authService, 'signup').mockResolvedValue(false);
-      await expect(controller.signup(req)).rejects.toThrow('Email 已被註冊');
+      try {
+        await controller.signup(req);
+        throw new Error('預期註冊失敗');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(AppException);
+
+        if (!(error instanceof AppException)) {
+          throw error;
+        }
+
+        expect(error.code).toBe(ApiCode.EmailAlreadyRegistered);
+        expect(error.message).toBe('Email 已被註冊');
+        expect(error.getStatus()).toBe(409);
+      }
+
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith(req);
     });
@@ -108,7 +123,7 @@ describe('authController', () => {
           throw error;
         }
 
-        expect(error.code).toBe(0);
+        expect(error.code).toBe(ApiCode.InvalidCredentials);
         expect(error.message).toBe('帳號或密碼錯誤');
         expect(error.getStatus()).toBe(401);
       }

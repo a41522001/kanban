@@ -1,0 +1,61 @@
+@reference '../../styles/index.css';
+
+.board {
+  @apply min-h-full bg-board-page;
+}
+
+.board__header {
+  @apply bg-content-primary px-7 py-4;
+}
+
+.board__header-content {
+  @apply flex justify-between;
+}
+
+.board__logo {
+  @apply text-content-on-dark;
+}
+
+.board__columns {
+  @apply flex gap-4 overflow-x-auto overscroll-x-contain p-4;
+}
+
+.board__column {
+  @apply w-72 shrink-0 rounded-surface border border-border-strong bg-auth-page p-4 pb-20;
+}
+
+.board__column-header {
+  @apply mb-3 flex gap-3;
+}
+
+.board__column-accent {
+  @apply h-6 w-2 rounded-2xl;
+}
+
+.board__column-accent--ready {
+  @apply bg-flow-ready;
+}
+
+.board__column-accent--active {
+  @apply bg-flow-active;
+}
+
+.board__column-accent--review {
+  @apply bg-flow-review;
+}
+
+.board__column-accent--done {
+  @apply bg-flow-done;
+}
+
+.board__column-title {
+  @apply font-bold text-content-primary;
+}
+
+.board__cards {
+  @apply mb-3 flex flex-col gap-3;
+}
+
+.board__add-card-button {
+  @apply flex gap-3 bg-auth-page px-0 text-content-primary hover:bg-auth-page hover:text-content-secondary;
+}

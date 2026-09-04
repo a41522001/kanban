@@ -4,7 +4,11 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
-import type { ApiResponse, ApiResult } from '@kanban/contracts/api';
+import {
+  ApiCode,
+  type ApiResponse,
+  type ApiResult,
+} from '@kanban/contracts/api';
 import { type Observable, map } from 'rxjs';
 
 @Injectable()
@@ -18,7 +22,7 @@ export class WrapResponseInterceptor<T> implements NestInterceptor<
   ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
       map((result): ApiResponse<T> => {
-        const code = result.code ?? 1;
+        const code = result.code ?? ApiCode.Success;
         const data = result.data ?? null;
         const message = result.message ?? '請求成功';
 

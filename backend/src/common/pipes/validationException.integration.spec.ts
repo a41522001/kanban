@@ -1,6 +1,6 @@
 import { LoginDto } from '@/auth/dto/login.dto';
 import { HttpExceptionFilter } from '@/common/filters/httpException.filter';
-import type { ApiResponse } from '@kanban/contracts/api';
+import { ApiCode, type ApiResponse } from '@kanban/contracts/api';
 import { Body, Controller, type INestApplication, Post } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -46,7 +46,7 @@ describe('ValidationPipe + HttpExceptionFilter integration', () => {
 
     expect(Number.isNaN(Date.parse(body.time))).toBe(false);
     expect(body).toEqual({
-      code: 0,
+      code: ApiCode.ValidationError,
       message: '請求參數錯誤',
       time: body.time,
       data: null,

@@ -3,6 +3,9 @@ export const en = {
     name: 'Flowboard',
     tagline: 'FLOWBOARD / REAL-TIME COLLABORATION',
   },
+  alert: {
+    title: 'System message',
+  },
   auth: {
     sidebar: {
       login: {
@@ -61,6 +64,7 @@ export const en = {
       description: 'Enter your details to pick up where you left off.',
       forgotPassword: 'Forgot password?',
       submit: 'Sign in to Flowboard',
+      submitting: 'Signing in…',
       noAccount: 'New to Flowboard?',
       createAccount: 'Create an account',
     },
@@ -70,6 +74,7 @@ export const en = {
       description: 'It only takes a minute. You can invite your team afterwards.',
       agreeToPolicy: 'I agree to the Terms of Service and Privacy Policy',
       submit: 'Create workspace',
+      submitting: 'Creating your account…',
       hasAccount: 'Already have an account?',
       signIn: 'Back to sign in',
     },
@@ -77,8 +82,15 @@ export const en = {
   validation: {
     required: 'This field is required',
     email: 'Enter a valid email address',
+    displayNameMaxLength: 'Display name must be 100 characters or fewer',
+    emailMaxLength: 'Email address must be 320 characters or fewer',
+    passwordMinLength: 'Password must be at least 8 characters',
+    passwordMaxLength: 'Password must be 72 characters or fewer',
+    passwordMismatch: 'Passwords do not match',
+    policyRequired: 'Please agree to the Terms of Service and Privacy Policy',
   },
   error: {
     invalidCredentials: 'Incorrect email address or password',
+    requestFailed: 'Unable to complete the request. Please try again.',
   },
 };

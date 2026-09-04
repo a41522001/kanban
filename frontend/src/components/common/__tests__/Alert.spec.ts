@@ -3,6 +3,7 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import Alert from '@/components/common/Alert.vue';
+import { i18n } from '@/i18n';
 import { useAlertStore } from '@/stores/alert';
 
 describe('Alert', () => {
@@ -14,7 +15,7 @@ describe('Alert', () => {
     wrapper = mount(Alert, {
       attachTo: document.body,
       global: {
-        plugins: [pinia],
+        plugins: [pinia, i18n],
       },
     });
   });

@@ -1,7 +1,8 @@
 import { AppException } from '@/common/exceptions/app.exception';
-import type { FieldErrors } from '@kanban/contracts/api';
+import { ApiCode, type FieldErrors } from '@kanban/contracts/api';
 import { HttpException, HttpStatus, type ArgumentsHost } from '@nestjs/common';
 import type { Response } from 'express';
+import type { PinoLogger } from 'nestjs-pino';
 import { HttpExceptionFilter } from './httpException.filter';
 
 type FilterTestContext = {
@@ -32,11 +33,15 @@ const createFilterTestContext = (): FilterTestContext => {
 describe('HttpExceptionFilter', () => {
   const fixedTime = new Date('2026-08-20T12:00:00.000Z');
   let filter: HttpExceptionFilter;
+  let errorLogMock: jest.Mock;
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(fixedTime);
-    filter = new HttpExceptionFilter();
+    errorLogMock = jest.fn();
+    filter = new HttpExceptionFilter({
+      error: errorLogMock,
+    } as unknown as PinoLogger);
   });
 
   afterEach(() => {
@@ -59,7 +64,7 @@ describe('HttpExceptionFilter', () => {
     filter.catch(
       new AppException({
         status: HttpStatus.BAD_REQUEST,
-        code: 1001,
+        code: ApiCode.ValidationError,
         message: '請求參數錯誤',
         errors,
       }),
@@ -70,7 +75,7 @@ describe('HttpExceptionFilter', () => {
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(jsonMock).toHaveBeenCalledTimes(1);
     expect(jsonMock).toHaveBeenCalledWith({
-      code: 1001,
+      code: ApiCode.ValidationError,
       message: '請求參數錯誤',
       time: fixedTime.toISOString(),
       data: null,
@@ -85,8 +90,8 @@ describe('HttpExceptionFilter', () => {
 
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
     expect(jsonMock).toHaveBeenCalledWith({
-      code: 0,
-      message: '禁止存取',
+      code: ApiCode.RequestError,
+      message: '請求失敗',
       time: fixedTime.toISOString(),
       data: null,
       error: null,
@@ -96,15 +101,20 @@ describe('HttpExceptionFilter', () => {
   it('應隱藏非預期錯誤內容並回傳 500', () => {
     const { host, statusMock, jsonMock } = createFilterTestContext();
 
-    filter.catch(new Error('DATABASE_URL password leaked'), host);
+    const error = new Error('DATABASE_URL password leaked');
+    filter.catch(error, host);
 
     expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(jsonMock).toHaveBeenCalledWith({
-      code: 5000,
+      code: ApiCode.InternalError,
       message: '發生非預期錯誤',
       time: fixedTime.toISOString(),
       data: null,
       error: null,
     });
+    expect(errorLogMock).toHaveBeenCalledWith(
+      { err: error },
+      'Unexpected HTTP exception',
+    );
   });
 });

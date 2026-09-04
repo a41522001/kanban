@@ -2,21 +2,40 @@
   "name": "@kanban/contracts",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm run build:esm && pnpm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node ./scripts/rename-cjs.mjs"
+  },
   "exports": {
     "./api": {
-      "types": "./api.ts"
+      "types": "./dist/esm/api.d.ts",
+      "import": "./dist/esm/api.js",
+      "require": "./dist/cjs/api.cjs"
     },
     "./auth": {
-      "types": "./auth.ts"
+      "types": "./dist/esm/auth.d.ts",
+      "import": "./dist/esm/auth.js",
+      "require": "./dist/cjs/auth.cjs"
     },
     "./user": {
-      "types": "./user.ts"
+      "types": "./dist/esm/user.d.ts",
+      "import": "./dist/esm/user.js",
+      "require": "./dist/cjs/user.cjs"
     },
     "./socket": {
-      "types": "./socket.ts"
+      "types": "./dist/esm/socket.d.ts",
+      "import": "./dist/esm/socket.js",
+      "require": "./dist/cjs/socket.cjs"
     },
     "./workspaces": {
-      "types": "./workspaces.ts"
+      "types": "./dist/esm/workspaces.d.ts",
+      "import": "./dist/esm/workspaces.js",
+      "require": "./dist/cjs/workspaces.cjs"
     }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
   }
 }

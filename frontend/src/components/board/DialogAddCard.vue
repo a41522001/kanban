@@ -1,32 +1,34 @@
 <template>
-  <Dialog
-    v-model="dialog"
-    class="w-[calc(100vw-2rem)] max-w-150 max-h-[calc(100dvh-2rem)] overflow-y-auto"
-  >
-    <div class="flex flex-col p-6 lg:p-8">
-      <div class="flex justify-between items-center w-full max-w-full">
-        <div class="text-content-primary font-bold text-xl">新增卡片</div>
-        <Btn class="bg-auth-page p-2 hover:bg-board-page" @click="dialog = false">
-          <X class="text-sm text-black" />
-        </Btn>
-      </div>
-    </div>
-    <!-- <div class="w-125 p-6">
-      <h2 class="text-xl font-bold">Dialog Title</h2>
+  <Dialog v-model:open="dialog">
+    <DialogContent
+      :show-close-button="false"
+      class="max-h-[calc(100dvh-2rem)] max-w-150 overflow-y-auto p-6 lg:p-8"
+    >
+      <DialogHeader>
+        <DialogTitle class="text-xl text-content-primary">新增卡片</DialogTitle>
+        <DialogDescription class="sr-only">新增一張看板卡片。</DialogDescription>
+      </DialogHeader>
 
-      <p class="mt-4 text-gray-600">這裡完全由父層決定。</p>
-
-      <div class="mt-6 flex justify-end">
-        <button class="rounded-lg bg-gray-200 px-4 py-2" @click="dialog = false">關閉</button>
-      </div>
-    </div> -->
+      <DialogClose
+        aria-label="關閉新增卡片視窗"
+        class="absolute top-6 right-6 cursor-pointer rounded-control p-2 text-content-primary transition-colors hover:bg-board-page focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 lg:top-8 lg:right-8"
+      >
+        <X :size="18" aria-hidden="true" />
+      </DialogClose>
+    </DialogContent>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import Dialog from '@/components/common/Dialog.vue';
-import Btn from '@/components/common/Btn.vue';
 import { X } from 'lucide-vue-next';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
 const dialog = defineModel<boolean>({ required: true });
 </script>
