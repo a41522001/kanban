@@ -12,6 +12,62 @@ export const en = {
     logout: 'Sign out',
     loggingOut: 'Signing out…',
   },
+  workplace: {
+    navigation: {
+      label: 'Primary navigation',
+      workspaces: 'Workspaces',
+      recent: 'Recent',
+    },
+    sidebar: {
+      label: 'Workspace sidebar',
+      yourWorkspaces: 'Your workspaces',
+      management: 'Workspace management',
+      members: 'Members',
+      archivedProjects: 'Archived projects',
+      workspaceMembers: 'Workspace members',
+      memberSummary: '{count} members are moving work forward together',
+    },
+    mobile: {
+      currentWorkspace: 'Current workspace',
+      selectWorkspace: 'Select workspace',
+    },
+    roles: {
+      owner: 'Owner',
+      member: 'Member',
+    },
+    eyebrow: 'Workspace',
+    description: 'See every project in one place, then choose one to enter its main board.',
+    projects: {
+      title: 'All projects',
+      sortHint: 'Sorted by most recently updated',
+    },
+    actions: {
+      createWorkspace: 'New workspace',
+      createProject: 'New project',
+      create: 'Create workspace',
+      cancel: 'Cancel',
+      retry: 'Try again',
+    },
+    dialog: {
+      title: 'Create a new workspace',
+      description: 'A workspace can start with just you. Invite people when you are ready.',
+      nameLabel: 'Workspace name',
+      namePlaceholder: 'For example: Product team',
+    },
+    validation: {
+      nameRequired: 'Enter a workspace name',
+      nameMaxLength: 'Workspace name must be {count} characters or fewer',
+    },
+    states: {
+      loadErrorTitle: 'Unable to load workspaces',
+      loadErrorDescription: 'Check your connection and try again.',
+      noWorkspaceTitle: 'Start with your first workspace',
+      noWorkspaceDescription: 'Create a workspace to organize projects and boards in one place.',
+      noProjectsTitle: 'Your projects will appear here',
+      projectApiPending:
+        'Projects are being built. You will be able to create and open them here soon.',
+    },
+  },
   auth: {
     sidebar: {
       login: {

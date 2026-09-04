@@ -1,0 +1,241 @@
+@reference '../../styles/index.css';
+
+.workplace {
+  @apply min-h-full bg-board-page text-content-primary;
+}
+
+.workplace__header {
+  @apply sticky top-0 z-20 bg-content-primary px-4 sm:px-6 lg:px-8;
+}
+
+.workplace__header-content {
+  @apply mx-auto flex h-16 max-w-[1440px] items-center gap-6;
+}
+
+.workplace__brand {
+  @apply shrink-0 text-content-on-dark focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/40;
+}
+
+.workplace__navigation {
+  @apply hidden h-full items-center gap-7 md:flex;
+}
+
+.workplace__navigation-link {
+  @apply inline-flex h-full items-center border-b-4 border-transparent px-1 text-sm font-bold transition-colors duration-150;
+}
+
+.workplace__navigation-link--active {
+  @apply border-action-primary text-content-on-dark;
+}
+
+.workplace__navigation-link--muted {
+  @apply text-content-on-dark-muted;
+}
+
+.workplace__header-actions {
+  @apply ml-auto flex items-center gap-4;
+}
+
+.workplace__create-icon-button {
+  @apply hidden bg-content-primary text-content-on-dark hover:bg-content-primary/80 focus-visible:ring-content-on-dark/20 sm:inline-flex;
+}
+
+.workplace__layout {
+  @apply mx-auto grid max-w-[1440px] gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:px-8 lg:py-8;
+}
+
+.workplace__sidebar {
+  @apply hidden min-h-[calc(100dvh-8rem)] flex-col lg:flex;
+}
+
+.workplace__sidebar-label,
+.workplace__eyebrow,
+.workplace__mobile-switcher-label {
+  @apply text-xs font-bold tracking-[0.08em] text-content-secondary uppercase;
+}
+
+.workplace__workspace-list {
+  @apply mt-3 flex flex-col gap-2;
+}
+
+.workplace__workspace-option {
+  @apply flex w-full items-center gap-3 rounded-surface p-3 text-left transition-colors duration-150 hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20;
+}
+
+.workplace__workspace-option--selected {
+  @apply bg-content-primary text-content-on-dark hover:bg-content-primary;
+}
+
+.workplace__workspace-monogram {
+  @apply grid size-8 shrink-0 place-items-center rounded-control bg-action-primary text-sm font-bold text-content-on-dark;
+}
+
+.workplace__workspace-details {
+  @apply min-w-0;
+}
+
+.workplace__workspace-name {
+  @apply block truncate text-sm font-bold;
+}
+
+.workplace__workspace-meta {
+  @apply mt-0.5 block text-xs text-content-secondary;
+}
+
+.workplace__workspace-option--selected .workplace__workspace-meta {
+  @apply text-content-on-dark-muted;
+}
+
+.workplace__new-workspace-button {
+  @apply mt-3 w-full justify-start;
+}
+
+.workplace__sidebar-management {
+  @apply mt-7 border-t border-border-strong pt-6;
+}
+
+.workplace__management-row {
+  @apply mt-4 flex items-center gap-3 text-sm text-content-primary;
+}
+
+.workplace__management-row--muted {
+  @apply text-content-secondary;
+}
+
+.workplace__management-count {
+  @apply ml-auto text-xs font-bold text-content-secondary;
+}
+
+.workplace__members {
+  @apply mt-auto border-t border-border-strong pt-6;
+}
+
+.workplace__member-list,
+.workplace__member-skeletons {
+  @apply mt-3 flex items-center;
+}
+
+.workplace__member-list > li + li,
+.workplace__member-skeletons > * + * {
+  @apply -ml-2;
+}
+
+.workplace__member-avatar {
+  @apply grid size-8 place-items-center rounded-full border-2 border-board-page bg-flow-active text-xs font-bold text-content-primary;
+}
+
+.workplace__member-list > li:nth-child(2) .workplace__member-avatar {
+  @apply bg-flow-done text-content-on-dark;
+}
+
+.workplace__member-list > li:nth-child(3) .workplace__member-avatar {
+  @apply bg-flow-review;
+}
+
+.workplace__member-avatar--more {
+  @apply bg-border text-content-primary;
+}
+
+.workplace__member-summary {
+  @apply mt-3 text-xs leading-5 text-content-secondary;
+}
+
+.workplace__content {
+  @apply min-w-0;
+}
+
+.workplace__mobile-switcher-label {
+  @apply block lg:hidden;
+}
+
+.workplace__mobile-switcher {
+  @apply mt-2 h-12 w-full rounded-control border border-border bg-surface px-3 text-sm font-bold text-content-primary outline-none focus-visible:border-action-primary focus-visible:ring-3 focus-visible:ring-action-primary/20 lg:hidden;
+}
+
+.workplace__content-heading {
+  @apply mt-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between lg:mt-0;
+}
+
+.workplace__title {
+  @apply mt-2 text-3xl font-bold tracking-tight sm:text-4xl;
+}
+
+.workplace__description {
+  @apply mt-3 text-sm leading-6 text-content-secondary;
+}
+
+.workplace__project-action {
+  @apply shrink-0;
+}
+
+.workplace__projects {
+  @apply mt-12;
+}
+
+.workplace__section-heading {
+  @apply flex items-end justify-between;
+}
+
+.workplace__section-heading h2 {
+  @apply text-lg font-bold;
+}
+
+.workplace__section-heading p {
+  @apply mt-1 text-sm text-content-secondary;
+}
+
+.workplace__projects-empty {
+  @apply mt-5 grid min-h-60 place-items-center rounded-surface border border-dashed border-border-strong bg-surface-subtle p-8 text-center;
+}
+
+.workplace__projects-empty svg {
+  @apply text-action-primary;
+}
+
+.workplace__projects-empty h3 {
+  @apply mt-4 text-base font-bold;
+}
+
+.workplace__projects-empty p {
+  @apply mt-2 max-w-sm text-sm leading-6 text-content-secondary;
+}
+
+.workplace__state {
+  @apply mt-12 grid min-h-80 place-items-center rounded-surface border border-dashed border-border-strong bg-surface p-8 text-center;
+}
+
+.workplace__state > svg {
+  @apply text-action-primary;
+}
+
+.workplace__state-title {
+  @apply mt-4 text-xl font-bold;
+}
+
+.workplace__state p {
+  @apply mt-2 max-w-sm text-sm leading-6 text-content-secondary;
+}
+
+.workplace__state .inline-flex {
+  @apply mt-6;
+}
+
+.workplace__content-skeleton {
+  @apply mt-6 lg:mt-0;
+}
+
+.workplace__project-skeleton-grid {
+  @apply mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3;
+}
+
+.workplace__dialog {
+  @apply rounded-surface border-border bg-surface p-6 shadow-card;
+}
+
+.workplace__dialog-form {
+  @apply grid gap-6;
+}
+
+.workplace__dialog-footer {
+  @apply mt-1 gap-3 sm:justify-end;
+}

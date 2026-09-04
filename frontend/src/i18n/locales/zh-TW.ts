@@ -12,6 +12,61 @@ export const zhTW = {
     logout: '登出',
     loggingOut: '登出中…',
   },
+  workplace: {
+    navigation: {
+      label: '主要導覽',
+      workspaces: '工作區',
+      recent: '最近',
+    },
+    sidebar: {
+      label: '工作區側欄',
+      yourWorkspaces: '你的工作區',
+      management: '工作區管理',
+      members: '成員',
+      archivedProjects: '已封存專案',
+      workspaceMembers: '工作區成員',
+      memberSummary: '{count} 位成員正在一起推進工作',
+    },
+    mobile: {
+      currentWorkspace: '目前工作區',
+      selectWorkspace: '選擇工作區',
+    },
+    roles: {
+      owner: '擁有者',
+      member: '成員',
+    },
+    eyebrow: '工作區',
+    description: '集中查看所有專案，選一個進入主要看板。',
+    projects: {
+      title: '所有專案',
+      sortHint: '依最近更新排序',
+    },
+    actions: {
+      createWorkspace: '新增工作區',
+      createProject: '新增專案',
+      create: '建立工作區',
+      cancel: '取消',
+      retry: '重新載入',
+    },
+    dialog: {
+      title: '建立新的工作區',
+      description: '工作區可以先從你一個人開始，之後再邀請成員加入。',
+      nameLabel: '工作區名稱',
+      namePlaceholder: '例如：產品開發團隊',
+    },
+    validation: {
+      nameRequired: '請輸入工作區名稱',
+      nameMaxLength: '工作區名稱不可超過 {count} 個字元',
+    },
+    states: {
+      loadErrorTitle: '暫時無法載入工作區',
+      loadErrorDescription: '請檢查連線後再試一次。',
+      noWorkspaceTitle: '從第一個工作區開始',
+      noWorkspaceDescription: '建立工作區後，就能集中管理專案與看板。',
+      noProjectsTitle: '專案會在這裡出現',
+      projectApiPending: '專案功能正在建立中，完成後就能從這裡新增與開啟專案。',
+    },
+  },
   auth: {
     sidebar: {
       login: {

@@ -29,7 +29,8 @@
 | Session revoke／logout | 已完成最小版本 | `revokeSession` Lua 原子刪除請求攜帶的 Session Hash 與使用者 ZSET member；Controller 一律清除 Cookie |
 | 統一 API response 與錯誤 | 已完成 | ValidationPipe、AppException、全域 Filter、欄位錯誤遮蔽 |
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
-| Workspace 基礎 | 已完成部分 | 建立、列出、成員清單；成員清單的 membership authorization 尚未補 |
+| Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
+| Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout 與前端表單驗證 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
@@ -50,10 +51,10 @@
 
 ## 下一步
 
-1. 建立 Workspace 前端 vertical slice（列出、建立與成員管理 UI），作為 Board 的入口。
+1. 建立 Project read model（後端 API 與前端專案清單），讓 Workspace overview 的專案區可使用真實資料。
 2. 將同一套 Session 驗證接到 Socket.IO handshake。
 3. 補 SessionService 與真實 Redis Lua integration tests。
-4. 開始 Board／Project read model，再加入 command、ack 與同步事件。
+4. 開始 Board read model，再加入 command、ack 與同步事件。
 
 ## 更新方式
 

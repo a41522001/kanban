@@ -191,9 +191,9 @@ const goSignupPage = () => {
   router.push({ name: 'signup' });
 };
 
-const goBoardPage = () => {
+const goWorkspacePage = () => {
   userStore.resetUser();
-  void router.push({ name: 'board' });
+  void router.push({ name: 'workspace' });
 };
 
 const clearFieldError = (field: LoginFieldName) => {
@@ -232,7 +232,7 @@ const handleLogin = async () => {
 
     alertStore.openAlert({
       content: response.message,
-      confirm: goBoardPage,
+      confirm: goWorkspacePage,
     });
   } catch (error: unknown) {
     const response = isAxiosError<ApiResponse<null>>(error) ? error.response?.data : undefined;

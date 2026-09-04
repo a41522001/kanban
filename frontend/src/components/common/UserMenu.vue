@@ -45,6 +45,7 @@ import {
 import Avatar from '@/components/common/Avatar.vue';
 import { logoutApi } from '@/services/auth';
 import { useUserStore } from '@/stores/user';
+import { useWorkspaceStore } from '@/stores/workspace';
 
 interface Props {
   user: PublicUser;
@@ -55,6 +56,7 @@ defineProps<Props>();
 const { t } = useI18n();
 const router = useRouter();
 const userStore = useUserStore();
+const workspaceStore = useWorkspaceStore();
 const isLoggingOut = ref(false);
 
 const handleLogout = async () => {
@@ -70,6 +72,7 @@ const handleLogout = async () => {
     // Request 無法送達時仍清除本機登入狀態，避免受保護頁面繼續可用。
   } finally {
     userStore.resetUser();
+    workspaceStore.resetWorkspaces();
     await router.replace({ name: 'login' });
     isLoggingOut.value = false;
   }
