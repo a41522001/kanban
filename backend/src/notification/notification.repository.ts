@@ -76,6 +76,7 @@ export class NotificationRepository {
       },
     });
   }
+
   /** 標記全部訊息已讀 */
   async markAllReadByRecipient(userId: string, readAt: Date) {
     return await this.prismaService.notification.updateMany({

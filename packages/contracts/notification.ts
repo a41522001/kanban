@@ -23,3 +23,30 @@ export type NotificationResourceType =
   | 'BOARD'
   /// 指向 Card。
   | 'CARD';
+
+export type JsonPrimitive = string | number | boolean | null;
+
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+
+export interface JsonObject {
+  [key: string]: JsonValue | undefined;
+}
+
+export type JsonArray = JsonValue[];
+
+export interface PublicNotification {
+  type: NotificationType;
+  id: string;
+  workspaceId: string | null;
+  resourceType: NotificationResourceType;
+  resourceId: string | null;
+  payload: JsonValue;
+  readAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export interface FindByRecipientResponse {
+  items: PublicNotification[];
+  nextCursor: string | null;
+}

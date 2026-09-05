@@ -144,7 +144,7 @@ model Notification {
 
   /// 首次標示已讀的時間；null 代表未讀。
   readAt    DateTime? @map("read_at")
-  /// 通知不再可操作或顯示的時間；一般通知可為 null。
+  /// 通知對應資源不再可操作的時間；通知本身仍保留在歷史列表；一般通知可為 null。
   expiresAt DateTime? @map("expires_at")
   /// 通知建立時間；通知內容建立後不修改。
   createdAt DateTime  @default(now()) @map("created_at")

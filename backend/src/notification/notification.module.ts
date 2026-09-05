@@ -3,8 +3,9 @@ import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
 import { NotificationRepository } from './notification.repository';
 import { PrismaModule } from '@/prisma/prisma.module';
+import { SessionModule } from '@/session/session.module';
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, SessionModule],
   controllers: [NotificationController],
   providers: [NotificationService, NotificationRepository],
   exports: [NotificationService],

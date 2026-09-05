@@ -127,7 +127,7 @@ users ──< workspace_members >── workspaces
 | `payload` | JSONB | 否 | 各 type 需要的結構化顯示資料。 |
 | `dedupe_key` | VARCHAR(160) | 是 | 同一收件者通知去重 key。 |
 | `read_at` | TIMESTAMP(3) | 是 | null 代表未讀。 |
-| `expires_at` | TIMESTAMP(3) | 是 | 到期後不再可操作或顯示；一般通知為 null。 |
+| `expires_at` | TIMESTAMP(3) | 是 | 到期後通知仍保留在歷史列表，但不可再執行資源操作；一般通知為 null。 |
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間，也是預設排序依據。 |
 
 約束與索引：

@@ -31,8 +31,11 @@
 - Swagger `/api/docs`。
 - 最小 Socket.IO connection 與 typed `demo:echo` event。
 - Frontend Auth vertical slice：signup、login、userInfo session restore、protected route、logout、表單驗證與共用 UI 基礎。
+- Notification 持久化基礎：PostgreSQL schema、shared contract、`GET /notifications` 與 `GET /notifications/unreadCount`；資料庫是通知真相，尚未建立邀請事件或 Socket.IO push。
 
 尚未完成的 Session 收尾：logout／revoke 僅刪除本次 Cookie 對應的 Session 與 ZSET member，尚未處理 Current／Previous Grace family 的完整撤銷；Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
+
+通知的下一個 vertical slice 是 `WorkspaceInvitation`：同一個 PostgreSQL transaction 建立邀請與 `WORKSPACE_INVITED` Notification；transaction commit 後才以 Socket.IO 推送。Socket.IO 不作為通知真相，也不需要先導入 message queue。
 
 ## 小章順序
 

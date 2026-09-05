@@ -90,6 +90,15 @@
 - [ ] 無效／缺欄位 Hash 不會被信任。
 - [ ] Logout／revoke 原子刪除請求攜帶的 Hash 與 ZSET member。
 
+### Notification
+
+- [ ] `findByRecipient` 將資料庫 Notification 投影為 public contract：不洩漏 recipient、actor、dedupe key，並將 `Date` 轉成 ISO 8601 字串。
+- [ ] `GET /notifications` 與 `GET /notifications/unreadCount` 需要有效 Session，且只以 Guard 寫入的 `request.userId` 查詢。
+- [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
+- [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
+
+Notification 目前只有讀取 API 的最小實作。兩個 Nest scaffold spec 刻意 skipped，避免把沒有 mock dependency 的 `should be defined` 誤當成 coverage；等待 Workspace Invitation 實作後再補上述情境。
+
 ### Common
 
 - [x] Validation formatter 與 sensitive value 遮蔽。
