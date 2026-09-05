@@ -33,6 +33,11 @@
       "types": "./dist/esm/workspaces.d.ts",
       "import": "./dist/esm/workspaces.js",
       "require": "./dist/cjs/workspaces.cjs"
+    },
+    "./notification": {
+      "types": "./dist/esm/notification.d.ts",
+      "import": "./dist/esm/notification.js",
+      "require": "./dist/cjs/notification.cjs"
     }
   },
   "devDependencies": {

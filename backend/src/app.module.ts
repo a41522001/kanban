@@ -12,6 +12,7 @@ import { SocketModule } from './socket/socket.module';
 import { AuthModule } from './auth/auth.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { UserModule } from './user/user.module';
+import { NotificationModule } from './notification/notification.module';
 import { HttpExceptionFilter } from './common/filters/httpException.filter';
 import { createValidationPipe } from './common/pipes/validation.pipe';
 import { WrapResponseInterceptor } from './common/interceptors/wrapResponse.interceptor';
@@ -34,8 +35,8 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
     AuthModule,
     WorkspacesModule,
     UserModule,
+    NotificationModule,
   ],
-  controllers: [],
   providers: [
     {
       provide: APP_FILTER,
