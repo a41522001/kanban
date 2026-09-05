@@ -94,6 +94,7 @@ export class WorkspacesRepository {
       },
       select: {
         id: true,
+        role: true,
         workspace: {
           select: {
             archivedAt: true,

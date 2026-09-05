@@ -1,14 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { WorkspacesRepository } from './workspaces.repository';
 import type {
   WorkspaceDto,
   WorkspaceListItemDto,
   WorkspaceMemberDto,
 } from '@kanban/contracts/workspaces';
+import { AppException } from '@/common/exceptions/app.exception';
+import { ApiCode } from '@kanban/contracts/api';
+import { UserService } from '@/user/user.service';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly workspaceRepository: WorkspacesRepository) {}
+  constructor(
+    private readonly workspaceRepository: WorkspacesRepository,
+    private readonly userService: UserService,
+  ) {}
 
   /** 創建工作區 */
   async create(userId: string, name: string): Promise<WorkspaceDto> {
@@ -60,5 +66,42 @@ export class WorkspacesService {
         avatarUrl: user.avatarUrl,
       };
     });
+  }
+
+  /** 邀請成員 */
+  async inviteMember(
+    inviterUserId: string,
+    workspaceId: string,
+    inviteeEmail: string,
+  ) {
+    const member = await this.workspaceRepository.findMembership(
+      inviterUserId,
+      workspaceId,
+    );
+
+    if (!member || member.workspace.archivedAt || member.role !== 'OWNER') {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        message: '你沒有邀請此工作區成員的權限',
+        code: ApiCode.RequestError,
+      });
+    }
+
+    const invitee = await this.userService.getByEmail(inviteeEmail);
+    if (!invitee) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '此帳號不存在',
+        code: ApiCode.RequestError,
+      });
+    }
+
+    if (invitee.id === inviterUserId) {
+      throw new AppException({
+        status: HttpStatus.BAD_REQUEST,
+        message: '無法邀請自己',
+        code: ApiCode.RequestError,
+      });
+    }
   }
 }

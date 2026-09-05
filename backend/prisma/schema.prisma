@@ -33,6 +33,19 @@ enum NotificationResourceType {
   CARD
 }
 
+enum WorkspaceInvitationStatus {
+  /// 等待受邀者回覆。
+  PENDING
+  /// 受邀者已接受，並已建立 WorkspaceMember。
+  ACCEPTED
+  /// 受邀者主動拒絕。
+  DECLINED
+  /// 邀請者或 Workspace Owner 主動取消。
+  CANCELED
+  /// 超過 expiresAt 後失效。
+  EXPIRED
+}
+
 generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
@@ -60,13 +73,16 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   /// 此使用者建立的工作區。
-  createdWorkspaces     Workspace[]       @relation("WorkspaceCreatedBy")
+  createdWorkspaces            Workspace[]           @relation("WorkspaceCreatedBy")
   /// 此使用者加入的工作區 membership。
-  workspaceMemberships  WorkspaceMember[]
+  workspaceMemberships         WorkspaceMember[]
   /// 此使用者收到的通知。
-  receivedNotifications Notification[]    @relation("NotificationRecipient")
+  receivedNotifications        Notification[]        @relation("NotificationRecipient")
   /// 此使用者觸發的通知；系統事件沒有 actor。
-  actedNotifications    Notification[]    @relation("NotificationActor")
+  actedNotifications           Notification[]        @relation("NotificationActor")
+  receivedWorkspaceInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationInvitee")
+
+  sentWorkspaceInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
 
   @@map("users")
 }
@@ -86,11 +102,12 @@ model Workspace {
   archivedAt  DateTime? @map("archived_at")
 
   /// 建立者；不可隨意刪除仍有工作區的使用者。
-  createdBy     User              @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy     User                  @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   /// 可進入此工作區的使用者與其角色。
   members       WorkspaceMember[]
   /// 帶有此工作區脈絡的通知。
   notifications Notification[]
+  invitations   WorkspaceInvitation[]
 
   @@index([createdById])
   @@index([archivedAt])
@@ -163,4 +180,42 @@ model Notification {
   /// 支援工作區脈絡下的通知查詢。
   @@index([workspaceId, createdAt(sort: Desc)])
   @@map("notifications")
+}
+
+model WorkspaceInvitation {
+  /// 邀請本身的穩定識別碼；Notification 的 resourceId 會指向它。
+  id String @id @default(uuid()) @db.Uuid
+
+  /// 要加入的工作區。
+  workspaceId   String  @map("workspace_id") @db.Uuid
+  /// 受邀的已註冊使用者。
+  inviteeUserId String  @map("invitee_user_id") @db.Uuid
+  /// 發出邀請的人；帳號刪除後保留邀請紀錄，但清除邀請者。
+  inviterUserId String? @map("inviter_user_id") @db.Uuid
+
+  /// 接受後要取得的 Workspace 角色；初期固定建立 MEMBER。
+  role   WorkspaceRole             @default(MEMBER)
+  /// 邀請的狀態機。
+  status WorkspaceInvitationStatus @default(PENDING)
+
+  /// 可接受邀請的最後期限。
+  expiresAt   DateTime  @map("expires_at")
+  /// ACCEPTED 或 DECLINED 時記錄第一次回覆時間。
+  respondedAt DateTime? @map("responded_at")
+  /// 邀請建立時間。
+  createdAt   DateTime  @default(now()) @map("created_at")
+  /// 狀態改變、取消等任何更新的時間。
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitee   User      @relation("WorkspaceInvitationInvitee", fields: [inviteeUserId], references: [id], onDelete: Cascade)
+  inviter   User?     @relation("WorkspaceInvitationInviter", fields: [inviterUserId], references: [id], onDelete: SetNull)
+
+  /// 「我收到的待處理邀請」列表。
+  @@index([inviteeUserId, status, createdAt(sort: Desc)])
+  /// Owner 檢視某工作區待處理邀請時使用。
+  @@index([workspaceId, status, createdAt(sort: Desc)])
+  /// 未來批次處理過期邀請時使用。
+  @@index([expiresAt])
+  @@map("workspace_invitations")
 }

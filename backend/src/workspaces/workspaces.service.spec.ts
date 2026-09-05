@@ -181,6 +181,7 @@ describe('WorkspacesService', () => {
         .spyOn(workspacesRepository, 'findMembership')
         .mockResolvedValue({
           id: 'membership-1',
+          role: 'MEMBER',
           workspace: {
             archivedAt: null,
           },
