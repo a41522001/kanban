@@ -165,7 +165,11 @@
 }
 
 .workplace__project-action {
-  @apply shrink-0;
+  @apply flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row;
+}
+
+.workplace__project-action > * {
+  @apply w-full sm:w-auto;
 }
 
 .workplace__projects {

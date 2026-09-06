@@ -160,6 +160,10 @@
               <p class="workplace__description">{{ t('workplace.description') }}</p>
             </div>
             <div class="workplace__project-action">
+              <Button v-if="canInviteMembers" variant="outline" @click="isInviteDialogOpen = true">
+                <UserPlus :size="18" aria-hidden="true" />
+                {{ t('workplace.actions.inviteMember') }}
+              </Button>
               <Button disabled :aria-describedby="'project-api-note'">
                 <Plus :size="18" aria-hidden="true" />
                 {{ t('workplace.actions.createProject') }}
@@ -227,6 +231,12 @@
         </form>
       </DialogContent>
     </Dialog>
+
+    <WorkspaceInviteDialog
+      v-if="selectedWorkspace"
+      v-model:open="isInviteDialogOpen"
+      :workspace="selectedWorkspace"
+    />
   </main>
 </template>
 
@@ -234,12 +244,21 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { Archive, CircleAlert, Layers3, PanelTop, Plus, UsersRound } from 'lucide-vue-next';
+import {
+  Archive,
+  CircleAlert,
+  Layers3,
+  PanelTop,
+  Plus,
+  UserPlus,
+  UsersRound,
+} from 'lucide-vue-next';
 import type { WorkspaceMemberDto, WorkspaceRole } from '@kanban/contracts/workspaces';
 import FormField from '@/components/common/FormField.vue';
 import Input from '@/components/common/Input.vue';
 import Logo from '@/components/common/Logo.vue';
 import UserMenu from '@/components/common/UserMenu.vue';
+import WorkspaceInviteDialog from './WorkspaceInviteDialog.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -264,6 +283,7 @@ const { hasLoadError, isLoading, selectedWorkspace, selectedWorkspaceId, workspa
 const { createWorkspace, loadWorkspaces, selectWorkspace } = workspaceStore;
 
 const isCreateDialogOpen = ref(false);
+const isInviteDialogOpen = ref(false);
 const isCreating = ref(false);
 const hasTriedCreate = ref(false);
 const workspaceName = ref('');
@@ -288,6 +308,8 @@ const workspaceNameError = computed(() => {
 
   return undefined;
 });
+
+const canInviteMembers = computed(() => selectedWorkspace.value?.currentUserRole === 'OWNER');
 
 const visibleMembers = computed(() => members.value.slice(0, 3));
 const remainingMemberCount = computed(() =>
@@ -359,6 +381,7 @@ const loadMembers = async (workspaceId: string | null) => {
 };
 
 watch(selectedWorkspaceId, (workspaceId) => {
+  isInviteDialogOpen.value = false;
   void loadMembers(workspaceId);
 });
 

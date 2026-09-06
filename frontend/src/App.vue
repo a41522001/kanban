@@ -9,6 +9,7 @@
   <div class="min-h-dvh h-full bg-auth-page">
     <router-view />
   </div>
+  <Toaster position="top-right" />
   <Alert />
   <Loading />
 </template>
@@ -16,6 +17,7 @@
 <script setup lang="ts">
 import Alert from '@/components/common/Alert.vue';
 import Loading from '@/components/common/Loading.vue';
+import { Toaster } from '@/components/ui/sonner';
 
 // import { ref } from 'vue';
 // import { socket, connect, disconnect, emitEcho, isConnected } from '@/services/socket';

@@ -44,6 +44,7 @@ export const en = {
     actions: {
       createWorkspace: 'New workspace',
       createProject: 'New project',
+      inviteMember: 'Invite member',
       create: 'Create workspace',
       cancel: 'Cancel',
       retry: 'Try again',
@@ -53,6 +54,22 @@ export const en = {
       description: 'A workspace can start with just you. Invite people when you are ready.',
       nameLabel: 'Workspace name',
       namePlaceholder: 'For example: Product team',
+    },
+    invite: {
+      title: 'Invite a workspace member',
+      description:
+        'Enter the email address of a registered Flowboard user. The invitation will appear in their notification center.',
+      close: 'Close invite member dialog',
+      context: 'Workspace invitation destination',
+      workspaceHint: 'They will join the member list after accepting',
+      role: 'Member MEMBER',
+      emailLabel: 'Email address',
+      emailPlaceholder: "member{'@'}example.com",
+      emailHint: 'You can currently invite registered Flowboard users only.',
+      send: 'Send invitation',
+      sending: 'Sending…',
+      success: 'Invitation sent',
+      error: 'Unable to send the invitation. Please try again.',
     },
     validation: {
       nameRequired: 'Enter a workspace name',
