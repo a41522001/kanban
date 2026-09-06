@@ -1,6 +1,6 @@
 <template>
   <span
-    class="flex items-center justify-center w-8 h-8 rounded-full bg-flow-active cursor-pointer hover:bg-flow-active-strong hover:text-auth-page transition duration-300 ease-in-out"
+    class="flex size-8 items-center justify-center rounded-full bg-flow-active text-content-primary"
   >
     {{ shortname }}
   </span>
@@ -13,5 +13,5 @@ interface Props {
   name: string;
 }
 const props = defineProps<Props>();
-const shortname = computed(() => props.name[0]);
+const shortname = computed(() => props.name.trim().charAt(0).toUpperCase() || '?');
 </script>

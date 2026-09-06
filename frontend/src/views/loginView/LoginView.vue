@@ -123,19 +123,21 @@
           <button type="button" class="login__forgot-password">
             {{ t('auth.login.forgotPassword') }}
           </button>
-          <Btn type="submit" :disabled="isSubmitDisabled">{{ t('auth.login.submit') }}</Btn>
+          <Button type="submit" :disabled="isSubmitDisabled" :loading="isSubmitting">
+            {{ t('auth.login.submit') }}
+          </Button>
         </form>
         <div class="login__divider">
           <span class="login__divider-line"></span>
           <span class="login__divider-text">{{ t('auth.common.divider') }}</span>
           <span class="login__divider-line"></span>
         </div>
-        <Btn class="login__google-button">
+        <Button variant="secondary" class="login__google-button">
           <span class="login__google-icon"
             ><img :src="googleLogo" :alt="t('auth.common.googleLogo')"
           /></span>
           <span>{{ t('auth.common.googleContinue') }}</span>
-        </Btn>
+        </Button>
         <div class="login__signup-prompt">
           <span class="login__signup-text">{{ t('auth.login.noAccount') }}</span>
           <button type="button" class="login__signup-link" @click="goSignupPage">
@@ -151,7 +153,7 @@
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
-import Btn from '@/components/common/Btn.vue';
+import { Button } from '@/components/ui/button';
 import FormField from '@/components/common/FormField.vue';
 import Input from '@/components/common/Input.vue';
 import Logo from '@/components/common/Logo.vue';
@@ -189,9 +191,9 @@ const goSignupPage = () => {
   router.push({ name: 'signup' });
 };
 
-const goBoardPage = () => {
+const goWorkspacePage = () => {
   userStore.resetUser();
-  void router.push({ name: 'board' });
+  void router.push({ name: 'workspace' });
 };
 
 const clearFieldError = (field: LoginFieldName) => {
@@ -230,7 +232,7 @@ const handleLogin = async () => {
 
     alertStore.openAlert({
       content: response.message,
-      confirm: goBoardPage,
+      confirm: goWorkspacePage,
     });
   } catch (error: unknown) {
     const response = isAxiosError<ApiResponse<null>>(error) ? error.response?.data : undefined;

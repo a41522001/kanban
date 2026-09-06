@@ -16,7 +16,7 @@ export class UserService {
   async createUser(data: CreateUserData) {
     await this.userRepository.create(data);
   }
-  /** 取得User by id */
+  /** 取得User by email */
   async getByEmail(email: string): Promise<User | null> {
     return await this.userRepository.getByEmail(email);
   }

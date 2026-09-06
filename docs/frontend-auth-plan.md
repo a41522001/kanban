@@ -1,17 +1,21 @@
-# Frontend Auth Vertical Slice 計畫
+# Frontend Auth Vertical Slice
+
+> 最後檢視：2026-09-04。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
 
 ## 1. 目標
 
-完成 Signup、Login、登入狀態恢復、protected route 與 Logout，正確使用 HttpOnly Session Cookie，並統一處理 backend ApiResponse。
+已完成 Signup、Login、登入狀態恢復、protected route 與 Logout，並正確使用 HttpOnly Session Cookie。
+
+目前 signup 只建立帳號，成功後導向 Login；login 成功後導向 `/board`，並由 route guard 取得 userInfo。
 
 ## 2. 資料流
 
 ~~~text
-App 啟動
-→ GET /user/userInfo with credentials
-→ 成功：Auth Store 設為 authenticated
-→ 401：Auth Store 設為 anonymous
-→ 完成初始化後才判斷 protected route
+首次前往 protected route
+→ User Store 呼叫 GET /user/userInfo with credentials
+→ 成功：保存 user
+→ 失敗（包含 401）：保存 anonymous 結果
+→ 同一個頁面生命週期後續導航共用結果，不重複呼叫 API
 ~~~
 
 Login：
@@ -20,31 +24,29 @@ Login：
 Login form
 → POST /auth/login
 → Browser 保存 HttpOnly Cookie
-→ GET /user/userInfo 或更新 Store
-→ 導向原本要前往的頁面
+→ 清空暫存 User Store
+→ 導向 /board，由 route guard 取得 userInfo
 ~~~
 
 Logout：
 
 ~~~text
 POST /auth/logout
-→ Server 撤銷目前裝置 Session family 並清除 Cookie
+→ Server 撤銷本次 Cookie 指向的 Session 並清除 Cookie
 → 清空 Auth Store
-→ 中斷 Socket
 → 導向 Login
 ~~~
 
 ## 3. API Client
 
-建立單一 HTTP client wrapper：
+目前實作的單一 Axios client：
 - Base URL 來自 VITE_API_URL。
 - 所有 auth request 使用 credentials: include。
 - 統一解析 ApiResponse。
-- 非 2xx 仍解析 backend envelope。
-- Network error、timeout、abort 與 API error 分開表示。
+- Login／Signup view 使用 Axios error response 解析 backend envelope，將欄位錯誤映射到表單。
 - 不在 localStorage 保存 Session ID 或任何 auth token。
 
-建議型別：
+尚未抽成共用 `ApiClientError`；現階段由各 view 處理 submit error。若 API 呼叫種類增加，再集中處理：
 
 ~~~ts
 type ApiClientError = {
@@ -56,28 +58,23 @@ type ApiClientError = {
 };
 ~~~
 
-## 4. Auth Store State
+## 4. User Store State
 
 ~~~ts
-type AuthStatus =
-  | 'idle'
-  | 'restoring'
-  | 'authenticated'
-  | 'anonymous';
+type UserStore = {
+  user: PublicUser | null;
+  hasCheckedSession: boolean;
+  pendingUserRequest: Promise<PublicUser | null> | null;
+};
 ~~~
 
 Store 至少包含：
 
-- status
-- currentUser
-- isInitialized
-- login()
-- signup()
-- restoreSession()
-- logout()
-- clear()
+- `initializeUser()`：首次呼叫 `GET /user/userInfo`；並行呼叫共用同一個 request。
+- `hasCheckedSession`：成功與失敗都會快取，避免受保護路由重複請求。
+- `resetUser()`：logout 或登入成功導向前清空快取，確保下一次導航重新取得資料。
 
-不要只使用 boolean isLoggedIn，否則 App 初始化時無法區分尚未查詢與確定未登入。
+Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
 ## 5. Form 行為
 
@@ -100,11 +97,10 @@ Store 至少包含：
 
 ## 6. Route Guard
 
-- Auth restore 完成前顯示 loading/splash，不立即 redirect。
-- Protected route 只允許 authenticated。
-- Anonymous 前往 protected route 時記錄 redirect target。
-- 已登入前往 login/signup 時導向 application home。
-- Route guard 不直接呼叫 API，由 Auth Store 管理 restore 去重。
+- `/login`、`/signup` 是白名單。
+- 其他路徑先透過 `initializeUser()` 驗證；沒有 user 導向 Login。
+- Route guard 只透過 Store 取得 session，Store 負責 request 去重。
+- 尚未保存原始 redirect target，也尚未讓已登入使用者從 login/signup 自動導向 home。
 
 ## 7. Cookie、CORS 與 CSRF
 
@@ -115,7 +111,7 @@ Store 至少包含：
 - 若 production frontend/backend 為 cross-site，需重新評估 SameSite=None 與 CSRF protection。
 - State-changing endpoint 後續加入 Origin/Referer 檢查或 CSRF token。
 
-## 8. Socket Integration
+## 8. Socket Integration（待辦）
 
 - Auth Store authenticated 後才 connect Socket.IO。
 - Logout 時 disconnect。
@@ -124,26 +120,25 @@ Store 至少包含：
 
 ## 9. 測試
 
-- API client credentials include。
-- ApiResponse success/error parsing。
-- Auth restore success/401/network error。
-- Login loading、field error、invalid credentials。
-- Logout 一定清空 local state，即使 API request 失敗也需定義策略。
-- Route guard 等待 initialization。
-- Playwright refresh 後仍維持登入。
-- JavaScript 無法讀取 HttpOnly Cookie。
+- [x] Login／Signup pure form validation。
+- [x] User Store session restore 成功、失敗快取、並行 request 去重與 reset。
+- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；尚未有 component test。
+- [x] Logout 即使 API 失敗仍會清空本地 User Store 並導向 Login。
+- [ ] Route guard redirect target 與已登入 public route redirect。
+- [ ] Playwright refresh 後仍維持登入，以及完整登入／登出 flow。
+- [ ] 瀏覽器層確認 JavaScript 無法讀取 HttpOnly Cookie。
 
-## 10. 實作順序
+## 10. 實作狀態
 
-- [ ] API client 與 ApiClientError。
-- [ ] Auth Store state machine。
-- [ ] restoreSession。
-- [ ] Login API integration。
-- [ ] Signup API integration。
-- [ ] Route guard。
-- [ ] Logout。
+- [x] Axios API client（`withCredentials: true`）。
+- [x] User Store session restore 與 request 去重。
+- [x] Login API integration。
+- [x] Signup API integration。
+- [x] Protected route guard。
+- [x] Logout。
 - [ ] Socket connect/disconnect hook。
-- [ ] Unit/component tests。
+- [x] Form validation／User Store unit tests。
+- [ ] Login／Signup component tests。
 - [ ] Playwright auth flow。
 
 ## 11. 驗收條件
@@ -155,4 +150,4 @@ Store 至少包含：
 - Password、Session ID 不進入 localStorage、Pinia persistence 或 log。
 - Logout 後 HTTP 與 Socket 都無法繼續使用舊 Session。
 
-最後一項是完整驗收目標；目前 backend 的 logout 仍只刪除請求攜帶的單一 Session Hash，必須先完成 `session-architecture.md` 所列的 revoke 工作，前端才可依賴此保證。
+目前 logout 的保證是「本次 Cookie 對應的 Session 無法再使用」。Current／Grace family 的完整撤銷不在 MVP；詳見 `session-architecture.md`。

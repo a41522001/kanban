@@ -151,7 +151,7 @@
 }
 
 .signup__google-button {
-  @apply mb-10 bg-surface text-content-primary hover:bg-surface-subtle sm:mb-15;
+  @apply mb-10 sm:mb-15;
 }
 
 .signup__google-icon {

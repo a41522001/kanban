@@ -57,5 +57,5 @@
 }
 
 .board__add-card-button {
-  @apply flex gap-3 bg-auth-page px-0 text-content-primary hover:bg-auth-page hover:text-content-secondary;
+  @apply justify-start gap-3 px-0 hover:bg-transparent hover:text-content-secondary;
 }

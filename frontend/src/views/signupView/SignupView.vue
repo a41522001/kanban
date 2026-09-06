@@ -189,19 +189,21 @@
               {{ fieldErrors.checkPolicy[0] }}
             </p>
           </div>
-          <Btn type="submit" :disabled="isSubmitDisabled">{{ t('auth.signup.submit') }}</Btn>
+          <Button type="submit" :disabled="isSubmitDisabled" :loading="isSubmitting">
+            {{ t('auth.signup.submit') }}
+          </Button>
         </form>
         <div class="signup__divider">
           <span class="signup__divider-line"></span>
           <span class="signup__divider-text">{{ t('auth.common.divider') }}</span>
           <span class="signup__divider-line"></span>
         </div>
-        <Btn class="signup__google-button">
+        <Button variant="secondary" class="signup__google-button">
           <span class="signup__google-icon"
             ><img :src="googleLogo" :alt="t('auth.common.googleLogo')"
           /></span>
           <span>{{ t('auth.common.googleSignIn') }}</span>
-        </Btn>
+        </Button>
         <div class="signup__login-prompt">
           <span class="signup__login-text">{{ t('auth.signup.hasAccount') }}</span>
           <button type="button" class="signup__login-link" @click="goLoginPage">
@@ -218,7 +220,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
 import Logo from '@/components/common/Logo.vue';
-import Btn from '@/components/common/Btn.vue';
+import { Button } from '@/components/ui/button';
 import FormField from '@/components/common/FormField.vue';
 import Input from '@/components/common/Input.vue';
 import { isAxiosError } from 'axios';

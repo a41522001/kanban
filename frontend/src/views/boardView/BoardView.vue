@@ -3,7 +3,7 @@
     <header class="board__header">
       <div class="board__header-content">
         <Logo class="board__logo" />
-        <Avatar name="Jeffery" />
+        <UserMenu v-if="userStore.user" :user="userStore.user" />
       </div>
     </header>
 
@@ -16,10 +16,10 @@
         <div class="board__cards">
           <BoardCard v-for="card in column.cards" :key="card.id" :card="card" />
         </div>
-        <Btn class="board__add-card-button" @click="dialog = true">
+        <Button variant="ghost" class="board__add-card-button" @click="dialog = true">
           <Plus :size="16" />
           <span>新增卡片</span>
-        </Btn>
+        </Button>
       </section>
     </div>
     <!-- 新增卡片Dialog -->
@@ -28,16 +28,18 @@
 </template>
 
 <script setup lang="ts">
-import Avatar from '@/components/common/Avatar.vue';
 import Logo from '@/components/common/Logo.vue';
 import BoardCard from '@/components/board/BoardCard.vue';
 import DialogAddCard from '@/components/board/DialogAddCard.vue';
-import Btn from '@/components/common/Btn.vue';
+import UserMenu from '@/components/common/UserMenu.vue';
+import { Button } from '@/components/ui/button';
+import { useUserStore } from '@/stores/user';
 import type { BoardColumnData } from '@/types/board';
 import { ref } from 'vue';
 import { Plus } from 'lucide-vue-next';
 
 const dialog = ref<boolean>(false);
+const userStore = useUserStore();
 const columnAccentClass = {
   ready: 'board__column-accent--ready',
   active: 'board__column-accent--active',

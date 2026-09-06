@@ -2,6 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 import { NotFoundException } from '@nestjs/common';
+import { UserService } from '@/user/user.service';
+import { WorkspaceInvitationService } from '@/workspaceInvitation/workspaceInvitation.service';
+import { NotificationService } from '@/notification/notification.service';
+import { PrismaService } from '@/prisma/prisma.service';
 
 describe('WorkspacesService', () => {
   let workspacesService: WorkspacesService;
@@ -11,12 +15,40 @@ describe('WorkspacesService', () => {
       providers: [
         WorkspacesService,
         {
+          provide: UserService,
+          useValue: {
+            getByEmail: jest.fn(),
+          },
+        },
+        {
           provide: WorkspacesRepository,
           useValue: {
             create: jest.fn(),
             getByUserId: jest.fn(),
             getSingleWorkspaceMember: jest.fn(),
             findMembership: jest.fn(),
+          },
+        },
+        {
+          provide: WorkspaceInvitationService,
+          useValue: {
+            findPendingByWorkspaceAndInvitee: jest.fn(),
+            markExpired: jest.fn(),
+            createInvitation: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: {
+            createNotification: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn(async (callback: () => Promise<void>) =>
+              callback(),
+            ),
           },
         },
       ],
@@ -181,8 +213,13 @@ describe('WorkspacesService', () => {
         .spyOn(workspacesRepository, 'findMembership')
         .mockResolvedValue({
           id: 'membership-1',
+          role: 'MEMBER',
           workspace: {
             archivedAt: null,
+            name: '',
+          },
+          user: {
+            displayName: '',
           },
         });
       const result = await workspacesService.getSingleWorkspaceMember(
