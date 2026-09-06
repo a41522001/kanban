@@ -1,0 +1,149 @@
+@reference '../../styles/index.css';
+
+.notification-menu__trigger {
+  @apply relative grid size-10 cursor-pointer place-items-center rounded-control text-content-on-dark transition-[background-color,color,box-shadow] duration-150 hover:bg-content-on-dark/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/40;
+}
+
+.notification-menu__trigger--open {
+  @apply bg-surface text-content-primary hover:bg-surface;
+}
+
+.notification-menu__trigger-badge {
+  @apply absolute -top-1 -right-1 min-w-4.5 border-2 border-content-primary bg-action-primary px-1 py-0 text-[10px] leading-4 font-bold text-content-on-dark;
+}
+
+:global(.notification-menu__content) {
+  @apply w-[calc(100vw-2rem)] max-w-[400px] overflow-hidden rounded-frame border-border bg-surface p-0 text-content-primary shadow-card;
+}
+
+.notification-menu__panel {
+  @apply min-w-0;
+}
+
+.notification-menu__header {
+  @apply flex h-15 items-center justify-between gap-4 px-4;
+}
+
+.notification-menu__title {
+  @apply text-xl leading-7 font-bold;
+}
+
+.notification-menu__state-label {
+  @apply text-xs text-content-secondary;
+}
+
+.notification-menu__count-badge {
+  @apply border-0 bg-action-primary-soft px-2.5 py-1 text-[11px] font-bold text-category-coral;
+}
+
+.notification-menu__divider {
+  @apply mx-4 h-px bg-border;
+}
+
+.notification-menu__loading {
+  @apply grid gap-2 p-4;
+}
+
+.notification-menu__skeleton-row {
+  @apply flex h-19 items-center gap-3 rounded-surface bg-surface-subtle p-3.5;
+}
+
+.notification-menu__skeleton-avatar {
+  @apply size-10 shrink-0 rounded-full bg-border;
+}
+
+.notification-menu__skeleton-copy {
+  @apply flex min-w-0 flex-1 flex-col gap-2;
+}
+
+.notification-menu__skeleton-title {
+  @apply h-3 w-4/5 bg-border;
+}
+
+.notification-menu__skeleton-body {
+  @apply h-2.5 w-3/5 bg-border-strong;
+}
+
+.notification-menu__skeleton-body--short {
+  @apply w-2/5;
+}
+
+.notification-menu__state {
+  @apply flex min-h-61 flex-col items-center justify-center px-5 py-7 text-center;
+}
+
+.notification-menu__state-icon {
+  @apply grid size-13 place-items-center rounded-full bg-surface-subtle text-content-secondary;
+}
+
+.notification-menu__state-icon--error {
+  @apply bg-feedback-danger-soft text-feedback-danger;
+}
+
+.notification-menu__state h3 {
+  @apply mt-3 text-base font-bold;
+}
+
+.notification-menu__state p {
+  @apply mt-2 text-xs leading-5 text-content-secondary;
+}
+
+.notification-menu__state button {
+  @apply mt-5;
+}
+
+.notification-menu__scroll-area {
+  height: min(20rem, calc(100dvh - 11rem));
+}
+
+.notification-menu__list {
+  @apply grid gap-2 p-4;
+}
+
+.notification-menu__item {
+  @apply relative flex min-h-31.5 min-w-0 gap-3 rounded-surface border border-border bg-surface p-3.5 sm:min-h-30;
+}
+
+.notification-menu__item--unread {
+  @apply min-h-37.5 border-action-primary bg-action-primary-soft sm:min-h-35;
+}
+
+.notification-menu__avatar {
+  @apply grid size-10 shrink-0 place-items-center rounded-full bg-flow-active text-sm font-bold text-content-primary;
+}
+
+.notification-menu__item--unread .notification-menu__avatar {
+  @apply bg-action-primary text-content-on-dark;
+}
+
+.notification-menu__copy {
+  @apply min-w-0 flex-1;
+}
+
+.notification-menu__eyebrow {
+  @apply pr-4 text-[11px] leading-4 font-bold tracking-[0.03em] text-content-secondary;
+}
+
+.notification-menu__item--unread .notification-menu__eyebrow {
+  @apply text-category-coral;
+}
+
+.notification-menu__item-title {
+  @apply mt-1 text-sm leading-5 font-bold text-content-primary;
+}
+
+.notification-menu__body {
+  @apply mt-1.5 text-xs leading-5 text-content-secondary;
+}
+
+.notification-menu__time {
+  @apply mt-2 block text-[11px] leading-4 text-content-tertiary;
+}
+
+.notification-menu__unread-dot {
+  @apply absolute top-4 right-4 size-2 rounded-full bg-action-primary;
+}
+
+.notification-menu__footer-hint {
+  @apply border-t border-border px-4 py-3 text-[11px] text-content-tertiary;
+}
