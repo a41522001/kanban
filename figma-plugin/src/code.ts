@@ -8,6 +8,8 @@ let resolvedFonts = { regular: FONT, medium: FONT_MEDIUM, bold: FONT_BOLD };
 type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens';
 type Direction = 'HORIZONTAL' | 'VERTICAL';
 type ColorMap = Record<string, string>;
+type NotificationViewport = 'Desktop' | 'Mobile';
+type NotificationState = 'Default' | 'Loading' | 'Empty' | 'Error';
 
 interface TokenStore {
   colors: Record<string, Variable>;
@@ -38,11 +40,14 @@ const colors: ColorMap = {
   'text/secondary': '#697287',
   'text/tertiary': '#8B95A8',
   'text/on-dark': '#F7F8FA',
+  'text/on-dark-muted': '#BFC7D7',
   'border/default': '#D7DCE5',
   'border/strong': '#CDD3DE',
   'action/primary': '#DF6E51',
   'action/primary-hover': '#C4573E',
   'action/primary-soft': '#FCE5DF',
+  'feedback/danger': '#B33B2E',
+  'feedback/danger-soft': '#FCE8E5',
   'flow/ready': '#DF6E51',
   'flow/active': '#A9D2C8',
   'flow/active-strong': '#6EA99E',
@@ -362,7 +367,7 @@ async function buildFoundations(): Promise<FrameNode> {
 function buttonVariant(style: string): ComponentNode {
   const button = figma.createComponent();
   button.name = `Style=${style}, Size=Default`;
-  button.description = 'Horizontal Auto Layout · Hug contents · Padding 12px 20px';
+  button.description = 'shadcn-vue/Button · Horizontal Auto Layout · Hug contents · Padding 12px 20px';
   button.layoutMode = 'HORIZONTAL';
   button.primaryAxisSizingMode = 'AUTO';
   button.counterAxisSizingMode = 'AUTO';
@@ -382,7 +387,7 @@ function buttonVariant(style: string): ComponentNode {
 function inputVariant(state: string): ComponentNode {
   const input = figma.createComponent();
   input.name = `State=${state}`;
-  input.description = 'Vertical Auto Layout · Label + control + helper text';
+  input.description = 'common/Input + common/FormField · Vertical Auto Layout · Label + control + helper text';
   input.layoutMode = 'VERTICAL';
   input.primaryAxisSizingMode = 'AUTO';
   input.counterAxisSizingMode = 'FIXED';
@@ -392,6 +397,7 @@ function inputVariant(state: string): ComponentNode {
   input.appendChild(text('Label', '電子郵件', 'Label / Medium'));
   const control = auto('Input control', 'HORIZONTAL', { padding: [14, 16], fill: 'bg/surface', radius: 'radius/md' });
   fixed(control, 320, 52);
+  stretch(control);
   applyStroke(control, state === 'Focused' ? 'action/primary' : 'border/default', state === 'Focused' ? 2 : 1);
   control.appendChild(text('Value', state === 'Filled' ? 'you@example.com' : '輸入內容', 'Body / Medium', state === 'Filled' ? 'text/primary' : 'text/tertiary'));
   input.appendChild(control);
@@ -518,7 +524,7 @@ function projectCardComponent(): ComponentNode {
 function dialogComponent(): ComponentNode {
   const dialog = figma.createComponent();
   dialog.name = 'Dialog';
-  dialog.description = 'Vertical Auto Layout · Padding 32px · modal content container';
+  dialog.description = 'shadcn-vue/DialogContent · Vertical Auto Layout · Padding 32px · modal content container';
   dialog.layoutMode = 'VERTICAL';
   dialog.primaryAxisSizingMode = 'AUTO';
   dialog.counterAxisSizingMode = 'FIXED';
@@ -531,6 +537,275 @@ function dialogComponent(): ComponentNode {
   dialog.appendChild(text('Title', '新增卡片', 'Heading / H2'));
   dialog.appendChild(text('Body', 'Dialog body is composed from Input and Button instances on a screen.', 'Body / Medium', 'text/secondary'));
   return dialog;
+}
+
+function workspaceInviteDialogComponent(mobile = false): ComponentNode {
+  const width = mobile ? 358 : 520;
+  const padding = mobile ? 24 : 32;
+  const contentWidth = width - padding * 2;
+  const dialog = figma.createComponent();
+  dialog.name = `Workspace Invite Dialog / ${mobile ? 'Mobile' : 'Desktop'}`;
+  dialog.description = 'shadcn-vue/DialogContent · common/Input · shadcn-vue/Button · Workspace invitation flow';
+  dialog.layoutMode = 'VERTICAL';
+  dialog.primaryAxisSizingMode = 'AUTO';
+  dialog.counterAxisSizingMode = 'FIXED';
+  dialog.itemSpacing = 20;
+  dialog.resize(width, 480);
+  setPadding(dialog, padding);
+  applyFill(dialog, 'bg/surface');
+  setRadius(dialog, 'radius/xl');
+  dialog.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.2 }, offset: { x: 0, y: 16 }, radius: 24, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const header = auto('Dialog header', 'VERTICAL', { gap: 8 });
+  header.resize(contentWidth, 82);
+  header.counterAxisSizingMode = 'FIXED';
+  const titleRow = auto('Title row', 'HORIZONTAL');
+  fixed(titleRow, contentWidth, 40);
+  titleRow.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  titleRow.counterAxisAlignItems = 'CENTER';
+  titleRow.appendChild(text('Title', '邀請工作區成員', 'Heading / H2'));
+  const close = auto('Close button', 'HORIZONTAL', { fill: 'bg/subtle', radius: 'radius/md' });
+  fixed(close, 40, 40);
+  close.primaryAxisAlignItems = 'CENTER';
+  close.counterAxisAlignItems = 'CENTER';
+  close.appendChild(icon('Close icon', '<path d="M5 5l14 14M19 5 5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 18));
+  titleRow.appendChild(close);
+  header.appendChild(titleRow);
+  const description = text('Description', mobile
+    ? '輸入已註冊的電子郵件，邀請會出現在對方的通知中心。'
+    : '輸入已註冊 Flowboard 的電子郵件，邀請會出現在對方的通知中心。', 'Body / Medium', 'text/secondary');
+  description.textAutoResize = 'HEIGHT';
+  description.resize(contentWidth, 44);
+  header.appendChild(description);
+  dialog.appendChild(header);
+
+  const workspace = auto('Workspace context', 'HORIZONTAL', { gap: 12, padding: [12], fill: 'bg/subtle', stroke: 'border/default', radius: 'radius/lg' });
+  fixed(workspace, contentWidth, 76);
+  workspace.counterAxisAlignItems = 'CENTER';
+  const mark = auto('Workspace avatar', 'HORIZONTAL', { fill: 'action/primary', radius: 'radius/lg' });
+  fixed(mark, 48, 48);
+  mark.primaryAxisAlignItems = 'CENTER';
+  mark.counterAxisAlignItems = 'CENTER';
+  mark.appendChild(text('Workspace initial', '無', 'Heading / H3', 'text/on-dark'));
+  workspace.appendChild(mark);
+  const workspaceCopy = auto('Workspace copy', 'VERTICAL', { gap: 2 });
+  workspaceCopy.appendChild(text('Workspace name', '無限有限公司', 'Label / Medium'));
+  workspaceCopy.appendChild(text('Workspace hint', mobile ? '將以「成員」身分加入' : '邀請接受後才會加入成員列表', 'Body / Small', 'text/secondary'));
+  workspace.appendChild(workspaceCopy);
+  if (!mobile) {
+    const role = auto('Role badge', 'HORIZONTAL', { padding: [6, 10], fill: 'action/primary-soft', radius: 'radius/full' });
+    role.appendChild(text('Role', '成員 MEMBER', 'Label / Small', 'category/coral'));
+    workspace.appendChild(role);
+  }
+  dialog.appendChild(workspace);
+
+  const inputField = instance(componentVariant('Input', 'Focused'), 'Input');
+  inputField.resize(contentWidth, 106);
+  overrideText(inputField, 'Label', '電子郵件 *');
+  overrideText(inputField, 'Value', 'member@example.com');
+  overrideText(inputField, 'Helper', mobile ? '僅能邀請已註冊的 Flowboard 使用者。' : '目前僅能邀請已註冊的 Flowboard 使用者。');
+  dialog.appendChild(inputField);
+
+  const divider = figma.createRectangle();
+  divider.name = 'Divider';
+  divider.resize(contentWidth, 1);
+  applyFill(divider, 'border/default');
+  dialog.appendChild(divider);
+
+  const actions = auto('Dialog footer', 'HORIZONTAL', { gap: 12 });
+  fixed(actions, contentWidth, mobile ? 48 : 44);
+  actions.primaryAxisAlignItems = 'MAX';
+  const cancel = instance(componentVariant('Button', 'Outline'), 'Cancel button');
+  const submit = instance(componentVariant('Button', 'Primary'), 'Submit button');
+  overrideText(cancel, 'Label', '取消');
+  overrideText(submit, 'Label', '傳送邀請');
+  if (mobile) {
+    fixed(cancel, 149, 48);
+    fixed(submit, 149, 48);
+  }
+  actions.appendChild(cancel);
+  actions.appendChild(submit);
+  dialog.appendChild(actions);
+  return dialog;
+}
+
+function notificationTriggerVariant(state: 'Default' | 'Unread' | 'Open'): ComponentNode {
+  const trigger = figma.createComponent();
+  trigger.name = `State=${state}`;
+  trigger.description = 'shadcn-vue/DropdownMenuTrigger · Badge · 40×40 notification control';
+  trigger.resize(40, 40);
+  trigger.layoutMode = 'NONE';
+  applyFill(trigger, state === 'Open' ? 'bg/subtle' : 'bg/dark');
+  setRadius(trigger, 'radius/md');
+  const bell = icon(
+    'Bell icon',
+    '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    20,
+    state === 'Open' ? 'text/primary' : 'text/on-dark',
+  );
+  bell.x = 10;
+  bell.y = 10;
+  trigger.appendChild(bell);
+  if (state !== 'Default') {
+    const badge = auto('Unread badge', 'HORIZONTAL', { fill: 'action/primary', radius: 'radius/full' });
+    fixed(badge, 18, 18);
+    badge.primaryAxisAlignItems = 'CENTER';
+    badge.counterAxisAlignItems = 'CENTER';
+    badge.appendChild(text('Count', '2', 'Label / Small', 'text/on-dark'));
+    badge.x = 24;
+    badge.y = -4;
+    trigger.appendChild(badge);
+  }
+  return trigger;
+}
+
+function notificationItemVariant(viewport: NotificationViewport, state: 'Unread' | 'Read'): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const width = mobile ? 326 : 368;
+  const height = state === 'Unread' ? (mobile ? 150 : 140) : (mobile ? 126 : 120);
+  const item = figma.createComponent();
+  item.name = `Viewport=${viewport}, State=${state}`;
+  item.description = 'Notification item · WORKSPACE_INVITED payload · Avatar + semantic copy + timestamp';
+  item.layoutMode = 'HORIZONTAL';
+  item.itemSpacing = 12;
+  item.counterAxisAlignItems = 'MIN';
+  fixed(item, width, height);
+  setPadding(item, 14);
+  applyFill(item, state === 'Unread' ? 'action/primary-soft' : 'bg/surface');
+  applyStroke(item, state === 'Unread' ? 'action/primary' : 'border/default');
+  setRadius(item, 'radius/lg');
+
+  const avatar = auto('Actor avatar', 'HORIZONTAL', { fill: state === 'Unread' ? 'action/primary' : 'flow/active', radius: 'radius/full' });
+  fixed(avatar, 40, 40);
+  avatar.primaryAxisAlignItems = 'CENTER';
+  avatar.counterAxisAlignItems = 'CENTER';
+  avatar.appendChild(text('Actor initial', state === 'Unread' ? 'J' : 'M', 'Label / Medium', state === 'Unread' ? 'text/on-dark' : 'text/primary'));
+  item.appendChild(avatar);
+
+  const copyWidth = width - 40 - 12 - 28;
+  const copy = auto('Notification copy', 'VERTICAL', { gap: 6 });
+  fixed(copy, copyWidth, height - 28);
+  const eyebrow = text('Type label', state === 'Unread' ? '工作區邀請' : '工作區動態', 'Label / Small', state === 'Unread' ? 'category/coral' : 'text/secondary');
+  copy.appendChild(eyebrow);
+  const titleNode = text('Notification title', state === 'Unread'
+    ? 'Jeffery 邀請你加入「無限有限公司」'
+    : 'Mia 已加入「無限有限公司」', 'Label / Medium');
+  titleNode.textAutoResize = 'HEIGHT';
+  titleNode.resize(copyWidth, state === 'Unread' ? 42 : 22);
+  copy.appendChild(titleNode);
+  if (state === 'Unread') {
+    const body = text('Notification body', '你將以成員身分加入這個工作區。', 'Body / Small', 'text/secondary');
+    body.textAutoResize = 'HEIGHT';
+    body.resize(copyWidth, 36);
+    copy.appendChild(body);
+  }
+  copy.appendChild(text('Created at', state === 'Unread' ? '剛剛' : '昨天', 'Body / Small', 'text/secondary'));
+  item.appendChild(copy);
+
+  if (state === 'Unread') {
+    const dot = figma.createEllipse();
+    dot.name = 'Unread indicator';
+    dot.resize(8, 8);
+    applyFill(dot, 'action/primary');
+    item.appendChild(dot);
+    dot.layoutPositioning = 'ABSOLUTE';
+    dot.x = width - 20;
+    dot.y = 18;
+  }
+  return item;
+}
+
+function notificationSkeletonRow(width: number, index: number): FrameNode {
+  const row = auto(`Notification skeleton ${index + 1}`, 'HORIZONTAL', { gap: 12, padding: [14], fill: 'bg/subtle', radius: 'radius/lg' });
+  fixed(row, width, 76);
+  const avatar = figma.createEllipse();
+  avatar.name = 'Avatar skeleton';
+  avatar.resize(40, 40);
+  applyFill(avatar, 'border/default');
+  row.appendChild(avatar);
+  const lines = auto('Text skeletons', 'VERTICAL', { gap: 8 });
+  const first = figma.createRectangle(); first.name = 'Title skeleton'; first.resize(width - 110, 12); first.cornerRadius = 6; applyFill(first, 'border/default');
+  const second = figma.createRectangle(); second.name = 'Body skeleton'; second.resize(width - (index === 1 ? 170 : 140), 10); second.cornerRadius = 5; applyFill(second, 'border/strong');
+  lines.appendChild(first); lines.appendChild(second); row.appendChild(lines);
+  return row;
+}
+
+function notificationDropdownVariant(viewport: NotificationViewport, state: NotificationState): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const width = mobile ? 358 : 400;
+  const contentWidth = width - 32;
+  const height = state === 'Default' ? (mobile ? 470 : 438) : 350;
+  const menu = figma.createComponent();
+  menu.name = `Viewport=${viewport}, State=${state}`;
+  menu.description = 'shadcn-vue/DropdownMenuContent + ScrollArea · Notification read model';
+  menu.layoutMode = 'VERTICAL';
+  menu.itemSpacing = 12;
+  fixed(menu, width, height);
+  setPadding(menu, 16);
+  applyFill(menu, 'bg/surface');
+  applyStroke(menu);
+  setRadius(menu, 'radius/xl');
+  menu.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#29324A'), a: 0.18 }, offset: { x: 0, y: 12 }, radius: 24, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const header = auto('Notification header', 'HORIZONTAL');
+  fixed(header, contentWidth, 32);
+  header.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  header.counterAxisAlignItems = 'CENTER';
+  header.appendChild(text('Title', '通知', 'Heading / H3'));
+  if (state === 'Default') {
+    const count = auto('Unread count', 'HORIZONTAL', { padding: [5, 10], fill: 'action/primary-soft', radius: 'radius/full' });
+    count.appendChild(text('Count label', '2 則未讀', 'Label / Small', 'category/coral'));
+    header.appendChild(count);
+  } else {
+    header.appendChild(text('State label', state === 'Loading' ? '載入中' : state === 'Empty' ? '0 則未讀' : '暫時無法顯示', 'Body / Small', 'text/secondary'));
+  }
+  menu.appendChild(header);
+  const divider = figma.createRectangle(); divider.name = 'Divider'; divider.resize(contentWidth, 1); applyFill(divider, 'border/default'); menu.appendChild(divider);
+
+  if (state === 'Default') {
+    const list = auto('Notification list', 'VERTICAL', { gap: 8 });
+    const unread = instance(componentVariant('Notification Item', `Viewport=${viewport}, State=Unread`), 'Unread notification');
+    const read = instance(componentVariant('Notification Item', `Viewport=${viewport}, State=Read`), 'Read notification');
+    list.appendChild(unread);
+    list.appendChild(read);
+    menu.appendChild(list);
+    menu.appendChild(text('Pagination hint', '目前顯示最近通知', 'Body / Small', 'text/tertiary'));
+    return menu;
+  }
+
+  if (state === 'Loading') {
+    const loading = auto('Loading notifications', 'VERTICAL', { gap: 8 });
+    [0, 1, 2].forEach((index) => loading.appendChild(notificationSkeletonRow(contentWidth, index)));
+    menu.appendChild(loading);
+    return menu;
+  }
+
+  const message = auto(`Notification ${state.toLowerCase()} state`, 'VERTICAL', { gap: 10, padding: [28, 20] });
+  fixed(message, contentWidth, 244);
+  message.primaryAxisAlignItems = 'CENTER';
+  message.counterAxisAlignItems = 'CENTER';
+  const iconBox = auto('State icon', 'HORIZONTAL', { fill: state === 'Error' ? 'feedback/danger-soft' : 'bg/subtle', radius: 'radius/full' });
+  fixed(iconBox, 52, 52);
+  iconBox.primaryAxisAlignItems = 'CENTER';
+  iconBox.counterAxisAlignItems = 'CENTER';
+  iconBox.appendChild(icon(
+    state === 'Error' ? 'Error icon' : 'Empty bell icon',
+    state === 'Error'
+      ? '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      : '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+    24,
+    state === 'Error' ? 'feedback/danger' : 'text/secondary',
+  ));
+  message.appendChild(iconBox);
+  message.appendChild(text('State title', state === 'Error' ? '通知載入失敗' : '還沒有通知', 'Heading / H3'));
+  message.appendChild(text('State description', state === 'Error' ? '請稍後再試一次。' : '有新的工作區邀請時會顯示在這裡。', 'Body / Small', 'text/secondary'));
+  if (state === 'Error') {
+    const retry = instance(componentVariant('Button', 'Primary'), 'Retry button');
+    overrideText(retry, 'Label', '重新載入');
+    message.appendChild(retry);
+  }
+  menu.appendChild(message);
+  return menu;
 }
 
 function selectComponent(): ComponentNode {
@@ -597,6 +872,34 @@ async function buildComponents(replace = true): Promise<FrameNode> {
   root.appendChild(avatarRow);
   componentSets.Avatar = componentSet('Avatar', [24, 32, 40].map(avatarVariant), avatarRow);
 
+  const notificationTriggerRow = auto('Notification Trigger', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(notificationTriggerRow);
+  componentSets['Notification Trigger'] = componentSet(
+    'Notification Trigger',
+    (['Default', 'Unread', 'Open'] as const).map(notificationTriggerVariant),
+    notificationTriggerRow,
+  );
+
+  const notificationItemRow = auto('Notification Item', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(notificationItemRow);
+  componentSets['Notification Item'] = componentSet(
+    'Notification Item',
+    (['Desktop', 'Mobile'] as const).flatMap((viewport) =>
+      (['Unread', 'Read'] as const).map((state) => notificationItemVariant(viewport, state)),
+    ),
+    notificationItemRow,
+  );
+
+  const notificationDropdownRow = auto('Notification Dropdown', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(notificationDropdownRow);
+  componentSets['Notification Dropdown'] = componentSet(
+    'Notification Dropdown',
+    (['Desktop', 'Mobile'] as const).flatMap((viewport) =>
+      (['Default', 'Loading', 'Empty', 'Error'] as const).map((state) => notificationDropdownVariant(viewport, state)),
+    ),
+    notificationDropdownRow,
+  );
+
   const badgeRow = auto('Badge', 'HORIZONTAL', { gap: 24 });
   root.appendChild(badgeRow);
   componentSets.Badge = componentSet('Badge', [['API', 'category/coral'], ['Session', 'category/mint'], ['Review', 'category/amber'], ['Done', 'category/lavender']].map(([label, color]) => badgeVariant(label, color)), badgeRow);
@@ -612,7 +915,14 @@ async function buildComponents(replace = true): Promise<FrameNode> {
 
   const core = auto('Core components', 'HORIZONTAL', { gap: 48 });
   root.appendChild(core);
-  [boardColumnComponent(), projectCardComponent(), dialogComponent(), emptyStateComponent()].forEach((component) => {
+  [
+    boardColumnComponent(),
+    projectCardComponent(),
+    dialogComponent(),
+    workspaceInviteDialogComponent(),
+    workspaceInviteDialogComponent(true),
+    emptyStateComponent(),
+  ].forEach((component) => {
     tag(component, 'component');
     standaloneComponents[component.name] = component;
     core.appendChild(component);
@@ -630,7 +940,7 @@ function localComponent(name: string): ComponentNode | undefined {
 }
 
 async function hydrateComponentCache(): Promise<void> {
-  if (componentSets.Button && componentSets['Task Card']) return;
+  if (componentSets.Button && componentSets['Task Card'] && componentSets['Notification Dropdown']) return;
   const page = figma.root.children.find((candidate) => candidate.name === '02 · Components');
   if (!page) return;
   await figma.setCurrentPageAsync(page);
@@ -670,8 +980,9 @@ function appHeader(): FrameNode {
   const actions = auto('Header actions', 'HORIZONTAL', { gap: 16 });
   const plus = auto('Create button', 'HORIZONTAL', { padding: [8, 12], fill: 'action/primary', radius: 'radius/md' });
   plus.appendChild(text('Icon', '+', 'Heading / H3', 'text/on-dark'));
+  const notification = instance(componentVariant('Notification Trigger', 'State=Unread'), 'Notification trigger');
   const avatar = instance(componentVariant('Avatar', 'Size=32'), 'Avatar');
-  actions.appendChild(plus); actions.appendChild(avatar);
+  actions.appendChild(plus); actions.appendChild(notification); actions.appendChild(avatar);
   header.appendChild(brand); header.appendChild(nav); header.appendChild(actions);
   return header;
 }
@@ -928,9 +1239,91 @@ function workspaceTabletScreen(): FrameNode {
 
 function workspaceMobileScreen(): FrameNode {
   const screen = auto('Workspace / Mobile / 390×844', 'VERTICAL', { gap: 20, padding: [20, 16], fill: 'bg/canvas' }); fixed(screen, 390, 844);
-  const header = auto('Mobile header', 'HORIZONTAL', { gap: 12, padding: [12, 16], fill: 'bg/dark' }); fixed(header, 358, 56); header.primaryAxisAlignItems = 'SPACE_BETWEEN'; header.appendChild(text('Brand', 'Flowboard', 'Label / Medium', 'text/on-dark')); header.appendChild(instance(componentVariant('Avatar', 'Size=32'), 'Avatar')); screen.appendChild(header);
+  const header = auto('Mobile header', 'HORIZONTAL', { gap: 12, padding: [12, 16], fill: 'bg/dark' }); fixed(header, 358, 56); header.primaryAxisAlignItems = 'SPACE_BETWEEN'; header.appendChild(text('Brand', 'Flowboard', 'Label / Medium', 'text/on-dark'));
+  const actions = auto('Header actions', 'HORIZONTAL', { gap: 8 }); actions.appendChild(instance(componentVariant('Notification Trigger', 'State=Unread'), 'Notification trigger')); actions.appendChild(instance(componentVariant('Avatar', 'Size=32'), 'Avatar')); header.appendChild(actions); screen.appendChild(header);
   screen.appendChild(text('Eyebrow', '目前工作區', 'Label / Small', 'text/secondary')); screen.appendChild(text('Title', '選一個專案繼續', 'Heading / H2')); screen.appendChild(text('Description', '所有專案都集中在這個工作區。', 'Body / Medium', 'text/secondary'));
   screen.appendChild(projectCard('Flowboard 即時協作', '主要看板 · WebSocket 練習', 'flow/ready')); screen.appendChild(projectCard('發佈自動化', '主要看板 · CI/CD 與部署檢查', 'flow/active')); return screen;
+}
+
+function workspaceInviteDialogScreen(mobile = false): FrameNode {
+  const width = mobile ? 390 : 1440;
+  const height = mobile ? 844 : 900;
+  const screen = auto(`Workspace Invite / ${mobile ? 'Mobile / 390×844' : 'Desktop / 1440×900'}`, 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, width, height);
+  screen.clipsContent = true;
+
+  const background = mobile ? workspaceMobileScreen() : workspaceScreen();
+  background.name = 'Workspace backdrop';
+  screen.appendChild(background);
+  background.layoutPositioning = 'ABSOLUTE';
+  background.x = 0;
+  background.y = 0;
+
+  const scrim = auto('Dialog scrim', 'VERTICAL', { fill: 'bg/dark' });
+  fixed(scrim, width, height);
+  scrim.opacity = 0.58;
+  screen.appendChild(scrim);
+  scrim.layoutPositioning = 'ABSOLUTE';
+  scrim.x = 0;
+  scrim.y = 0;
+
+  const dialog = instance(localComponent(`Workspace Invite Dialog / ${mobile ? 'Mobile' : 'Desktop'}`), 'Workspace Invite Dialog');
+  screen.appendChild(dialog);
+  dialog.layoutPositioning = 'ABSOLUTE';
+  dialog.x = mobile ? 16 : 460;
+  dialog.y = mobile ? 150 : 200;
+  return screen;
+}
+
+function notificationDropdownScreen(mobile = false): FrameNode {
+  const width = mobile ? 390 : 1440;
+  const height = mobile ? 844 : 900;
+  const screen = auto(`Notification Dropdown / ${mobile ? 'Mobile / 390×844' : 'Desktop / 1440×900'}`, 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, width, height);
+  screen.clipsContent = true;
+
+  const background = mobile ? workspaceMobileScreen() : workspaceScreen();
+  background.name = 'Workspace backdrop';
+  screen.appendChild(background);
+  background.layoutPositioning = 'ABSOLUTE';
+  background.x = 0;
+  background.y = 0;
+
+  const dropdown = instance(
+    componentVariant('Notification Dropdown', `Viewport=${mobile ? 'Mobile' : 'Desktop'}, State=Default`),
+    'Notification Dropdown',
+  );
+  screen.appendChild(dropdown);
+  dropdown.layoutPositioning = 'ABSOLUTE';
+  dropdown.x = mobile ? 16 : 1008;
+  dropdown.y = 68;
+  return screen;
+}
+
+function notificationDropdownStatesScreen(): FrameNode {
+  const screen = auto('Notification Dropdown / States / 1440×900', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.appendChild(text('Title', 'NOTIFICATION DROPDOWN / RUNTIME STATES', 'Heading / H2'));
+  screen.appendChild(text('Description', '目前 HTTP read model 支援列表與未讀數；狀態不包含尚未提供 API 的已讀、接受或拒絕操作。', 'Body / Medium', 'text/secondary'));
+
+  const states = auto('Dropdown states', 'HORIZONTAL', { gap: 24 });
+  (['Loading', 'Empty', 'Error'] as const).forEach((state) => {
+    const panel = auto(`State / ${state}`, 'VERTICAL', { gap: 12 });
+    panel.appendChild(text('State label', state, 'Heading / H3'));
+    panel.appendChild(instance(componentVariant('Notification Dropdown', `Viewport=Desktop, State=${state}`), `Notification ${state}`));
+    states.appendChild(panel);
+  });
+  screen.appendChild(states);
+
+  const triggers = auto('Trigger states', 'HORIZONTAL', { gap: 20, padding: [20], fill: 'bg/dark', radius: 'radius/lg' });
+  (['Default', 'Unread', 'Open'] as const).forEach((state) => {
+    const sample = auto(`Trigger / ${state}`, 'VERTICAL', { gap: 8 });
+    sample.appendChild(instance(componentVariant('Notification Trigger', `State=${state}`), `Notification trigger ${state}`));
+    sample.appendChild(text('Label', state, 'Label / Small', 'text/on-dark-muted'));
+    triggers.appendChild(sample);
+  });
+  screen.appendChild(triggers);
+  return screen;
 }
 
 function responsiveDialogScreen(): FrameNode {
@@ -1052,6 +1445,8 @@ async function buildScreens(): Promise<FrameNode> {
     { name: 'Auth / Login', screens: [() => authScreen('Login'), () => mobileAuthScreen('Login')] },
     { name: 'Auth / Signup', screens: [() => authScreen('Signup'), () => mobileAuthScreen('Signup')] },
     { name: 'Workspace', screens: [workspaceScreen, workspaceTabletScreen, workspaceMobileScreen] },
+    { name: 'Workspace Invite', screens: [() => workspaceInviteDialogScreen(false), () => workspaceInviteDialogScreen(true)] },
+    { name: 'Notifications', screens: [() => notificationDropdownScreen(false), () => notificationDropdownScreen(true), notificationDropdownStatesScreen] },
     { name: 'Board', screens: [boardScreen, boardTabletScreen, mobileBoardScreen] },
     { name: 'Create Card', screens: [fullCreateCardDialog, responsiveDialogScreen] },
     { name: 'Card Detail', screens: [() => cardDetailScreen(false), () => cardDetailScreen(true)] },
@@ -1083,7 +1478,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Notification Dropdown'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {
