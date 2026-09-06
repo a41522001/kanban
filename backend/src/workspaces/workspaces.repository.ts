@@ -97,7 +97,13 @@ export class WorkspacesRepository {
         role: true,
         workspace: {
           select: {
+            name: true,
             archivedAt: true,
+          },
+        },
+        user: {
+          select: {
+            displayName: true,
           },
         },
       },

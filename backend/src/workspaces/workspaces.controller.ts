@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -9,8 +11,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import { CreateDto } from './dto/create.dto';
+import { InviteMemberDto } from './dto/inviteMember.dto';
 import { SessionGuard } from '@/session/session.guard';
 import type {
   WorkspaceDto,
@@ -56,5 +59,24 @@ export class WorkspacesController {
       workspaceId,
     );
     return { data: result };
+  }
+
+  /** 邀請工作區成員 */
+  @Post('invite')
+  @HttpCode(HttpStatus.CREATED)
+  async inviteMember(
+    @Req() req: Request,
+    @Body() inviteMemberDto: InviteMemberDto,
+  ): Promise<ApiResult<null>> {
+    await this.workspacesService.inviteMember(
+      req.userId!,
+      inviteMemberDto.workspaceId,
+      inviteMemberDto.email,
+    );
+
+    return {
+      data: null,
+      message: '邀請已送出',
+    };
   }
 }
