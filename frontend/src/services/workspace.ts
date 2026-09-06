@@ -5,6 +5,7 @@ import type {
   WorkspaceListItemDto,
   WorkspaceMemberDto,
 } from '@kanban/contracts/workspaces';
+import type { InviteWorkspaceMemberRequest } from '@kanban/contracts/workspaceInvitation';
 import api from './http';
 
 export const getWorkspacesApi = async (): Promise<ApiResponse<WorkspaceListItemDto[]>> => {
@@ -34,6 +35,18 @@ export const getWorkspaceMembersApi = async (
   const response = await api<ApiResponse<WorkspaceMemberDto[]>>({
     url: `/workspaces/${workspaceId}/members`,
     method: 'get',
+  });
+
+  return response.data;
+};
+
+export const inviteWorkspaceMemberApi = async (
+  data: InviteWorkspaceMemberRequest,
+): Promise<ApiResponse<null>> => {
+  const response = await api<ApiResponse<null>, InviteWorkspaceMemberRequest>({
+    url: '/workspaces/invite',
+    method: 'post',
+    data,
   });
 
   return response.data;

@@ -9,7 +9,7 @@
 }
 
 .workplace__header-content {
-  @apply mx-auto flex h-16 max-w-[1440px] items-center gap-6;
+  @apply mx-auto flex h-16 max-w-[1440px] items-center gap-3 sm:gap-6;
 }
 
 .workplace__brand {
@@ -33,7 +33,7 @@
 }
 
 .workplace__header-actions {
-  @apply ml-auto flex items-center gap-4;
+  @apply ml-auto flex items-center gap-3 sm:gap-4;
 }
 
 .workplace__create-icon-button {
@@ -165,7 +165,11 @@
 }
 
 .workplace__project-action {
-  @apply shrink-0;
+  @apply flex w-full shrink-0 flex-col gap-3 sm:w-auto sm:flex-row;
+}
+
+.workplace__project-action > button {
+  @apply w-full sm:w-auto;
 }
 
 .workplace__projects {
@@ -238,4 +242,10 @@
 
 .workplace__dialog-footer {
   @apply mt-1 gap-3 sm:justify-end;
+}
+
+@media (max-width: 359px) {
+  .workplace__brand :deep(h1) {
+    @apply sr-only;
+  }
 }

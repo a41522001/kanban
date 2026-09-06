@@ -7,11 +7,14 @@ import { LoaderCircle } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '.';
 
+defineOptions({ name: 'UiButton' });
+
 interface Props extends PrimitiveProps {
   variant?: ButtonVariants['variant'];
   size?: ButtonVariants['size'];
   class?: HTMLAttributes['class'];
   loading?: boolean;
+  disabled?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -26,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
     :data-size="size"
     :as="as"
     :as-child="asChild"
-    :disabled="loading || undefined"
+    :disabled="disabled || loading || undefined"
     :aria-busy="loading || undefined"
     :class="cn(buttonVariants({ variant, size }), props.class)"
   >

@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Avatar from '@/components/common/Avatar.vue';
 import { logoutApi } from '@/services/auth';
+import { useNotificationStore } from '@/stores/notification';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
 
@@ -55,6 +56,7 @@ defineProps<Props>();
 
 const { t } = useI18n();
 const router = useRouter();
+const notificationStore = useNotificationStore();
 const userStore = useUserStore();
 const workspaceStore = useWorkspaceStore();
 const isLoggingOut = ref(false);
@@ -71,6 +73,7 @@ const handleLogout = async () => {
   } catch {
     // Request 無法送達時仍清除本機登入狀態，避免受保護頁面繼續可用。
   } finally {
+    notificationStore.resetNotifications();
     userStore.resetUser();
     workspaceStore.resetWorkspaces();
     await router.replace({ name: 'login' });

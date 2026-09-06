@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <defs>
+    <filter id="surface-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#111827" flood-opacity=".22"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.title{font-size:22px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:10px;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.button{font-size:14px;font-weight:700}.medium{font-weight:700}
+    </style>
+    <g id="mark"><rect width="16" height="24" rx="4" fill="#DF6E51"/><rect x="22" y="8" width="16" height="16" rx="4" fill="#A9D2C8"/></g>
+    <g id="plus" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <g id="close" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l12 12M15 3 3 15"/></g>
+  </defs>
+
+  <rect width="390" height="844" rx="20" fill="#E9ECF1"/>
+  <path d="M0 20Q0 0 20 0h350q20 0 20 20v36H0z" fill="#29324A"/>
+  <g transform="translate(20 16)">
+    <use href="#mark" transform="scale(.84)"/>
+    <text x="48" y="18" class="h2 inverse">Flowboard</text>
+    <rect x="278" y="-8" width="40" height="40" rx="10" fill="#44506A"/>
+    <g transform="translate(290 4)" color="#F7F8FA"><use href="#plus"/></g>
+    <circle cx="350" cy="12" r="16" fill="#A9D2C8"/><text x="350" y="17" text-anchor="middle" class="body medium">J</text>
+  </g>
+
+  <g transform="translate(24 80)">
+    <text class="tiny">目前工作區</text>
+    <rect y="20" width="342" height="56" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+    <rect x="12" y="32" width="32" height="32" rx="8" fill="#DF6E51"/><text x="28" y="53" text-anchor="middle" class="body inverse medium">無</text>
+    <text x="56" y="44" class="body medium">無限有限公司</text><text x="56" y="62" class="tiny">3 個專案 · 5 位成員</text>
+    <text y="120" class="title">選一個專案繼續</text><text y="148" class="small">所有專案都集中在這個工作區。</text>
+    <rect y="172" width="342" height="48" rx="10" fill="#C4573E"/><text x="171" y="202" text-anchor="middle" class="button inverse">新增專案</text>
+    <text y="260" class="h2">最近開啟</text>
+    <rect y="280" width="342" height="132" rx="12" fill="#F7F8FA"/><rect y="280" width="4" height="132" rx="2" fill="#DF6E51"/>
+    <text x="20" y="314" class="h2">XX 電商</text><text x="20" y="340" class="small">主要看板 · WebSocket 練習</text>
+    <text y="456" class="h2">所有專案</text>
+    <rect y="476" width="342" height="136" rx="12" fill="#F7F8FA"/><rect y="476" width="4" height="136" rx="2" fill="#A9D2C8"/>
+  </g>
+
+  <rect width="390" height="844" rx="20" fill="#172033" opacity=".6"/>
+
+  <g id="dialog" transform="translate(16 150)" filter="url(#surface-shadow)">
+    <rect width="358" height="500" rx="18" fill="#FFFFFF"/>
+    <text x="24" y="44" class="title">邀請工作區成員</text>
+    <rect x="294" y="18" width="40" height="40" rx="9" fill="#F7F8FA"/>
+    <g transform="translate(305 29)" color="#697287"><use href="#close"/></g>
+    <text x="24" y="80" class="body" fill="#697287">輸入已註冊的電子郵件，邀請會出現在</text>
+    <text x="24" y="102" class="body" fill="#697287">對方的通知中心。</text>
+
+    <g transform="translate(24 130)">
+      <rect width="310" height="76" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+      <rect x="12" y="14" width="48" height="48" rx="12" fill="#DF6E51"/>
+      <text x="36" y="44" text-anchor="middle" class="h2 inverse">無</text>
+      <text x="76" y="31" class="body medium">無限有限公司</text>
+      <text x="76" y="53" class="small">將以「成員」身分加入</text>
+    </g>
+
+    <text x="24" y="246" class="body medium">電子郵件 *</text>
+    <rect x="24" y="260" width="310" height="52" rx="9" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/>
+    <text x="40" y="292" class="body">member@example.com</text>
+    <text x="24" y="338" class="small">僅能邀請已註冊的 Flowboard 使用者。</text>
+
+    <line x1="24" y1="382" x2="334" y2="382" stroke="#D7DCE5"/>
+    <rect x="24" y="414" width="149" height="48" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+    <text x="98.5" y="444" text-anchor="middle" class="button">取消</text>
+    <rect x="185" y="414" width="149" height="48" rx="9" fill="#DF6E51"/>
+    <text x="259.5" y="444" text-anchor="middle" class="button inverse">傳送邀請</text>
+  </g>
+</svg>

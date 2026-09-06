@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#29324A" flood-opacity=".14"/></filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.inverse{fill:#F7F8FA}.medium{font-weight:700}
+    </style>
+    <g id="bell" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></g>
+    <g id="error" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/></g>
+  </defs>
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="52" class="spec">NOTIFICATION DROPDOWN / RUNTIME STATES</text>
+  <text x="40" y="84" class="body" fill="#697287">HTTP read model：列表與未讀數。暫不顯示尚未提供 API 的已讀、接受或拒絕操作。</text>
+
+  <g id="loading" transform="translate(40 132)">
+    <text y="-16" class="title">Loading</text><rect width="400" height="350" rx="18" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>
+    <text x="16" y="37" class="title">通知</text><text x="384" y="34" text-anchor="end" class="small">載入中</text><line x1="16" y1="60" x2="384" y2="60" stroke="#D7DCE5"/>
+    <g transform="translate(16 76)">
+      <rect width="368" height="76" rx="12" fill="#F7F8FA"/><circle cx="34" cy="38" r="20" fill="#D7DCE5"/><rect x="66" y="23" width="236" height="12" rx="6" fill="#D7DCE5"/><rect x="66" y="45" width="188" height="10" rx="5" fill="#CDD3DE"/>
+    </g>
+    <g transform="translate(16 160)">
+      <rect width="368" height="76" rx="12" fill="#F7F8FA"/><circle cx="34" cy="38" r="20" fill="#D7DCE5"/><rect x="66" y="23" width="236" height="12" rx="6" fill="#D7DCE5"/><rect x="66" y="45" width="158" height="10" rx="5" fill="#CDD3DE"/>
+    </g>
+    <g transform="translate(16 244)">
+      <rect width="368" height="76" rx="12" fill="#F7F8FA"/><circle cx="34" cy="38" r="20" fill="#D7DCE5"/><rect x="66" y="23" width="236" height="12" rx="6" fill="#D7DCE5"/><rect x="66" y="45" width="188" height="10" rx="5" fill="#CDD3DE"/>
+    </g>
+  </g>
+
+  <g id="empty" transform="translate(480 132)">
+    <text y="-16" class="title">Empty</text><rect width="400" height="350" rx="18" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>
+    <text x="16" y="37" class="title">通知</text><text x="384" y="34" text-anchor="end" class="small">0 則未讀</text><line x1="16" y1="60" x2="384" y2="60" stroke="#D7DCE5"/>
+    <circle cx="200" cy="146" r="28" fill="#F7F8FA"/><g transform="translate(188 134)" color="#697287"><use href="#bell"/></g>
+    <text x="200" y="202" text-anchor="middle" class="title">還沒有通知</text><text x="200" y="232" text-anchor="middle" class="small">有新的工作區邀請時會顯示在這裡。</text>
+  </g>
+
+  <g id="error-state" transform="translate(920 132)">
+    <text y="-16" class="title">Error</text><rect width="400" height="350" rx="18" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>
+    <text x="16" y="37" class="title">通知</text><text x="384" y="34" text-anchor="end" class="small">暫時無法顯示</text><line x1="16" y1="60" x2="384" y2="60" stroke="#D7DCE5"/>
+    <circle cx="200" cy="132" r="28" fill="#FCE8E5"/><g transform="translate(188 120)" color="#B33B2E"><use href="#error"/></g>
+    <text x="200" y="188" text-anchor="middle" class="title">通知載入失敗</text><text x="200" y="218" text-anchor="middle" class="small">請稍後再試一次。</text>
+    <rect x="142" y="246" width="116" height="44" rx="9" fill="#DF6E51"/><text x="200" y="274" text-anchor="middle" class="body inverse medium">重新載入</text>
+  </g>
+
+  <g id="trigger-states" transform="translate(40 580)">
+    <text class="title">Trigger states</text><rect y="24" width="344" height="112" rx="12" fill="#29324A"/>
+    <g transform="translate(24 48)"><rect width="40" height="40" rx="9" fill="#29324A"/><g transform="translate(10 10) scale(.84)" color="#F7F8FA"><use href="#bell"/></g><text x="20" y="66" text-anchor="middle" class="tiny inverse">Default</text></g>
+    <g transform="translate(112 48)"><rect width="40" height="40" rx="9" fill="#29324A"/><g transform="translate(10 10) scale(.84)" color="#F7F8FA"><use href="#bell"/></g><circle cx="36" cy="-2" r="9" fill="#DF6E51"/><text x="36" y="2" text-anchor="middle" class="tiny inverse">2</text><text x="20" y="66" text-anchor="middle" class="tiny inverse">Unread</text></g>
+    <g transform="translate(200 48)"><rect width="40" height="40" rx="9" fill="#F7F8FA"/><g transform="translate(10 10) scale(.84)" color="#29324A"><use href="#bell"/></g><circle cx="36" cy="-2" r="9" fill="#DF6E51"/><text x="36" y="2" text-anchor="middle" class="tiny inverse">2</text><text x="20" y="66" text-anchor="middle" class="tiny inverse">Open</text></g>
+  </g>
+</svg>
