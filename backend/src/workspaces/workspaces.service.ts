@@ -12,6 +12,7 @@ import { WorkspaceInvitationService } from '@/workspaceInvitation/workspaceInvit
 import { DateTime } from 'luxon';
 import { NotificationService } from '@/notification/notification.service';
 import { PrismaService } from '@/prisma/prisma.service';
+
 @Injectable()
 export class WorkspacesService {
   constructor(
