@@ -1,4 +1,5 @@
 import type {
+  NotificationPayloadMap,
   NotificationResourceType,
   NotificationType,
 } from '@kanban/contracts/notification';
@@ -10,14 +11,20 @@ export interface FindByRecipientParams {
   cursor?: string;
   limit?: number;
 }
-export interface CreateNotificationParams {
+
+interface CreateNotificationBase {
   recipientUserId: string;
   actorUserId: string | null;
   workspaceId: string | null;
-  type: NotificationType;
   resourceType: NotificationResourceType;
   resourceId: string | null;
-  payload: Prisma.InputJsonValue;
   dedupeKey: string | null;
   expiresAt?: Date | null;
 }
+
+export type CreateNotificationParams = {
+  [TType in NotificationType]: CreateNotificationBase & {
+    type: TType;
+    payload: NotificationPayloadMap[TType] & Prisma.InputJsonObject;
+  };
+}[NotificationType];

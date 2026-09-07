@@ -34,19 +34,39 @@ export interface JsonObject {
 
 export type JsonArray = JsonValue[];
 
-export interface PublicNotification {
-  type: NotificationType;
+export interface FindByRecipientResponse {
+  items: PublicNotification[];
+  nextCursor: string | null;
+}
+
+export interface WorkspaceInvitedPayload extends JsonObject {
+  workspaceName: string;
+  inviterDisplayName: string;
+  role: 'MEMBER';
+}
+
+export interface NotificationPayloadMap {
+  WORKSPACE_INVITED: WorkspaceInvitedPayload;
+  WORKSPACE_MEMBER_JOINED: JsonObject;
+  PROJECT_MEMBER_ADDED: JsonObject;
+  CARD_ASSIGNED: JsonObject;
+  CARD_MENTIONED: JsonObject;
+  CARD_REMINDER: JsonObject;
+}
+
+interface PublicNotificationBase {
   id: string;
   workspaceId: string | null;
   resourceType: NotificationResourceType;
   resourceId: string | null;
-  payload: JsonValue;
   readAt: string | null;
   expiresAt: string | null;
   createdAt: string;
 }
 
-export interface FindByRecipientResponse {
-  items: PublicNotification[];
-  nextCursor: string | null;
-}
+export type PublicNotification = {
+  [TType in NotificationType]: PublicNotificationBase & {
+    type: TType;
+    payload: NotificationPayloadMap[TType];
+  };
+}[NotificationType];
