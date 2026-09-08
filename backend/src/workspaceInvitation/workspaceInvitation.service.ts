@@ -14,7 +14,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 @Injectable()
 export class WorkspaceInvitationService {
   constructor(
-    private readonly workspaceService: WorkspacesService,
+    private readonly workspacesService: WorkspacesService,
     private readonly userService: UserService,
     private readonly notificationService: NotificationService,
     private readonly prismaService: PrismaService,
@@ -34,7 +34,7 @@ export class WorkspaceInvitationService {
   }
 
   /** 尋找Status為 PENDING的資料 by workspaceId & invitee */
-  async findPendingByWorkspaceAndInvitee(
+  private async findPendingByWorkspaceAndInvitee(
     workspaceId: string,
     inviteeUserId: string,
   ) {
@@ -46,17 +46,26 @@ export class WorkspaceInvitationService {
     return result;
   }
 
+  /** 創建新邀請 */
+  async createInvitation(
+    data: CreateInvitationParams,
+    tx?: Prisma.TransactionClient,
+  ) {
+    return this.workspaceInvitationRepository.createInvitation(data, tx);
+  }
+
   /** 標記為過期 */
   async markExpired(
     invitationId: string,
     now: Date,
     tx?: Prisma.TransactionClient,
-  ) {
-    return this.workspaceInvitationRepository.markExpired(
+  ): Promise<number> {
+    const result = await this.workspaceInvitationRepository.markExpired(
       invitationId,
       now,
       tx,
     );
+    return result.count;
   }
 
   /** 標記為接受 */
@@ -65,13 +74,14 @@ export class WorkspaceInvitationService {
     inviteeUserId: string,
     now: Date,
     tx?: Prisma.TransactionClient,
-  ) {
-    return this.workspaceInvitationRepository.markAccepted(
+  ): Promise<number> {
+    const result = await this.workspaceInvitationRepository.markAccepted(
       invitationId,
       inviteeUserId,
       now,
       tx,
     );
+    return result.count;
   }
 
   /** 標記為拒絕 */
@@ -80,21 +90,74 @@ export class WorkspaceInvitationService {
     inviteeUserId: string,
     now: Date,
     tx?: Prisma.TransactionClient,
-  ) {
-    return this.workspaceInvitationRepository.markDeclined(
+  ): Promise<number> {
+    const result = await this.workspaceInvitationRepository.markDeclined(
       invitationId,
       inviteeUserId,
       now,
       tx,
     );
+    return result.count;
   }
 
-  /** 創建新邀請 */
-  async createInvitation(
-    data: CreateInvitationParams,
-    tx?: Prisma.TransactionClient,
+  /** 接受邀請並加入成員 */
+  async acceptedInvitationAndCreateMember(
+    userId: string,
+    invitationId: string,
   ) {
-    return this.workspaceInvitationRepository.createInvitation(data, tx);
+    const invitation =
+      await this.workspaceInvitationRepository.getById(invitationId);
+    if (!invitation) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此邀請',
+        code: ApiCode.RequestError,
+      });
+    }
+
+    // 確認目前登入者不存在於workspace
+    const member = await this.workspacesService.findMembership(
+      userId,
+      invitation.workspaceId,
+    );
+    const workspace = await this.workspacesService.getById(
+      invitation.workspaceId,
+    );
+    if (!workspace || workspace.archivedAt !== null) {
+      throw new AppException({
+        status: HttpStatus.BAD_REQUEST,
+        message: '此工作區已被封存',
+        code: ApiCode.RequestError,
+      });
+    }
+    if (member) {
+      throw new AppException({
+        status: HttpStatus.CONFLICT,
+        message: '此使用者已是工作區成員',
+        code: ApiCode.RequestError,
+      });
+    }
+    await this.prismaService.$transaction(async (tx) => {
+      const now = DateTime.utc();
+      const count = await this.markAccepted(
+        invitationId,
+        userId,
+        now.toJSDate(),
+        tx,
+      );
+      if (count === 0) {
+        throw new AppException({
+          status: HttpStatus.CONFLICT,
+          message: '邀請已失效或狀態已變更',
+          code: ApiCode.RequestError,
+        });
+      }
+      await this.workspacesService.joinMember(
+        userId,
+        invitation.workspaceId,
+        tx,
+      );
+    });
   }
 
   /** 邀請成員 */
@@ -104,7 +167,7 @@ export class WorkspaceInvitationService {
     inviteeEmail: string,
   ) {
     // 確認目前登入者是 Workspace Owner
-    const member = await this.workspaceService.findMembership(
+    const member = await this.workspacesService.findMembership(
       inviterUserId,
       workspaceId,
     );
@@ -134,7 +197,7 @@ export class WorkspaceInvitationService {
       });
     }
     // 受邀者是否已是成員
-    const existingMember = await this.workspaceService.findMembership(
+    const existingMember = await this.workspacesService.findMembership(
       inviteeUserId,
       workspaceId,
     );
@@ -171,7 +234,7 @@ export class WorkspaceInvitationService {
         pendingInvitation.id,
         now.toJSDate(),
       );
-      if (expiredResult.count !== 1) {
+      if (expiredResult !== 1) {
         throw new AppException({
           status: HttpStatus.CONFLICT,
           message: '邀請狀態已發生變更，請重新操作',

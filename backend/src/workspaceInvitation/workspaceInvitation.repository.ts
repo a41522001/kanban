@@ -1,4 +1,4 @@
-import type { Prisma } from '@/generated/prisma/client';
+import type { Prisma, WorkspaceInvitation } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import type { WorkspaceInvitationStatus } from '@kanban/contracts/workspaceInvitation';
@@ -6,6 +6,16 @@ import { CreateInvitationParams } from './workspaceInvitation.type';
 @Injectable()
 export class WorkspaceInvitationRepository {
   constructor(private readonly prismaService: PrismaService) {}
+
+  /** 取得工作區邀請 by id */
+  async getById(invitationId: string): Promise<WorkspaceInvitation | null> {
+    const invitation = await this.prismaService.workspaceInvitation.findUnique({
+      where: {
+        id: invitationId,
+      },
+    });
+    return invitation;
+  }
 
   /** 取得工作區所有成員的邀請*/
   async getMemberInvitationByWorkspace(

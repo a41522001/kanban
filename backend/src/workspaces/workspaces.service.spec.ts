@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 import { NotFoundException } from '@nestjs/common';
-
+import { WorkspaceRole, type WorkspaceMember } from '@/generated/prisma/client';
 describe('WorkspacesService', () => {
   let workspacesService: WorkspacesService;
   let workspacesRepository: WorkspacesRepository;
@@ -13,8 +13,10 @@ describe('WorkspacesService', () => {
         {
           provide: WorkspacesRepository,
           useValue: {
-            create: jest.fn(),
+            getById: jest.fn(),
             getByUserId: jest.fn(),
+            create: jest.fn(),
+            joinMember: jest.fn(),
             getSingleWorkspaceMember: jest.fn(),
             findMembership: jest.fn(),
           },
@@ -25,34 +27,37 @@ describe('WorkspacesService', () => {
     workspacesService = module.get(WorkspacesService);
     workspacesRepository = module.get(WorkspacesRepository);
   });
-
-  /** 創建工作區 */
-  describe('create', () => {
-    it('創建成功', async () => {
-      const userId = 'user1';
-      const workspaceId = '1';
-      const workspaceName = '測試工作區';
-      const time = new Date('2026-08-26T12:00:00.000Z');
-      const workspace = {
-        id: workspaceId,
-        name: workspaceName,
-        createdAt: time,
-        updatedAt: time,
-        createdById: userId,
-        archivedAt: null,
-      };
-      const createSpy = jest
-        .spyOn(workspacesRepository, 'create')
+  /** 取得工作區資訊 by id */
+  describe('getById', () => {
+    const userId = 'user1';
+    const workspaceId = '1';
+    const workspaceName = '測試工作區';
+    const time = new Date('2026-08-26T12:00:00.000Z');
+    const workspace = {
+      id: workspaceId,
+      name: workspaceName,
+      createdAt: time,
+      updatedAt: time,
+      createdById: userId,
+      archivedAt: null,
+    };
+    it('成功取回資料', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspacesRepository, 'getById')
         .mockResolvedValue(workspace);
-      const result = await workspacesService.create(userId, workspaceName);
-      expect(result).toEqual({
-        id: workspaceId,
-        name: workspaceName,
-        createdAt: time.toISOString(),
-        updatedAt: time.toISOString(),
-      });
-      expect(createSpy).toHaveBeenCalledTimes(1);
-      expect(createSpy).toHaveBeenCalledWith(userId, workspaceName);
+      const result = await workspacesService.getById(workspaceId);
+      expect(result).toEqual(workspace);
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(workspaceId);
+    });
+    it('找不到資料', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspacesRepository, 'getById')
+        .mockResolvedValue(null);
+      const result = await workspacesService.getById(workspaceId);
+      expect(result).toBeNull();
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(workspaceId);
     });
   });
 
@@ -120,6 +125,63 @@ describe('WorkspacesService', () => {
       expect(result).toEqual([]);
       expect(getByUserIdSpy).toHaveBeenCalledTimes(1);
       expect(getByUserIdSpy).toHaveBeenCalledWith(userId);
+    });
+  });
+
+  /** 創建工作區 */
+  describe('create', () => {
+    it('創建成功', async () => {
+      const userId = 'user1';
+      const workspaceId = '1';
+      const workspaceName = '測試工作區';
+      const time = new Date('2026-08-26T12:00:00.000Z');
+      const workspace = {
+        id: workspaceId,
+        name: workspaceName,
+        createdAt: time,
+        updatedAt: time,
+        createdById: userId,
+        archivedAt: null,
+      };
+      const createSpy = jest
+        .spyOn(workspacesRepository, 'create')
+        .mockResolvedValue(workspace);
+      const result = await workspacesService.create(userId, workspaceName);
+      expect(result).toEqual({
+        id: workspaceId,
+        name: workspaceName,
+        createdAt: time.toISOString(),
+        updatedAt: time.toISOString(),
+      });
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(createSpy).toHaveBeenCalledWith(userId, workspaceName);
+    });
+  });
+
+  /** 加入成員 */
+  describe('joinMember', () => {
+    const workspaceId = 'testWorkspaceId';
+    const userId = 'testUserId';
+    const time = new Date('2026-08-26T12:00:00.000Z');
+    const workspaceMember = {
+      role: 'MEMBER',
+      id: '1',
+      workspaceId: workspaceId,
+      userId: userId,
+      joinedAt: time,
+    } as WorkspaceMember;
+    it('成功加入', async () => {
+      const joinMemberSpy = jest
+        .spyOn(workspacesRepository, 'joinMember')
+        .mockResolvedValue(workspaceMember);
+      const result = await workspacesService.joinMember(userId, workspaceId);
+      expect(result).toEqual(workspaceMember);
+      expect(joinMemberSpy).toHaveBeenCalledTimes(1);
+      expect(joinMemberSpy).toHaveBeenCalledWith(
+        userId,
+        workspaceId,
+        undefined,
+      );
     });
   });
 
@@ -216,6 +278,49 @@ describe('WorkspacesService', () => {
       expect(findMembershipSpy).toHaveBeenCalledTimes(1);
       expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
       expect(getSingleWorkspaceMemberSpy).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  /** 找尋成員 */
+  describe('findMembership', () => {
+    it('成功找尋', async () => {
+      const workspaceName = '測試工作區';
+      const memberId = '1';
+      const displayName = '測試使用者';
+      const role = 'MEMBER' as WorkspaceRole;
+      const findMembershipResponse = {
+        role,
+        workspace: {
+          name: workspaceName,
+          archivedAt: null,
+        },
+        id: memberId,
+        user: {
+          displayName,
+        },
+      };
+      const findMembershipSpy = jest
+        .spyOn(workspacesRepository, 'findMembership')
+        .mockResolvedValue(findMembershipResponse);
+      const result = await workspacesService.findMembership('1', '1');
+      expect(result).toEqual({
+        memberId,
+        memberName: displayName,
+        role,
+        workspaceName,
+        workspaceArchivedAt: null,
+      });
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith('1', '1');
+    });
+    it('找尋失敗', async () => {
+      const findMembershipSpy = jest
+        .spyOn(workspacesRepository, 'findMembership')
+        .mockResolvedValue(null);
+      const result = await workspacesService.findMembership('1', '1');
+      expect(result).toBeNull();
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith('1', '1');
     });
   });
 });

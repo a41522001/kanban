@@ -1,4 +1,8 @@
-import type { Prisma, Workspace } from '@/generated/prisma/client';
+import type {
+  Prisma,
+  Workspace,
+  WorkspaceMember,
+} from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 type WorkspaceMembershipWithWorkspace = Prisma.WorkspaceMemberGetPayload<{
@@ -30,6 +34,16 @@ type WorkspaceMemberResponse = Prisma.WorkspaceMemberGetPayload<{
 export class WorkspacesRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
+  /** 取得工作區資訊 by id */
+  async getById(workspaceId: string): Promise<Workspace | null> {
+    const workspace = await this.prismaService.workspace.findUnique({
+      where: {
+        id: workspaceId,
+      },
+    });
+    return workspace;
+  }
+
   /** 新增工作區，並將建立者設為 OWNER */
   async create(userId: string, name: string): Promise<Workspace> {
     const result = await this.prismaService.workspace.create({
@@ -42,6 +56,22 @@ export class WorkspacesRepository {
             role: 'OWNER',
           },
         },
+      },
+    });
+    return result;
+  }
+
+  /** 加入成員 */
+  async joinMember(
+    userId: string,
+    workspaceId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<WorkspaceMember> {
+    const db = tx ?? this.prismaService;
+    const result = await db.workspaceMember.create({
+      data: {
+        workspaceId,
+        userId,
       },
     });
     return result;
