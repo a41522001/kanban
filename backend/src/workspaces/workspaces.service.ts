@@ -6,24 +6,23 @@ import type {
   WorkspaceMemberDto,
 } from '@kanban/contracts/workspaces';
 import type { FindMembershipResponse } from './workspaces.type';
+import type {
+  Prisma,
+  Workspace,
+  WorkspaceMember,
+} from '@/generated/prisma/client';
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly workspaceRepository: WorkspacesRepository) {}
+  constructor(private readonly workspacesRepository: WorkspacesRepository) {}
 
-  /** 創建工作區 */
-  async create(userId: string, name: string): Promise<WorkspaceDto> {
-    const result = await this.workspaceRepository.create(userId, name);
-    return {
-      id: result.id,
-      name: result.name,
-      createdAt: result.createdAt.toISOString(),
-      updatedAt: result.updatedAt.toISOString(),
-    };
+  /** 取得工作區資訊 by id */
+  async getById(workspaceId: string): Promise<Workspace | null> {
+    return await this.workspacesRepository.getById(workspaceId);
   }
 
   /** 取得使用者加入的工作區 */
   async getByUserId(userId: string): Promise<WorkspaceListItemDto[]> {
-    const memberships = await this.workspaceRepository.getByUserId(userId);
+    const memberships = await this.workspacesRepository.getByUserId(userId);
     const result = memberships.map(({ role, workspace }) => {
       return {
         id: workspace.id,
@@ -33,6 +32,31 @@ export class WorkspacesService {
         currentUserRole: role,
       };
     });
+    return result;
+  }
+
+  /** 創建工作區 */
+  async create(userId: string, name: string): Promise<WorkspaceDto> {
+    const result = await this.workspacesRepository.create(userId, name);
+    return {
+      id: result.id,
+      name: result.name,
+      createdAt: result.createdAt.toISOString(),
+      updatedAt: result.updatedAt.toISOString(),
+    };
+  }
+
+  /** 加入成員 */
+  async joinMember(
+    userId: string,
+    workspaceId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<WorkspaceMember> {
+    const result = await this.workspacesRepository.joinMember(
+      userId,
+      workspaceId,
+      tx,
+    );
     return result;
   }
 
@@ -48,7 +72,7 @@ export class WorkspacesService {
     }
 
     const result =
-      await this.workspaceRepository.getSingleWorkspaceMember(workspaceId);
+      await this.workspacesRepository.getSingleWorkspaceMember(workspaceId);
     return result.map(({ id, role, user }) => {
       return {
         memberId: id,
@@ -64,7 +88,7 @@ export class WorkspacesService {
     userId: string,
     workspaceId: string,
   ): Promise<FindMembershipResponse | null> {
-    const result = await this.workspaceRepository.findMembership(
+    const result = await this.workspacesRepository.findMembership(
       userId,
       workspaceId,
     );
