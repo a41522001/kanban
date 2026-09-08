@@ -14,7 +14,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 @Injectable()
 export class WorkspaceInvitationService {
   constructor(
-    private readonly workspaceService: WorkspacesService,
+    private readonly workspacesService: WorkspacesService,
     private readonly userService: UserService,
     private readonly notificationService: NotificationService,
     private readonly prismaService: PrismaService,
@@ -34,7 +34,7 @@ export class WorkspaceInvitationService {
   }
 
   /** 尋找Status為 PENDING的資料 by workspaceId & invitee */
-  async findPendingByWorkspaceAndInvitee(
+  private async findPendingByWorkspaceAndInvitee(
     workspaceId: string,
     inviteeUserId: string,
   ) {
@@ -116,11 +116,11 @@ export class WorkspaceInvitationService {
     }
 
     // 確認目前登入者不存在於workspace
-    const member = await this.workspaceService.findMembership(
+    const member = await this.workspacesService.findMembership(
       userId,
       invitation.workspaceId,
     );
-    const workspace = await this.workspaceService.getById(
+    const workspace = await this.workspacesService.getById(
       invitation.workspaceId,
     );
     if (!workspace || workspace.archivedAt !== null) {
@@ -152,7 +152,7 @@ export class WorkspaceInvitationService {
           code: ApiCode.RequestError,
         });
       }
-      await this.workspaceService.joinMember(
+      await this.workspacesService.joinMember(
         userId,
         invitation.workspaceId,
         tx,
@@ -167,7 +167,7 @@ export class WorkspaceInvitationService {
     inviteeEmail: string,
   ) {
     // 確認目前登入者是 Workspace Owner
-    const member = await this.workspaceService.findMembership(
+    const member = await this.workspacesService.findMembership(
       inviterUserId,
       workspaceId,
     );
@@ -197,7 +197,7 @@ export class WorkspaceInvitationService {
       });
     }
     // 受邀者是否已是成員
-    const existingMember = await this.workspaceService.findMembership(
+    const existingMember = await this.workspacesService.findMembership(
       inviteeUserId,
       workspaceId,
     );
