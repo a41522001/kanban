@@ -1,5 +1,7 @@
 # Backend 與 Frontend 測試策略
 
+最後靜態核對：2026-09-08。本次只更新文件，未執行測試；[x] 保留既有測試覆蓋紀錄，不代表目前 HEAD 全部通過，歷史結果見 [progress](progress.md)。
+
 ## 1. 目標
 
 用最少但有意義的測試覆蓋 business branches、transport contract、database integration 與多人即時協作行為，避免只追求 coverage 百分比。
@@ -30,7 +32,7 @@
 
 適合：
 
-- AuthRepository + Prisma。
+- UserRepository／WorkspacesRepository + Prisma。
 - SessionRepository + Redis。
 - ValidationPipe + Filter + Controller。
 - Cookie login/userInfo/logout flow。
@@ -97,7 +99,16 @@
 - [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
 
-Notification 目前只有讀取 API 的最小實作。兩個 Nest scaffold spec 刻意 skipped，避免把沒有 mock dependency 的 `should be defined` 誤當成 coverage；等待 Workspace Invitation 實作後再補上述情境。
+Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方法；已讀仍只有 Repository 方法。Notification 兩個 scaffold specs 與 WorkspaceInvitationService spec 為 skipped，不計入有效覆蓋。
+
+### Workspace Invitation（待補）
+
+- [ ] Owner／Member／非成員及封存工作區的發送權限。
+- [ ] 未註冊 email、自邀、既有成員與有效 PENDING 邀請。
+- [ ] 過期 PENDING 條件更新及更新失敗衝突。
+- [ ] 邀請與通知 transaction rollback。
+- [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
+- [ ] 接受／拒絕、重複回覆與回覆競爭（功能尚待實作）。
 
 ### Common
 
@@ -134,7 +145,7 @@ REDIS_URL=redis://localhost:6379/1
 - 不對 development database 執行 truncate。
 - 測試資料使用固定 factory。
 - Integration test 可 serial 執行，避免共享 DB 互相污染。
-- CI 使用 service containers 啟動 PostgreSQL 與 Redis。
+- CI 與本機目前都透過 Docker Compose 啟動隔離 PostgreSQL 與 Redis。
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
@@ -201,9 +212,9 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 9. CI Pipeline
 
-目前 GitHub Actions 已執行：
+目前 GitHub Actions 配置以下步驟（本次未查詢實際 run）：
 
-1. 安裝 dependencies。
+1. pnpm install --frozen-lockfile。
 2. Prisma generate。
 3. 由 `.env.e2e.example` 建立 `.env.e2e`。
 4. Backend E2E。
@@ -226,10 +237,13 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - CI 不輸出 Password、Cookie、Session ID。
 - 同一套指令可在 Windows 開發機與 Linux CI 執行。
 
+目前 workflow 觸發條件為 push 到 main、dev、feature/*，以及 workflow_dispatch；未配置 pull_request。前端驗證與 type-check／lint／build 尚未納入 CI。
+
 ## 11. 目前最優先的測試順序
 
-1. Frontend Auth vertical slice 的 unit／component tests。
-2. SessionService unit tests：驗證分支與 Lua reply mapping。
-3. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
-4. Socket.IO Session handshake integration tests。
-5. Frontend Auth 與 Socket.IO handshake 完成後加入 Playwright multi-user tests。
+1. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
+2. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
+3. SessionService unit tests：驗證分支與 Lua reply mapping。
+4. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
+5. Socket.IO Session handshake integration tests。
+6. Frontend Auth 與 Socket.IO handshake 完成後加入 Playwright multi-user tests。

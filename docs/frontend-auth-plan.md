@@ -1,12 +1,12 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-04。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 最後檢視：2026-09-08（靜態核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
 
 ## 1. 目標
 
 已完成 Signup、Login、登入狀態恢復、protected route 與 Logout，並正確使用 HttpOnly Session Cookie。
 
-目前 signup 只建立帳號，成功後導向 Login；login 成功後導向 `/board`，並由 route guard 取得 userInfo。
+目前 signup 只建立帳號，成功後導向 Login；login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。
 
 ## 2. 資料流
 
@@ -24,8 +24,8 @@ Login：
 Login form
 → POST /auth/login
 → Browser 保存 HttpOnly Cookie
-→ 清空暫存 User Store
-→ 導向 /board，由 route guard 取得 userInfo
+→ 使用者確認成功提示後，清空暫存 User Store
+→ 導向 /workspace，由 route guard 取得 userInfo
 ~~~
 
 Logout：
@@ -33,7 +33,7 @@ Logout：
 ~~~text
 POST /auth/logout
 → Server 撤銷本次 Cookie 指向的 Session 並清除 Cookie
-→ 清空 Auth Store
+→ 前端 finally 清空 User／Workspace／Notification Store（即使 HTTP 失敗）
 → 導向 Login
 ~~~
 
@@ -41,8 +41,8 @@ POST /auth/logout
 
 目前實作的單一 Axios client：
 - Base URL 來自 VITE_API_URL。
-- 所有 auth request 使用 credentials: include。
-- 統一解析 ApiResponse。
+- Axios 使用 withCredentials: true，timeout 為 10 秒。
+- 各 service 取出 ApiResponse；http.ts 本身回傳 Axios response，尚無全域 error／401 interceptor。
 - Login／Signup view 使用 Axios error response 解析 backend envelope，將欄位錯誤映射到表單。
 - 不在 localStorage 保存 Session ID 或任何 auth token。
 
@@ -76,6 +76,8 @@ Store 至少包含：
 
 Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
+目前 reset 未取消或忽略 in-flight request，舊 response 仍可能回寫。userInfo 的網路／server error 也會快取為未登入；一般 API 的 401 尚未統一清空狀態。這些失敗情境仍待補強。
+
 ## 5. Form 行為
 
 ### Login
@@ -84,14 +86,14 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - 防止重複 submit。
 - Backend FieldErrors 映射至 email/password。
 - Invalid credentials 顯示 general error，不暴露帳號是否存在。
-- 完成後清除 password input。
+- 目前 finally 只解除 submitting，不會主動清空 password；成功導頁後元件才卸載。
 
 ### Signup
 
 - Client validation 僅改善 UX，backend validation 才是安全邊界。
 - 顯示 email、password、name、confirmPassword 錯誤。
 - confirmPassword 只存在 frontend，不傳給 backend，除非 contract 改變。
-- Signup success 後決定自動登入或導向 Login；需明確選一種。
+- Signup success 提示確認後導向 Login，不自動登入。
 
 目前 backend signup 只建立帳號，不建立 Session。第一版 frontend 在 signup 成功後導向 Login；若未來改成自動登入，必須同步修改 API contract 與測試。
 
@@ -107,7 +109,7 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - Development frontend/backend 同為 localhost，不混用 localhost 與 127.0.0.1。
 - Fetch 必須使用 credentials: include。
 - Backend CORS 只允許 FRONTEND_URL。
-- Production Cookie 使用 Secure、HttpOnly、SameSite。
+- Cookie 的 path 為 /、HttpOnly=true；production 使用 Secure=true、SameSite=None，其餘環境為 Secure=false、SameSite=Lax。
 - 若 production frontend/backend 為 cross-site，需重新評估 SameSite=None 與 CSRF protection。
 - State-changing endpoint 後續加入 Origin/Referer 檢查或 CSRF token。
 
@@ -118,7 +120,9 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - connect_error 為 session invalid 時，清空 Auth Store 並導向 Login。
 - Reconnect 不從 client payload 傳 userId。
 
-## 9. 測試
+## 9. 測試與 UI 實作
+
+以下測試項目保留既有紀錄，本次未重新執行。標示已實作 UI 不等於已有 component test。
 
 - [x] Login／Signup pure form validation。
 - [x] User Store session restore 成功、失敗快取、並行 request 去重與 reset。
@@ -150,4 +154,4 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - Password、Session ID 不進入 localStorage、Pinia persistence 或 log。
 - Logout 後 HTTP 與 Socket 都無法繼續使用舊 Session。
 
-目前 logout 的保證是「本次 Cookie 對應的 Session 無法再使用」。Current／Grace family 的完整撤銷不在 MVP；詳見 `session-architecture.md`。
+後端 revoke 成功時，僅保證本次 Cookie 對應的 Session 已刪除。網路失敗時，前端清空 Store 不代表伺服器 Session 已失效。Current／Grace family 的完整撤銷不在 MVP；詳見 `session-architecture.md`。

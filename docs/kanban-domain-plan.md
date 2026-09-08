@@ -12,6 +12,10 @@
 4. Category 與 Label 在 Project 範圍內共用。
 5. Card 最多一個 Category，可以有多個 Labels；兩者都屬於第一版持久化範圍。
 
+## 目前實作邊界
+
+2026-09-08 靜態核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification 已有 schema／migration。Workspace 建立／讀取／成員授權及邀請發送已實作；邀請接受／拒絕尚未完成。Project 起的資料模型、權限表與 command 均為目標設計。現行流程見[邀請與通知](workspace-invitation-notification.md)。
+
 ## 2. 第一版 Domain
 
 ### User
@@ -323,8 +327,9 @@ Board room domain events 只描述已 commit 的事實：
 
 ### M1：Workspace 與 Project 基礎
 
-- [ ] Prisma schema、migration、repository。
-- [ ] 建立／讀取 Workspace。
+- [x] Workspace／WorkspaceMember schema、migration、repository。
+- [x] 建立／讀取 Workspace 與成員查詢 authorization（靜態核對）。
+- [ ] Project schema、migration、repository。
 - [ ] 建立 Project transaction：ProjectMember OWNER、主要 Board、四個預設 Columns。
 - [ ] WorkspaceMember 與 ProjectMember 權限。
 

@@ -4,14 +4,22 @@
 
 ## 目前優先順序
 
-1. [Frontend Auth vertical slice](frontend-auth-plan.md)。
-2. [Socket.IO Session handshake](socketio-auth-plan.md)。
+1. [Workspace 邀請與通知](workspace-invitation-notification.md)：完成回覆、已讀與流程測試。
+2. Project read model，接著完成 [Socket.IO Session handshake](socketio-auth-plan.md)。
 3. [Session 架構與輪轉](session-architecture.md)：補 SessionService 與 Lua 的單元／Redis integration tests。
 4. [Kanban domain 與一致性](kanban-domain-plan.md)。
 5. [API contract 與錯誤處理](api-contract-plan.md)。
 6. [資料庫 Schema](database-schema.md)。
 7. [Logging 計畫](logging-plan.md)。
 8. [安全檢查表](security-checklist.md)與[部署計畫](deployment-plan.md)。
+
+## 現行實作入口
+
+- [目前 HTTP API](http-api.md)
+- [Workspace 邀請與通知](workspace-invitation-notification.md)
+- [Frontend Auth vertical slice](frontend-auth-plan.md)
+
+最後靜態核對：2026-09-08。build／tests 的執行紀錄以 progress 為準。
 
 ## 既有路線
 

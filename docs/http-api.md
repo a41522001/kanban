@@ -1,0 +1,64 @@
+# 目前 HTTP API
+
+最後靜態核對：2026-09-08。以 Controllers、DTO 與 `packages/contracts` 為準；本文件只列目前已實作的端點。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+
+## 基本約定
+
+- 預設 base URL：`http://localhost:4001`，沒有全域 `/api` 前綴。
+- 除公開 Auth 端點外，下表受保護的路徑都使用 `sessionId` HttpOnly Cookie。
+- SessionGuard 從 Redis 驗證 Cookie，將 userId 放入 request，必要時用 Set-Cookie 輪轉。
+- 成功與錯誤皆包成 `{ code, data, message, time, error }`；以下「data」指 envelope 內部資料。
+- DTO whitelist、transform、forbidNonWhitelisted 已開啟；詳細錯誤格式見 [API contract](api-contract-plan.md)。
+
+## 已實作端點
+
+| Method / path | 身分與權限 | Request | 成功 status / data |
+| --- | --- | --- | --- |
+| POST `/auth/signup` | 公開 | `{ email, password, name }` | 201 / null；不建立 Session |
+| POST `/auth/login` | 公開 | `{ email, password }` | 200 / null；設定 Session Cookie |
+| POST `/auth/logout` | 不套 Guard | 無 body；可帶 Cookie | 200 / null；撤銷本次 token 並清 Cookie |
+| GET `/user/userInfo` | 有效 Session | 無 | 200 / PublicUser |
+| POST `/workspaces` | 有效 Session | `{ name }` | 201 / WorkspaceDto |
+| GET `/workspaces` | 有效 Session | 無 | 200 / WorkspaceListItemDto[] |
+| GET `/workspaces/:workspaceId/members` | 有效 Session，且為未封存工作區成員 | UUID path param | 200 / WorkspaceMemberDto[] |
+| POST `/workspaces/invite` | 有效 Session，且為未封存工作區 Owner | `{ workspaceId, email }` | 201 / null，message 為「邀請已送出」 |
+| GET `/notifications` | 有效 Session，只查本人收件匣 | 目前無 query DTO | 200 / `{ items, nextCursor }` |
+| GET `/notifications/unreadCount` | 有效 Session，只查本人未讀數 | 無 | 200 / `{ count }` |
+
+Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
+
+## Public data
+
+- PublicUser：`email, displayName, avatarUrl`，實際完整型別見 `packages/contracts/user.ts`。
+- WorkspaceDto：`id, name, createdAt, updatedAt`。
+- WorkspaceListItemDto：上述欄位加 `currentUserRole`。
+- WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
+- PublicNotification：`id, type, workspaceId, resourceType, resourceId, payload, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey。
+- 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
+
+## Workspace 邊界
+
+建立 Workspace 的 name 會 trim，需非空且最多 100 字元。建立者透過 nested create 同時成為 Owner。列表只回本人加入且未封存的工作區。
+
+成員查詢會先檢查呼叫者 membership 與 archivedAt，無存取權回 404。邀請要求 workspaceId 為 UUID v4，email 會 trim／lowercase 並限制 320 字元；業務錯誤如下：
+
+| 情況 | HTTP status / code |
+| --- | --- |
+| 不是 Owner、無 membership 或工作區封存 | 403 / RequestError (4000) |
+| 受邀帳號不存在 | 404 / RequestError (4000) |
+| 邀請自己 | 400 / RequestError (4000) |
+| 已是成員、已有有效 PENDING 邀請、過期更新競爭失敗 | 409 / RequestError (4000) |
+
+邀請成功不會直接加入成員；接受／拒絕 API 尚未實作。詳見[邀請與通知](workspace-invitation-notification.md)。
+
+## Notification 邊界
+
+目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。
+
+未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。Repository 的單筆／全部已讀方法尚未由 Service／Controller 開放。沒有公開建立通知端點，也沒有 Socket.IO 通知推送。
+
+## Swagger 與待辦
+
+Swagger 位於 `/api/docs`，目前 Auth 的手寫 error schema 仍使用 array 描述，與實際 FieldError object 不一致；尚未完成可重用 envelope decorators。不可將 Swagger 視為所有端點完整驗證結果。
+
+尚待補上邀請回覆、通知已讀與 query DTO，以及對應 contracts、Swagger 與測試。

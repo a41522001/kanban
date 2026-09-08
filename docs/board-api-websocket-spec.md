@@ -7,7 +7,7 @@
 - 目標：先完成單節點下可靠的多人 Kanban，再考慮 Redis adapter、多節點與 RabbitMQ。
 - 已存在的 Auth API、HTTP response envelope 與 Session Cookie 機制維持不變。
 
-目前只有 Workspace 基礎模型與建立／列表／成員查詢已開始實作；Project、Board 與下列 Socket commands 仍是目標規格。現有 `GET /workspaces/:workspaceId/members` 尚未檢查呼叫者的 Workspace membership，實作後續功能前必須先補上 authorization。
+2026-09-08 靜態核對：Workspace 建立／列表／成員查詢已實作；成員查詢已檢查呼叫者 membership 與封存狀態。Owner 發送邀請及 Invitation／Notification transaction 也已存在。Project、Board 與下列 Socket commands 仍是目標規格。現行端點以[目前 HTTP API](http-api.md)為準。
 
 這份文件描述預期契約，不代表所有功能必須一次完成。建議依照「實作階段」逐步交付，每一階段都應可獨立驗收。
 

@@ -42,7 +42,10 @@
 ## 5. Authorization 與資源隔離
 
 - [x] 目前 protected HTTP controller 從 SessionGuard 取得 userId，不接受 body 內的 userId 作為身分。
-- [ ] `GET /workspaces/:workspaceId/members` 必須先驗證目前使用者是該 WorkspaceMember；目前只驗證有登入，存在 BOLA 風險。
+- [x] `GET /workspaces/:workspaceId/members` 已在 Service 檢查呼叫者 membership 與 archivedAt，無存取權回 404（2026-09-08 靜態核對）。
+- [x] 發送 Workspace 邀請已檢查未封存工作區的 OWNER 身分；通知讀取依 Session userId 隔離。
+- [ ] 補邀請 PENDING 唯一性、並行發送測試與接受／拒絕授權。
+- [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
 - [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
 - [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
