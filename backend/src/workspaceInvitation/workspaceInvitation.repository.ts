@@ -63,6 +63,54 @@ export class WorkspaceInvitationRepository {
     });
   }
 
+  /** 標記邀請為接受 */
+  async markAccepted(
+    invitationId: string,
+    inviteeUserId: string,
+    now: Date,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return db.workspaceInvitation.updateMany({
+      where: {
+        id: invitationId,
+        inviteeUserId,
+        status: 'PENDING',
+        expiresAt: {
+          gt: now,
+        },
+      },
+      data: {
+        status: 'ACCEPTED',
+        respondedAt: now,
+      },
+    });
+  }
+
+  /** 標記邀請為拒絕 */
+  async markDeclined(
+    invitationId: string,
+    inviteeUserId: string,
+    now: Date,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return db.workspaceInvitation.updateMany({
+      where: {
+        id: invitationId,
+        inviteeUserId,
+        status: 'PENDING',
+        expiresAt: {
+          gt: now,
+        },
+      },
+      data: {
+        status: 'DECLINED',
+        respondedAt: now,
+      },
+    });
+  }
+
   /** 創建新邀請 */
   async createInvitation(
     data: CreateInvitationParams,

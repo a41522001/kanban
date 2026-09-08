@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後靜態核對：2026-09-08。本次只更新文件，未執行測試；[x] 保留既有測試覆蓋紀錄，不代表目前 HEAD 全部通過，歷史結果見 [progress](progress.md)。
+最後檢視：2026-09-08。Codex 已重跑 backend unit tests、production build 與前後端 type-check；執行結果見 [progress](progress.md)。[x] 保留既有測試覆蓋紀錄，但 skipped tests 不計入有效覆蓋。
 
 ## 1. 目標
 
@@ -99,16 +99,21 @@
 - [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
 
-Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方法；已讀仍只有 Repository 方法。Notification 兩個 scaffold specs 與 WorkspaceInvitationService spec 為 skipped，不計入有效覆蓋。
+Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方法；已讀仍只有 Repository 方法。Notification 兩個 scaffold specs 為 skipped，不計入有效覆蓋。
 
 ### Workspace Invitation（待補）
 
+- [ ] 移除 WorkspaceInvitationService 的 `describe.skip`，補齊 WorkspacesService、UserService、NotificationService、PrismaService 與 Repository mocks。
+- [ ] 將重構前的 `inviteMember` cases 搬到 WorkspaceInvitationService spec。
+- [ ] WorkspaceInvitationController 正確轉交 Session userId、workspaceId 與 email。
 - [ ] Owner／Member／非成員及封存工作區的發送權限。
 - [ ] 未註冊 email、自邀、既有成員與有效 PENDING 邀請。
 - [ ] 過期 PENDING 條件更新及更新失敗衝突。
 - [ ] 邀請與通知 transaction rollback。
 - [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
 - [ ] 接受／拒絕、重複回覆與回覆競爭（功能尚待實作）。
+
+WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。`findMembership` 仍應補直接 mapping／null tests；成員列表應分別覆蓋非成員與封存 Workspace。單元測試中的 transaction mock 應將同一個可辨識 tx 傳入 callback，並驗證 Invitation 與 Notification 寫入收到相同 tx。真實 rollback 與併發仍需 PostgreSQL integration test。
 
 ### Common
 

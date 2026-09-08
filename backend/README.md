@@ -6,13 +6,13 @@ NestJS + Prisma／PostgreSQL + Redis + Socket.IO。以下指令都從 monorepo �
 
 - `auth`／`user`：註冊、密碼驗證、登入與 public user。
 - `session`：Cookie Session 驗證、輪轉與撤銷；Redis Repository／Lua 負責原子操作。
-- `workspaces`：建立 Workspace 與 Owner membership、列表、成員授權查詢與發送邀請。
-- `workspaceInvitation`：建立邀請、查詢 PENDING、條件式標記過期；尚無接受／拒絕 Controller。
+- `workspaces`：建立 Workspace 與 Owner membership、列表、成員授權查詢，以及提供 membership 查詢給其他 domain service。
+- `workspaceInvitation`：發送邀請、查詢 PENDING、條件式狀態更新與邀請 HTTP Controller；接受／拒絕 endpoint 尚未實作。
 - `notification`：public read model、未讀數與內部建立通知。
 - `socket`：掛在 HTTP server 的 Socket.IO echo；尚未接 Session handshake。
 - `common`：ValidationPipe、AppException、Filter、response interceptor 與 Cookie 工具。
 
-主要分層為 Controller → Service → Repository。跨模組邀請流程由 WorkspacesService 協調，使用同一 Prisma TransactionClient 寫入 Invitation 與 Notification。
+主要分層為 Controller → Service → Repository。邀請流程由 `WorkspaceInvitationController → WorkspaceInvitationService` 協調；Invitation Service 單向依賴 WorkspacesService 取得 membership 資訊，並使用同一 Prisma TransactionClient 寫入 Invitation 與 Notification。WorkspacesService 不再依賴 WorkspaceInvitationService。
 
 ## 指令
 

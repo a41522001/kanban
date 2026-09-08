@@ -21,7 +21,7 @@
 | POST `/workspaces` | 有效 Session | `{ name }` | 201 / WorkspaceDto |
 | GET `/workspaces` | 有效 Session | 無 | 200 / WorkspaceListItemDto[] |
 | GET `/workspaces/:workspaceId/members` | 有效 Session，且為未封存工作區成員 | UUID path param | 200 / WorkspaceMemberDto[] |
-| POST `/workspaces/invite` | 有效 Session，且為未封存工作區 Owner | `{ workspaceId, email }` | 201 / null，message 為「邀請已送出」 |
+| POST `/workspaceInvitation/invite` | 有效 Session，且為未封存工作區 Owner | `{ workspaceId, email }` | 201 / null，message 為「邀請已送出」 |
 | GET `/notifications` | 有效 Session，只查本人收件匣 | 目前無 query DTO | 200 / `{ items, nextCursor }` |
 | GET `/notifications/unreadCount` | 有效 Session，只查本人未讀數 | 無 | 200 / `{ count }` |
 

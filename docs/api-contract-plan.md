@@ -93,7 +93,7 @@ HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的
 
 - ValidationPipe 將 ValidationError 轉成 FieldErrors，再建立 AppException。
 - Controller 可拋出 transport 或 business exception。
-- Service 不組 HTTP envelope；目前 WorkspacesService 會直接拋帶 HTTP status 的 AppException／NotFoundException，尚未完全分離 domain error 與 transport。
+- Service 不組 HTTP envelope；目前 WorkspaceInvitationService 會拋帶 HTTP status 的 AppException，WorkspacesService 會拋 NotFoundException，尚未完全分離 domain error 與 transport。
 - HttpExceptionFilter 是唯一組裝 error envelope 的地方。
 - 未預期錯誤不可將 stack、SQL、Redis key 或內部錯誤訊息回傳給 client。
 - `ApiCode` 是 runtime contract；`packages/contracts` 會同時輸出 ESM 給 frontend 與 CJS 給 backend，不能將它改回 type-only export。

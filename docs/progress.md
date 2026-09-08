@@ -31,7 +31,7 @@
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
 | Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
-| Workspace Invitation | 已完成發送流程 | schema／migration、Owner 授權、既有成員／有效邀請檢查、過期條件更新、邀請與通知 transaction；接受／拒絕／取消及並行唯一性尚未完成 |
+| Workspace Invitation | 已完成發送流程與責任重構 | 邀請 Controller／Service 已移至 WorkspaceInvitation module，單向依賴 WorkspacesService；接受／拒絕／取消及並行唯一性尚未完成 |
 | Frontend Invitation／Notification | 已串接第一版 | 邀請 Dialog、通知列表、未讀 badge、開啟選單重新整理；尚無回覆、已讀與分頁操作 |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout 與前端表單驗證 |
@@ -50,7 +50,9 @@
 - Frontend unit tests 目前覆蓋 signup／login 表單驗證、User Store 的 session restore 去重與 reset、共用 Alert／Loading；2026-09-04 執行 `pnpm --filter frontend test:unit --run`，共 5 個檔案、16 個測試通過。
 - Frontend production build 於 2026-09-04 執行 `pnpm --filter frontend build` 通過。
 - 尚未有 Playwright Auth flow；瀏覽器層的 signup → login → refresh → logout 仍是待辦。
-- Notification 的兩個 scaffold specs 與 WorkspaceInvitationService spec 目前 skipped；邀請發送已實作，但尚未有該流程與通知的有效測試覆蓋。優先補「邀請 → 收件者列表／未讀數 → 回覆／已讀」E2E，以及並行重複邀請與 transaction rollback。
+- 2026-09-08 執行 `pnpm test:backend -- --runInBand`：14 suites 通過、2 suites skipped；56 tests 通過、2 tests skipped。WorkspaceInvitationService 與 NotificationController specs 仍 skipped；前者只有 `should be defined`。重構前的邀請測試尚未搬至 WorkspaceInvitationService，新的 WorkspaceInvitationController 也尚無 spec，因此邀請發送流程目前沒有被執行測試覆蓋。
+- 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
+- 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
 - 上述 2026-09-04 與既有 E2E 通過紀錄是歷史紀錄，不代表目前 HEAD 重新驗證通過。
 - 進度只在實際跑過對應指令後標記完成，不以「已有 spec 檔」代替通過結果。

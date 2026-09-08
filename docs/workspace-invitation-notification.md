@@ -4,7 +4,7 @@
 
 ## 已實作流程
 
-前端 WorkspaceInviteDialog 呼叫 `POST /workspaces/invite`，後端 WorkspacesService 依序：
+前端 WorkspaceInviteDialog 呼叫 `POST /workspaceInvitation/invite`，請求由 WorkspaceInvitationController 交給 WorkspaceInvitationService；後者依序：
 
 1. 驗證邀請者具有未封存 Workspace 的 OWNER membership。
 2. 依 normalized email 找已註冊受邀者，拒絕邀請自己或既有成員。
@@ -60,4 +60,19 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
 - Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
 
-目前 WorkspaceInvitationService 與 Notification scaffold specs 為 skipped，Auth E2E 尚未涵蓋本流程。未執行測試不能標記為驗收通過。
+目前 WorkspaceInvitationService spec 仍為 skipped 且只有 scaffold case；重構前位於 WorkspacesService 的邀請測試尚未搬移。WorkspaceInvitationController 尚無 spec，Notification 兩個 scaffold specs 也為 skipped。使用者已回報現有測試指令通過，但上述邀請流程沒有被執行測試覆蓋，Auth E2E 也尚未涵蓋本流程。
+
+## 模組依賴
+
+目前依賴已整理為單向：
+
+```text
+WorkspaceInvitationModule
+└── WorkspacesModule
+
+WorkspaceInvitationService
+└── WorkspacesService
+    └── WorkspacesRepository
+```
+
+`WorkspacesService` 不再注入 `WorkspaceInvitationService`。邀請 endpoint 已改為 `POST /workspaceInvitation/invite`，Controller 位於 WorkspaceInvitationModule。PrismaModule 是 global module；WorkspaceInvitationModule 仍明確 import PrismaModule。
