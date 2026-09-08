@@ -1,73 +1,43 @@
-# frontend
+# Flowboard Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + TypeScript + Vite，搭配 Pinia、Vue Router、Tailwind CSS、Reka UI、vue-i18n 與 Axios。以下指令從 monorepo 根目錄執行。
 
-## Recommended IDE Setup
+## 設定與指令
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+建立 `frontend/.env`，設定 `VITE_API_URL=http://localhost:4001`；目前 `.env.example` 為空。後端啟動方式見[根 README](../README.md)。
 
 ```sh
-npm install
+pnpm dev:frontend
+pnpm --filter frontend build
+pnpm --filter frontend type-check
+pnpm --filter frontend test:unit --run
+pnpm --filter frontend test:e2e
 ```
 
-### Compile and Hot-Reload for Development
+Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contracts。Playwright 指令已配置，但目前只有 scaffold test，不能視為完整 Auth E2E。`pnpm --filter frontend lint` 會自動修正檔案。
 
-```sh
-npm run dev
-```
+## 畫面與資料來源
 
-### Type-Check, Compile and Minify for Production
+| 路由 | 行為 |
+| --- | --- |
+| `/signup` | 註冊帳號；成功後透過提示確認導向登入 |
+| `/login` | 登入成功提示確認後重設 User Store，導向 `/workspace` |
+| `/workspace` | 真實 Workspace 列表／建立／成員摘要、邀請 Dialog、通知選單；Project 區等待 API |
+| `/board` | 看板 UI 與本機假資料，尚未持久化 |
 
-```sh
-npm run build
-```
+只有 login／signup 是公開路徑；其餘導航會透過 User Store 恢復 Session。尚未配置根路由 redirect 或 catch-all。
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## 狀態與 HTTP
 
-```sh
-npm run test:unit
-```
+- `services/http.ts` 提供單一 Axios client：10 秒 timeout、`withCredentials: true`。
+- User Store 快取 userInfo 結果並合併並行 request；失敗也會快取為未登入。
+- Workspace Store 保存工作區與目前選取 ID。
+- Notification Store 保存通知與未讀數；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。
+- Logout 不論 HTTP 成敗皆清空 User／Workspace／Notification Store 並導向登入；網路失敗不保證伺服器 Session 已撤銷。
+- Store reset 尚未阻止舊的 in-flight response 回寫；HTTP 層尚未統一處理一般 API 401。
+- Session ID 不放在 localStorage；Socket.IO 尚未整合 Auth lifecycle。
+- Google 登入、忘記密碼與帳號設定尚未完成；通知選單目前沒有接受／拒絕或標記已讀操作。
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 
-```sh
-# Install browsers for the first run
-npx playwright install
-
-# When testing on CI, must build the project first
-npm run build
-
-# Runs the end-to-end tests
-npm run test:e2e
-# Runs the tests only on Chromium
-npm run test:e2e -- --project=chromium
-# Runs the tests of a specific file
-npm run test:e2e -- tests/example.spec.ts
-# Runs the tests in debug mode
-npm run test:e2e -- --debug
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+文件最後靜態核對：2026-09-08；本次未重新執行 build／tests。

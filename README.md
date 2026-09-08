@@ -1,94 +1,92 @@
 # Flowboard Kanban
 
-用來練習 Socket.IO 即時協作的 Kanban 專案。重點是 session authentication、room authorization、ack、冪等、concurrency 與 reconnect recovery。
+最後檢視：2026-09-08（依原始碼靜態核對）。
 
-完整學習路線請看：[Socket.IO Kanban roadmap](docs/socketio/00-kanban-roadmap.md)。
+多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace 與邀請通知基礎；Project／Board 持久化與即時協作仍待實作。
 
-## 結構
+## 專案結構
 
-```text
-kanban/
-├── frontend/             # Vue 3 + Vite + Tailwind CSS + Pinia
-├── backend/              # NestJS + Prisma + Redis + Socket.IO
-├── packages/contracts/   # 前後端共用 TypeScript contracts
-└── design/               # Flowboard 視覺稿
-```
+| 路徑 | 用途 |
+| --- | --- |
+| `frontend/` | Vue 3、TypeScript、Vite、Pinia、Tailwind CSS、Reka UI、vue-i18n |
+| `backend/` | NestJS、Prisma、PostgreSQL、Redis、Socket.IO、Pino、Swagger |
+| `packages/contracts/` | 共用 HTTP／Socket 型別與 runtime enum，輸出 ESM／CJS |
+| `docs/` | 現行行為、目標規格、學習進度與驗收紀錄 |
+| `design/`、`figma-plugin/` | 視覺稿與 Figma Development Plugin |
+| `scripts/` | 隔離 Backend E2E 執行工具 |
 
-## 目前完成項目
+## 目前功能
 
-- PostgreSQL User model 與 Prisma client。
-- Redis Session：Cookie 保存 raw session ID；Redis key 使用 SHA-256 hash。
-- Signup、login、userInfo、logout API。
-- HttpOnly session cookie 與 Session Guard。
-- Session rotation、5 裝置限制，以及最小 revoke（原子刪除請求 Session 與 ZSET member）。
-- Auth lifecycle E2E：signup → login → userInfo → logout → userInfo 401；本機與 GitHub Actions 都會使用隔離 PostgreSQL／Redis 執行。
-- 統一成功 response envelope：
+- Signup、login、userInfo、logout；前端表單驗證、Session 恢復與 protected route。
+- HttpOnly Cookie 保存 raw Session ID；Redis 使用 SHA-256 hash key。具備 request-driven rotation、20 秒 Grace、裝置上限與最小 revoke。
+- Workspace 建立、列表、切換、成員查詢；後端檢查 membership 與封存狀態。
+- Workspace Owner 可邀請已註冊使用者；邀請與通知在同一 PostgreSQL transaction 建立。
+- 通知列表、未讀數 API 與前端通知選單。
+- 統一 API response、validation、exception filter、HTTP log redact 與 Swagger。
+- Socket.IO 最小 typed echo。
 
-```json
-{
-  "code": 1,
-  "data": null,
-  "message": "請求成功",
-  "time": "2026-08-18T00:00:00.000Z",
-  "error": null
-}
-```
-
-- `AppException`、HTTP exception filter 骨架。
-- Pino HTTP request log 與敏感欄位 redact。
-- Swagger：`http://localhost:4001/api/docs`。
-- Socket.IO 最小 typed `demo:echo`。
-
-## 尚未完成
-
-- 前端 Auth API 串接與登入狀態恢復。
-- Socket.IO session cookie handshake。
-- Board、list、card schema 與 room authorization。
-- Ack、retry、idempotency、optimistic concurrency、recovery。
-- Redis adapter、多節點、RabbitMQ 與 deployment。
+尚未完成：邀請接受／拒絕／取消、通知已讀 API／分頁 query、Project／Board／Card 資料模型與 API、Socket Session handshake、room authorization、ack／retry／idempotency／recovery。Board 畫面目前使用本機假資料。
 
 ## 本機啟動
 
-在 `kanban` 執行：
+需要 Node.js（frontend 宣告 `^22.18.0 || >=24.12.0`）、pnpm 與可用的 Docker。根目錄 `packageManager` 指定 pnpm 11.25.0；CI 使用 Node.js 24。
+
+以下指令在專案根目錄執行。首次建立設定檔，已存在時請直接編輯，避免覆蓋本機設定：
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+設定 `backend/.env` 的 PostgreSQL 帳密、`DATABASE_URL` 與 `REDIS_URL`；Docker Compose 與後端使用的資料庫帳密必須一致。另建立 `frontend/.env`（目前 example 檔為空），內容為：
+
+```dotenv
+VITE_API_URL=http://localhost:4001
+```
 
 ```sh
 pnpm install
 docker compose up -d
+pnpm --filter backend exec prisma generate
+pnpm --filter backend exec prisma migrate deploy
+```
+
+PostgreSQL／Redis 就緒後，分別在兩個 terminal 啟動：
+
+```sh
 pnpm dev:backend
 pnpm dev:frontend
 ```
 
-預設網址：
+- 前端登入頁：`http://localhost:5173/login`。目前沒有根路由 redirect。
+- 登入成功提示確認後進入 `/workspace`。
+- 後端：`http://localhost:4001`，API 沒有 `/api` 全域前綴。
+- Swagger：`http://localhost:4001/api/docs`。
+- PostgreSQL／Redis：`localhost:5432`／`localhost:6379`。
+- Compose 目前只啟動資料服務，不包含前後端應用程式。
 
-- Frontend：`http://localhost:5173`
-- Backend：`http://localhost:4001`
-- Swagger：`http://localhost:4001/api/docs`
-- PostgreSQL：`localhost:5432`
-- Redis：`localhost:6379`
+## 開發與驗證指令
 
-Backend 需要先建立 `backend/.env`，並提供 `DATABASE_URL`、`REDIS_URL`、`FRONTEND_URL`、`SALT_ROUNDS` 等環境變數。
+```sh
+pnpm build
+pnpm test:backend
+pnpm --filter frontend test:unit --run
+```
 
-## Backend E2E
-
-執行完整的 Auth lifecycle E2E：
+Backend E2E 首次先複製 `backend/.env.e2e.example` 為 `backend/.env.e2e`，再執行：
 
 ```sh
 pnpm test:backend:e2e
 ```
 
-它會啟動暫存的 PostgreSQL 與 Redis、套用 migration、執行測試，最後移除 E2E containers 與 volumes。本機第一次執行前，建立 E2E 設定：
+runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth lifecycle 測試，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
 
-```sh
-cp backend/.env.e2e.example backend/.env.e2e
-```
+本次文件更新未重新執行 build／tests；既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
 
-## Session Auth 流程
+## 文件入口
 
-```text
-Login API
-  → PostgreSQL 驗證 email / password
-  → 建立 Redis Session
-  → raw session ID 寫入 HttpOnly Cookie
-  → frontend 以 credentials: 'include' 呼叫 userInfo
-  → Session Guard 從 Cookie 取出 session，驗證 Redis，設定 request.userId
-```
+- [文件索引](docs/README.md)
+- [目前 HTTP API](docs/http-api.md)
+- [Workspace 邀請與通知](docs/workspace-invitation-notification.md)
+- [資料庫 Schema](docs/database-schema.md)
+- [Session 架構](docs/session-architecture.md)
+- [Socket.IO 學習路線](docs/socketio/00-kanban-roadmap.md)

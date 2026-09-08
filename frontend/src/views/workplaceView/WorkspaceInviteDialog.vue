@@ -115,7 +115,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { inviteWorkspaceMemberApi } from '@/services/workspace';
+import { inviteWorkspaceMemberApi } from '@/services/workspaceInvitation';
 
 interface Props {
   workspace: WorkspaceListItemDto;
