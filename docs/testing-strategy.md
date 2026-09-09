@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-08。Codex 已重跑 backend unit tests、production build 與前後端 type-check；執行結果見 [progress](progress.md)。[x] 保留既有測試覆蓋紀錄，但 skipped tests 不計入有效覆蓋。
+最後檢視：2026-09-10。已執行 `pnpm test:backend`：15 suites 通過、1 suite skipped；77 tests 通過、1 test skipped。既有 build／type-check 紀錄見 [progress](progress.md)；skipped tests 不計入有效覆蓋。
 
 ## 1. 目標
 
@@ -101,19 +101,20 @@
 
 Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方法；已讀仍只有 Repository 方法。Notification 兩個 scaffold specs 為 skipped，不計入有效覆蓋。
 
-### Workspace Invitation（待補）
+### Workspace Invitation
 
-- [ ] 移除 WorkspaceInvitationService 的 `describe.skip`，補齊 WorkspacesService、UserService、NotificationService、PrismaService 與 Repository mocks。
-- [ ] 將重構前的 `inviteMember` cases 搬到 WorkspaceInvitationService spec。
+- [x] 移除 WorkspaceInvitationService 的 `describe.skip`，補齊 WorkspacesService、UserService、NotificationService、PrismaService 與 Repository mocks。
+- [x] 發送邀請的 Owner／Member／非成員及封存工作區權限。
+- [x] 未註冊 email、自邀、既有 member 與有效 PENDING 邀請。
+- [x] 過期 PENDING 條件更新、更新失敗衝突，以及建立 Invitation／Notification 的 transaction interaction。
+- [x] 接受 invitation 的查無 invitation、既有 member、封存 workspace、狀態衝突與成功建立 membership。
 - [ ] WorkspaceInvitationController 正確轉交 Session userId、workspaceId 與 email。
-- [ ] Owner／Member／非成員及封存工作區的發送權限。
-- [ ] 未註冊 email、自邀、既有成員與有效 PENDING 邀請。
-- [ ] 過期 PENDING 條件更新及更新失敗衝突。
-- [ ] 邀請與通知 transaction rollback。
+- [ ] 接受 invitation 的 Controller、DTO 與 shared contract；拒絕／取消仍未有 use case。
+- [ ] 邀請與通知 transaction rollback 的真實 PostgreSQL integration test。
 - [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
-- [ ] 接受／拒絕、重複回覆與回覆競爭（功能尚待實作）。
+- [ ] 重複接受、接受／拒絕競爭與回覆 API 的 integration／E2E 測試。
 
-WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。`findMembership` 仍應補直接 mapping／null tests；成員列表應分別覆蓋非成員與封存 Workspace。單元測試中的 transaction mock 應將同一個可辨識 tx 傳入 callback，並驗證 Invitation 與 Notification 寫入收到相同 tx。真實 rollback 與併發仍需 PostgreSQL integration test。
+WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。WorkspaceInvitationService unit tests 的 transaction mock 會將同一個可辨識 tx 傳入 callback，並驗證 Invitation／Notification 或 membership 寫入收到該 tx。真實 rollback、唯一性與併發仍需 PostgreSQL integration test。
 
 ### Common
 

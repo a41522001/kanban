@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後靜態核對：2026-09-08。此文件區分已實作行為與後續目標，不代表完整流程已驗收。
+最後核對：2026-09-10（依原始碼與 Backend unit tests）。此文件區分已實作行為與後續目標，不代表完整 HTTP／前端流程已驗收。
 
 ## 已實作流程
 
@@ -14,6 +14,13 @@
 6. 成功回 201、data null；前端關閉 Dialog 並顯示 toast。
 
 新邀請預設 PENDING、MEMBER，expiresAt 為建立流程計算的 now + 7 天。發送邀請不會建立 WorkspaceMember。
+
+WorkspaceInvitationService 另有尚未公開為 HTTP endpoint 的接受核心 use case。它依 invitationId 取得 workspaceId，確認使用者尚未是 member 且 workspace 未封存，然後在同一 Prisma transaction：
+
+1. 以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 ACCEPTED 並寫入 respondedAt。
+2. 僅在更新筆數為 1 時建立 WorkspaceMember；狀態已變更、失效或非受邀者都不會建立 membership。
+
+接受 use case 尚未提供 Controller、DTO、shared contract 或前端操作；拒絕與取消也尚未實作。
 
 ## Transaction 與併發限制
 
@@ -45,22 +52,22 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 | --- | --- |
 | PENDING | 建立邀請時預設 |
 | EXPIRED | 再次邀請遇到已到期的 PENDING 時條件更新 |
-| ACCEPTED | 僅 enum／schema 預留，尚無接受流程 |
+| ACCEPTED | Service 接受 use case 的條件更新；尚未有 HTTP endpoint／前端操作 |
 | DECLINED | 僅 enum／schema 預留，尚無拒絕流程 |
 | CANCELED | 僅 enum／schema 預留，尚無取消流程 |
 
-沒有到期排程；超過 expiresAt 不會自動改變 status。respondedAt 已建欄位，但目前流程不寫入。
+沒有到期排程；超過 expiresAt 不會自動改變 status。接受成功時會寫入 respondedAt；其他回覆狀態尚未實作。
 
 ## 後續交付與驗收
 
-- 補受邀者接受／拒絕 API：用 Session 身分驗證受邀者、expiresAt 與 PENDING；接受時在同一 transaction 更新邀請並建立 membership。
+- 補受邀者接受／拒絕 API 與 shared contract：用 Session 身分驗證受邀者；將既有接受 use case 接到 transport 層，並實作拒絕。
 - 補重複回覆及接受／拒絕競爭政策，確保只產生一次有效狀態轉移；回覆 API 路徑與重試語意待定。
 - 補通知單筆／全部已讀、query DTO、前端回覆與分頁操作。
-- 測試 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請與並行發送。
+- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受 invitation 的核心分支；仍需並行發送與真實資料庫測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
 - Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
 
-目前 WorkspaceInvitationService spec 仍為 skipped 且只有 scaffold case；重構前位於 WorkspacesService 的邀請測試尚未搬移。WorkspaceInvitationController 尚無 spec，Notification 兩個 scaffold specs 也為 skipped。使用者已回報現有測試指令通過，但上述邀請流程沒有被執行測試覆蓋，Auth E2E 也尚未涵蓋本流程。
+2026-09-10 的 `WorkspaceInvitationService` unit spec 已移除 skip，並由 `pnpm test:backend` 執行通過。WorkspaceInvitationController 尚無 spec，NotificationController spec 仍為 skipped；Auth E2E 也尚未涵蓋邀請流程。
 
 ## 模組依賴
 
