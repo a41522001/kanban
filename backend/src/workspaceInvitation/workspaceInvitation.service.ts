@@ -120,6 +120,14 @@ export class WorkspaceInvitationService {
       userId,
       invitation.workspaceId,
     );
+    if (member) {
+      throw new AppException({
+        status: HttpStatus.CONFLICT,
+        message: '此使用者已是工作區成員',
+        code: ApiCode.RequestError,
+      });
+    }
+    // 確定工作區是否存在和有無被封存
     const workspace = await this.workspacesService.getById(
       invitation.workspaceId,
     );
@@ -127,13 +135,6 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.BAD_REQUEST,
         message: '此工作區已被封存',
-        code: ApiCode.RequestError,
-      });
-    }
-    if (member) {
-      throw new AppException({
-        status: HttpStatus.CONFLICT,
-        message: '此使用者已是工作區成員',
         code: ApiCode.RequestError,
       });
     }
