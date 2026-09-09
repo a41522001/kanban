@@ -34,7 +34,7 @@ export class WorkspaceInvitationService {
   }
 
   /** 尋找Status為 PENDING的資料 by workspaceId & invitee */
-  private async findPendingByWorkspaceAndInvitee(
+  async findPendingByWorkspaceAndInvitee(
     workspaceId: string,
     inviteeUserId: string,
   ) {
