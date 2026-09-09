@@ -169,11 +169,11 @@ invitation ID 保存於 resourceId；通知過期不會自動標記已讀，目�
 | `role` | WorkspaceRole | 否 | 預設 MEMBER，目前建立流程使用預設值。 |
 | `status` | WorkspaceInvitationStatus | 否 | 預設 PENDING。 |
 | `expires_at` | TIMESTAMP(3) | 否 | 目前 Service 設為 now + 7 天。 |
-| `responded_at` | TIMESTAMP(3) | 是 | 回覆時間；現行流程尚未寫入。 |
+| `responded_at` | TIMESTAMP(3) | 是 | 回覆時間；目前接受 invitation 的 Service use case 會寫入。 |
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
 
-WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPIRED。目前只有建立 PENDING 與再次邀請時將過期 PENDING 改為 EXPIRED；接受／拒絕／取消與到期排程尚未實作。
+WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPIRED。目前可建立 PENDING、再次邀請時將過期 PENDING 改為 EXPIRED，以及在 Service use case 中將有效 PENDING 條件更新為 ACCEPTED 並建立 WorkspaceMember。接受 HTTP API、拒絕／取消與到期排程尚未實作。
 
 - workspace／invitee 外鍵採 ON DELETE CASCADE，inviter 採 ON DELETE SET NULL。
 - 索引：`invitee_user_id, status, created_at DESC`、`workspace_id, status, created_at DESC`、`expires_at`。

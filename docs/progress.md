@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-08（靜態核對；本次未重新執行 build／tests）。
+最後檢視：2026-09-10（依原始碼與 Backend unit tests 核對）。
 
 ## Native WebSocket
 
@@ -31,7 +31,7 @@
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
 | Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
-| Workspace Invitation | 已完成發送流程與責任重構 | 邀請 Controller／Service 已移至 WorkspaceInvitation module，單向依賴 WorkspacesService；接受／拒絕／取消及並行唯一性尚未完成 |
+| Workspace Invitation | 已完成發送與接受核心 use case | 邀請 Controller／Service 已移至 WorkspaceInvitation module，單向依賴 WorkspacesService；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行。接受 HTTP API／前端操作、拒絕／取消及並行唯一性尚未完成 |
 | Frontend Invitation／Notification | 已串接第一版 | 邀請 Dialog、通知列表、未讀 badge、開啟選單重新整理；尚無回覆、已讀與分頁操作 |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout 與前端表單驗證 |
@@ -43,14 +43,14 @@
 
 ## 測試現況
 
-- Backend 目前有 Auth、User、Workspace、Validation、Filter 與 Session schema 的 unit／integration-style specs。
+- Backend 目前有 Auth、User、Workspace、WorkspaceInvitation、Validation、Filter 與 Session schema 的 unit／integration-style specs。
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
 - Backend E2E 已使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；目前覆蓋 signup → login → userInfo → logout → userInfo 401。
 - `pnpm test:backend:e2e` 已在本機與 GitHub Actions 跑過；runner 結束後會移除 E2E containers、network 與暫存 volumes。
 - Frontend unit tests 目前覆蓋 signup／login 表單驗證、User Store 的 session restore 去重與 reset、共用 Alert／Loading；2026-09-04 執行 `pnpm --filter frontend test:unit --run`，共 5 個檔案、16 個測試通過。
 - Frontend production build 於 2026-09-04 執行 `pnpm --filter frontend build` 通過。
 - 尚未有 Playwright Auth flow；瀏覽器層的 signup → login → refresh → logout 仍是待辦。
-- 2026-09-08 執行 `pnpm test:backend -- --runInBand`：14 suites 通過、2 suites skipped；56 tests 通過、2 tests skipped。WorkspaceInvitationService 與 NotificationController specs 仍 skipped；前者只有 `should be defined`。重構前的邀請測試尚未搬至 WorkspaceInvitationService，新的 WorkspaceInvitationController 也尚無 spec，因此邀請發送流程目前沒有被執行測試覆蓋。
+- 2026-09-10 執行 `pnpm test:backend`：15 suites 通過、1 suite skipped；77 tests 通過、1 test skipped。WorkspaceInvitationService spec 已移除 skip，覆蓋發送邀請的 Owner／帳號／membership／PENDING 邀請與 transaction branches，以及接受邀請的查無邀請、既有 member、封存 workspace、狀態衝突與成功加入成員。WorkspaceInvitationController 仍尚無 spec。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
@@ -59,8 +59,8 @@
 
 ## 下一步
 
-1. 完成 WorkspaceInvitation 接受／拒絕流程；補 PENDING 邀請的資料庫唯一性與併發衝突處理。發送邀請及同 transaction 建立通知已存在。
-2. 補 Notification 的單筆已讀、全部已讀、列表 query filters，以及上述邀請流程 E2E。
+1. 公開 WorkspaceInvitation 接受 HTTP API，完成拒絕／取消流程；補 PENDING 邀請的資料庫唯一性與併發衝突處理。
+2. 補 Notification 的單筆已讀、全部已讀、列表 query filters，以及發送／接受邀請流程 E2E。
 3. 建立 Project read model（後端 API 與前端專案清單），讓 Workspace overview 的專案區可使用真實資料。
 4. 將同一套 Session 驗證接到 Socket.IO handshake，之後才讓已持久化的通知以 Socket.IO 即時推送。
 5. 補 SessionService 與真實 Redis Lua integration tests。
