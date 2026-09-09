@@ -96,7 +96,7 @@ describe('WorkspaceInvitationService', () => {
     const inviterUserId = 'inviterUserId';
     const workspaceId = 'workspaceId';
     const now = new Date('2026-09-09T00:00:00.000Z');
-    const expireAt = DateTime.fromJSDate(now).plus({ day: 7 }).toJSDate();
+    const expireAt = DateTime.fromJSDate(now).plus({ days: 7 }).toJSDate();
     let invitation: WorkspaceInvitation | null;
     let workspace: Workspace | null;
     beforeEach(() => {
