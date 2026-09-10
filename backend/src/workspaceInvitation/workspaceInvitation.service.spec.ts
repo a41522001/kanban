@@ -55,6 +55,7 @@ describe('WorkspaceInvitationService', () => {
           provide: WorkspaceInvitationRepository,
           useValue: {
             getById: jest.fn(),
+            markDeclined: jest.fn(),
           },
         },
       ],
@@ -81,9 +82,7 @@ describe('WorkspaceInvitationService', () => {
   });
 
   // /** 取得工作區所有成員的邀請*/
-  // describe('getMemberInvitationByWorkspace', () => {
-
-  // });
+  describe('getMemberInvitationByWorkspace', () => {});
 
   /** 尋找Status為 PENDING的資料 by workspaceId & invitee */
   describe('findPendingByWorkspaceAndInvitee', () => {});
@@ -283,6 +282,112 @@ describe('WorkspaceInvitationService', () => {
       expect(transactionSpy).toHaveBeenCalledTimes(1);
       expect(joinMemberSpy).toHaveBeenCalledTimes(1);
       expect(joinMemberSpy).toHaveBeenCalledWith(userId, workspaceId, tx);
+    });
+  });
+
+  /** 拒絕邀請 */
+  describe('declineInvitation', () => {
+    const userId = 'userId';
+    const invitationId = 'invitationId';
+    const inviteeUserId = 'inviteeUserId';
+    const inviterUserId = 'inviterUserId';
+    const workspaceId = 'workspaceId';
+    const now = new Date('2026-09-09T00:00:00.000Z');
+    const expireAt = DateTime.fromJSDate(now).plus({ days: 7 }).toJSDate();
+    let invitation: WorkspaceInvitation | null;
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+      invitation = {
+        id: invitationId,
+        workspaceId,
+        inviteeUserId,
+        inviterUserId,
+        role: 'MEMBER',
+        status: 'PENDING',
+        expiresAt: expireAt,
+        respondedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('找不到此邀請', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(null);
+      await expect(
+        workspaceInvitationService.declineInvitation(userId, invitationId),
+      ).rejects.toThrow('找不到此邀請');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+    });
+
+    it('此使用者已是工作區成員', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce({
+          memberId: '1',
+          memberName: '1',
+          role: 'MEMBER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        });
+      await expect(
+        workspaceInvitationService.declineInvitation(userId, invitationId),
+      ).rejects.toThrow('此使用者已是工作區成員');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+    });
+
+    it('邀請已失效或狀態已變更', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const markDeclinedSpy = jest
+        .spyOn(workspaceInvitationService, 'markDeclined')
+        .mockResolvedValueOnce(0);
+
+      await expect(
+        workspaceInvitationService.declineInvitation(userId, invitationId),
+      ).rejects.toThrow('邀請已失效或狀態已變更');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(markDeclinedSpy).toHaveBeenCalledTimes(1);
+      expect(markDeclinedSpy).toHaveBeenCalledWith(invitationId, userId, now);
+    });
+
+    it('成功拒絕邀請', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const markDeclinedSpy = jest
+        .spyOn(workspaceInvitationService, 'markDeclined')
+        .mockResolvedValueOnce(1);
+      await workspaceInvitationService.declineInvitation(userId, invitationId);
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(markDeclinedSpy).toHaveBeenCalledTimes(1);
+      expect(markDeclinedSpy).toHaveBeenCalledWith(invitationId, userId, now);
     });
   });
 

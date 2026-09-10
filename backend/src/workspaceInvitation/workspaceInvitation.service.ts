@@ -161,6 +161,39 @@ export class WorkspaceInvitationService {
     });
   }
 
+  /** 拒絕邀請 */
+  async declineInvitation(userId: string, invitationId: string) {
+    const invitation =
+      await this.workspaceInvitationRepository.getById(invitationId);
+    if (!invitation) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此邀請',
+        code: ApiCode.RequestError,
+      });
+    }
+    // 確認目前登入者不存在於workspace
+    const member = await this.workspacesService.findMembership(
+      userId,
+      invitation.workspaceId,
+    );
+    if (member) {
+      throw new AppException({
+        status: HttpStatus.CONFLICT,
+        message: '此使用者已是工作區成員',
+        code: ApiCode.RequestError,
+      });
+    }
+    const now = DateTime.utc();
+    const count = await this.markDeclined(invitationId, userId, now.toJSDate());
+    if (count === 0) {
+      throw new AppException({
+        status: HttpStatus.CONFLICT,
+        message: '邀請已失效或狀態已變更',
+        code: ApiCode.RequestError,
+      });
+    }
+  }
   /** 邀請成員 */
   async inviteMember(
     inviterUserId: string,
