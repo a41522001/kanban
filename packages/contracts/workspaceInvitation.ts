@@ -15,6 +15,6 @@ export interface InviteWorkspaceMemberRequest {
   email: string;
 }
 
-export interface AcceptInvitationRequest {
+export interface AcceptOrDeclineInvitationRequest {
   invitationId: string;
 }

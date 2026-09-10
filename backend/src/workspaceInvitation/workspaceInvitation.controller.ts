@@ -12,7 +12,7 @@ import { InviteMemberDto } from './dto/inviteMember.dto';
 import { SessionGuard } from '@/session/session.guard';
 import type { ApiResult } from '@kanban/contracts/api';
 import { WorkspaceInvitationService } from './workspaceInvitation.service';
-import { AcceptInvitationDto } from './dto/acceptInvitation.dto';
+import { AcceptOrDeclineInvitationDto } from './dto/acceptInvitation.dto';
 @UseGuards(SessionGuard)
 @Controller('workspaceInvitation')
 export class WorkspaceInvitationController {
@@ -44,12 +44,26 @@ export class WorkspaceInvitationController {
   @HttpCode(HttpStatus.OK)
   async acceptInvitation(
     @Req() req: Request,
-    @Body() acceptInvitationDto: AcceptInvitationDto,
+    @Body() acceptOrDeclineInvitationDto: AcceptOrDeclineInvitationDto,
   ): Promise<ApiResult<null>> {
     await this.workspaceInvitationService.acceptedInvitationAndCreateMember(
       req.userId!,
-      acceptInvitationDto.invitationId,
+      acceptOrDeclineInvitationDto.invitationId,
     );
-    return { message: '已接受邀請' };
+    return { data: null, message: '已接受邀請' };
+  }
+
+  /** 拒絕工作區邀請 */
+  @Post('decline')
+  @HttpCode(HttpStatus.OK)
+  async declineInvitation(
+    @Req() req: Request,
+    @Body() acceptOrDeclineInvitationDto: AcceptOrDeclineInvitationDto,
+  ): Promise<ApiResult<null>> {
+    await this.workspaceInvitationService.declineInvitation(
+      req.userId!,
+      acceptOrDeclineInvitationDto.invitationId,
+    );
+    return { data: null, message: '已拒絕邀請' };
   }
 }
