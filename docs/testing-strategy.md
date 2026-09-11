@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-10。已執行 `pnpm test:backend`：15 suites 通過、1 suite skipped；77 tests 通過、1 test skipped。既有 build／type-check 紀錄見 [progress](progress.md)；skipped tests 不計入有效覆蓋。
+最後檢視：2026-09-11。已執行 `pnpm test:backend`：16 suites 通過、1 suite skipped；85 tests 通過、1 test skipped。`pnpm test:backend:e2e`：2 suites、3 tests 全部通過。既有 build／type-check 紀錄見 [progress](progress.md)；skipped tests 不計入有效覆蓋。
 
 ## 1. 目標
 
@@ -108,11 +108,13 @@ Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方
 - [x] 未註冊 email、自邀、既有 member 與有效 PENDING 邀請。
 - [x] 過期 PENDING 條件更新、更新失敗衝突，以及建立 Invitation／Notification 的 transaction interaction。
 - [x] 接受 invitation 的查無 invitation、既有 member、封存 workspace、狀態衝突與成功建立 membership。
-- [ ] WorkspaceInvitationController 正確轉交 Session userId、workspaceId 與 email。
-- [ ] 接受 invitation 的 Controller、DTO 與 shared contract；拒絕／取消仍未有 use case。
+- [x] WorkspaceInvitationController 正確轉交 Session userId、workspaceId／invitationId 與 email，並回傳 invite／accept／decline 成功訊息。
+- [x] 接受與拒絕 invitation 的 Controller、DTO、shared contract 與 Service use case。
+- [ ] 取消 invitation use case 與 Owner 授權。
 - [ ] 邀請與通知 transaction rollback 的真實 PostgreSQL integration test。
 - [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
 - [ ] 重複接受、接受／拒絕競爭與回覆 API 的 integration／E2E 測試。
+- [x] E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409。
 
 WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。WorkspaceInvitationService unit tests 的 transaction mock 會將同一個可辨識 tx 傳入 callback，並驗證 Invitation／Notification 或 membership 寫入收到該 tx。真實 rollback、唯一性與併發仍需 PostgreSQL integration test。
 
@@ -155,7 +157,7 @@ REDIS_URL=redis://localhost:6379/1
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
-目前 E2E 覆蓋 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401，使用同一個 Supertest agent 驗證 HttpOnly Cookie flow。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
+目前 E2E 分為 `auth.e2e.spec.ts` 與 `workspaceInvitation.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
 
 ## 5. Test Data Factory
 

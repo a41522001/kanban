@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-10（依原始碼與 Backend unit tests 核對）。
+最後檢視：2026-09-11（依原始碼、Backend unit tests 與隔離環境 E2E 核對）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace 與邀請通知基礎；Project／Board 持久化與即時協作仍待實作。
 
@@ -21,12 +21,12 @@
 - HttpOnly Cookie 保存 raw Session ID；Redis 使用 SHA-256 hash key。具備 request-driven rotation、20 秒 Grace、裝置上限與最小 revoke。
 - Workspace 建立、列表、切換、成員查詢；後端檢查 membership 與封存狀態。
 - Workspace Owner 可邀請已註冊使用者；邀請與通知在同一 PostgreSQL transaction 建立。
-- WorkspaceInvitationService 已有接受邀請的核心 use case：條件式轉為 ACCEPTED 後才在同一 transaction 建立 WorkspaceMember；尚未提供 HTTP endpoint 或前端操作。
+- Workspace Invitation 已提供發送、接受與拒絕 Backend API；接受流程只在條件式轉為 ACCEPTED 成功後，才於同一 transaction 建立 WorkspaceMember，拒絕流程則條件式轉為 DECLINED。
 - 通知列表、未讀數 API 與前端通知選單。
 - 統一 API response、validation、exception filter、HTTP log redact 與 Swagger。
 - Socket.IO 最小 typed echo。
 
-尚未完成：邀請接受的 HTTP API／前端操作、邀請拒絕／取消、通知已讀 API／分頁 query、Project／Board／Card 資料模型與 API、Socket Session handshake、room authorization、ack／retry／idempotency／recovery。Board 畫面目前使用本機假資料。
+尚未完成：邀請接受／拒絕的前端操作、邀請取消、通知已讀 API／分頁 query、Project／Board／Card 資料模型與 API、Socket Session handshake、room authorization、ack／retry／idempotency／recovery。Board 畫面目前使用本機假資料。
 
 ## 本機啟動
 
@@ -79,9 +79,9 @@ Backend E2E 首次先複製 `backend/.env.e2e.example` 為 `backend/.env.e2e`，
 pnpm test:backend:e2e
 ```
 
-runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth lifecycle 測試，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
+runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth 與 Workspace Invitation E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
 
-2026-09-10 已執行 `pnpm test:backend`：15 suites 通過、1 suite skipped；77 tests 通過、1 test skipped。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
+2026-09-11 已執行 `pnpm test:backend`：16 suites 通過、1 suite skipped；85 tests 通過、1 test skipped。`pnpm test:backend:e2e` 亦以隔離 PostgreSQL／Redis 執行通過：2 suites、3 tests，覆蓋 Auth lifecycle，以及 Workspace 邀請的接受與拒絕流程。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
 
 ## 文件入口
 

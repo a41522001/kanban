@@ -19,7 +19,7 @@
 - [Workspace 邀請與通知](workspace-invitation-notification.md)
 - [Frontend Auth vertical slice](frontend-auth-plan.md)
 
-最後靜態核對：2026-09-08。build／tests 的執行紀錄以 progress 為準。
+最後核對：2026-09-11。build／tests 的執行紀錄以 progress 為準。
 
 ## 既有路線
 

@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-10（依原始碼與 Backend unit tests 核對）。
+最後檢視：2026-09-11（依原始碼、Backend unit tests 與隔離環境 E2E 核對）。
 
 ## Native WebSocket
 
@@ -31,7 +31,7 @@
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
 | Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
-| Workspace Invitation | 已完成發送與接受核心 use case | 邀請 Controller／Service 已移至 WorkspaceInvitation module，單向依賴 WorkspacesService；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行。接受 HTTP API／前端操作、拒絕／取消及並行唯一性尚未完成 |
+| Workspace Invitation | 已完成發送、接受與拒絕 Backend API | Controller 提供 invite／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。前端回覆、取消及並行唯一性尚未完成 |
 | Frontend Invitation／Notification | 已串接第一版 | 邀請 Dialog、通知列表、未讀 badge、開啟選單重新整理；尚無回覆、已讀與分頁操作 |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout 與前端表單驗證 |
@@ -50,7 +50,9 @@
 - Frontend unit tests 目前覆蓋 signup／login 表單驗證、User Store 的 session restore 去重與 reset、共用 Alert／Loading；2026-09-04 執行 `pnpm --filter frontend test:unit --run`，共 5 個檔案、16 個測試通過。
 - Frontend production build 於 2026-09-04 執行 `pnpm --filter frontend build` 通過。
 - 尚未有 Playwright Auth flow；瀏覽器層的 signup → login → refresh → logout 仍是待辦。
-- 2026-09-10 執行 `pnpm test:backend`：15 suites 通過、1 suite skipped；77 tests 通過、1 test skipped。WorkspaceInvitationService spec 已移除 skip，覆蓋發送邀請的 Owner／帳號／membership／PENDING 邀請與 transaction branches，以及接受邀請的查無邀請、既有 member、封存 workspace、狀態衝突與成功加入成員。WorkspaceInvitationController 仍尚無 spec。
+- 2026-09-11 執行 `pnpm test:backend`：16 suites 通過、1 suite skipped；85 tests 通過、1 test skipped。WorkspaceInvitationService spec 覆蓋發送邀請的 Owner／帳號／membership／PENDING 邀請與 transaction branches、接受邀請的主要分支，以及拒絕邀請的查無邀請、既有 member、狀態衝突與成功拒絕；WorkspaceInvitationController spec 已覆蓋 invite／accept／decline 的參數轉交與回應。
+- 2026-09-11 執行 `pnpm test:backend:e2e`：2 suites、3 tests 全部通過。Auth suite 覆蓋 signup → login → userInfo → logout → 401；WorkspaceInvitation suite 使用兩個 Supertest agent，覆蓋發送 → 通知 → 接受 → Workspace 列表出現 MEMBER，以及發送 → 通知 → 拒絕 → Workspace 列表仍為空 → 再接受回 409。測試使用隔離 PostgreSQL／Redis、套用 5 個 migrations，結束後移除 containers 與 volumes。
+- 本次 unit／E2E 均通過，但執行環境仍警告目前 Node.js 22.14.0 低於 frontend 宣告的 22.18.0，且 pnpm 的 `packageManager`／`devEngines.packageManager` 版本設定不一致；這些不是本次測試失敗，但應在後續統一。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
@@ -59,8 +61,8 @@
 
 ## 下一步
 
-1. 公開 WorkspaceInvitation 接受 HTTP API，完成拒絕／取消流程；補 PENDING 邀請的資料庫唯一性與併發衝突處理。
-2. 補 Notification 的單筆已讀、全部已讀、列表 query filters，以及發送／接受邀請流程 E2E。
+1. 完成邀請取消與前端接受／拒絕操作；補 PENDING 邀請的資料庫唯一性、錯誤授權 E2E 與併發衝突處理。
+2. 補 Notification 的單筆已讀、全部已讀、列表 query filters，以及通知未讀數／收件匣隔離／transaction rollback E2E。
 3. 建立 Project read model（後端 API 與前端專案清單），讓 Workspace overview 的專案區可使用真實資料。
 4. 將同一套 Session 驗證接到 Socket.IO handshake，之後才讓已持久化的通知以 Socket.IO 即時推送。
 5. 補 SessionService 與真實 Redis Lua integration tests。

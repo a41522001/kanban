@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後靜態核對：2026-09-08。以 Controllers、DTO 與 `packages/contracts` 為準；本文件只列目前已實作的端點。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-11。以 Controllers、DTO、`packages/contracts` 與隔離環境 E2E 為準；本文件只列目前已實作的端點。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -22,6 +22,8 @@
 | GET `/workspaces` | 有效 Session | 無 | 200 / WorkspaceListItemDto[] |
 | GET `/workspaces/:workspaceId/members` | 有效 Session，且為未封存工作區成員 | UUID path param | 200 / WorkspaceMemberDto[] |
 | POST `/workspaceInvitation/invite` | 有效 Session，且為未封存工作區 Owner | `{ workspaceId, email }` | 201 / null，message 為「邀請已送出」 |
+| POST `/workspaceInvitation/accept` | 有效 Session，且為該有效 PENDING 邀請的受邀者 | `{ invitationId }` | 200 / null，message 為「已接受邀請」；建立 WorkspaceMember |
+| POST `/workspaceInvitation/decline` | 有效 Session，且為該有效 PENDING 邀請的受邀者 | `{ invitationId }` | 200 / null，message 為「已拒絕邀請」；不建立 WorkspaceMember |
 | GET `/notifications` | 有效 Session，只查本人收件匣 | 目前無 query DTO | 200 / `{ items, nextCursor }` |
 | GET `/notifications/unreadCount` | 有效 Session，只查本人未讀數 | 無 | 200 / `{ count }` |
 
@@ -49,7 +51,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 | 邀請自己 | 400 / RequestError (4000) |
 | 已是成員、已有有效 PENDING 邀請、過期更新競爭失敗 | 409 / RequestError (4000) |
 
-邀請成功不會直接加入成員；接受／拒絕 API 尚未實作。詳見[邀請與通知](workspace-invitation-notification.md)。
+邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO，並以 Session userId 搭配 invitationId、PENDING status 與 expiresAt 做條件式狀態轉移；非受邀者、已回覆或已過期時更新筆數為 0，回 409。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。詳見[邀請與通知](workspace-invitation-notification.md)。
 
 ## Notification 邊界
 
@@ -61,4 +63,4 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 Swagger 位於 `/api/docs`，目前 Auth 的手寫 error schema 仍使用 array 描述，與實際 FieldError object 不一致；尚未完成可重用 envelope decorators。不可將 Swagger 視為所有端點完整驗證結果。
 
-尚待補上邀請回覆、通知已讀與 query DTO，以及對應 contracts、Swagger 與測試。
+尚待補上邀請取消、通知已讀與 query DTO、前端邀請回覆，以及更完整的錯誤授權／併發測試與 Swagger。

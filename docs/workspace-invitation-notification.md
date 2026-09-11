@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-10（依原始碼與 Backend unit tests）。此文件區分已實作行為與後續目標，不代表完整 HTTP／前端流程已驗收。
+最後核對：2026-09-11（依原始碼、Backend unit tests 與隔離環境 E2E）。此文件區分已實作行為與後續目標；Backend happy paths 已驗收，前端回覆操作仍未完成。
 
 ## 已實作流程
 
@@ -15,12 +15,12 @@
 
 新邀請預設 PENDING、MEMBER，expiresAt 為建立流程計算的 now + 7 天。發送邀請不會建立 WorkspaceMember。
 
-WorkspaceInvitationService 另有尚未公開為 HTTP endpoint 的接受核心 use case。它依 invitationId 取得 workspaceId，確認使用者尚未是 member 且 workspace 未封存，然後在同一 Prisma transaction：
+`POST /workspaceInvitation/accept` 以 Session userId 與 body 的 invitationId 呼叫接受 use case。Service 依 invitationId 取得 workspaceId，確認使用者尚未是 member 且 workspace 未封存，然後在同一 Prisma transaction：
 
 1. 以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 ACCEPTED 並寫入 respondedAt。
 2. 僅在更新筆數為 1 時建立 WorkspaceMember；狀態已變更、失效或非受邀者都不會建立 membership。
 
-接受 use case 尚未提供 Controller、DTO、shared contract 或前端操作；拒絕與取消也尚未實作。
+`POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。Backend 接受／拒絕 API 已完成，前端操作與 Owner 取消邀請仍未實作。
 
 ## Transaction 與併發限制
 
@@ -44,7 +44,7 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及 public mapping 時驗證上述 payload 欄位；其他預留通知類型目前只檢查是非 null、非 array 的 object。
 
-前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。現在只能閱讀通知，尚未提供接受／拒絕、標記已讀、下一頁或即時推送。過期通知目前仍會出現在列表與未讀計數。
+前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。Backend 已提供接受／拒絕 API，但前端目前仍只能閱讀通知，尚未提供回覆、標記已讀、下一頁或即時推送。過期通知目前仍會出現在列表與未讀計數。
 
 ## 狀態機現況
 
@@ -52,22 +52,22 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 | --- | --- |
 | PENDING | 建立邀請時預設 |
 | EXPIRED | 再次邀請遇到已到期的 PENDING 時條件更新 |
-| ACCEPTED | Service 接受 use case 的條件更新；尚未有 HTTP endpoint／前端操作 |
-| DECLINED | 僅 enum／schema 預留，尚無拒絕流程 |
+| ACCEPTED | `POST /workspaceInvitation/accept` 條件更新，並在同一 transaction 建立 WorkspaceMember |
+| DECLINED | `POST /workspaceInvitation/decline` 條件更新，不建立 WorkspaceMember |
 | CANCELED | 僅 enum／schema 預留，尚無取消流程 |
 
-沒有到期排程；超過 expiresAt 不會自動改變 status。接受成功時會寫入 respondedAt；其他回覆狀態尚未實作。
+沒有到期排程；超過 expiresAt 不會自動改變 status。接受與拒絕成功時都會寫入 respondedAt；CANCELED 仍未有寫入流程。
 
 ## 後續交付與驗收
 
-- 補受邀者接受／拒絕 API 與 shared contract：用 Session 身分驗證受邀者；將既有接受 use case 接到 transport 層，並實作拒絕。
-- 補重複回覆及接受／拒絕競爭政策，確保只產生一次有效狀態轉移；回覆 API 路徑與重試語意待定。
+- 補 Owner 取消邀請 API，以及前端接受／拒絕／取消操作。
+- 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
 - 補通知單筆／全部已讀、query DTO、前端回覆與分頁操作。
-- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受 invitation 的核心分支；仍需並行發送與真實資料庫測試。
+- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；仍需並行發送與真實資料庫測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
 - Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
 
-2026-09-10 的 `WorkspaceInvitationService` unit spec 已移除 skip，並由 `pnpm test:backend` 執行通過。WorkspaceInvitationController 尚無 spec，NotificationController spec 仍為 skipped；Auth E2E 也尚未涵蓋邀請流程。
+2026-09-11 執行 `pnpm test:backend`：WorkspaceInvitationService 已覆蓋發送、接受與拒絕的主要 branches，WorkspaceInvitationController spec 已覆蓋 invite／accept／decline。`pnpm test:backend:e2e` 的 WorkspaceInvitation suite 已驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
 
 ## 模組依賴
 
