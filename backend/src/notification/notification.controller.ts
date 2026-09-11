@@ -1,7 +1,5 @@
-import type { Env } from '@/config/env';
 import type { Request } from 'express';
 import { Controller, Req, Get, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { NotificationService } from './notification.service';
 import type { ApiResult } from '@kanban/contracts/api';
 import type { FindByRecipientResponse } from '@kanban/contracts/notification';
@@ -10,10 +8,7 @@ import { SessionGuard } from '@/session/session.guard';
 @Controller('notifications')
 @UseGuards(SessionGuard)
 export class NotificationController {
-  constructor(
-    private readonly configService: ConfigService<Env>,
-    private readonly notificationService: NotificationService,
-  ) {}
+  constructor(private readonly notificationService: NotificationService) {}
   @Get()
   async findByRecipient(
     @Req() req: Request,

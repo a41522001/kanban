@@ -52,6 +52,21 @@ export class WorkspaceInvitationRepository {
     });
   }
 
+  /** 標記邀請為過期(全部) */
+  async expirePendingInvitations(now: Date) {
+    return this.prismaService.workspaceInvitation.updateMany({
+      where: {
+        status: 'PENDING',
+        expiresAt: {
+          lte: now,
+        },
+      },
+      data: {
+        status: 'EXPIRED',
+      },
+    });
+  }
+
   /** 標記邀請為過期 */
   async markExpired(
     invitationId: string,

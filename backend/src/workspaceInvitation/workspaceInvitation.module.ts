@@ -7,6 +7,7 @@ import { UserModule } from '@/user/user.module';
 import { NotificationModule } from '@/notification/notification.module';
 import { WorkspaceInvitationController } from './workspaceInvitation.controller';
 import { WorkspacesModule } from '@/workspaces/workspaces.module';
+import { WorkspaceInvitationExpirationJob } from './workspaceInvitation.job';
 
 @Module({
   imports: [
@@ -16,7 +17,11 @@ import { WorkspacesModule } from '@/workspaces/workspaces.module';
     NotificationModule,
     WorkspacesModule,
   ],
-  providers: [WorkspaceInvitationService, WorkspaceInvitationRepository],
+  providers: [
+    WorkspaceInvitationService,
+    WorkspaceInvitationRepository,
+    WorkspaceInvitationExpirationJob,
+  ],
   exports: [WorkspaceInvitationService],
   controllers: [WorkspaceInvitationController],
 })

@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
 import { envSchema } from './config/env';
@@ -29,6 +30,7 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
       inject: [ConfigService],
       useFactory: loggerFactory,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     SessionModule,
