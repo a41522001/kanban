@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-11（依原始碼、Backend unit tests、coverage 與 build 核對）。此文件區分已實作行為與後續目標；現有 E2E 在 Node 22 載入排程套件時失敗，不能視為本版本的驗收結果。
+最後核對：2026-09-12（依原始碼、Frontend unit tests、type-check、lint、build、瀏覽器驗收，以及既有 Backend unit tests、coverage 與 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -20,7 +20,7 @@
 1. 以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 ACCEPTED 並寫入 respondedAt。
 2. 僅在更新筆數為 1 時建立 WorkspaceMember；狀態已變更、失效或非受邀者都不會建立 membership。
 
-`POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。Backend 接受／拒絕 API 已完成，前端操作與 Owner 取消邀請仍未實作。
+`POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。前端通知卡已串接接受／婉拒 API；Owner 取消邀請仍未實作。
 
 `WorkspaceInvitationExpirationJob` 由 `ScheduleModule.forRoot()` 註冊，每分鐘執行一次。它呼叫 service／repository，以 `status=PENDING AND expiresAt<=now` 做 `updateMany`，將所有符合條件的 invitation 更新為 EXPIRED。`waitForCompletion: true` 只避免同一個 Nest process 的重疊執行；多 instance 下仍可能同時掃描，但更新是冪等的。接受／拒絕的條件式更新仍保留 `expiresAt>now`，因此排程尚未跑到的剛過期邀請也不能被回覆。
 
@@ -46,7 +46,9 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及 public mapping 時驗證上述 payload 欄位；其他預留通知類型目前只檢查是非 null、非 array 的 object。
 
-前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。Backend 已提供接受／拒絕 API，但前端目前仍只能閱讀通知，尚未提供回覆、標記已讀、下一頁或即時推送。過期通知目前仍會出現在列表與未讀計數。
+前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態，衝突或網路錯誤則顯示重新載入狀態。一般通知與邀請回覆卡已拆成可重用元件。
+
+邀請回覆狀態保存在 Notification Store，因此通知選單或頁內元件重建後仍能維持，但登出或整頁重新整理會清除。Backend notification read model 目前沒有 invitation status，前端無法從重新讀取的通知判斷已接受、婉拒、取消或排程過期；在 read model 補齊前，重新整理後可能再次顯示回覆按鈕。通知也仍未提供標記已讀、下一頁或即時推送，過期通知仍會出現在列表與未讀計數。
 
 ## 狀態機現況
 
@@ -62,14 +64,16 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 
 ## 後續交付與驗收
 
-- 補 Owner 取消邀請 API，以及前端接受／拒絕／取消操作。
+- 補 Owner 取消邀請 API 與前端操作；讓通知 read model 提供可同步的邀請最終狀態。
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
-- 補通知單筆／全部已讀、query DTO、前端回覆與分頁操作。
+- 補通知單筆／全部已讀、query DTO 與前端分頁操作。
 - Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
 - Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
 
-2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。加入 `@nestjs/schedule` 12 後，`pnpm test:backend:e2e` 在本機 Node 22.18／Jest 30 載入 ESM 模組時失敗，尚未重新驗收邀請 suite；NotificationController spec 仍為 skipped。
+2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。以 Node 24.13 執行 `pnpm test:backend:e2e`：WorkspaceInvitation suite 驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
+
+2026-09-12 執行 frontend `vue-tsc --build`、Vitest、ESLint 與 Vite production build：8 個 test files、25 個 tests 通過。Playwright CLI 以本機攔截 API 驗證桌面邀請卡、接受後狀態、工作區清單更新及 375px 響應式版面；尚未加入連真實 Backend 的 frontend E2E。
 
 ## 模組依賴
 

@@ -103,8 +103,8 @@ import { toast } from 'vue-sonner';
 import type { ApiResponse } from '@kanban/contracts/api';
 import { ApiCode } from '@kanban/contracts/api';
 import type { WorkspaceListItemDto } from '@kanban/contracts/workspaces';
-import FormField from '@/components/common/FormField.vue';
-import Input from '@/components/common/Input.vue';
+import FormField from '@/components/shared/FormField/FormField.vue';
+import Input from '@/components/shared/Input/Input.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

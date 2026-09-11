@@ -40,6 +40,7 @@ import { computed } from 'vue';
 import { cn } from '@/utils/cn';
 
 defineOptions({
+  name: 'SharedInput',
   inheritAttrs: false,
 });
 

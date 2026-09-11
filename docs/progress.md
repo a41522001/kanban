@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-11（依原始碼、Backend unit tests、coverage 與 build 核對；目前 E2E 被 Node 22／ESM 相容性阻擋）。
+最後檢視：2026-09-12（依原始碼、Frontend unit tests、type-check、lint、build、瀏覽器驗收，以及既有 Backend unit tests、coverage 與 Node 24.13 E2E 核對）。
 
 ## Native WebSocket
 
@@ -31,9 +31,9 @@
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
 | Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
-| Workspace Invitation | 已完成發送、接受與拒絕 Backend API | Controller 提供 invite／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。前端回覆、取消及並行唯一性尚未完成 |
+| Workspace Invitation | 已完成發送、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
-| Frontend Invitation／Notification | 已串接第一版 | 邀請 Dialog、通知列表、未讀 badge、開啟選單重新整理；尚無回覆、已讀與分頁操作 |
+| Frontend Invitation／Notification | 已完成邀請回覆第一版 | 邀請 Dialog、通知列表、未讀 badge、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；已讀與分頁操作尚未完成 |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout 與前端表單驗證 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
@@ -47,14 +47,15 @@
 - Backend 目前有 Auth、User、Workspace、WorkspaceInvitation、Validation、Filter 與 Session schema 的 unit／integration-style specs。
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
 - Backend E2E 使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；既有案例覆蓋 Auth lifecycle，以及邀請的接受／拒絕 happy paths。
-- runner 結束後會移除 E2E containers、network 與暫存 volumes；加入排程套件後，目前 Node 22.18 的 E2E 在 Jest 載入 ESM 前即失敗，需先修復相容性後再驗收。
+- runner 結束後會移除 E2E containers、network 與暫存 volumes；專案以 `.nvmrc` 與 CI 的 `node-version-file` 固定 Node 24.13，避免 Jest 30 在 Node 22 載入 `@nestjs/schedule` 12 ESM 時失敗。
 - Frontend unit tests 目前覆蓋 signup／login 表單驗證、User Store 的 session restore 去重與 reset、共用 Alert／Loading；2026-09-04 執行 `pnpm --filter frontend test:unit --run`，共 5 個檔案、16 個測試通過。
 - Frontend production build 於 2026-09-04 執行 `pnpm --filter frontend build` 通過。
+- 2026-09-12 以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite build：8 個 frontend test files、25 個 tests 全數通過，type-check／lint／production build 亦通過。Playwright CLI 以攔截的本機 API 假資料驗證桌面邀請卡、接受成功、工作區清單更新及 375px 響應式畫面。
 - 尚未有 Playwright Auth flow；瀏覽器層的 signup → login → refresh → logout 仍是待辦。
 - 2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 全部通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。WorkspaceInvitationService spec 覆蓋發送、接受、拒絕與排程呼叫的 service delegation；Controller spec 覆蓋 invite／accept／decline 的參數轉交與回應。排程 job class 本身尚無 spec，因此該檔 coverage 為 0%。
 - 2026-09-11 執行 `pnpm --filter backend build` 通過。
-- 同日重新執行 `pnpm test:backend:e2e` 失敗：隔離 PostgreSQL／Redis、migration 均正常，但 Node 22.18 的 Jest 30 無法同步載入 `@nestjs/schedule` 12 的 ESM entry，兩個 suite 在載入 AppModule 前失敗，沒有實際測試執行。CI 設定為 Node 24，但本次未查詢 CI run；先前 2 suites、3 tests 的 E2E 通過紀錄僅是排程加入前的歷史結果。
-- pnpm 仍警告 `packageManager`（11.25.0）與 `devEngines.packageManager`（^11.21.0）設定不一致。
+- 同日以 Node 24.13 重新執行 `pnpm test:backend:e2e`：2 suites、3 tests 通過。Auth suite 覆蓋 signup → login → userInfo → logout → 401；WorkspaceInvitation suite 覆蓋發送 → 通知 → 接受 → Workspace 列表出現 MEMBER，以及發送 → 通知 → 拒絕 → Workspace 列表仍為空 → 再接受回 409。測試使用隔離 PostgreSQL／Redis、套用 5 個 migrations，結束後移除 containers 與 volumes。
+- 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
@@ -63,8 +64,8 @@
 
 ## 下一步
 
-1. 修復 Node 22 + Jest 30 載入 `@nestjs/schedule` 12 的 ESM 相容性，重新取得 E2E 綠燈；補 expiration job unit test 與真實資料庫過期批次更新測試。
-2. 完成邀請取消與前端接受／拒絕操作；補 PENDING 邀請的資料庫唯一性、錯誤授權 E2E 與併發衝突處理。
+1. 補 expiration job unit test 與真實資料庫過期批次更新測試。
+2. 完成邀請取消；補 PENDING 邀請的資料庫唯一性、前端接受／拒絕 E2E、錯誤授權 E2E 與併發衝突處理。
 3. 補 Notification 的單筆已讀、全部已讀、列表 query filters，以及通知未讀數／收件匣隔離／transaction rollback E2E。
 4. 建立 Project read model（後端 API 與前端專案清單），讓 Workspace overview 的專案區可使用真實資料。
 5. 將同一套 Session 驗證接到 Socket.IO handshake，之後才讓已持久化的通知以 Socket.IO 即時推送。
@@ -76,6 +77,7 @@
 - Logout 只撤銷本次 token，尚未完整撤銷 Current／Grace family。
 - User／Workspace／Notification Store reset 尚未阻止舊 in-flight response 回寫。
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
+- Notification read model 尚未回傳 invitation 最終狀態；前端只在本次登入的 Pinia state 保留成功回覆結果，整頁重新整理後仍可能再次顯示操作，直到後端提供可同步的狀態或通知處理規則。
 
 ## 更新方式
 

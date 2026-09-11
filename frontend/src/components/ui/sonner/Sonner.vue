@@ -4,6 +4,8 @@ import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon
 import { Toaster as Sonner } from "vue-sonner"
 import { cn } from "@/lib/utils"
 
+defineOptions({ name: "UiSonner" })
+
 const props = defineProps<ToasterProps>()
 </script>
 

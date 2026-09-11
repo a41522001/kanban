@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-11。已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過，整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%；`pnpm --filter backend build` 通過。加入 `@nestjs/schedule` 12 後，Node 22.18 的 `pnpm test:backend:e2e` 在 Jest 載入 ESM 前失敗，需先修復後再重新驗收。既有 build／type-check 紀錄見 [progress](progress.md)。
+最後檢視：2026-09-11。已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過，整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%；`pnpm --filter backend build` 通過。專案以 `.nvmrc` 固定 Node 24.13，並以該版本執行 `pnpm test:backend:e2e`：2 suites、3 tests 通過。既有 build／type-check 紀錄見 [progress](progress.md)。
 
 ## 1. 目標
 
@@ -117,7 +117,7 @@ Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方
 - [ ] 邀請與通知 transaction rollback 的真實 PostgreSQL integration test。
 - [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
 - [ ] 重複接受、接受／拒絕競爭與回覆 API 的 integration／E2E 測試。
-- [ ] 重新驗收 E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409。排程加入前曾通過，但目前 Node 22.18／Jest 30 在 ESM 載入階段失敗。
+- [x] E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409；以 Node 24.13 驗收通過。
 
 WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。WorkspaceInvitationService unit tests 的 transaction mock 會將同一個可辨識 tx 傳入 callback，並驗證 Invitation／Notification 或 membership 寫入收到該 tx。真實 rollback、唯一性與併發仍需 PostgreSQL integration test。
 

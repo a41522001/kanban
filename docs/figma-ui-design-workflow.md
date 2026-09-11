@@ -12,7 +12,8 @@
 | `figma-plugin/` | 將 tokens、components 與 screens 重建為原生 Figma nodes |
 | `frontend/src/styles/index.css` | Flowboard 語意色彩、圓角、陰影與字體 token |
 | `frontend/src/components/ui` | shadcn-vue primitives |
-| `frontend/src/components/common` | Flowboard 跨頁組合元件 |
+| `frontend/src/components/shared` | Flowboard 跨功能共用元件 |
+| `frontend/src/components/account`、`workspace`、`notifications`、`board` | 依產品功能領域分組的組合元件 |
 
 除非使用者明確要求新檔案，不得另建空白 Figma file 取代既有 `Flowboard — Native Design System`。不得直接匯入 SVG 並將向量圖層視為完成的設計稿。
 
@@ -21,7 +22,7 @@
 每次新增或大幅調整畫面，都依下列順序進行：
 
 1. 讀取 `design/README.md`、本文件及相關功能文件。
-2. 盤點既有 SVG、Plugin components、前端 shadcn-vue／common 元件與 tokens。
+2. 盤點既有 SVG、Plugin components、前端 shadcn-vue／shared／domain 元件與 tokens。
 3. 在 `design/` 根目錄新增或修改單頁 SVG，並同步更新 Current 清單。
 4. 更新既有 `figma-plugin/src/code.ts`；不得建立另一個平行 Generator。
 5. 先產生／更新 Foundations，再產生 Components，最後組合 Screens。
@@ -35,7 +36,7 @@
 - Dialog、Button、Input、Avatar、Badge 等重複元素必須由 Component／Component Set 建立，Screen 只放 Instance。
 - Layout 優先使用 Auto Layout；absolute positioning 僅用於 overlay、scrim 或確實需要疊放的內容。
 - 圖層使用產品語意命名，例如 `Workspace context`、`Dialog footer`，不得大量保留 `Frame 123`。
-- Component description 必須標示程式端對應，例如 `shadcn-vue/DialogContent`、`common/Input`。
+- Component description 必須標示程式端對應，例如 `shadcn-vue/DialogContent`、`shared/Input` 或 `notifications/WorkspaceInvitationResponseCard`。
 - 顏色、間距與圓角優先綁定 Flowboard Variables／Styles；Variables API 不可用時才保留相同值的 editable native style。
 - Icon 使用原生 vector node，不使用 Unicode 字元冒充操作 icon。
 
@@ -96,9 +97,9 @@ npm run build
 - 畫面與 Current SVG 在層級、間距、文案和 responsive 結構上相符。
 - 第二次執行 `Generate All` 不會建立重複 generated roots。
 
-## 8. Current v4 基準
+## 8. Current v5 基準
 
-目前 Generator 的可見版本為 `v4`。v3 已驗證可在 Figma Desktop 產生 Workspace Invite；v4 在此基礎上新增 Notification Dropdown：
+目前 Generator 的可見版本為 `v5`。v3 已驗證可在 Figma Desktop 產生 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆：
 
 - `Workspace Invite Dialog / Desktop`
 - `Workspace Invite Dialog / Mobile`
@@ -107,7 +108,10 @@ npm run build
 - `Notification Item` → Desktop／Mobile × Unread／Read variants
 - `Notification Dropdown` → Desktop／Mobile × Default／Loading／Empty／Error variants
 - `03 · Screens` → `Notifications` Desktop／Mobile／runtime states screens
+- `Workspace Invitation Response` → Desktop／Mobile × Pending／Responding／Accepted／Declined／Error variants
+- `Notification Dropdown` → Desktop／Mobile Invitation variants
+- `03 · Screens` → `Workspace Invitation Response` Desktop／Mobile／states screens
 
-Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`common/Input` 與 `common/FormField`。Notification Dropdown 對應 `shadcn-vue/DropdownMenu`、`Badge`、`ScrollArea` 與 `Skeleton`。
+Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`shared/Input` 與 `shared/FormField`。Notification Dropdown 對應 `notifications/NotificationMenu`，底層使用 `shadcn-vue/DropdownMenu`、`Badge`、`ScrollArea` 與 `Skeleton`。
 
-v4 尚需在 Figma Desktop 實際執行 `Generate All` 並完成 runtime／visual check，才可標記為已驗證。
+2026-09-11 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v5 `Generate All`。兩次皆成功產生 Foundations、Components 與 Screens；`Workspace Invitation Response` Component Set 可見 Desktop／Mobile 與 Pending／Responding／Accepted／Declined／Error properties，Screens 可找到 Desktop／Mobile／States 且使用 Instances。第二次搜尋結果仍為 Components 4 筆、Screens 13 筆，未累積重複 generated roots；Desktop Screen 已完成 runtime／visual check。

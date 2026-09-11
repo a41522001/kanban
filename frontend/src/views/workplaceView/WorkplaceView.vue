@@ -255,12 +255,12 @@ import {
   UsersRound,
 } from 'lucide-vue-next';
 import type { WorkspaceMemberDto, WorkspaceRole } from '@kanban/contracts/workspaces';
-import FormField from '@/components/common/FormField.vue';
-import Input from '@/components/common/Input.vue';
-import Logo from '@/components/common/Logo.vue';
-import NotificationMenu from '@/components/common/NotificationMenu.vue';
-import UserMenu from '@/components/common/UserMenu.vue';
-import WorkspaceInviteDialog from './WorkspaceInviteDialog.vue';
+import FormField from '@/components/shared/FormField/FormField.vue';
+import Input from '@/components/shared/Input/Input.vue';
+import Logo from '@/components/shared/Logo/Logo.vue';
+import NotificationMenu from '@/components/notifications/NotificationMenu/NotificationMenu.vue';
+import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
+import WorkspaceInviteDialog from '@/components/workspace/WorkspaceInviteDialog/WorkspaceInviteDialog.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

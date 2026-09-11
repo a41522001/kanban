@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-11。以 Controllers、DTO、`packages/contracts`、unit tests 與 build 為準；目前 Node 22 的 E2E 因排程套件 ESM 載入失敗，尚未重新驗收。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-11。以 Controllers、DTO、`packages/contracts`、unit tests、build 與 Node 24.13 E2E 為準。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 

@@ -2,6 +2,7 @@ import { ref, shallowRef } from 'vue';
 import { defineStore } from 'pinia';
 import type { PublicNotification } from '@kanban/contracts/notification';
 import { getNotificationsApi, getNotificationUnreadCountApi } from '@/services/notification';
+import type { WorkspaceInvitationResponseState } from '@/types/workspaceInvitation';
 
 export const useNotificationStore = defineStore('notificationStore', () => {
   // Notification payload 是遞迴 JSON；列表只會整批替換，不需要 deep reactive proxy。
@@ -10,6 +11,7 @@ export const useNotificationStore = defineStore('notificationStore', () => {
   const isLoading = ref(false);
   const hasLoadError = ref(false);
   const hasLoadedUnreadCount = ref(false);
+  const invitationResponseStates = ref<Record<string, WorkspaceInvitationResponseState>>({});
   let pendingNotificationsRequest: Promise<void> | null = null;
   let pendingUnreadCountRequest: Promise<void> | null = null;
 
@@ -68,12 +70,33 @@ export const useNotificationStore = defineStore('notificationStore', () => {
     await Promise.all([loadNotifications(true), loadUnreadCount(true)]);
   };
 
+  const getInvitationResponseState = (notificationId: string) => {
+    return invitationResponseStates.value[notificationId];
+  };
+
+  const setInvitationResponseState = (
+    notificationId: string,
+    state: WorkspaceInvitationResponseState,
+  ) => {
+    invitationResponseStates.value = {
+      ...invitationResponseStates.value,
+      [notificationId]: state,
+    };
+  };
+
+  const clearInvitationResponseState = (notificationId: string) => {
+    const remainingStates = { ...invitationResponseStates.value };
+    delete remainingStates[notificationId];
+    invitationResponseStates.value = remainingStates;
+  };
+
   const resetNotifications = () => {
     notifications.value = [];
     unreadCount.value = 0;
     isLoading.value = false;
     hasLoadError.value = false;
     hasLoadedUnreadCount.value = false;
+    invitationResponseStates.value = {};
     pendingNotificationsRequest = null;
     pendingUnreadCountRequest = null;
   };
@@ -86,6 +109,9 @@ export const useNotificationStore = defineStore('notificationStore', () => {
     loadNotifications,
     loadUnreadCount,
     refreshNotifications,
+    getInvitationResponseState,
+    setInvitationResponseState,
+    clearInvitationResponseState,
     resetNotifications,
   };
 });

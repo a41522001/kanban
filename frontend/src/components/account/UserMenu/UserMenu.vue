@@ -42,7 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import Avatar from '@/components/common/Avatar.vue';
+import Avatar from '@/components/shared/Avatar/Avatar.vue';
 import { logoutApi } from '@/services/auth';
 import { useNotificationStore } from '@/stores/notification';
 import { useUserStore } from '@/stores/user';

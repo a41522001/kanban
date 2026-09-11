@@ -28,10 +28,10 @@
 </template>
 
 <script setup lang="ts">
-import Logo from '@/components/common/Logo.vue';
+import Logo from '@/components/shared/Logo/Logo.vue';
 import BoardCard from '@/components/board/BoardCard.vue';
 import DialogAddCard from '@/components/board/DialogAddCard.vue';
-import UserMenu from '@/components/common/UserMenu.vue';
+import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/stores/user';
 import type { BoardColumnData } from '@/types/board';

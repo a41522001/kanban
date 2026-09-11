@@ -28,7 +28,19 @@ npm run watch
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
 5. 按 `Generate All`；也可以單獨重建 Foundations、Components 或 Screens。
 
-目前 UI 版本標記為 `v4`。此版本包含 Workspace Invite，並新增 `Notification Trigger`、`Notification Item`、`Notification Dropdown` Component Sets 與 `Notifications` Screens 分區。通知 Dropdown 提供 Desktop／Mobile 的 Default、Loading、Empty、Error variants；Component description 會標出對應的 shadcn-vue／Flowboard common 元件。
+目前 UI 版本標記為 `v5`。此版本在既有 Workspace Invite 與 Notification 基礎上，新增 `Workspace Invitation Response` Component Set，以及 Desktop／Mobile／States Screens。邀請回覆提供 Pending、Responding、Accepted、Declined、Error variants；通知 Dropdown 新增 Invitation variant，並以 Component Instances 組合邀請回覆與既有通知項目。
+
+2026-09-11 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 執行兩次 `Generate All`：兩次皆完成 Foundations、Components 與 Screens，第二次搜尋結果維持 Components 4 筆、Screens 13 筆，未累積重複 generated roots。Desktop 邀請回覆 Screen 已完成 runtime／visual check。
+
+## v5 source-to-output manifest
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/workspace-invitation-response.svg` | Desktop `1440 × 900` | `03 · Screens` → `Workspace Invitation Response` → Desktop |
+| `../design/workspace-invitation-response-mobile.svg` | Mobile `390 × 844` | `03 · Screens` → `Workspace Invitation Response` → Mobile |
+| `../design/workspace-invitation-response-states.svg` | Pending／Responding／Accepted／Declined／Error | `02 · Components` → `Workspace Invitation Response`; `03 · Screens` → States |
+
+共用 Button、Notification Item、Notification Dropdown、Avatar、色彩、圓角與字型均沿用既有 Components／Variables。SVG 只作視覺依據，不會匯入 Canvas。
 
 ## Idempotency
 

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-import Alert from '@/components/common/Alert.vue';
+import Alert from '@/components/app/Alert/Alert.vue';
 import { i18n } from '@/i18n';
 import { useAlertStore } from '@/stores/alert';
 

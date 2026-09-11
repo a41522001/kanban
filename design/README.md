@@ -10,6 +10,8 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
 | Workspace | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
 | Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
+| Workspace invitation response | `workspace-invitation-response.svg` | — | `workspace-invitation-response-mobile.svg` | Current |
+| Workspace invitation response states | `workspace-invitation-response-states.svg` | — | — | Current spec page |
 | Notification dropdown | `notification-dropdown.svg` | — | `notification-dropdown-mobile.svg` | Current |
 | Notification states | `notification-dropdown-states.svg` | — | — | Current spec page |
 | Board | `board-overview.svg` | `board-overview-tablet.svg` | `board-overview-mobile.svg` | Current |
@@ -64,6 +66,15 @@ Card
 - Runtime variants 至少包含 Default、Loading、Empty、Error；載入錯誤提供「重新載入」。
 - Socket.IO 日後只觸發列表／未讀數同步，PostgreSQL 與 HTTP read model 仍是通知真相。
 
+## Workspace invitation response contract
+
+- PENDING 工作區邀請直接在 Notification Dropdown 內提供「接受邀請」與「婉拒」，不另外開啟確認 Dialog。
+- 「接受邀請」是唯一主要操作；「婉拒」使用中性 outline，不使用 danger 色，因為它不會刪除既有資料。
+- Desktop 動作高度為 `44px`，Mobile 為 `48px`；送出任一回覆時兩個動作都必須停用，避免 accept／decline 並行競爭。
+- 成功後在原卡片位置顯示 Accepted／Declined 結果。接受成功時重新載入 Workspace 列表，並提供「前往工作區」；婉拒成功後不再顯示動作。
+- API 失敗時保留通知並提供重新載入；畫面使用穩定 `ApiCode` 決定文案，不直接顯示後端 message。
+- 回覆狀態不等同已讀狀態；在 Notification 已讀 API 完成前，不把 accept／decline 當作持久化 mark-as-read。
+
 ## Single-page file rule
 
 - Desktop、Tablet、Mobile 必須是不同 SVG 檔案。
@@ -71,6 +82,7 @@ Card
 - 禁止在同一 SVG 內橫向或縱向排列多個產品畫面。
 - `board-drag-states.svg` 與 `board-system-states.svg` 是狀態規格頁，允許在同一規格頁內展示多個 Variant。
 - `notification-dropdown-states.svg` 是 Notification runtime state 規格頁，允許展示 Loading、Empty、Error 與 Trigger variants。
+- `workspace-invitation-response-states.svg` 是邀請回覆狀態規格頁，允許展示 Pending、Responding、Accepted、Declined 與 Error recovery。
 - 新增裝置版本時使用 `*-tablet.svg`、`*-mobile.svg` 命名，不再使用含混的 `*-rwd.svg`。
 
 ## Figma regeneration gate

@@ -2,6 +2,8 @@
 import type { TooltipRootEmits, TooltipRootProps } from "reka-ui"
 import { TooltipRoot, useForwardPropsEmits } from "reka-ui"
 
+defineOptions({ name: "UiTooltip" })
+
 const props = defineProps<TooltipRootProps>()
 const emits = defineEmits<TooltipRootEmits>()
 

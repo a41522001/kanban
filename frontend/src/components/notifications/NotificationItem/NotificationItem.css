@@ -1,0 +1,45 @@
+@reference '../../../styles/index.css';
+
+.notification-item {
+  @apply relative flex min-h-31.5 min-w-0 gap-3 rounded-surface border border-border bg-surface p-3.5 sm:min-h-30;
+}
+
+.notification-item--unread {
+  @apply min-h-37.5 border-action-primary bg-action-primary-soft sm:min-h-35;
+}
+
+.notification-item__avatar {
+  @apply grid size-10 shrink-0 place-items-center rounded-full bg-flow-active text-sm font-bold text-content-primary;
+}
+
+.notification-item--unread .notification-item__avatar {
+  @apply bg-action-primary text-content-on-dark;
+}
+
+.notification-item__copy {
+  @apply min-w-0 flex-1;
+}
+
+.notification-item__eyebrow {
+  @apply pr-4 text-[11px] leading-4 font-bold tracking-[0.03em] text-content-secondary;
+}
+
+.notification-item--unread .notification-item__eyebrow {
+  @apply text-category-coral;
+}
+
+.notification-item__title {
+  @apply mt-1 text-sm leading-5 font-bold text-content-primary;
+}
+
+.notification-item__body {
+  @apply mt-1.5 text-xs leading-5 text-content-secondary;
+}
+
+.notification-item__time {
+  @apply mt-2 block text-[11px] leading-4 text-content-tertiary;
+}
+
+.notification-item__unread-dot {
+  @apply absolute top-4 right-4 size-2 rounded-full bg-action-primary;
+}

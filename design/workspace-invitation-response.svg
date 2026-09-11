@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="dropdown-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#29324A" flood-opacity=".18"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.display{font-size:32px;font-weight:750}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.label{font-size:11px;font-weight:700;letter-spacing:.03em}.inverse{fill:#F7F8FA}.medium{font-weight:700}
+    </style>
+    <g id="logo"><rect width="18" height="24" rx="4" fill="#DF6E51"/><rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/><text x="56" y="20" class="h2 inverse">Flowboard</text></g>
+    <g id="plus" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <g id="bell" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></g>
+    <g id="check" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.2 3.2L13 4.5"/></g>
+    <g id="x" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></g>
+  </defs>
+
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="48" class="spec">WORKSPACE INVITATION / RESPONSE / 1440 × 900</text>
+  <g id="workspace-invitation-response-desktop">
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
+    <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
+    <g transform="translate(72 100)">
+      <use href="#logo"/><text x="180" y="20" class="body inverse medium">工作區</text><text x="256" y="20" class="body" fill="#BFC7D7">最近</text>
+      <rect x="1188" y="-8" width="40" height="40" rx="9" fill="#DF6E51"/><g transform="translate(1200 4)" color="#F7F8FA"><use href="#plus"/></g>
+      <rect x="1240" y="-8" width="40" height="40" rx="9" fill="#F7F8FA"/><g transform="translate(1250 2)" color="#29324A"><use href="#bell"/></g>
+      <circle cx="1276" cy="-10" r="9" fill="#DF6E51"/><text x="1276" y="-6" text-anchor="middle" class="label inverse">1</text>
+      <circle cx="1328" cy="12" r="16" fill="#A9D2C8"/><text x="1328" y="17" text-anchor="middle" class="body medium">J</text>
+    </g>
+
+    <g transform="translate(72 176)">
+      <text class="small">工作區</text><text y="44" class="display">Jeffery 的工作區</text><text y="76" class="body" fill="#697287">集中查看所有專案，選一個進入主要看板。</text>
+      <text y="136" class="title">最近開啟</text>
+      <rect y="156" width="552" height="132" rx="12" fill="#F7F8FA"/><rect y="156" width="4" height="132" rx="2" fill="#DF6E51"/>
+      <text x="24" y="192" class="h2">Flowboard 即時協作</text><text x="24" y="220" class="small">主要看板 · WebSocket 練習</text>
+      <rect x="568" y="156" width="552" height="132" rx="12" fill="#F7F8FA"/><rect x="568" y="156" width="4" height="132" rx="2" fill="#A9D2C8"/>
+      <text x="592" y="192" class="h2">發佈自動化</text><text x="592" y="220" class="small">主要看板 · CI/CD 與部署檢查</text>
+      <text y="352" class="title">所有專案</text>
+      <rect y="376" width="352" height="212" rx="12" fill="#F7F8FA"/><rect x="368" y="376" width="352" height="212" rx="12" fill="#F7F8FA"/><rect x="736" y="376" width="352" height="212" rx="12" fill="#F7F8FA"/>
+    </g>
+
+    <g id="invitation-response-dropdown" transform="translate(1048 148)" filter="url(#dropdown-shadow)">
+      <rect width="400" height="488" rx="18" fill="#FFFFFF" stroke="#D7DCE5"/>
+      <text x="16" y="37" class="title">通知</text>
+      <rect x="306" y="16" width="78" height="28" rx="14" fill="#FCE5DF"/><text x="345" y="34" text-anchor="middle" class="label" fill="#9F3F2C">1 則未讀</text>
+      <line x1="16" y1="60" x2="384" y2="60" stroke="#D7DCE5"/>
+
+      <g id="pending-invitation" transform="translate(16 72)">
+        <rect width="368" height="232" rx="12" fill="#FFF9F7" stroke="#DF6E51"/>
+        <rect width="4" height="232" rx="2" fill="#DF6E51"/>
+        <circle cx="34" cy="34" r="20" fill="#DF6E51"/><text x="34" y="39" text-anchor="middle" class="body inverse medium">M</text>
+        <text x="66" y="24" class="label" fill="#9F3F2C">工作區邀請</text>
+        <rect x="258" y="12" width="86" height="24" rx="12" fill="#FCE5DF"/><text x="301" y="28" text-anchor="middle" class="tiny" fill="#9F3F2C">等待你的回覆</text>
+        <text x="66" y="54" class="body medium">Mia 邀請你加入</text><text x="66" y="77" class="h2">「產品開發中心」</text>
+        <text x="66" y="103" class="small">加入後，你可以查看工作區內的專案，</text><text x="66" y="123" class="small">並以成員身分參與協作。</text>
+        <text x="66" y="148" class="tiny">5 分鐘前 · 邀請將於 7 天後到期</text>
+        <line x1="66" y1="164" x2="344" y2="164" stroke="#E8D6D1"/>
+        <rect x="66" y="176" width="132" height="44" rx="9" fill="#DF6E51"/>
+        <g transform="translate(82 190)" color="#F7F8FA"><use href="#check"/></g><text x="142" y="204" text-anchor="middle" class="body inverse medium">接受邀請</text>
+        <rect x="208" y="176" width="136" height="44" rx="9" fill="#FFFFFF" stroke="#CDD3DE"/>
+        <g transform="translate(225 190)" color="#697287"><use href="#x"/></g><text x="282" y="204" text-anchor="middle" class="body medium">婉拒</text>
+        <circle cx="352" cy="12" r="4" fill="#DF6E51"/>
+      </g>
+
+      <g transform="translate(16 316)">
+        <rect width="368" height="108" rx="12" fill="#FFFFFF" stroke="#D7DCE5"/>
+        <circle cx="34" cy="34" r="20" fill="#A9D2C8"/><text x="34" y="39" text-anchor="middle" class="body medium">F</text>
+        <text x="66" y="24" class="label" fill="#697287">工作區動態</text>
+        <text x="66" y="52" class="body medium">Flowboard 即時協作有 2 項更新</text>
+        <text x="66" y="79" class="small">查看專案的最新活動。</text><text x="66" y="98" class="tiny">昨天</text>
+      </g>
+      <text x="16" y="462" class="tiny">目前顯示最近通知</text>
+    </g>
+  </g>
+</svg>

@@ -15,8 +15,8 @@
 </template>
 
 <script setup lang="ts">
-import Alert from '@/components/common/Alert.vue';
-import Loading from '@/components/common/Loading.vue';
+import Alert from '@/components/app/Alert/Alert.vue';
+import Loading from '@/components/app/Loading/Loading.vue';
 import { Toaster } from '@/components/ui/sonner';
 
 // import { ref } from 'vue';

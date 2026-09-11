@@ -219,10 +219,10 @@
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
-import Logo from '@/components/common/Logo.vue';
+import Logo from '@/components/shared/Logo/Logo.vue';
 import { Button } from '@/components/ui/button';
-import FormField from '@/components/common/FormField.vue';
-import Input from '@/components/common/Input.vue';
+import FormField from '@/components/shared/FormField/FormField.vue';
+import Input from '@/components/shared/Input/Input.vue';
 import { isAxiosError } from 'axios';
 import { computed, ref } from 'vue';
 import { ApiCode, type ApiResponse } from '@kanban/contracts/api';

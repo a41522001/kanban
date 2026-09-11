@@ -80,35 +80,31 @@
           <ScrollArea class="notification-menu__scroll-area">
             <ul class="notification-menu__list" :aria-label="t('notification.listLabel')">
               <li v-for="item in notificationItems" :key="item.id">
-                <article
-                  class="notification-menu__item"
-                  :class="{ 'notification-menu__item--unread': item.isUnread }"
-                >
-                  <span class="notification-menu__avatar" aria-hidden="true">
-                    {{ item.actorInitial }}
-                  </span>
-
-                  <div class="notification-menu__copy">
-                    <p class="notification-menu__eyebrow">
-                      {{ item.eyebrow }}
-                    </p>
-                    <p class="notification-menu__item-title">
-                      {{ item.title }}
-                    </p>
-                    <p v-if="item.body" class="notification-menu__body">
-                      {{ item.body }}
-                    </p>
-                    <time class="notification-menu__time" :datetime="item.createdAt">
-                      {{ item.createdAtLabel }}
-                    </time>
-                  </div>
-
-                  <span
-                    v-if="item.isUnread"
-                    class="notification-menu__unread-dot"
-                    :aria-label="t('notification.unread')"
-                  ></span>
-                </article>
+                <WorkspaceInvitationResponseCard
+                  v-if="item.kind === 'workspace-invitation'"
+                  :actor-initial="item.actorInitial"
+                  :inviter-display-name="item.inviterDisplayName"
+                  :workspace-name="item.workspaceName"
+                  :created-at="item.createdAt"
+                  :created-at-label="item.createdAtLabel"
+                  :expires-at-label="item.expiresAtLabel"
+                  :is-unread="item.isUnread"
+                  :state="getInvitationState(item)"
+                  @accept="respondToInvitation(item, 'accept')"
+                  @decline="respondToInvitation(item, 'decline')"
+                  @reload="reloadInvitation(item.id)"
+                  @open-workspace="openWorkspace(item)"
+                />
+                <NotificationItem
+                  v-else
+                  :actor-initial="item.actorInitial"
+                  :eyebrow="item.eyebrow"
+                  :title="item.title"
+                  :body="item.body"
+                  :created-at="item.createdAt"
+                  :created-at-label="item.createdAtLabel"
+                  :is-unread="item.isUnread"
+                />
               </li>
             </ul>
           </ScrollArea>
@@ -127,7 +123,11 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Bell, CircleAlert } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+import { toast } from 'vue-sonner';
 import type { JsonObject, PublicNotification } from '@kanban/contracts/notification';
+import NotificationItem from '@/components/notifications/NotificationItem/NotificationItem.vue';
+import WorkspaceInvitationResponseCard from '@/components/notifications/WorkspaceInvitationResponseCard/WorkspaceInvitationResponseCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -137,7 +137,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  acceptWorkspaceInvitationApi,
+  declineWorkspaceInvitationApi,
+} from '@/services/workspaceInvitation';
 import { useNotificationStore } from '@/stores/notification';
+import { useWorkspaceStore } from '@/stores/workspace';
+import type {
+  WorkspaceInvitationResponseAction,
+  WorkspaceInvitationResponseState,
+} from '@/types/workspaceInvitation';
 
 interface NotificationPresentation {
   actorInitial: string;
@@ -146,17 +155,43 @@ interface NotificationPresentation {
   body?: string;
 }
 
-interface NotificationItemView extends NotificationPresentation {
+interface NotificationItemBase {
   id: string;
   isUnread: boolean;
   createdAt: string;
   createdAtLabel: string;
 }
 
+interface GenericNotificationItem extends NotificationItemBase, NotificationPresentation {
+  kind: 'generic';
+}
+
+interface WorkspaceInvitationItem extends NotificationItemBase {
+  kind: 'workspace-invitation';
+  invitationId: string;
+  workspaceId: string | null;
+  inviterDisplayName: string;
+  workspaceName: string;
+  actorInitial: string;
+  expiresAt: string | null;
+  expiresAtLabel?: string;
+}
+
+type NotificationItemView = GenericNotificationItem | WorkspaceInvitationItem;
+
 const { locale, t } = useI18n();
+const router = useRouter();
 const notificationStore = useNotificationStore();
+const workspaceStore = useWorkspaceStore();
 const { hasLoadError, isLoading, notifications, unreadCount } = storeToRefs(notificationStore);
-const { loadUnreadCount, refreshNotifications } = notificationStore;
+const {
+  clearInvitationResponseState,
+  getInvitationResponseState,
+  loadUnreadCount,
+  refreshNotifications,
+  setInvitationResponseState,
+} = notificationStore;
+const { loadWorkspaces, selectWorkspace } = workspaceStore;
 const isOpen = ref(false);
 const titleId = 'notification-menu-title';
 
@@ -233,15 +268,67 @@ const formatCreatedAt = (value: string) => {
   }).format(createdAt);
 };
 
+const formatExpiresAt = (value: string | null) => {
+  if (!value) {
+    return undefined;
+  }
+
+  const expiresAt = new Date(value);
+  if (Number.isNaN(expiresAt.getTime())) {
+    return undefined;
+  }
+
+  const differenceInMilliseconds = expiresAt.getTime() - Date.now();
+  if (differenceInMilliseconds <= 0) {
+    return t('notification.workspaceInvited.expired');
+  }
+
+  const hours = Math.ceil(differenceInMilliseconds / 3_600_000);
+  if (hours < 24) {
+    return t('notification.workspaceInvited.expiresInHours', { count: hours });
+  }
+
+  return t('notification.workspaceInvited.expiresInDays', { count: Math.ceil(hours / 24) });
+};
+
 const notificationItems = computed<NotificationItemView[]>(() => {
   return notifications.value.map((notification) => {
     const presentation = getPresentation(notification);
-
-    return {
+    const base = {
       id: notification.id,
       isUnread: notification.readAt === null,
       createdAt: notification.createdAt,
       createdAtLabel: formatCreatedAt(notification.createdAt),
+    };
+
+    if (
+      notification.type === 'WORKSPACE_INVITED' &&
+      notification.resourceType === 'WORKSPACE_INVITATION' &&
+      notification.resourceId
+    ) {
+      const inviterDisplayName =
+        getPayloadText(notification.payload, 'inviterDisplayName') ??
+        t('notification.fallbackActor');
+      const workspaceName =
+        getPayloadText(notification.payload, 'workspaceName') ??
+        t('notification.fallbackWorkspace');
+
+      return {
+        ...base,
+        kind: 'workspace-invitation' as const,
+        invitationId: notification.resourceId,
+        workspaceId: notification.workspaceId,
+        inviterDisplayName,
+        workspaceName,
+        actorInitial: inviterDisplayName.charAt(0).toUpperCase() || 'F',
+        expiresAt: notification.expiresAt,
+        expiresAtLabel: formatExpiresAt(notification.expiresAt),
+      };
+    }
+
+    return {
+      ...base,
+      kind: 'generic' as const,
       actorInitial: presentation.actorInitial,
       eyebrow: presentation.eyebrow,
       title: presentation.title,
@@ -249,6 +336,71 @@ const notificationItems = computed<NotificationItemView[]>(() => {
     };
   });
 });
+
+const getInvitationState = (item: WorkspaceInvitationItem): WorkspaceInvitationResponseState => {
+  const storedState = getInvitationResponseState(item.id);
+  if (storedState) {
+    return storedState;
+  }
+
+  if (item.expiresAt) {
+    const expiresAt = new Date(item.expiresAt);
+    if (!Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= Date.now()) {
+      return 'error';
+    }
+  }
+
+  return 'pending';
+};
+
+const respondToInvitation = async (
+  item: WorkspaceInvitationItem,
+  action: WorkspaceInvitationResponseAction,
+) => {
+  if (getInvitationState(item) !== 'pending') {
+    return;
+  }
+
+  setInvitationResponseState(item.id, action === 'accept' ? 'accepting' : 'declining');
+
+  try {
+    const request = { invitationId: item.invitationId };
+    if (action === 'accept') {
+      await acceptWorkspaceInvitationApi(request);
+      setInvitationResponseState(item.id, 'accepted');
+      await loadWorkspaces();
+      if (
+        item.workspaceId &&
+        !workspaceStore.workspaces.some((workspace) => workspace.id === item.workspaceId)
+      ) {
+        await loadWorkspaces();
+      }
+      toast.success(t('notification.workspaceInvited.acceptedToast'));
+      return;
+    }
+
+    await declineWorkspaceInvitationApi(request);
+    setInvitationResponseState(item.id, 'declined');
+    toast.success(t('notification.workspaceInvited.declinedToast'));
+  } catch {
+    setInvitationResponseState(item.id, 'error');
+    toast.error(t('notification.workspaceInvited.responseError'));
+  }
+};
+
+const reloadInvitation = async (notificationId: string) => {
+  clearInvitationResponseState(notificationId);
+  await refreshNotifications();
+};
+
+const openWorkspace = (item: WorkspaceInvitationItem) => {
+  if (item.workspaceId) {
+    selectWorkspace(item.workspaceId);
+  }
+
+  isOpen.value = false;
+  void router.push({ name: 'workspace' });
+};
 
 watch(isOpen, (open) => {
   if (open) {

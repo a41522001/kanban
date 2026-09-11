@@ -16,6 +16,10 @@ pnpm --filter frontend test:e2e
 
 Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contracts。Playwright 指令已配置，但目前只有 scaffold test，不能視為完整 Auth E2E。`pnpm --filter frontend lint` 會自動修正檔案。
 
+## 元件結構
+
+`components/ui/` 放基礎 UI primitives；`components/shared/` 放跨功能共用元件；`components/app/` 放 Alert／Loading 等 App shell 元件；`components/account/`、`components/workspace/`、`components/notifications/` 與 `components/board/` 依功能領域分組。需要獨立樣式或測試的元件使用自己的資料夾，讓 `.vue`、`.css` 與 spec 保持內聚；頁面專屬 layout 與樣式則留在對應的 `views/<view>/`。
+
 ## 畫面與資料來源
 
 | 路由 | 行為 |
@@ -32,12 +36,12 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 - `services/http.ts` 提供單一 Axios client：10 秒 timeout、`withCredentials: true`。
 - User Store 快取 userInfo 結果並合併並行 request；失敗也會快取為未登入。
 - Workspace Store 保存工作區與目前選取 ID。
-- Notification Store 保存通知與未讀數；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。
+- Notification Store 保存通知、未讀數與本次登入期間的邀請回覆狀態；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。工作區邀請可直接接受或婉拒，接受後會重新載入工作區清單。
 - Logout 不論 HTTP 成敗皆清空 User／Workspace／Notification Store 並導向登入；網路失敗不保證伺服器 Session 已撤銷。
 - Store reset 尚未阻止舊的 in-flight response 回寫；HTTP 層尚未統一處理一般 API 401。
 - Session ID 不放在 localStorage；Socket.IO 尚未整合 Auth lifecycle。
-- Google 登入、忘記密碼與帳號設定尚未完成；通知選單目前沒有接受／拒絕或標記已讀操作。
+- Google 登入、忘記密碼與帳號設定尚未完成；通知選單尚未提供標記已讀與分頁操作。Backend 通知 read model 未回傳邀請最終狀態，因此整頁重新整理後無法單靠通知資料還原已接受／婉拒 UI。
 
 更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 
-文件最後靜態核對：2026-09-08；本次未重新執行 build／tests。
+文件最後核對：2026-09-12；`vue-tsc --build`、25 個 frontend unit tests、ESLint、Vite production build 與桌面／375px 瀏覽器驗收均通過。

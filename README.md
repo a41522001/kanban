@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-11（依原始碼、Backend unit tests、coverage 與 build 核對；目前 Node 22.18 的 E2E 無法載入排程套件，詳見測試段落）。
+最後檢視：2026-09-11（依原始碼、Backend unit tests、coverage、build 與 Node 24.13 E2E 核對）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace 與邀請通知基礎；Project／Board 持久化與即時協作仍待實作。
 
@@ -27,11 +27,11 @@
 - 統一 API response、validation、exception filter、HTTP log redact 與 Swagger。
 - Socket.IO 最小 typed echo。
 
-尚未完成：邀請接受／拒絕的前端操作、邀請取消、通知已讀 API／分頁 query、Project／Board／Card 資料模型與 API、Socket Session handshake、room authorization、ack／retry／idempotency／recovery。Board 畫面目前使用本機假資料。
+尚未完成：邀請取消、通知已讀 API／分頁 query、Project／Board／Card 資料模型與 API、Socket Session handshake、room authorization、ack／retry／idempotency／recovery。Board 畫面目前使用本機假資料。
 
 ## 本機啟動
 
-需要 Node.js（frontend 宣告 `^22.18.0 || >=24.12.0`）、pnpm 與可用的 Docker。根目錄 `packageManager` 指定 pnpm 11.25.0；CI 使用 Node.js 24。
+需要 Node.js 24.13.0、pnpm 與可用的 Docker。專案以 `.nvmrc` 固定 Node 版本；若使用 nvm，進入專案後執行 `nvm use`。根目錄 `packageManager` 指定 pnpm 11.25.0，CI 也讀取 `.nvmrc`。
 
 以下指令在專案根目錄執行。首次建立設定檔，已存在時請直接編輯，避免覆蓋本機設定：
 
@@ -82,7 +82,7 @@ pnpm test:backend:e2e
 
 runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth 與 Workspace Invitation E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
 
-2026-09-11 已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。`pnpm --filter backend build` 通過。加入 `@nestjs/schedule` 12 後，`pnpm test:backend:e2e` 在本機 Node 22.18、Jest 30 的 ESM 載入階段失敗，尚未重新取得本版本的 E2E 綠燈；CI 使用 Node 24，但本次未查詢 CI run。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
+2026-09-11 已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。`pnpm --filter backend build` 通過。以 Node 24.13 執行 `pnpm test:backend:e2e`：2 suites、3 tests 通過，覆蓋 Auth lifecycle，以及 Workspace 邀請的接受與拒絕流程。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
 
 ## 文件入口
 

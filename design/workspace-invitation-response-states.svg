@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#29324A" flood-opacity=".12"/></filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.label{font-size:11px;font-weight:700;letter-spacing:.03em}.inverse{fill:#F7F8FA}.medium{font-weight:700}
+    </style>
+    <g id="check" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.2 3.2L13 4.5"/></g>
+    <g id="x" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></g>
+    <g id="alert" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="7"/><path d="M8 4.5v4.2M8 11.5h.01"/></g>
+  </defs>
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="52" class="spec">WORKSPACE INVITATION / RESPONSE STATES</text>
+  <text x="40" y="84" class="body" fill="#697287">通知內直接回覆；一次只執行一個動作。接受為主要操作，婉拒為中性次要操作。</text>
+
+  <g transform="translate(40 136)">
+    <text y="-18" class="title">Pending</text>
+    <rect width="340" height="292" rx="14" fill="#FFF9F7" stroke="#DF6E51" filter="url(#shadow)"/><rect width="4" height="292" rx="2" fill="#DF6E51"/>
+    <circle cx="34" cy="36" r="20" fill="#DF6E51"/><text x="34" y="41" text-anchor="middle" class="body inverse medium">M</text>
+    <text x="66" y="26" class="label" fill="#9F3F2C">工作區邀請</text><rect x="220" y="14" width="98" height="24" rx="12" fill="#FCE5DF"/><text x="269" y="30" text-anchor="middle" class="tiny" fill="#9F3F2C">等待你的回覆</text>
+    <text x="66" y="62" class="body medium">Mia 邀請你加入</text><text x="66" y="87" class="h2">「產品開發中心」</text>
+    <text x="66" y="116" class="small">你將以成員身分加入工作區。</text><text x="66" y="140" class="tiny">5 分鐘前 · 7 天後到期</text>
+    <line x1="16" y1="164" x2="324" y2="164" stroke="#E8D6D1"/>
+    <rect x="16" y="180" width="148" height="44" rx="9" fill="#DF6E51"/><g transform="translate(32 194)" color="#F7F8FA"><use href="#check"/></g><text x="96" y="208" text-anchor="middle" class="body inverse medium">接受邀請</text>
+    <rect x="176" y="180" width="148" height="44" rx="9" fill="#FFFFFF" stroke="#CDD3DE"/><g transform="translate(196 194)" color="#697287"><use href="#x"/></g><text x="250" y="208" text-anchor="middle" class="body medium">婉拒</text>
+    <text x="16" y="260" class="tiny">Tab 順序：接受邀請 → 婉拒</text>
+  </g>
+
+  <g transform="translate(400 136)">
+    <text y="-18" class="title">Responding</text>
+    <rect width="340" height="292" rx="14" fill="#FFF9F7" stroke="#DF6E51" filter="url(#shadow)"/><rect width="4" height="292" rx="2" fill="#DF6E51"/>
+    <circle cx="34" cy="36" r="20" fill="#DF6E51"/><text x="34" y="41" text-anchor="middle" class="body inverse medium">M</text>
+    <text x="66" y="26" class="label" fill="#9F3F2C">工作區邀請</text><rect x="232" y="14" width="86" height="24" rx="12" fill="#F7F8FA"/><text x="275" y="30" text-anchor="middle" class="tiny">處理中</text>
+    <text x="66" y="62" class="body medium">正在接受「產品開發中心」</text><text x="66" y="87" class="h2">的工作區邀請</text>
+    <text x="66" y="116" class="small">請稍候，不需要重複操作。</text><text x="66" y="140" class="tiny">保留卡片高度，避免列表跳動</text>
+    <line x1="16" y1="164" x2="324" y2="164" stroke="#E8D6D1"/>
+    <rect x="16" y="180" width="148" height="44" rx="9" fill="#E8B8AB"/><circle cx="45" cy="202" r="7" fill="none" stroke="#F7F8FA" stroke-width="2" stroke-dasharray="16 7"/><text x="105" y="207" text-anchor="middle" class="body inverse medium">接受中</text>
+    <rect x="176" y="180" width="148" height="44" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/><text x="250" y="207" text-anchor="middle" class="body" fill="#8B95A8">婉拒</text>
+    <text x="16" y="260" class="tiny">兩個按鈕皆 disabled，狀態以 aria-live 通知</text>
+  </g>
+
+  <g transform="translate(760 136)">
+    <text y="-18" class="title">Accepted</text>
+    <rect width="340" height="292" rx="14" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>
+    <circle cx="34" cy="36" r="20" fill="#E3F1EC"/><g transform="translate(26 28)" color="#31665D"><use href="#check"/></g>
+    <text x="66" y="26" class="label" fill="#31665D">邀請已接受</text><rect x="242" y="14" width="76" height="24" rx="12" fill="#E3F1EC"/><text x="280" y="30" text-anchor="middle" class="tiny" fill="#31665D">已加入</text>
+    <text x="66" y="62" class="body medium">你已加入</text><text x="66" y="87" class="h2">「產品開發中心」</text>
+    <text x="66" y="116" class="small">工作區已加入你的列表。</text><text x="66" y="140" class="tiny">剛剛</text>
+    <line x1="16" y1="164" x2="324" y2="164" stroke="#D7DCE5"/>
+    <rect x="16" y="180" width="308" height="44" rx="9" fill="#29324A"/><text x="170" y="207" text-anchor="middle" class="body inverse medium">前往工作區</text>
+    <text x="16" y="260" class="tiny">重新載入工作區列表，並保留明確下一步</text>
+  </g>
+
+  <g transform="translate(1120 136)">
+    <text y="-18" class="title">Declined</text>
+    <rect width="340" height="292" rx="14" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>
+    <circle cx="34" cy="36" r="20" fill="#F7F8FA"/><g transform="translate(26 28)" color="#697287"><use href="#x"/></g>
+    <text x="66" y="26" class="label" fill="#697287">邀請已婉拒</text><rect x="242" y="14" width="76" height="24" rx="12" fill="#F7F8FA"/><text x="280" y="30" text-anchor="middle" class="tiny">已回覆</text>
+    <text x="66" y="62" class="body medium">你已婉拒加入</text><text x="66" y="87" class="h2">「產品開發中心」</text>
+    <text x="66" y="116" class="small">這則邀請已完成回覆。</text><text x="66" y="140" class="tiny">剛剛</text>
+    <line x1="16" y1="164" x2="324" y2="164" stroke="#D7DCE5"/>
+    <text x="16" y="201" class="small">不使用紅色：婉拒不是刪除或資料損失。</text>
+    <text x="16" y="260" class="tiny">完成後不再顯示操作按鈕</text>
+  </g>
+
+  <g transform="translate(40 534)">
+    <text y="-18" class="title">Error recovery</text>
+    <rect width="700" height="214" rx="14" fill="#FFFFFF" stroke="#B33B2E" filter="url(#shadow)"/>
+    <circle cx="40" cy="42" r="24" fill="#FCE8E5"/><g transform="translate(32 34)" color="#B33B2E"><use href="#alert"/></g>
+    <text x="80" y="36" class="h2" fill="#B33B2E">無法回覆這則邀請</text>
+    <text x="80" y="62" class="small">邀請可能已過期或被取消。重新載入通知，取得最新狀態。</text>
+    <rect x="80" y="88" width="116" height="44" rx="9" fill="#DF6E51"/><text x="138" y="115" text-anchor="middle" class="body inverse medium">重新載入</text>
+    <rect x="208" y="88" width="92" height="44" rx="9" fill="#FFFFFF" stroke="#CDD3DE"/><text x="254" y="115" text-anchor="middle" class="body medium">關閉</text>
+    <line x1="24" y1="160" x2="676" y2="160" stroke="#D7DCE5"/><text x="24" y="190" class="tiny">錯誤訊息說明可能原因與恢復方式；不暴露後端 message 字串。</text>
+  </g>
+
+  <g transform="translate(780 534)">
+    <text y="-18" class="title">Interaction notes</text>
+    <rect width="680" height="214" rx="14" fill="#29324A"/>
+    <circle cx="36" cy="38" r="4" fill="#DF6E51"/><text x="56" y="43" class="body inverse">按鈕高度至少 44px，Mobile 使用 48px。</text>
+    <circle cx="36" cy="76" r="4" fill="#A9D2C8"/><text x="56" y="81" class="body inverse">送出期間鎖定兩個動作，避免 accept／decline 競爭。</text>
+    <circle cx="36" cy="114" r="4" fill="#E6B960"/><text x="56" y="119" class="body inverse">成功後以原位內容替換，避免 dropdown 高度突然跳動。</text>
+    <circle cx="36" cy="152" r="4" fill="#907ECE"/><text x="56" y="157" class="body inverse">Toast 作補充回饋，狀態文字仍保留在通知卡內。</text>
+    <text x="24" y="194" class="tiny inverse">Focus 保留在被替換區域的下一個合理操作；接受後可聚焦「前往工作區」。</text>
+  </g>
+</svg>

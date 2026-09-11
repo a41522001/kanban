@@ -1,0 +1,124 @@
+@reference '../../../styles/index.css';
+
+.workspace-invitation-card {
+  @apply relative flex min-w-0 gap-3 rounded-surface border border-border bg-surface p-3.5;
+}
+
+.workspace-invitation-card--unread {
+  @apply border-action-primary bg-action-primary-soft;
+}
+
+.workspace-invitation-card--accepted {
+  @apply border-flow-active-strong bg-flow-active-soft;
+}
+
+.workspace-invitation-card--declined {
+  @apply bg-surface-subtle;
+}
+
+.workspace-invitation-card--error {
+  @apply gap-3 border-feedback-danger bg-feedback-danger-soft;
+}
+
+.workspace-invitation-card__avatar,
+.workspace-invitation-card__error-icon {
+  @apply grid size-10 shrink-0 place-items-center rounded-full bg-action-primary text-sm font-bold text-content-on-dark;
+}
+
+.workspace-invitation-card--accepted .workspace-invitation-card__avatar {
+  @apply bg-flow-active-strong;
+}
+
+.workspace-invitation-card--declined .workspace-invitation-card__avatar {
+  @apply bg-border-strong text-content-secondary;
+}
+
+.workspace-invitation-card__error-icon {
+  @apply bg-feedback-danger text-content-on-dark;
+}
+
+.workspace-invitation-card__copy,
+.workspace-invitation-card__error-copy {
+  @apply min-w-0 flex-1;
+}
+
+.workspace-invitation-card__meta {
+  @apply flex min-w-0 flex-wrap items-center justify-between gap-1.5 pr-3;
+}
+
+.workspace-invitation-card__eyebrow {
+  @apply text-[11px] leading-4 font-bold tracking-[0.03em] text-category-coral;
+}
+
+.workspace-invitation-card--accepted .workspace-invitation-card__eyebrow {
+  @apply text-category-mint;
+}
+
+.workspace-invitation-card--declined .workspace-invitation-card__eyebrow {
+  @apply text-content-secondary;
+}
+
+.workspace-invitation-card__status {
+  @apply rounded-full bg-category-coral-soft px-2 py-1 text-[10px] leading-4 font-bold text-category-coral;
+}
+
+.workspace-invitation-card--accepting .workspace-invitation-card__status,
+.workspace-invitation-card--declining .workspace-invitation-card__status,
+.workspace-invitation-card--declined .workspace-invitation-card__status {
+  @apply bg-surface-subtle text-content-secondary;
+}
+
+.workspace-invitation-card--accepted .workspace-invitation-card__status {
+  @apply bg-flow-active-soft text-category-mint;
+}
+
+.workspace-invitation-card__title,
+.workspace-invitation-card__error-title {
+  @apply mt-2 text-sm leading-5 font-bold text-content-primary;
+}
+
+.workspace-invitation-card__error-title {
+  @apply mt-0 text-feedback-danger;
+}
+
+.workspace-invitation-card__body {
+  @apply mt-1.5 text-xs leading-5 text-content-secondary;
+}
+
+.workspace-invitation-card__time {
+  @apply mt-2 block text-[11px] leading-4 text-content-tertiary;
+}
+
+.workspace-invitation-card__actions {
+  @apply mt-3 grid grid-cols-2 gap-2;
+}
+
+.workspace-invitation-card__action {
+  @apply min-w-0 px-2;
+}
+
+.workspace-invitation-card__workspace-link {
+  @apply mt-3 w-full bg-content-primary text-content-on-dark hover:bg-content-primary/90;
+}
+
+.workspace-invitation-card__reload {
+  @apply mt-3;
+}
+
+.workspace-invitation-card__unread-dot {
+  @apply absolute top-4 right-4 size-2 rounded-full bg-action-primary;
+}
+
+@media (max-width: 380px) {
+  .workspace-invitation-card__meta {
+    @apply items-start pr-0;
+  }
+
+  .workspace-invitation-card__actions {
+    @apply grid-cols-1;
+  }
+
+  .workspace-invitation-card__action {
+    @apply h-12;
+  }
+}
