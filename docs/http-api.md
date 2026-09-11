@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-11。以 Controllers、DTO、`packages/contracts` 與隔離環境 E2E 為準；本文件只列目前已實作的端點。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-11。以 Controllers、DTO、`packages/contracts`、unit tests 與 build 為準；目前 Node 22 的 E2E 因排程套件 ESM 載入失敗，尚未重新驗收。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -51,7 +51,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 | 邀請自己 | 400 / RequestError (4000) |
 | 已是成員、已有有效 PENDING 邀請、過期更新競爭失敗 | 409 / RequestError (4000) |
 
-邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO，並以 Session userId 搭配 invitationId、PENDING status 與 expiresAt 做條件式狀態轉移；非受邀者、已回覆或已過期時更新筆數為 0，回 409。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。詳見[邀請與通知](workspace-invitation-notification.md)。
+邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO，並以 Session userId 搭配 invitationId、PENDING status 與 expiresAt 做條件式狀態轉移；非受邀者、已回覆或已過期時更新筆數為 0，回 409。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。另有每分鐘執行的背景 job 將已到期 PENDING invitation 改為 EXPIRED；操作端仍自行驗證 expiresAt，不依賴排程已執行。詳見[邀請與通知](workspace-invitation-notification.md)。
 
 ## Notification 邊界
 

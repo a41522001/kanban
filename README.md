@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-11（依原始碼、Backend unit tests 與隔離環境 E2E 核對）。
+最後檢視：2026-09-11（依原始碼、Backend unit tests、coverage 與 build 核對；目前 Node 22.18 的 E2E 無法載入排程套件，詳見測試段落）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace 與邀請通知基礎；Project／Board 持久化與即時協作仍待實作。
 
@@ -22,6 +22,7 @@
 - Workspace 建立、列表、切換、成員查詢；後端檢查 membership 與封存狀態。
 - Workspace Owner 可邀請已註冊使用者；邀請與通知在同一 PostgreSQL transaction 建立。
 - Workspace Invitation 已提供發送、接受與拒絕 Backend API；接受流程只在條件式轉為 ACCEPTED 成功後，才於同一 transaction 建立 WorkspaceMember，拒絕流程則條件式轉為 DECLINED。
+- Nest 排程每分鐘批次將 `expiresAt <= now` 的 PENDING invitation 改為 EXPIRED；操作端仍保留 `expiresAt` 條件，避免等待下一輪排程期間接受或拒絕過期邀請。
 - 通知列表、未讀數 API 與前端通知選單。
 - 統一 API response、validation、exception filter、HTTP log redact 與 Swagger。
 - Socket.IO 最小 typed echo。
@@ -81,7 +82,7 @@ pnpm test:backend:e2e
 
 runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth 與 Workspace Invitation E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
 
-2026-09-11 已執行 `pnpm test:backend`：16 suites 通過、1 suite skipped；85 tests 通過、1 test skipped。`pnpm test:backend:e2e` 亦以隔離 PostgreSQL／Redis 執行通過：2 suites、3 tests，覆蓋 Auth lifecycle，以及 Workspace 邀請的接受與拒絕流程。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
+2026-09-11 已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。`pnpm --filter backend build` 通過。加入 `@nestjs/schedule` 12 後，`pnpm test:backend:e2e` 在本機 Node 22.18、Jest 30 的 ESM 載入階段失敗，尚未重新取得本版本的 E2E 綠燈；CI 使用 Node 24，但本次未查詢 CI run。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
 
 ## 文件入口
 

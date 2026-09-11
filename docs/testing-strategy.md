@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-11。已執行 `pnpm test:backend`：16 suites 通過、1 suite skipped；85 tests 通過、1 test skipped。`pnpm test:backend:e2e`：2 suites、3 tests 全部通過。既有 build／type-check 紀錄見 [progress](progress.md)；skipped tests 不計入有效覆蓋。
+最後檢視：2026-09-11。已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過，整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%；`pnpm --filter backend build` 通過。加入 `@nestjs/schedule` 12 後，Node 22.18 的 `pnpm test:backend:e2e` 在 Jest 載入 ESM 前失敗，需先修復後再重新驗收。既有 build／type-check 紀錄見 [progress](progress.md)。
 
 ## 1. 目標
 
@@ -107,14 +107,17 @@ Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方
 - [x] 發送邀請的 Owner／Member／非成員及封存工作區權限。
 - [x] 未註冊 email、自邀、既有 member 與有效 PENDING 邀請。
 - [x] 過期 PENDING 條件更新、更新失敗衝突，以及建立 Invitation／Notification 的 transaction interaction。
+- [x] `expirePendingInvitations` 將時間正確轉交給 Repository，並回傳批次更新筆數。
 - [x] 接受 invitation 的查無 invitation、既有 member、封存 workspace、狀態衝突與成功建立 membership。
 - [x] WorkspaceInvitationController 正確轉交 Session userId、workspaceId／invitationId 與 email，並回傳 invite／accept／decline 成功訊息。
 - [x] 接受與拒絕 invitation 的 Controller、DTO、shared contract 與 Service use case。
 - [ ] 取消 invitation use case 與 Owner 授權。
+- [ ] `WorkspaceInvitationExpirationJob`：固定 UTC 時間後，驗證它呼叫 service、避免重疊的設定，以及 count 大於 0 時的可觀測行為。
+- [ ] 真實 PostgreSQL：過期 PENDING 會批次轉為 EXPIRED，未過期或已回覆 invitation 不變。
 - [ ] 邀請與通知 transaction rollback 的真實 PostgreSQL integration test。
 - [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
 - [ ] 重複接受、接受／拒絕競爭與回覆 API 的 integration／E2E 測試。
-- [x] E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409。
+- [ ] 重新驗收 E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409。排程加入前曾通過，但目前 Node 22.18／Jest 30 在 ESM 載入階段失敗。
 
 WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。WorkspaceInvitationService unit tests 的 transaction mock 會將同一個可辨識 tx 傳入 callback，並驗證 Invitation／Notification 或 membership 寫入收到該 tx。真實 rollback、唯一性與併發仍需 PostgreSQL integration test。
 

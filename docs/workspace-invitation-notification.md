@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-11（依原始碼、Backend unit tests 與隔離環境 E2E）。此文件區分已實作行為與後續目標；Backend happy paths 已驗收，前端回覆操作仍未完成。
+最後核對：2026-09-11（依原始碼、Backend unit tests、coverage 與 build 核對）。此文件區分已實作行為與後續目標；現有 E2E 在 Node 22 載入排程套件時失敗，不能視為本版本的驗收結果。
 
 ## 已實作流程
 
@@ -21,6 +21,8 @@
 2. 僅在更新筆數為 1 時建立 WorkspaceMember；狀態已變更、失效或非受邀者都不會建立 membership。
 
 `POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。Backend 接受／拒絕 API 已完成，前端操作與 Owner 取消邀請仍未實作。
+
+`WorkspaceInvitationExpirationJob` 由 `ScheduleModule.forRoot()` 註冊，每分鐘執行一次。它呼叫 service／repository，以 `status=PENDING AND expiresAt<=now` 做 `updateMany`，將所有符合條件的 invitation 更新為 EXPIRED。`waitForCompletion: true` 只避免同一個 Nest process 的重疊執行；多 instance 下仍可能同時掃描，但更新是冪等的。接受／拒絕的條件式更新仍保留 `expiresAt>now`，因此排程尚未跑到的剛過期邀請也不能被回覆。
 
 ## Transaction 與併發限制
 
@@ -51,23 +53,23 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 | 狀態 | 目前程式是否會寫入 |
 | --- | --- |
 | PENDING | 建立邀請時預設 |
-| EXPIRED | 再次邀請遇到已到期的 PENDING 時條件更新 |
+| EXPIRED | 每分鐘排程批次更新；再次邀請遇到已到期 PENDING 時也會條件更新作為即時 fallback |
 | ACCEPTED | `POST /workspaceInvitation/accept` 條件更新，並在同一 transaction 建立 WorkspaceMember |
 | DECLINED | `POST /workspaceInvitation/decline` 條件更新，不建立 WorkspaceMember |
 | CANCELED | 僅 enum／schema 預留，尚無取消流程 |
 
-沒有到期排程；超過 expiresAt 不會自動改變 status。接受與拒絕成功時都會寫入 respondedAt；CANCELED 仍未有寫入流程。
+排程是 eventual consistency：邀請實體狀態最晚在下一分鐘掃描後才變為 EXPIRED，不保證時間一到立刻變更。接受與拒絕成功時都會寫入 respondedAt；CANCELED 仍未有寫入流程。
 
 ## 後續交付與驗收
 
 - 補 Owner 取消邀請 API，以及前端接受／拒絕／取消操作。
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
 - 補通知單筆／全部已讀、query DTO、前端回覆與分頁操作。
-- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；仍需並行發送與真實資料庫測試。
+- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
 - Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
 
-2026-09-11 執行 `pnpm test:backend`：WorkspaceInvitationService 已覆蓋發送、接受與拒絕的主要 branches，WorkspaceInvitationController spec 已覆蓋 invite／accept／decline。`pnpm test:backend:e2e` 的 WorkspaceInvitation suite 已驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
+2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。加入 `@nestjs/schedule` 12 後，`pnpm test:backend:e2e` 在本機 Node 22.18／Jest 30 載入 ESM 模組時失敗，尚未重新驗收邀請 suite；NotificationController spec 仍為 skipped。
 
 ## 模組依賴
 
