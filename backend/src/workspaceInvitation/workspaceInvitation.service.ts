@@ -54,6 +54,13 @@ export class WorkspaceInvitationService {
     return this.workspaceInvitationRepository.createInvitation(data, tx);
   }
 
+  /** 標記邀請為過期(全部) */
+  async expirePendingInvitations(now: Date): Promise<number> {
+    const result =
+      await this.workspaceInvitationRepository.expirePendingInvitations(now);
+    return result.count;
+  }
+
   /** 標記為過期 */
   async markExpired(
     invitationId: string,
@@ -194,6 +201,7 @@ export class WorkspaceInvitationService {
       });
     }
   }
+
   /** 邀請成員 */
   async inviteMember(
     inviterUserId: string,

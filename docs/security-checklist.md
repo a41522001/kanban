@@ -44,7 +44,8 @@
 - [x] 目前 protected HTTP controller 從 SessionGuard 取得 userId，不接受 body 內的 userId 作為身分。
 - [x] `GET /workspaces/:workspaceId/members` 已在 Service 檢查呼叫者 membership 與 archivedAt，無存取權回 404（2026-09-08 靜態核對）。
 - [x] 發送 Workspace 邀請已檢查未封存工作區的 OWNER 身分；通知讀取依 Session userId 隔離。
-- [ ] 補邀請 PENDING 唯一性、並行發送測試與接受／拒絕授權。
+- [x] 接受／拒絕邀請的條件式更新會綁定 Session userId、invitationId、PENDING status 與 expiresAt，非受邀者不會改變狀態。
+- [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
 - [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。

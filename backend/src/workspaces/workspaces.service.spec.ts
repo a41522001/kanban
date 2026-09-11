@@ -27,6 +27,7 @@ describe('WorkspacesService', () => {
     workspacesService = module.get(WorkspacesService);
     workspacesRepository = module.get(WorkspacesRepository);
   });
+
   /** 取得工作區資訊 by id */
   describe('getById', () => {
     const userId = 'user1';

@@ -14,7 +14,7 @@
 
 ## 目前實作邊界
 
-2026-09-08 靜態核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification 已有 schema／migration。Workspace 建立／讀取／成員授權及邀請發送已實作；邀請接受／拒絕尚未完成。Project 起的資料模型、權限表與 command 均為目標設計。現行流程見[邀請與通知](workspace-invitation-notification.md)。
+2026-09-11 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕 Backend API 已實作並通過對應 E2E happy paths；取消邀請與前端回覆尚未完成。Project 起的資料模型、權限表與 command 均為目標設計。現行流程見[邀請與通知](workspace-invitation-notification.md)。
 
 ## 2. 第一版 Domain
 

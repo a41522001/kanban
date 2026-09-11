@@ -56,6 +56,7 @@ describe('WorkspaceInvitationService', () => {
           useValue: {
             getById: jest.fn(),
             markDeclined: jest.fn(),
+            expirePendingInvitations: jest.fn(),
           },
         },
       ],
@@ -81,11 +82,26 @@ describe('WorkspaceInvitationService', () => {
     expect(workspaceInvitationRepository).toBeDefined();
   });
 
-  // /** 取得工作區所有成員的邀請*/
+  /** 取得工作區所有成員的邀請*/
   describe('getMemberInvitationByWorkspace', () => {});
 
   /** 尋找Status為 PENDING的資料 by workspaceId & invitee */
   describe('findPendingByWorkspaceAndInvitee', () => {});
+
+  /** 標記邀請為過期(全部) */
+  describe('expirePendingInvitations', () => {
+    it('更改成功2筆', async () => {
+      const expirePendingInvitationsSpy = jest
+        .spyOn(workspaceInvitationRepository, 'expirePendingInvitations')
+        .mockResolvedValueOnce({ count: 2 });
+      const now = new Date('2026-09-09T00:00:00.000Z');
+      const result =
+        await workspaceInvitationService.expirePendingInvitations(now);
+      expect(result).toEqual(2);
+      expect(expirePendingInvitationsSpy).toHaveBeenCalledTimes(1);
+      expect(expirePendingInvitationsSpy).toHaveBeenCalledWith(now);
+    });
+  });
 
   /** 接受邀請並加入成員 */
   describe('acceptedInvitationAndCreateMember', () => {
