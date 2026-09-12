@@ -9,7 +9,7 @@
   </defs>
   <rect width="1520" height="1000" fill="#E9ECF1"/>
   <text x="40" y="52" class="spec">NOTIFICATION DROPDOWN / RUNTIME STATES</text>
-  <text x="40" y="84" class="body" fill="#697287">HTTP read model：列表與未讀數。暫不顯示尚未提供 API 的已讀、接受或拒絕操作。</text>
+  <text x="40" y="84" class="body" fill="#697287">HTTP read model：列表、未讀數與已讀操作。Loading／Error 停用已讀動作；Empty 顯示 0 則未讀。</text>
 
   <g id="loading" transform="translate(40 132)">
     <text y="-16" class="title">Loading</text><rect width="400" height="350" rx="18" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>

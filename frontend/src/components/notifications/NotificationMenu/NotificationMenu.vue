@@ -26,16 +26,32 @@
             {{ t('notification.title') }}
           </h2>
 
-          <span v-if="isLoading" class="notification-menu__state-label">
-            {{ t('notification.loading') }}
-          </span>
-          <span v-else-if="hasLoadError" class="notification-menu__state-label">
-            {{ t('notification.unavailable') }}
-          </span>
-          <Badge v-else class="notification-menu__count-badge">
-            {{ t('notification.unreadCount', { count: unreadCount }) }}
-          </Badge>
+          <div class="notification-menu__header-actions">
+            <span v-if="isLoading" class="notification-menu__state-label">
+              {{ t('notification.loading') }}
+            </span>
+            <span v-else-if="hasLoadError" class="notification-menu__state-label">
+              {{ t('notification.unavailable') }}
+            </span>
+            <Badge v-else class="notification-menu__count-badge">
+              {{ t('notification.unreadCount', { count: unreadCount }) }}
+            </Badge>
+            <NotificationReadAction
+              v-if="showMarkAllReadAction"
+              scope="all"
+              :state="markAllReadState"
+              @click="markAllRead"
+            />
+          </div>
         </header>
+
+        <p
+          v-if="markAllReadState === 'error'"
+          class="notification-menu__read-error"
+          role="alert"
+        >
+          {{ t('notification.readActions.errorDescription') }}
+        </p>
 
         <div class="notification-menu__divider"></div>
 
@@ -89,9 +105,11 @@
                   :created-at-label="item.createdAtLabel"
                   :expires-at-label="item.expiresAtLabel"
                   :is-unread="item.isUnread"
+                  :read-state="getNotificationReadState(item.id)"
                   :state="getInvitationState(item)"
                   @accept="respondToInvitation(item, 'accept')"
                   @decline="respondToInvitation(item, 'decline')"
+                  @mark-read="markNotification(item.id)"
                   @reload="reloadInvitation(item.id)"
                   @open-workspace="openWorkspace(item)"
                 />
@@ -104,6 +122,8 @@
                   :created-at="item.createdAt"
                   :created-at-label="item.createdAtLabel"
                   :is-unread="item.isUnread"
+                  :read-state="getNotificationReadState(item.id)"
+                  @mark-read="markNotification(item.id)"
                 />
               </li>
             </ul>
@@ -130,6 +150,7 @@ import NotificationItem from '@/components/notifications/NotificationItem/Notifi
 import WorkspaceInvitationResponseCard from '@/components/notifications/WorkspaceInvitationResponseCard/WorkspaceInvitationResponseCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import NotificationReadAction from '@/components/notifications/NotificationReadAction/NotificationReadAction.vue';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,11 +206,20 @@ const { locale, t } = useI18n();
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const workspaceStore = useWorkspaceStore();
-const { hasLoadError, isLoading, notifications, unreadCount } = storeToRefs(notificationStore);
+const {
+  hasLoadError,
+  isLoading,
+  notifications,
+  unreadCount,
+  notificationReadStates,
+  markAllReadState,
+} = storeToRefs(notificationStore);
 const {
   clearInvitationResponseState,
   getInvitationResponseState,
   loadUnreadCount,
+  markAllNotificationsRead,
+  markNotificationRead,
   refreshNotifications,
   setInvitationResponseState,
 } = notificationStore;
@@ -339,6 +369,35 @@ const notificationItems = computed<NotificationItemView[]>(() => {
   });
 });
 
+const showMarkAllReadAction = computed(
+  () =>
+    !isLoading.value &&
+    !hasLoadError.value &&
+    notificationItems.value.length > 0 &&
+    (unreadCount.value > 0 || markAllReadState.value !== 'default'),
+);
+
+const getNotificationReadState = (notificationId: string) => {
+  return notificationReadStates.value[notificationId] ?? 'default';
+};
+
+const markNotification = async (notificationId: string) => {
+  try {
+    await markNotificationRead(notificationId);
+  } catch (error: unknown) {
+    toast.error(getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'));
+  }
+};
+
+const markAllRead = async () => {
+  try {
+    await markAllNotificationsRead();
+    toast.success(t('notification.readActions.complete'));
+  } catch (error: unknown) {
+    toast.error(getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'));
+  }
+};
+
 const getInvitationState = (item: WorkspaceInvitationItem): WorkspaceInvitationResponseState => {
   const storedState = getInvitationResponseState(item.id);
   if (storedState) {
@@ -370,6 +429,7 @@ const respondToInvitation = async (
     if (action === 'accept') {
       await acceptWorkspaceInvitationApi(request);
       setInvitationResponseState(item.id, 'accepted');
+      await markNotification(item.id);
       await loadWorkspaces();
       if (
         item.workspaceId &&
@@ -383,6 +443,7 @@ const respondToInvitation = async (
 
     await declineWorkspaceInvitationApi(request);
     setInvitationResponseState(item.id, 'declined');
+    await markNotification(item.id);
     toast.success(t('notification.workspaceInvited.declinedToast'));
   } catch (error: unknown) {
     if (getApiErrorResponse(error)?.code === ApiCode.ResourceNotFound) {

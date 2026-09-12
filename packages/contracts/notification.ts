@@ -70,3 +70,7 @@ export type PublicNotification = {
     payload: NotificationPayloadMap[TType];
   };
 }[NotificationType];
+
+export interface MarkReadRequest {
+  notificationId: string;
+}

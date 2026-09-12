@@ -13,7 +13,7 @@ const mountCard = (state: WorkspaceInvitationResponseState = 'pending') => {
       createdAt: '2026-09-12T00:00:00.000Z',
       createdAtLabel: '5 分鐘前',
       expiresAtLabel: '邀請將於 7 天後到期',
-      isUnread: true,
+      isUnread: state === 'pending',
       state,
     },
     global: {
@@ -25,7 +25,8 @@ const mountCard = (state: WorkspaceInvitationResponseState = 'pending') => {
 describe('WorkspaceInvitationResponseCard', () => {
   it('顯示邀請內容並送出接受或婉拒事件', async () => {
     const wrapper = mountCard();
-    const buttons = wrapper.findAll('button');
+    const buttons = wrapper.findAll('.workspace-invitation-card__action');
+    const readButton = wrapper.get('.notification-read-action');
 
     expect(wrapper.text()).toContain('Mia 邀請你加入「產品開發中心」');
     expect(wrapper.text()).toContain('邀請將於 7 天後到期');
@@ -33,14 +34,16 @@ describe('WorkspaceInvitationResponseCard', () => {
 
     await buttons[0]?.trigger('click');
     await buttons[1]?.trigger('click');
+    await readButton.trigger('click');
 
     expect(wrapper.emitted('accept')).toHaveLength(1);
     expect(wrapper.emitted('decline')).toHaveLength(1);
+    expect(wrapper.emitted('markRead')).toHaveLength(1);
   });
 
   it('處理中鎖定兩個動作並顯示目前操作', () => {
     const wrapper = mountCard('accepting');
-    const buttons = wrapper.findAll('button');
+    const buttons = wrapper.findAll('.workspace-invitation-card__action');
 
     expect(wrapper.text()).toContain('正在接受「產品開發中心」的工作區邀請');
     expect(buttons[0]?.attributes('disabled')).toBeDefined();
@@ -50,7 +53,7 @@ describe('WorkspaceInvitationResponseCard', () => {
 
   it('接受後提供前往工作區的下一步', async () => {
     const wrapper = mountCard('accepted');
-    const button = wrapper.get('button');
+    const button = wrapper.get('.workspace-invitation-card__workspace-link');
 
     expect(wrapper.text()).toContain('你已加入「產品開發中心」');
     expect(button.text()).toContain('前往工作區');
@@ -65,7 +68,8 @@ describe('WorkspaceInvitationResponseCard', () => {
 
     expect(wrapper.text()).toContain('已婉拒「產品開發中心」的邀請');
     expect(wrapper.text()).toContain('這則邀請已完成回覆');
-    expect(wrapper.find('button').exists()).toBe(false);
+    expect(wrapper.find('.workspace-invitation-card__action').exists()).toBe(false);
+    expect(wrapper.find('.notification-read-action').exists()).toBe(false);
   });
 
   it('錯誤時顯示可重新載入的回復操作', async () => {

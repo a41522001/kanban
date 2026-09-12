@@ -1,5 +1,11 @@
 <template>
-  <article class="notification-item" :class="{ 'notification-item--unread': isUnread }">
+  <article
+    class="notification-item"
+    :class="{
+      'notification-item--unread': isUnread,
+      'notification-item--has-read-action': isUnread || readState === 'processing' || readState === 'error',
+    }"
+  >
     <span class="notification-item__avatar" aria-hidden="true">
       {{ actorInitial }}
     </span>
@@ -13,16 +19,19 @@
       </time>
     </div>
 
-    <span
-      v-if="isUnread"
-      class="notification-item__unread-dot"
-      :aria-label="t('notification.unread')"
-    ></span>
+    <NotificationReadAction
+      v-if="isUnread || readState === 'processing' || readState === 'error'"
+      class="notification-item__read-action"
+      scope="single"
+      :state="readState"
+      @click="emit('markRead')"
+    />
   </article>
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
+import NotificationReadAction from '@/components/notifications/NotificationReadAction/NotificationReadAction.vue';
+import type { NotificationReadActionState } from '@/types/notification';
 
 interface Props {
   actorInitial: string;
@@ -32,11 +41,14 @@ interface Props {
   createdAt: string;
   createdAtLabel: string;
   isUnread: boolean;
+  readState?: NotificationReadActionState;
 }
 
 defineProps<Props>();
+const emit = defineEmits<{
+  markRead: [];
+}>();
 
-const { t } = useI18n();
 </script>
 
 <style scoped src="./NotificationItem.css"></style>

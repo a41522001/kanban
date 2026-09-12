@@ -4,9 +4,28 @@
     :class="[
       `workspace-invitation-card--${state}`,
       { 'workspace-invitation-card--unread': isUnread && state === 'pending' },
+      {
+        'workspace-invitation-card--has-read-action':
+          state !== 'error' &&
+          ((state === 'pending' && isUnread) ||
+            readState === 'processing' ||
+            readState === 'error'),
+      },
     ]"
     :aria-live="state === 'pending' ? undefined : 'polite'"
   >
+    <NotificationReadAction
+      v-if="
+        state !== 'error' &&
+        ((state === 'pending' && isUnread) ||
+          readState === 'processing' ||
+          readState === 'error')
+      "
+      class="workspace-invitation-card__read-action"
+      scope="single"
+      :state="readState"
+      @click="emit('markRead')"
+    />
     <template v-if="state === 'error'">
       <span class="workspace-invitation-card__error-icon" aria-hidden="true">
         <CircleAlert :size="20" :stroke-width="2" />
@@ -99,6 +118,8 @@ import { computed } from 'vue';
 import { ArrowRight, Check, CircleAlert, X } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
+import NotificationReadAction from '@/components/notifications/NotificationReadAction/NotificationReadAction.vue';
+import type { NotificationReadActionState } from '@/types/notification';
 import type { WorkspaceInvitationResponseState } from '@/types/workspaceInvitation';
 
 interface Props {
@@ -109,6 +130,7 @@ interface Props {
   createdAtLabel: string;
   expiresAtLabel?: string;
   isUnread: boolean;
+  readState?: NotificationReadActionState;
   state: WorkspaceInvitationResponseState;
 }
 
@@ -116,6 +138,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   accept: [];
   decline: [];
+  markRead: [];
   reload: [];
   openWorkspace: [];
 }>();

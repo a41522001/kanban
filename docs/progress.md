@@ -33,11 +33,11 @@
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
 | Workspace Invitation | 已完成發送、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
-| Frontend Invitation／Notification | 已完成邀請回覆第一版 | 邀請 Dialog、通知列表、未讀 badge、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；未知 email 顯示欄位錯誤，失去的邀請資源會重新同步通知；已讀與分頁操作尚未完成 |
+| Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；已拆出 `NotificationReadAction` 共用元件，未知 email 顯示欄位錯誤，失去的邀請資源會重新同步通知 |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
-| Notification read model | 已完成最小版本 | Notification schema、migration、shared contract、收件者列表與未讀數 API 已完成；邀請流程已呼叫內部 Service 建立通知；Service 已有已讀方法，但 Controller／HTTP endpoint 尚未開放 |
+| Notification read model | 已完成最小版本 | Notification schema、migration、shared contract、收件者列表、未讀數與單筆／全部已讀 API 已完成；邀請流程已呼叫內部 Service 建立通知，前端已串接並同步未讀狀態 |
 | Board／Project domain | 尚未開始 | 依 domain 與 WebSocket spec 實作 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
@@ -52,6 +52,7 @@
 - Frontend production build 於 2026-09-04 執行 `pnpm --filter frontend build` 通過。
 - 2026-09-12 以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite build：8 個 frontend test files、25 個 tests 全數通過，type-check／lint／production build 亦通過。Playwright CLI 以攔截的本機 API 假資料驗證桌面邀請卡、接受成功、工作區清單更新及 375px 響應式畫面。
 - 2026-09-12 變更 frontend HTTP error handling 後，使用 Node 24.13 執行 `pnpm --filter frontend type-check` 與 `pnpm --filter frontend test:unit --run`：8 個 test files、25 個 tests 全數通過。Vite 顯示既有 `configLoader: 'native'` 未來相容性提醒，與測試結果及本次修改無關。
+- 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；列表狀態與未讀 badge 會即時更新，邀請回覆成功後同步標記該通知為已讀。
 - 尚未有 Playwright Auth flow；瀏覽器層的 signup → login → refresh → logout 仍是待辦。
 - 2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 全部通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。WorkspaceInvitationService spec 覆蓋發送、接受、拒絕與排程呼叫的 service delegation；Controller spec 覆蓋 invite／accept／decline 的參數轉交與回應。排程 job class 本身尚無 spec，因此該檔 coverage 為 0%。
 - 2026-09-11 執行 `pnpm --filter backend build` 通過。
@@ -67,7 +68,7 @@
 
 1. 補 expiration job unit test 與真實資料庫過期批次更新測試。
 2. 完成邀請取消；補 PENDING 邀請的資料庫唯一性、前端接受／拒絕 E2E、錯誤授權 E2E 與併發衝突處理。
-3. 補 Notification 的單筆已讀、全部已讀、列表 query filters，以及通知未讀數／收件匣隔離／transaction rollback E2E。
+3. 補 Notification 的列表 query filters，以及通知收件匣隔離／transaction rollback E2E；已讀 API 的基礎前端流程已完成。
 4. 建立 Project read model（後端 API 與前端專案清單），讓 Workspace overview 的專案區可使用真實資料。
 5. 將同一套 Session 驗證接到 Socket.IO handshake，之後才讓已持久化的通知以 Socket.IO 即時推送。
 

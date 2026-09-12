@@ -97,9 +97,9 @@ npm run build
 - 畫面與 Current SVG 在層級、間距、文案和 responsive 結構上相符。
 - 第二次執行 `Generate All` 不會建立重複 generated roots。
 
-## 8. Current v5 基準
+## 8. Current v6 基準
 
-目前 Generator 的可見版本為 `v5`。v3 已驗證可在 Figma Desktop 產生 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆：
+目前 Generator 的可見版本為 `v6`。v3 已驗證可在 Figma Desktop 產生 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作：
 
 - `Workspace Invite Dialog / Desktop`
 - `Workspace Invite Dialog / Mobile`
@@ -111,7 +111,18 @@ npm run build
 - `Workspace Invitation Response` → Desktop／Mobile × Pending／Responding／Accepted／Declined／Error variants
 - `Notification Dropdown` → Desktop／Mobile Invitation variants
 - `03 · Screens` → `Workspace Invitation Response` Desktop／Mobile／states screens
+- `Notification Read Action` → Desktop／Mobile × Single／All × Default／Processing／Complete／Error variants
+- `03 · Screens` → `Notifications` Read Actions／States screen
 
 Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`shared/Input` 與 `shared/FormField`。Notification Dropdown 對應 `notifications/NotificationMenu`，底層使用 `shadcn-vue/DropdownMenu`、`Badge`、`ScrollArea` 與 `Skeleton`。
 
-2026-09-11 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v5 `Generate All`。兩次皆成功產生 Foundations、Components 與 Screens；`Workspace Invitation Response` Component Set 可見 Desktop／Mobile 與 Pending／Responding／Accepted／Declined／Error properties，Screens 可找到 Desktop／Mobile／States 且使用 Instances。第二次搜尋結果仍為 Components 4 筆、Screens 13 筆，未累積重複 generated roots；Desktop Screen 已完成 runtime／visual check。
+2026-09-12 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v6 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，並確認 `Notification Read Action` Component Set 與 `Notification Read Actions / States` Screen 已建立，未累積重複 generated roots。
+
+## 9. 前端落地與手動驗收
+
+v6 已對應到前端通知功能：
+
+- `frontend/src/components/notifications/NotificationReadAction/` 提供單筆／全部已讀的共用操作元件，包含 processing、complete、error／retry 狀態。
+- `NotificationMenu`、`NotificationItem` 與 `WorkspaceInvitationResponseCard` 已透過 Notification Store 串接 `PATCH /notifications/read` 與 `PATCH /notifications/readAll`，成功後原地同步 readAt、未讀數與 Bell badge。
+- 接受／婉拒工作區邀請成功後，前端會另外標記該通知為已讀；回覆狀態與已讀狀態仍分開管理。
+- 2026-09-12 手動驗收通過：單筆已讀、全部已讀、接受邀請、婉拒邀請四項流程皆可正常完成。

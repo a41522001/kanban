@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-11。已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過，整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%；`pnpm --filter backend build` 通過。專案以 `.nvmrc` 固定 Node 24.13，並以該版本執行 `pnpm test:backend:e2e`：2 suites、3 tests 通過。既有 build／type-check 紀錄見 [progress](progress.md)。
+最後檢視：2026-09-12。既有 Backend coverage、build 與 Node 24.13 E2E 紀錄見 [progress](progress.md)；前端 type-check、unit tests、lint、production build 均通過，通知單筆／全部已讀及邀請接受／婉拒流程另已手動驗收通過。
 
 ## 1. 目標
 
@@ -99,7 +99,7 @@
 - [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
 
-Notification 目前開放讀取 API，邀請流程已呼叫內部建立通知方法；已讀仍只有 Repository 方法。Notification 兩個 scaffold specs 為 skipped，不計入有效覆蓋。
+Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程已呼叫內部建立通知方法。`markReadInvitation.e2e.spec.ts` 已建立，仍待在隔離 PostgreSQL／Redis 環境實際執行；目前不把它計入通過覆蓋。前端單筆已讀、全部已讀、接受與婉拒流程已於 2026-09-12 手動驗收通過。
 
 ### Workspace Invitation
 
@@ -160,7 +160,7 @@ REDIS_URL=redis://localhost:6379/1
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
-目前 E2E 分為 `auth.e2e.spec.ts` 與 `workspaceInvitation.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
+目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts` 與新增的 `markReadInvitation.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受；已讀 suite 覆蓋單筆與全部已讀的 API 情境，尚待實際執行。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
 
 ## 5. Test Data Factory
 

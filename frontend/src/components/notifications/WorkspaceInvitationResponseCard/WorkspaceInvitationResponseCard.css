@@ -42,6 +42,10 @@
   @apply min-w-0 flex-1;
 }
 
+.workspace-invitation-card--has-read-action .workspace-invitation-card__copy {
+  @apply pr-10;
+}
+
 .workspace-invitation-card__meta {
   @apply flex min-w-0 flex-wrap items-center justify-between gap-1.5 pr-3;
 }
@@ -105,8 +109,8 @@
   @apply mt-3;
 }
 
-.workspace-invitation-card__unread-dot {
-  @apply absolute top-4 right-4 size-2 rounded-full bg-action-primary;
+.workspace-invitation-card__read-action {
+  @apply absolute top-3 right-3;
 }
 
 @media (max-width: 380px) {

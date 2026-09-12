@@ -10,6 +10,8 @@ type Direction = 'HORIZONTAL' | 'VERTICAL';
 type ColorMap = Record<string, string>;
 type NotificationViewport = 'Desktop' | 'Mobile';
 type NotificationState = 'Default' | 'Invitation' | 'Loading' | 'Empty' | 'Error';
+type NotificationReadScope = 'Single' | 'All';
+type NotificationReadState = 'Default' | 'Processing' | 'Complete' | 'Error';
 type InvitationResponseState = 'Pending' | 'Responding' | 'Accepted' | 'Declined' | 'Error';
 
 interface TokenStore {
@@ -200,8 +202,8 @@ function text(name: string, content: string, style: keyof typeof typeScale = 'Bo
   return node;
 }
 
-function icon(name: string, svgBody: string, size: number, colorName = 'text/secondary'): FrameNode {
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">${svgBody.replaceAll('currentColor', colors[colorName])}</svg>`;
+function icon(name: string, svgBody: string, size: number, colorName = 'text/secondary', viewBox = '0 0 24 24'): FrameNode {
+  const svg = `<svg width="${size}" height="${size}" viewBox="${viewBox}" fill="none" xmlns="http://www.w3.org/2000/svg">${svgBody.replaceAll('currentColor', colors[colorName])}</svg>`;
   const node = figma.createNodeFromSvg(svg);
   node.name = name;
   node.resize(size, size);
@@ -660,10 +662,68 @@ function notificationTriggerVariant(state: 'Default' | 'Unread' | 'Open'): Compo
   return trigger;
 }
 
+function notificationReadActionVariant(
+  viewport: NotificationViewport,
+  scope: NotificationReadScope,
+  state: NotificationReadState,
+): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const compact = scope === 'Single';
+  const width = compact ? (mobile ? 44 : 40) : (mobile ? 138 : 132);
+  const height = compact ? (mobile ? 44 : 40) : 32;
+  const action = figma.createComponent();
+  action.name = `Viewport=${viewport}, Scope=${scope}, State=${state}`;
+  action.description = compact
+    ? 'Notification single read action · aria-label: 標記為已讀 · Desktop tooltip / Mobile 44px touch target'
+    : 'Notification bulk read action · aria-live completion feedback · disabled while processing';
+  action.layoutMode = 'HORIZONTAL';
+  action.primaryAxisAlignItems = 'CENTER';
+  action.counterAxisAlignItems = 'CENTER';
+  action.itemSpacing = 6;
+  fixed(action, width, height);
+  setPadding(action, compact ? 8 : 6, compact ? 8 : 10);
+  setRadius(action, 'radius/md');
+
+  const tone = state === 'Complete'
+    ? 'category/mint'
+    : state === 'Error'
+      ? 'feedback/danger'
+      : 'text/secondary';
+  const background = state === 'Complete'
+    ? 'category/mint-soft'
+    : state === 'Error'
+      ? 'feedback/danger-soft'
+      : 'bg/surface';
+  applyFill(action, background);
+  applyStroke(action, state === 'Error' ? 'feedback/danger' : 'border/default');
+  if (state === 'Processing') action.opacity = 0.58;
+
+  const iconBody = state === 'Processing'
+    ? '<path d="M12 3a9 9 0 1 0 9 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+    : state === 'Error'
+      ? '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      : '<path d="m2 8 4 4L14 4M10 12l2 2 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  const iconViewBox = state === 'Processing' || state === 'Error' ? '0 0 24 24' : '0 0 20 20';
+  action.appendChild(icon('Read action icon', iconBody, compact ? 18 : 16, tone, iconViewBox));
+
+  if (!compact) {
+    const label = state === 'Processing'
+      ? '處理中'
+      : state === 'Complete'
+        ? '已全部讀取'
+        : state === 'Error'
+          ? scope === 'All' ? '全部設為已讀' : '再試一次'
+          : '全部設為已讀';
+    action.appendChild(text('Action label', label, 'Label / Small', tone === 'text/secondary' ? 'text/primary' : tone));
+  }
+  return action;
+}
+
 function notificationItemVariant(viewport: NotificationViewport, state: 'Unread' | 'Read'): ComponentNode {
   const mobile = viewport === 'Mobile';
   const width = mobile ? 326 : 368;
   const height = state === 'Unread' ? (mobile ? 150 : 140) : (mobile ? 126 : 120);
+  const actionWidth = mobile ? 44 : 40;
   const item = figma.createComponent();
   item.name = `Viewport=${viewport}, State=${state}`;
   item.description = 'Notification item · WORKSPACE_INVITED payload · Avatar + semantic copy + timestamp';
@@ -683,7 +743,7 @@ function notificationItemVariant(viewport: NotificationViewport, state: 'Unread'
   avatar.appendChild(text('Actor initial', state === 'Unread' ? 'J' : 'M', 'Label / Medium', state === 'Unread' ? 'text/on-dark' : 'text/primary'));
   item.appendChild(avatar);
 
-  const copyWidth = width - 40 - 12 - 28;
+  const copyWidth = width - 40 - 12 - 28 - actionWidth - 8;
   const copy = auto('Notification copy', 'VERTICAL', { gap: 6 });
   fixed(copy, copyWidth, height - 28);
   const eyebrow = text('Type label', state === 'Unread' ? '工作區邀請' : '工作區動態', 'Label / Small', state === 'Unread' ? 'category/coral' : 'text/secondary');
@@ -700,17 +760,27 @@ function notificationItemVariant(viewport: NotificationViewport, state: 'Unread'
     body.resize(copyWidth, 36);
     copy.appendChild(body);
   }
-  copy.appendChild(text('Created at', state === 'Unread' ? '剛剛' : '昨天', 'Body / Small', 'text/secondary'));
+  copy.appendChild(text('Created at', state === 'Unread' ? '剛剛' : '昨天 · 已讀', 'Body / Small', 'text/secondary'));
   item.appendChild(copy);
 
   if (state === 'Unread') {
+    const readAction = instance(
+      componentVariant('Notification Read Action', `Viewport=${viewport}, Scope=Single, State=Default`),
+      'Mark as read action',
+    );
+    fixed(readAction, actionWidth, actionWidth);
+    item.appendChild(readAction);
+    readAction.layoutPositioning = 'ABSOLUTE';
+    readAction.x = width - actionWidth - 14;
+    readAction.y = 14;
+
     const dot = figma.createEllipse();
     dot.name = 'Unread indicator';
     dot.resize(8, 8);
     applyFill(dot, 'action/primary');
     item.appendChild(dot);
     dot.layoutPositioning = 'ABSOLUTE';
-    dot.x = width - 20;
+    dot.x = width - actionWidth - 28;
     dot.y = 18;
   }
   return item;
@@ -916,9 +986,16 @@ function notificationDropdownVariant(viewport: NotificationViewport, state: Noti
   header.counterAxisAlignItems = 'CENTER';
   header.appendChild(text('Title', '通知', 'Heading / H3'));
   if (state === 'Default' || state === 'Invitation') {
+    const headerActions = auto('Notification header actions', 'HORIZONTAL', { gap: 8 });
+    headerActions.counterAxisAlignItems = 'CENTER';
     const count = auto('Unread count', 'HORIZONTAL', { padding: [5, 10], fill: 'action/primary-soft', radius: 'radius/full' });
     count.appendChild(text('Count label', state === 'Invitation' ? '1 則未讀' : '2 則未讀', 'Label / Small', 'category/coral'));
-    header.appendChild(count);
+    headerActions.appendChild(count);
+    headerActions.appendChild(instance(
+      componentVariant('Notification Read Action', `Viewport=${viewport}, Scope=All, State=Default`),
+      'Mark all as read action',
+    ));
+    header.appendChild(headerActions);
   } else {
     header.appendChild(text('State label', state === 'Loading' ? '載入中' : state === 'Empty' ? '0 則未讀' : '暫時無法顯示', 'Body / Small', 'text/secondary'));
   }
@@ -1052,6 +1129,20 @@ async function buildComponents(replace = true): Promise<FrameNode> {
     notificationTriggerRow,
   );
 
+  const notificationReadActionRow = auto('Notification Read Action', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(notificationReadActionRow);
+  componentSets['Notification Read Action'] = componentSet(
+    'Notification Read Action',
+    (['Desktop', 'Mobile'] as const).flatMap((viewport) =>
+      (['Single', 'All'] as const).flatMap((scope) =>
+        (['Default', 'Processing', 'Complete', 'Error'] as const).map((state) =>
+          notificationReadActionVariant(viewport, scope, state),
+        ),
+      ),
+    ),
+    notificationReadActionRow,
+  );
+
   const notificationItemRow = auto('Notification Item', 'HORIZONTAL', { gap: 24 });
   root.appendChild(notificationItemRow);
   componentSets['Notification Item'] = componentSet(
@@ -1124,7 +1215,7 @@ function localComponent(name: string): ComponentNode | undefined {
 }
 
 async function hydrateComponentCache(): Promise<void> {
-  if (componentSets.Button && componentSets['Task Card'] && componentSets['Notification Dropdown'] && componentSets['Workspace Invitation Response']) return;
+  if (componentSets.Button && componentSets['Task Card'] && componentSets['Notification Read Action'] && componentSets['Notification Dropdown'] && componentSets['Workspace Invitation Response']) return;
   const page = figma.root.children.find((candidate) => candidate.name === '02 · Components');
   if (!page) return;
   await figma.setCurrentPageAsync(page);
@@ -1556,7 +1647,7 @@ function notificationDropdownStatesScreen(): FrameNode {
   const screen = auto('Notification Dropdown / States / 1440×900', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
   fixed(screen, 1440, 900);
   screen.appendChild(text('Title', 'NOTIFICATION DROPDOWN / RUNTIME STATES', 'Heading / H2'));
-  screen.appendChild(text('Description', '目前 HTTP read model 支援列表與未讀數；狀態不包含尚未提供 API 的已讀、接受或拒絕操作。', 'Body / Medium', 'text/secondary'));
+  screen.appendChild(text('Description', 'HTTP read model 支援列表、未讀數與已讀操作；Loading／Error 停用已讀動作，Empty 顯示 0 則未讀。', 'Body / Medium', 'text/secondary'));
 
   const states = auto('Dropdown states', 'HORIZONTAL', { gap: 24 });
   (['Loading', 'Empty', 'Error'] as const).forEach((state) => {
@@ -1575,6 +1666,96 @@ function notificationDropdownStatesScreen(): FrameNode {
     triggers.appendChild(sample);
   });
   screen.appendChild(triggers);
+  return screen;
+}
+
+function notificationReadActionStatePanel(
+  viewport: NotificationViewport,
+  scope: NotificationReadScope,
+  state: NotificationReadState,
+  label: string,
+): FrameNode {
+  const panelWidth = scope === 'Single' ? 248 : 320;
+  const panel = auto(`State / ${label}`, 'VERTICAL', { gap: 12, padding: [16], fill: 'bg/surface', radius: 'radius/lg' });
+  fixed(panel, panelWidth, 174);
+  panel.appendChild(text('State label', label, 'Label / Medium'));
+
+  const preview = auto('Read action preview', 'HORIZONTAL', { gap: 12, padding: [10], fill: 'bg/subtle', radius: 'radius/md' });
+  fixed(preview, panelWidth - 32, 62);
+  preview.counterAxisAlignItems = 'CENTER';
+  preview.appendChild(instance(
+    componentVariant('Notification Read Action', `Viewport=${viewport}, Scope=${scope}, State=${state}`),
+    `${scope} read action`,
+  ));
+  preview.appendChild(text(
+    'Preview copy',
+    scope === 'Single' ? '通知卡內單筆處理' : 'Dropdown header 批次處理',
+    'Body / Small',
+    'text/secondary',
+  ));
+  panel.appendChild(preview);
+  panel.appendChild(text(
+    'State note',
+    state === 'Processing'
+      ? '只鎖定目前請求範圍，避免重複送出。'
+      : state === 'Complete'
+        ? '原地更新未讀樣式與 badge。'
+        : state === 'Error'
+          ? '保留未讀狀態，提供再次嘗試。'
+          : scope === 'Single'
+            ? 'Desktop 顯示 tooltip；Mobile 保留 44px 觸控區。'
+            : '按鈕位於通知選單 header。',
+    'Body / Small',
+    'text/secondary',
+  ));
+  return panel;
+}
+
+function notificationReadActionsStatesScreen(): FrameNode {
+  const screen = auto('Notification Read Actions / States / 1440×900', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.appendChild(text('Title', 'NOTIFICATION / READ ACTIONS / INTERACTION STATES', 'Heading / H2'));
+  screen.appendChild(text(
+    'Description',
+    '單筆操作只鎖定目標通知；全部已讀會暫停所有已讀操作。成功後原地更新，不關閉通知選單。',
+    'Body / Medium',
+    'text/secondary',
+  ));
+
+  const rows = auto('Read action state rows', 'VERTICAL', { gap: 24 });
+  const firstRow = auto('Default and processing states', 'HORIZONTAL', { gap: 24 });
+  [
+    ['Single', 'Default', 'Single / Default'],
+    ['Single', 'Processing', 'Single / Processing'],
+    ['Single', 'Complete', 'Single / Complete'],
+    ['All', 'Default', 'All / Default'],
+  ].forEach(([scope, state, label]) => {
+    firstRow.appendChild(notificationReadActionStatePanel('Desktop', scope as NotificationReadScope, state as NotificationReadState, label));
+  });
+  rows.appendChild(firstRow);
+
+  const secondRow = auto('Completion and recovery states', 'HORIZONTAL', { gap: 24 });
+  [
+    ['All', 'Processing', 'All / Processing'],
+    ['All', 'Complete', 'All / Complete'],
+    ['Single', 'Error', 'Single / Error'],
+    ['All', 'Error', 'All / Error'],
+  ].forEach(([scope, state, label]) => {
+    secondRow.appendChild(notificationReadActionStatePanel('Desktop', scope as NotificationReadScope, state as NotificationReadState, label));
+  });
+  rows.appendChild(secondRow);
+
+  const notes = auto('Read action accessibility notes', 'VERTICAL', { gap: 8, padding: [20], fill: 'bg/dark', radius: 'radius/lg' });
+  fixed(notes, 1360, 110);
+  notes.appendChild(text('Notes title', 'Focus 與狀態', 'Heading / H3', 'text/on-dark'));
+  notes.appendChild(text(
+    'Notes copy',
+    '單筆成功後焦點移到下一個合理操作；全部成功後焦點保留在完成狀態。Unread 以底色、左側 rail、文字與 dot 同時表達，不只靠顏色。',
+    'Body / Small',
+    'text/on-dark-muted',
+  ));
+  screen.appendChild(rows);
+  screen.appendChild(notes);
   return screen;
 }
 
@@ -1698,7 +1879,7 @@ async function buildScreens(): Promise<FrameNode> {
     { name: 'Auth / Signup', screens: [() => authScreen('Signup'), () => mobileAuthScreen('Signup')] },
     { name: 'Workspace', screens: [workspaceScreen, workspaceTabletScreen, workspaceMobileScreen] },
     { name: 'Workspace Invite', screens: [() => workspaceInviteDialogScreen(false), () => workspaceInviteDialogScreen(true)] },
-    { name: 'Notifications', screens: [() => notificationDropdownScreen(false), () => notificationDropdownScreen(true), notificationDropdownStatesScreen] },
+    { name: 'Notifications', screens: [() => notificationDropdownScreen(false), () => notificationDropdownScreen(true), notificationDropdownStatesScreen, notificationReadActionsStatesScreen] },
     { name: 'Workspace Invitation Response', screens: [() => workspaceInvitationResponseScreen(false), () => workspaceInvitationResponseScreen(true), workspaceInvitationResponseStatesScreen] },
     { name: 'Board', screens: [boardScreen, boardTabletScreen, mobileBoardScreen] },
     { name: 'Create Card', screens: [fullCreateCardDialog, responsiveDialogScreen] },
@@ -1731,7 +1912,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Response'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Response'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {

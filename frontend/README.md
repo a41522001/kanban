@@ -36,11 +36,13 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 - `services/http.ts` 提供單一 Axios client：10 秒 timeout、`withCredentials: true`。
 - User Store 快取 userInfo 結果並合併並行 request；失敗也會快取為未登入。
 - Workspace Store 保存工作區與目前選取 ID。
-- Notification Store 保存通知、未讀數與本次登入期間的邀請回覆狀態；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。工作區邀請可直接接受或婉拒，接受後會重新載入工作區清單。
+- Notification Store 保存通知、未讀數、單筆／全部已讀的處理狀態與本次登入期間的邀請回覆狀態；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。工作區邀請可直接接受或婉拒，成功後會同步標記通知已讀，接受再重新載入工作區清單。
 - Logout 不論 HTTP 成敗皆清空 User／Workspace／Notification Store 並導向登入；網路失敗不保證伺服器 Session 已撤銷。
 - Store reset 尚未阻止舊的 in-flight response 回寫；HTTP 層尚未統一處理一般 API 401。
 - Session ID 不放在 localStorage；Socket.IO 尚未整合 Auth lifecycle。
-- Google 登入、忘記密碼與帳號設定尚未完成；通知選單尚未提供標記已讀與分頁操作。Backend 通知 read model 未回傳邀請最終狀態，因此整頁重新整理後無法單靠通知資料還原已接受／婉拒 UI。
+- Google 登入、忘記密碼與帳號設定尚未完成；通知選單尚未提供分頁操作。Backend 通知 read model 未回傳邀請最終狀態，因此整頁重新整理後無法單靠通知資料還原已接受／婉拒 UI。
+
+通知手動驗收（2026-09-12）已確認單筆已讀、全部已讀、接受邀請與婉拒邀請皆可正常完成；已讀操作集中於 `components/notifications/NotificationReadAction/`，並由 Notification Store 統一管理 optimistic 更新、重試與未讀數同步。
 
 更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 

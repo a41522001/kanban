@@ -1,26 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
   <defs>
-    <filter id="dropdown-shadow" x="-20%" y="-20%" width="140%" height="160%">
-      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#29324A" flood-opacity=".18"/>
-    </filter>
+    <filter id="dropdown-shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#29324A" flood-opacity=".18"/></filter>
     <style>
       text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.display{font-size:32px;font-weight:750}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.label{font-size:11px;font-weight:700;letter-spacing:.03em}.inverse{fill:#F7F8FA}.muted{fill:#BFC7D7}.medium{font-weight:700}
     </style>
     <g id="logo"><rect width="18" height="24" rx="4" fill="#DF6E51"/><rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/><text x="56" y="20" class="h2 inverse">Flowboard</text></g>
     <g id="plus" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
     <g id="bell" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></g>
+    <g id="check-check" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 8 4 4L14 4M10 12l2 2 6-7"/></g>
   </defs>
 
   <rect width="1520" height="1000" fill="#E9ECF1"/>
-  <text x="40" y="48" class="spec">NOTIFICATION / DROPDOWN / 1440 × 900</text>
-  <g id="notification-dropdown-desktop">
+  <text x="40" y="48" class="spec">NOTIFICATION / READ ACTIONS / DESKTOP / 1440 × 900</text>
+  <g id="notification-read-actions-desktop">
     <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
     <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
     <g transform="translate(72 100)">
       <use href="#logo"/><text x="180" y="20" class="body inverse medium">工作區</text><text x="256" y="20" class="body muted">最近</text>
       <rect x="1188" y="-8" width="40" height="40" rx="9" fill="#DF6E51"/><g transform="translate(1200 4)" color="#F7F8FA"><use href="#plus"/></g>
-      <rect x="1240" y="-8" width="40" height="40" rx="9" fill="#F7F8FA"/>
-      <g transform="translate(1250 2)" color="#29324A"><use href="#bell"/></g>
+      <rect x="1240" y="-8" width="40" height="40" rx="9" fill="#F7F8FA"/><g transform="translate(1250 2)" color="#29324A"><use href="#bell"/></g>
       <circle cx="1276" cy="-10" r="9" fill="#DF6E51"/><text x="1276" y="-6" text-anchor="middle" class="label inverse">2</text>
       <circle cx="1328" cy="12" r="16" fill="#A9D2C8"/><text x="1328" y="17" text-anchor="middle" class="body medium">J</text>
     </g>
@@ -37,28 +35,42 @@
     </g>
 
     <g id="notification-dropdown" transform="translate(1048 148)" filter="url(#dropdown-shadow)">
-      <rect width="400" height="438" rx="18" fill="#FFFFFF" stroke="#D7DCE5"/>
-      <text x="16" y="37" class="title">通知</text>
-      <rect x="306" y="16" width="78" height="28" rx="14" fill="#FCE5DF"/><text x="345" y="34" text-anchor="middle" class="label" fill="#9F3F2C">2 則未讀</text>
-      <line x1="16" y1="60" x2="384" y2="60" stroke="#D7DCE5"/>
+      <rect width="400" height="500" rx="18" fill="#FFFFFF" stroke="#D7DCE5"/>
+      <text x="16" y="39" class="title">通知</text>
+      <rect x="72" y="18" width="74" height="24" rx="12" fill="#FCE5DF"/><text x="109" y="34" text-anchor="middle" class="label" fill="#9F3F2C">2 則未讀</text>
+      <rect x="246" y="12" width="138" height="40" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/>
+      <g transform="translate(260 22)" color="#697287"><use href="#check-check"/></g><text x="332" y="37" text-anchor="middle" class="small medium">全部設為已讀</text>
+      <line x1="16" y1="64" x2="384" y2="64" stroke="#D7DCE5"/>
 
-      <g transform="translate(16 72)">
-        <rect width="368" height="140" rx="12" fill="#FCE5DF" stroke="#DF6E51"/>
-        <circle cx="34" cy="34" r="20" fill="#DF6E51"/><text x="34" y="39" text-anchor="middle" class="body inverse medium">J</text>
-        <text x="66" y="24" class="label" fill="#9F3F2C">工作區邀請</text>
-        <text x="66" y="50" class="body medium">Jeffery 邀請你加入</text><text x="66" y="72" class="body medium">「無限有限公司」</text>
-        <text x="66" y="96" class="small">你將以成員身分加入這個工作區。</text><text x="66" y="122" class="tiny">剛剛</text>
-        <circle cx="348" cy="20" r="4" fill="#DF6E51"/>
+      <g transform="translate(16 76)">
+        <rect width="368" height="168" rx="12" fill="#FCE5DF" stroke="#DF6E51"/><rect width="4" height="168" rx="2" fill="#DF6E51"/>
+        <circle cx="38" cy="38" r="20" fill="#DF6E51"/><text x="38" y="43" text-anchor="middle" class="body inverse medium">J</text>
+        <text x="70" y="28" class="label" fill="#9F3F2C">工作區邀請</text>
+        <text x="70" y="57" class="body medium">Jeffery 邀請你加入</text><text x="70" y="79" class="body medium">「無限有限公司」</text>
+        <text x="70" y="106" class="small">你將以成員身分加入這個工作區。</text><text x="70" y="136" class="tiny">剛剛</text>
+        <circle cx="298" cy="32" r="4" fill="#DF6E51"/>
+        <rect x="312" y="12" width="40" height="40" rx="9" fill="#FFFFFF" stroke="#E8B8AB"/>
+        <g transform="translate(322 22)" color="#9F3F2C"><use href="#check-check"/></g>
+        <rect x="208" y="56" width="144" height="28" rx="7" fill="#29324A" opacity=".94"/><text x="280" y="75" text-anchor="middle" class="tiny inverse">標記為已讀</text>
       </g>
 
-      <g transform="translate(16 220)">
-        <rect width="368" height="120" rx="12" fill="#FFFFFF" stroke="#D7DCE5"/>
-        <circle cx="34" cy="34" r="20" fill="#A9D2C8"/><text x="34" y="39" text-anchor="middle" class="body medium">M</text>
-        <text x="66" y="24" class="label" fill="#697287">工作區動態</text>
-        <text x="66" y="52" class="body medium">Mia 已加入「無限有限公司」</text>
-        <text x="66" y="82" class="small">工作區現在共有 5 位成員。</text><text x="66" y="104" class="tiny">昨天</text>
+      <g transform="translate(16 256)">
+        <rect width="368" height="126" rx="12" fill="#FFFFFF" stroke="#D7DCE5"/>
+        <circle cx="38" cy="38" r="20" fill="#A9D2C8"/><text x="38" y="43" text-anchor="middle" class="body medium">M</text>
+        <text x="70" y="28" class="label" fill="#697287">工作區動態</text>
+        <text x="70" y="58" class="body medium">Mia 已加入「無限有限公司」</text>
+        <text x="70" y="86" class="small">工作區現在共有 5 位成員。</text><text x="70" y="110" class="tiny">昨天 · 已讀</text>
       </g>
-      <text x="16" y="382" class="tiny">目前顯示最近通知</text>
+
+      <g transform="translate(16 394)">
+        <rect width="368" height="62" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <circle cx="30" cy="31" r="14" fill="#DF6E51"/><text x="30" y="35" text-anchor="middle" class="tiny inverse medium">A</text>
+        <text x="54" y="27" class="small medium">卡片「API 錯誤處理」提及了你</text><text x="54" y="46" class="tiny">2 天前</text>
+        <circle cx="298" cy="31" r="4" fill="#DF6E51"/>
+        <rect x="312" y="11" width="40" height="40" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/><g transform="translate(322 21)" color="#697287"><use href="#check-check"/></g>
+      </g>
+
+      <text x="16" y="482" class="tiny">未讀卡片可單筆處理；全部已讀不需要逐筆選取</text>
     </g>
   </g>
 </svg>

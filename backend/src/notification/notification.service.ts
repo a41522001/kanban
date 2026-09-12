@@ -146,8 +146,7 @@ export class NotificationService {
   }
 
   /** 標記已讀 */
-  async markReadIfUnread(id: string, userId: string): Promise<boolean> {
-    const now = DateTime.utc();
+  async markReadIfUnread(id: string, userId: string): Promise<void> {
     const notification = await this.notificationRepository.findByIdAndRecipient(
       id,
       userId,
@@ -159,13 +158,11 @@ export class NotificationService {
         message: '找不到該通知',
       });
     }
-    const result = await this.notificationRepository.markReadIfUnread(
+    await this.notificationRepository.markReadIfUnread(
       id,
       userId,
-      now.toJSDate(),
+      DateTime.utc().toJSDate(),
     );
-    // 0 = 表示沒有被更新到
-    return result.count === 0 ? false : true;
   }
 
   /** 標記全部訊息已讀 */

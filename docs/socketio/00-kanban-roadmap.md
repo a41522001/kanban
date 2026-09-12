@@ -31,12 +31,12 @@
 - Swagger `/api/docs`。
 - 最小 Socket.IO connection 與 typed `demo:echo` event。
 - Frontend Auth vertical slice：signup、login、userInfo session restore、protected route、logout、表單驗證與共用 UI 基礎。
-- Notification 持久化基礎：PostgreSQL schema、shared contract、`GET /notifications` 與 `GET /notifications/unreadCount`；資料庫是通知真相，已由 Workspace 邀請建立通知，尚未有 Socket.IO push。
+- Notification 持久化基礎：PostgreSQL schema、shared contract、`GET /notifications`、`GET /notifications/unreadCount`、`PATCH /notifications/read` 與 `PATCH /notifications/readAll`；資料庫是通知真相，已由 Workspace 邀請建立通知，尚未有 Socket.IO push。
 - Workspace 列表／建立／成員授權查詢與前端 overview；Owner 邀請 Dialog 及通知選單已串接。
 
 尚未完成的 Session 收尾：logout／revoke 僅刪除本次 Cookie 對應的 Session 與 ZSET member，尚未處理 Current／Previous Grace family 的完整撤銷；Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
 
-2026-09-12 核對：同一 PostgreSQL transaction 建立 WorkspaceInvitation 與 WORKSPACE_INVITED Notification 已實作；接受與拒絕 Backend API、E2E happy paths 及前端回覆亦已完成。下一步為取消、通知已讀、錯誤授權與邀請併發測試，詳見[流程文件](../workspace-invitation-notification.md)。Socket.IO push 仍待 Session handshake 完成後實作，且必須在 transaction commit 後推送。Socket.IO 不作為通知真相，也不需要先導入 message queue。
+2026-09-12 核對：同一 PostgreSQL transaction 建立 WorkspaceInvitation 與 WORKSPACE_INVITED Notification 已實作；接受與拒絕 Backend API、E2E happy paths、通知單筆／全部已讀 API 及前端回覆／已讀操作亦已完成，前端手動驗收通過。下一步為取消、query 分頁、錯誤授權與邀請併發測試，詳見[流程文件](../workspace-invitation-notification.md)。Socket.IO push 仍待 Session handshake 完成後實作，且必須在 transaction commit 後推送。Socket.IO 不作為通知真相，也不需要先導入 message queue。
 
 ## 小章順序
 

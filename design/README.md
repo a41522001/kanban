@@ -14,6 +14,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | Workspace invitation response states | `workspace-invitation-response-states.svg` | — | — | Current spec page |
 | Notification dropdown | `notification-dropdown.svg` | — | `notification-dropdown-mobile.svg` | Current |
 | Notification states | `notification-dropdown-states.svg` | — | — | Current spec page |
+| Notification read actions | `notification-read-actions-states.svg` | — | — | Current spec page |
 | Board | `board-overview.svg` | `board-overview-tablet.svg` | `board-overview-mobile.svg` | Current |
 | Create card | `create-card-dialog.svg` | — | `create-card-dialog-mobile.svg` | Current |
 | Card detail | `card-detail.svg` | — | `card-detail-mobile.svg` | Current |
@@ -50,7 +51,7 @@ Card
 ## Workspace invitation contract
 
 - 邀請入口只提供給工作區 Owner；權限仍由後端作最終判定。
-- Dialog 對應 `shadcn-vue/Dialog` 與 `shadcn-vue/Button`，Email 欄位對應 Flowboard `common/Input`。
+- Dialog 對應 `shadcn-vue/Dialog` 與 `shadcn-vue/Button`，Email 欄位對應 Flowboard `shared/Input`。
 - 表單只輸入已註冊使用者的 Email，角色固定為 `MEMBER`，不在第一版加入角色選擇器。
 - 「傳送邀請」成功只建立 invitation 與 notification；受邀者接受前不會出現在正式成員列表。
 - Desktop 使用置中 `520px` Dialog；Mobile 保留 `16px` viewport gutter，使用 `358px` inset Dialog，而不是全螢幕頁面。
@@ -60,7 +61,9 @@ Card
 
 - Header 使用 `40 × 40` Notification Trigger；有未讀時顯示數字 Badge，Dropdown 開啟時使用 Open variant。
 - Dropdown 對應 `shadcn-vue/DropdownMenuContent` 與 `ScrollArea`，Desktop 寬 `400px`，Mobile 保留 `16px` gutter、寬 `358px`。
-- 第一版只依 `GET /notifications` 與 `GET /notifications/unreadCount` 顯示通知及未讀數，不提供尚未有 Controller API 的標記已讀、全部已讀、接受或拒絕操作。
+- 列表與未讀數分別使用 `GET /notifications`、`GET /notifications/unreadCount`；單筆與全部已讀分別使用 `PATCH /notifications/read`、`PATCH /notifications/readAll`。
+- 每則未讀通知提供明確的單筆已讀按鈕；Desktop 以 tooltip 補充名稱，Mobile 保留至少 `44 × 44` 的觸控區，不讓整張通知卡隱含執行已讀。
+- 「全部設為已讀」位於 Dropdown header。處理中停用全部已讀操作但保持列表與 Dropdown 開啟；成功後原地更新 unread 樣式、未讀數與 Bell badge。
 - `WORKSPACE_INVITED` 文案來自 notification payload 的 `workspaceName`、`inviterDisplayName` 與 `role`；不得把翻譯後完整句子存入 payload。
 - Unread 與 Read 使用背景、border、文字層級及 unread dot 同時區分，不只依賴顏色。
 - Runtime variants 至少包含 Default、Loading、Empty、Error；載入錯誤提供「重新載入」。
@@ -73,7 +76,7 @@ Card
 - Desktop 動作高度為 `44px`，Mobile 為 `48px`；送出任一回覆時兩個動作都必須停用，避免 accept／decline 並行競爭。
 - 成功後在原卡片位置顯示 Accepted／Declined 結果。接受成功時重新載入 Workspace 列表，並提供「前往工作區」；婉拒成功後不再顯示動作。
 - API 失敗時保留通知並提供重新載入；畫面使用穩定 `ApiCode` 決定文案，不直接顯示後端 message。
-- 回覆狀態不等同已讀狀態；在 Notification 已讀 API 完成前，不把 accept／decline 當作持久化 mark-as-read。
+- 回覆狀態不等同已讀狀態；accept／decline 成功後由前端另外呼叫已讀 API，同步更新通知的 readAt、未讀數與 badge。
 
 ## Single-page file rule
 
@@ -82,6 +85,7 @@ Card
 - 禁止在同一 SVG 內橫向或縱向排列多個產品畫面。
 - `board-drag-states.svg` 與 `board-system-states.svg` 是狀態規格頁，允許在同一規格頁內展示多個 Variant。
 - `notification-dropdown-states.svg` 是 Notification runtime state 規格頁，允許展示 Loading、Empty、Error 與 Trigger variants。
+- `notification-read-actions-states.svg` 是已讀操作規格頁，允許展示單筆／全部的 Default、Processing、Complete 與 Error recovery。
 - `workspace-invitation-response-states.svg` 是邀請回覆狀態規格頁，允許展示 Pending、Responding、Accepted、Declined 與 Error recovery。
 - 新增裝置版本時使用 `*-tablet.svg`、`*-mobile.svg` 命名，不再使用含混的 `*-rwd.svg`。
 
@@ -94,3 +98,4 @@ Card
 - 所有新增狀態都有 Desktop 或 Mobile 的明確畫面。
 - Workspace invitation 的 Dialog、Input 與 Button 皆有原生 Figma Component／Instance 對應。
 - Notification Trigger、Notification Item 與 Notification Dropdown 皆有原生 Component Set／Variant 對應。
+- Notification Read Action 需建立 Single／All 與 Default／Processing／Complete／Error variants，並保留 focus、disabled 與 `aria-live` 行為註記。

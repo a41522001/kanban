@@ -46,9 +46,9 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及 public mapping 時驗證上述 payload 欄位；其他預留通知類型目前只檢查是非 null、非 array 的 object。
 
-前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，前端清除暫存回覆狀態後重載通知；其他衝突或網路錯誤則顯示重新載入狀態。一般通知與邀請回覆卡已拆成可重用元件。
+前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。每則未讀通知可單筆標記已讀，Dropdown header 可執行全部已讀；處理中會鎖定對應操作，成功後原地更新通知、未讀數與 badge，失敗則保留重試狀態。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態，兩種回覆成功後都會同步將該通知標記為已讀。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，前端清除暫存回覆狀態後重載通知；其他衝突或網路錯誤則顯示重新載入狀態。一般通知、邀請回覆卡與已讀操作已拆成可重用元件。
 
-邀請回覆狀態保存在 Notification Store，因此通知選單或頁內元件重建後仍能維持，但登出或整頁重新整理會清除。Backend notification read model 目前沒有 invitation status，前端無法從重新讀取的通知判斷已接受、婉拒、取消或排程過期；在 read model 補齊前，重新整理後可能再次顯示回覆按鈕。通知也仍未提供標記已讀、下一頁或即時推送，過期通知仍會出現在列表與未讀計數。
+邀請回覆狀態保存在 Notification Store，因此通知選單或頁內元件重建後仍能維持，但登出或整頁重新整理會清除。Backend notification read model 目前沒有 invitation status，前端無法從重新讀取的通知判斷已接受、婉拒、取消或排程過期；在 read model 補齊前，重新整理後可能再次顯示回覆按鈕。通知已提供單筆／全部已讀 HTTP API 與前端操作，但尚未提供 query 分頁或即時推送；過期通知仍會出現在列表與未讀計數。
 
 ## 狀態機現況
 
@@ -66,7 +66,7 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 
 - 補 Owner 取消邀請 API 與前端操作；讓通知 read model 提供可同步的邀請最終狀態。
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
-- 補通知單筆／全部已讀、query DTO 與前端分頁操作。
+- 補通知 query DTO 與前端分頁操作；單筆／全部已讀的 API 與前端操作已完成。
 - Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
 - Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
@@ -74,6 +74,8 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。以 Node 24.13 執行 `pnpm test:backend:e2e`：WorkspaceInvitation suite 驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
 
 2026-09-12 執行 frontend `vue-tsc --build`、Vitest、ESLint 與 Vite production build：8 個 test files、25 個 tests 通過。Playwright CLI 以本機攔截 API 驗證桌面邀請卡、接受後狀態、工作區清單更新及 375px 響應式版面；尚未加入連真實 Backend 的 frontend E2E。
+
+2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 
 ## 模組依賴
 

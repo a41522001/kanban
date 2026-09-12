@@ -26,6 +26,8 @@
 | POST `/workspaceInvitation/decline` | 有效 Session，且為該有效 PENDING 邀請的受邀者 | `{ invitationId }` | 200 / null，message 為「已拒絕邀請」；不建立 WorkspaceMember |
 | GET `/notifications` | 有效 Session，只查本人收件匣 | 目前無 query DTO | 200 / `{ items, nextCursor }` |
 | GET `/notifications/unreadCount` | 有效 Session，只查本人未讀數 | 無 | 200 / `{ count }` |
+| PATCH `/notifications/read` | 有效 Session，只能標記本人通知 | `{ notificationId }` | 200 / null；通知不存在或不屬於本人回 404 |
+| PATCH `/notifications/readAll` | 有效 Session，只能標記本人通知 | 無 | 200 / number；回傳本次實際標記的筆數，沒有未讀時為 0 |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
 
@@ -57,10 +59,10 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。
 
-未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。Service 已有單筆條件式已讀、全部已讀與收件者限定查詢；尚未由 Controller 開放 HTTP endpoint。沒有公開建立通知端點，也沒有 Socket.IO 通知推送。
+未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。沒有公開建立通知端點，也沒有 Socket.IO 通知推送。
 
 ## Swagger 與待辦
 
 Swagger 位於 `/api/docs`，目前 Auth 的手寫 error schema 仍使用 array 描述，與實際 FieldError object 不一致；尚未完成可重用 envelope decorators。不可將 Swagger 視為所有端點完整驗證結果。
 
-尚待補上邀請取消、通知已讀 HTTP endpoint 與 query DTO，以及更完整的錯誤授權／併發測試與 Swagger。
+尚待補上邀請取消、通知 query DTO，以及更完整的錯誤授權／併發測試與 Swagger；通知已讀 HTTP endpoint 已完成。
