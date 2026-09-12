@@ -120,16 +120,16 @@ Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`
 
 ## 9. 前端落地與手動驗收
 
-目前前端仍對應 v6 通知功能，v7 的獨立 Dialog 尚待實作：
+目前前端已對應 v7 通知功能與獨立 Dialog：
 
 - `frontend/src/components/notifications/NotificationReadAction/` 提供單筆／全部已讀的共用操作元件，包含 processing、complete、error／retry 狀態。
-- `NotificationMenu`、`NotificationItem` 與 `WorkspaceInvitationResponseCard` 已透過 Notification Store 串接 `PATCH /notifications/read` 與 `PATCH /notifications/readAll`，成功後原地同步 readAt、未讀數與 Bell badge。
-- 接受／婉拒工作區邀請成功後，前端會另外標記該通知為已讀；回覆狀態與已讀狀態仍分開管理。
-- 2026-09-12 手動驗收通過：單筆已讀、全部已讀、接受邀請、婉拒邀請四項流程皆可正常完成。
+- `NotificationMenu`、`NotificationItem` 與 `WorkspaceInvitationDetailDialog` 已透過 Notification Store／Workspace Invitation service 串接 `PATCH /notifications/read`、`PATCH /notifications/readAll` 與 detail／response API，成功後原地同步 readAt、未讀數與 Bell badge。
+- 點擊 WORKSPACE_INVITED 的 content action 時，前端先標記該通知為已讀，再呼叫 detail API 開啟 Dialog；回覆狀態與已讀狀態仍分開管理。
+- 2026-09-13 已完成前端 v7 Dialog 與 detail API 串接；單筆已讀、全部已讀、接受邀請、婉拒邀請及點擊後先已讀再開啟詳細 Dialog 的流程已完成。
 
 ## 10. v7 Figma design status
 
-2026-09-12 已更新 SVG visual references 並寫入既有 Figma 檔；前端尚未調整：
+2026-09-12 已更新 SVG visual references 並寫入既有 Figma 檔，2026-09-13 前端已完成對應：
 
 - Notification Dropdown 只呈現通知摘要與已讀／未讀；Notification Item 的 content action 與 read action 分離。
 - 新增 `notification-item-interactions.svg`，定義 Desktop／Mobile hit targets、focus return 與 Type routing。

@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-12（依原始碼、Frontend unit tests、type-check、lint、build、瀏覽器驗收，以及既有 Backend unit tests、coverage 與 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
+最後核對：2026-09-13（依原始碼、Frontend unit tests、type-check、build，以及既有 Backend unit tests、coverage 與 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -36,9 +36,17 @@
 
 Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invitation.id；dedupeKey 為 `workspaceInvitation:<invitationId>`。Notification 不保存 payload；後續將由 Workspace Invitation detail API 以 resourceId 查詢工作區名稱、邀請者名稱、角色與邀請狀態。
 
-前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。每則未讀通知可單筆標記已讀，Dropdown header 可執行全部已讀；處理中會鎖定對應操作，成功後原地更新通知、未讀數與 badge，失敗則保留重試狀態。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態，兩種回覆成功後都會同步將該通知標記為已讀。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，前端清除暫存回覆狀態後重載通知；其他衝突或網路錯誤則顯示重新載入狀態。一般通知、邀請回覆卡與已讀操作已拆成可重用元件。
+前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。每則未讀通知可單筆標記已讀，Dropdown header 可執行全部已讀；處理中會鎖定對應操作，成功後原地更新通知、未讀數與 badge，失敗則保留重試狀態。WORKSPACE_INVITED 通知的 content action 會先標記已讀，再以 resourceId 呼叫詳細資訊 API 並開啟邀請 Dialog；接受／婉拒請求期間鎖定兩個操作，接受成功後重載工作區清單，婉拒後顯示完成狀態。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，Dialog 顯示不可用狀態；其他衝突或網路錯誤則顯示重新載入狀態。一般通知、邀請詳細 Dialog 與已讀操作已拆成可重用元件。
 
-邀請回覆狀態以 WorkspaceInvitation 為準；通知選單開啟邀請 UI 時，應用 resourceId 呼叫詳細資訊 API，因此通知只負責 unread/read 與導流。通知已提供單筆／全部已讀 HTTP API 與前端操作，但尚未提供 query 分頁或即時推送；過期通知仍會出現在列表與未讀計數。
+邀請回覆狀態以 WorkspaceInvitation 為準；通知選單開啟邀請 UI 時，使用 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId` 取得詳細資訊，因此通知只負責 unread/read 與導流。使用者點擊 WORKSPACE_INVITED 的內容區時，前端會先呼叫單筆已讀 API，成功後才開啟邀請詳細 Dialog；已讀通知不重複發送請求，已讀 API 失敗則不開啟 Dialog 並保留重試機會。通知已提供單筆／全部已讀 HTTP API 與前端操作，但尚未提供 query 分頁或即時推送；過期通知仍會出現在列表與未讀計數。
+
+### 通知 Socket.IO 推播規劃
+
+Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 Notification 資料表或 HTTP API。工作區邀請與通知必須先在同一個 PostgreSQL transaction commit，成功後才向 `user:{recipientUserId}` room emit；transaction rollback 或建立失敗時不得推播。
+
+事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。預計事件名稱為 `notification.created`，資料沿用 `PublicNotification`（`id、type、workspaceId、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數；重新連線或漏收時，仍以 `GET /notifications` 與 `GET /notifications/unreadCount` 重新同步。
+
+這項推播依賴 Socket.IO Session handshake、user room 與 reconnect policy；在 handshake 完成前不視為已實作。
 
 ## 狀態機現況
 
@@ -54,12 +62,12 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 ## 後續交付與驗收
 
-- 補 Owner 取消邀請 API 與前端操作；新增 detail API 後再完成前端 Dialog 串接。
+- 補 Owner 取消邀請 API 與前端操作。
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
 - 補通知 query DTO 與前端分頁操作；單筆／全部已讀的 API 與前端操作已完成。
 - Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
-- Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
+- 完成 Socket.IO Session handshake 後加入 commit 後通知 push；HTTP 資料仍是重新同步來源，並補斷線重連、去重與漏收同步測試。
 
 2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。以 Node 24.13 執行 `pnpm test:backend:e2e`：WorkspaceInvitation suite 驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
 
