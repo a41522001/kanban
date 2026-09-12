@@ -126,7 +126,6 @@ users ──< workspace_members >── workspaces
 | `type` | `NotificationType` | 否 | 業務語意，決定前端顯示文案與互動。 |
 | `resource_type` | `NotificationResourceType` | 否 | `resource_id` 所指資源的種類。 |
 | `resource_id` | UUID | 是 | polymorphic resource pointer；不建立外鍵。 |
-| `payload` | JSONB | 否 | 各 type 需要的結構化顯示資料。 |
 | `dedupe_key` | VARCHAR(160) | 是 | 同一收件者通知去重 key。 |
 | `read_at` | TIMESTAMP(3) | 是 | null 代表未讀。 |
 | `expires_at` | TIMESTAMP(3) | 是 | 到期後通知仍保留在歷史列表，但不可再執行資源操作；一般通知為 null。 |
@@ -140,21 +139,11 @@ users ──< workspace_members >── workspaces
 - `recipient_user_id` 使用 `ON DELETE CASCADE`；刪除收件者時一併刪除通知。
 - `actor_user_id`、`workspace_id` 使用 `ON DELETE SET NULL`；保留歷史通知，但移除已不存在的脈絡。
 
-### 6.1 `payload` 原則
+### 6.1 Notification routing 原則
 
-目標是依各 NotificationType 驗證 payload。目前 Service 對 WORKSPACE_INVITED 驗證 workspaceName／inviterDisplayName 為字串、role=MEMBER；其他類型只檢查是非 null、非 array 的 object，尚無各事件專用 schema。Payload 只保存顯示或導向所需的小型資料。不要存翻譯後文案、邀請 token、Session ID、Email 密碼或其他敏感資料。
+Notification 不保存 payload。前端先依 `type` 判斷顯示文案與互動，再依 `resourceType + resourceId` 呼叫對應的 domain detail API；例如 `WORKSPACE_INVITED` 的 `resourceId` 就是 `WorkspaceInvitation.id`。工作區名稱、邀請者名稱、角色與邀請狀態都以邀請資料為準，不在 Notification 重複保存。
 
-例如 `WORKSPACE_INVITED`：
-
-```json
-{
-  "workspaceName": "無限有限公司",
-  "inviterDisplayName": "Jeffery",
-  "role": "MEMBER"
-}
-```
-
-invitation ID 保存於 resourceId；通知過期不會自動標記已讀，目前未讀查詢沒有排除 expiresAt。
+通知過期不會自動標記已讀，目前未讀查詢沒有排除 expiresAt。
 
 ## 7. `workspace_invitations`
 

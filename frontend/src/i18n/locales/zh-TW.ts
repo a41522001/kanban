@@ -46,6 +46,8 @@ export const zhTW = {
       activity: '工作區動態',
     },
     workspaceInvited: {
+      summaryTitle: '你收到一則工作區邀請',
+      summaryBody: '有一則工作區邀請需要你的回覆。',
       title: '{inviter} 邀請你加入「{workspace}」',
       body: '你將以成員身分加入這個工作區。',
       pendingStatus: '等待你的回覆',

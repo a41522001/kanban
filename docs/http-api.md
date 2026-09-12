@@ -37,7 +37,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 - WorkspaceDto：`id, name, createdAt, updatedAt`。
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
 - WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
-- PublicNotification：`id, type, workspaceId, resourceType, resourceId, payload, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey。
+- PublicNotification：`id, type, workspaceId, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
 
 ## Workspace 邊界
@@ -57,7 +57,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 ## Notification 邊界
 
-目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。
+目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。通知列表只回傳 type 與 resource pointer；WORKSPACE_INVITED 的詳細資訊 API 尚待加入 Controller。
 
 未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。沒有公開建立通知端點，也沒有 Socket.IO 通知推送。
 

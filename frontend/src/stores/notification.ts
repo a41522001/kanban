@@ -11,7 +11,7 @@ import type { WorkspaceInvitationResponseState } from '@/types/workspaceInvitati
 import type { NotificationReadActionState } from '@/types/notification';
 
 export const useNotificationStore = defineStore('notificationStore', () => {
-  // Notification payload 是遞迴 JSON；列表只會整批替換，不需要 deep reactive proxy。
+  // 通知列表只保存摘要與 resource pointer，不需要 deep reactive proxy。
   const notifications = shallowRef<PublicNotification[]>([]);
   const unreadCount = ref(0);
   const isLoading = ref(false);

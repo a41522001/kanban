@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="900" viewBox="0 0 1520 900">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#29324A" flood-opacity=".12"/></filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.label{font-size:11px;font-weight:700;letter-spacing:.03em}.inverse{fill:#F7F8FA}.medium{font-weight:700}
+    </style>
+    <g id="check-check" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 8 4 4L14 4M10 12l2 2 6-7"/></g>
+    <g id="chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></g>
+    <g id="cursor" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 2 10 10-5 .7-2.2 4.3z"/></g>
+  </defs>
+
+  <rect width="1520" height="900" fill="#E9ECF1"/>
+  <text x="40" y="52" class="spec">NOTIFICATION ITEM / INTERACTION CONTRACT</text>
+  <text x="40" y="84" class="body" fill="#697287">通知內容與已讀控制是兩個獨立操作目標；Type 只決定內容區點擊後開啟的 domain UI。</text>
+
+  <g transform="translate(40 140)">
+    <text y="-18" class="title">Desktop · Unread</text>
+    <rect width="600" height="150" rx="16" fill="#FFF9F7" stroke="#DF6E51" filter="url(#shadow)"/><rect width="4" height="150" rx="2" fill="#DF6E51"/>
+    <rect x="16" y="16" width="492" height="118" rx="12" fill="#FFF9F7" stroke="#E8B8AB" stroke-dasharray="5 4"/>
+    <circle cx="54" cy="54" r="22" fill="#DF6E51"/><text x="54" y="59" text-anchor="middle" class="body inverse medium">M</text>
+    <text x="90" y="42" class="label" fill="#9F3F2C">工作區邀請</text><text x="90" y="70" class="body medium">Mia 邀請你加入「產品開發中心」</text><text x="90" y="96" class="small">點擊查看邀請內容與回覆選項</text><text x="90" y="119" class="tiny">5 分鐘前</text>
+    <g transform="translate(478 66)" color="#697287"><use href="#chevron"/></g>
+    <circle cx="528" cy="24" r="4" fill="#DF6E51"/>
+    <rect x="532" y="16" width="52" height="52" rx="10" fill="#FFFFFF" stroke="#E8B8AB"/><g transform="translate(550 34)" color="#9F3F2C"><use href="#check-check"/></g>
+    <text x="262" y="176" text-anchor="middle" class="tiny">Content action · 開啟 WorkspaceInvitationDialog</text><text x="558" y="176" text-anchor="middle" class="tiny">Read action</text>
+  </g>
+
+  <g transform="translate(40 402)">
+    <text y="-18" class="title">Desktop · Read</text>
+    <rect width="600" height="126" rx="16" fill="#FFFFFF" stroke="#D7DCE5" filter="url(#shadow)"/>
+    <rect x="16" y="16" width="568" height="94" rx="12" fill="#FFFFFF" stroke="#CDD3DE" stroke-dasharray="5 4"/>
+    <circle cx="54" cy="54" r="22" fill="#A9D2C8"/><text x="54" y="59" text-anchor="middle" class="body medium">F</text>
+    <text x="90" y="42" class="label" fill="#697287">工作區動態</text><text x="90" y="70" class="body medium">Flowboard 即時協作有 2 項更新</text><text x="90" y="96" class="tiny">昨天 · 已讀</text>
+    <g transform="translate(550 54)" color="#8B95A8"><use href="#chevron"/></g>
+    <text x="300" y="152" text-anchor="middle" class="tiny">已讀通知仍可開啟對應內容；不顯示 read action</text>
+  </g>
+
+  <g transform="translate(720 140)">
+    <text y="-18" class="title">Mobile · Independent targets</text>
+    <rect width="360" height="242" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <rect x="16" y="16" width="328" height="146" rx="12" fill="#FFF9F7" stroke="#DF6E51"/>
+    <rect x="28" y="28" width="244" height="122" rx="10" fill="#FFF9F7" stroke="#E8B8AB" stroke-dasharray="5 4"/>
+    <circle cx="58" cy="58" r="20" fill="#DF6E51"/><text x="58" y="63" text-anchor="middle" class="body inverse medium">M</text>
+    <text x="90" y="49" class="label" fill="#9F3F2C">工作區邀請</text><text x="90" y="76" class="body medium">Mia 邀請你加入</text><text x="90" y="98" class="body medium">「產品開發中心」</text><text x="90" y="126" class="tiny">5 分鐘前 · 點擊查看</text>
+    <rect x="284" y="28" width="48" height="48" rx="10" fill="#FFFFFF" stroke="#E8B8AB"/><g transform="translate(300 44)" color="#9F3F2C"><use href="#check-check"/></g>
+    <g transform="translate(300 118)" color="#697287"><use href="#chevron"/></g>
+    <text x="16" y="194" class="small medium">觸控規則</text><text x="16" y="218" class="tiny">內容區與已讀按鈕都至少 44 × 44；兩者不可互相觸發。</text>
+  </g>
+
+  <g transform="translate(1120 140)">
+    <text y="-18" class="title">Type routing</text>
+    <rect width="360" height="388" rx="18" fill="#29324A"/>
+    <circle cx="32" cy="42" r="4" fill="#DF6E51"/><text x="52" y="47" class="body inverse medium">WORKSPACE_INVITED</text><text x="52" y="70" class="tiny inverse">Workspace Invitation Dialog</text>
+    <circle cx="32" cy="112" r="4" fill="#A9D2C8"/><text x="52" y="117" class="body inverse medium">CARD_ASSIGNED</text><text x="52" y="140" class="tiny inverse">Card Detail</text>
+    <circle cx="32" cy="182" r="4" fill="#E6B960"/><text x="52" y="187" class="body inverse medium">CARD_MENTIONED</text><text x="52" y="210" class="tiny inverse">Card comment anchor</text>
+    <circle cx="32" cy="252" r="4" fill="#907ECE"/><text x="52" y="257" class="body inverse medium">CARD_REMINDER</text><text x="52" y="280" class="tiny inverse">Card Detail</text>
+    <line x1="24" y1="314" x2="336" y2="314" stroke="#697287"/>
+    <g transform="translate(24 338)" color="#A9D2C8"><use href="#cursor"/></g><text x="52" y="351" class="small inverse">Client sends notificationId only</text>
+    <text x="24" y="374" class="tiny inverse">Backend resolves Type + resource + authorization.</text>
+  </g>
+
+  <g transform="translate(720 638)">
+    <rect width="760" height="150" rx="16" fill="#FFFFFF" stroke="#D7DCE5"/>
+    <text x="24" y="36" class="h2">Focus and read semantics</text>
+    <circle cx="30" cy="67" r="3" fill="#DF6E51"/><text x="46" y="72" class="small">Enter／Space on content action opens detail; focus moves into the Dialog.</text>
+    <circle cx="30" cy="96" r="3" fill="#A9D2C8"/><text x="46" y="101" class="small">Read action only changes readAt; it never accepts, declines, or navigates.</text>
+    <circle cx="30" cy="125" r="3" fill="#E6B960"/><text x="46" y="130" class="small">Closing the Dialog returns focus to the originating notification item.</text>
+  </g>
+</svg>

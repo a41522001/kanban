@@ -54,11 +54,6 @@ describe('NotificationService', () => {
           type: 'WORKSPACE_INVITED',
           resourceType: 'WORKSPACE_INVITATION',
           resourceId: 'testResourceId1',
-          payload: {
-            role: 'MEMBER',
-            workspaceName: '軟體一部',
-            inviterDisplayName: 'owner',
-          },
           dedupeKey: 'dedupeKey1',
           readAt: null,
           expiresAt: expiresAt.toJSDate(),
@@ -83,11 +78,6 @@ describe('NotificationService', () => {
             type: 'WORKSPACE_INVITED',
             resourceType: 'WORKSPACE_INVITATION',
             resourceId: 'testResourceId1',
-            payload: {
-              role: 'MEMBER',
-              workspaceName: '軟體一部',
-              inviterDisplayName: 'owner',
-            },
             readAt: null,
             expiresAt: expiresAt.toISO(),
             createdAt: now.toISO(),
@@ -95,25 +85,6 @@ describe('NotificationService', () => {
         ],
         nextCursor: null,
       });
-      expect(findByRecipientSpy).toHaveBeenCalledTimes(1);
-      expect(findByRecipientSpy).toHaveBeenCalledWith({
-        recipientUserId,
-      });
-    });
-
-    it('取得通知 但Payload解析錯誤', async () => {
-      notifications[0].payload = {
-        role: 'MEMBER',
-        workspaceName: '軟體一部',
-      };
-      const findByRecipientSpy = jest
-        .spyOn(notificationRepository, 'findByRecipient')
-        .mockResolvedValue({ items: notifications, nextCursor: null });
-      await expect(
-        notificationService.findByRecipient({
-          recipientUserId,
-        }),
-      ).rejects.toThrow('WORKSPACE_INVITED notification payload 格式錯誤');
       expect(findByRecipientSpy).toHaveBeenCalledTimes(1);
       expect(findByRecipientSpy).toHaveBeenCalledWith({
         recipientUserId,

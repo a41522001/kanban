@@ -154,8 +154,6 @@ model Notification {
   /// polymorphic resource 的 UUID；實際存在性與存取權由 application service 驗證。
   resourceId   String?                  @map("resource_id") @db.Uuid
 
-  /// 每個 NotificationType 定義的結構化資料；不存翻譯後文案、token 或敏感資料。
-  payload   Json    @db.JsonB
   /// 同一收件者的事件去重 key；null 代表不需要去重。
   dedupeKey String? @map("dedupe_key") @db.VarChar(160)
 

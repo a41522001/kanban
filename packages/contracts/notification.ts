@@ -24,37 +24,29 @@ export type NotificationResourceType =
   /// 指向 Card。
   | 'CARD';
 
-export type JsonPrimitive = string | number | boolean | null;
-
-export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
-
-export interface JsonObject {
-  [key: string]: JsonValue | undefined;
+/** 每一種通知允許導向的 domain resource。 */
+export interface NotificationResourceTypeByNotification {
+  WORKSPACE_INVITED: 'WORKSPACE_INVITATION';
+  WORKSPACE_MEMBER_JOINED: 'WORKSPACE';
+  PROJECT_MEMBER_ADDED: 'PROJECT';
+  CARD_ASSIGNED: 'CARD';
+  CARD_MENTIONED: 'CARD';
+  CARD_REMINDER: 'CARD';
 }
-
-export type JsonArray = JsonValue[];
 
 export interface FindByRecipientResponse {
   items: PublicNotification[];
   nextCursor: string | null;
 }
 
-export interface WorkspaceInvitedPayload extends JsonObject {
-  workspaceName: string;
-  inviterDisplayName: string;
-  role: 'MEMBER';
-}
-
-export interface NotificationPayloadMap {
-  WORKSPACE_INVITED: WorkspaceInvitedPayload;
-  WORKSPACE_MEMBER_JOINED: JsonObject;
-  PROJECT_MEMBER_ADDED: JsonObject;
-  CARD_ASSIGNED: JsonObject;
-  CARD_MENTIONED: JsonObject;
-  CARD_REMINDER: JsonObject;
-}
-
-interface PublicNotificationBase {
+/**
+ * Notification list/read-model fields.
+ *
+ * Keep this model intentionally small: the notification inbox only needs
+ * read state and routing metadata. Domain data belongs to the resource detail
+ * API (for example, Workspace Invitation Detail), not to every list item.
+ */
+export interface PublicNotificationBase {
   id: string;
   workspaceId: string | null;
   resourceType: NotificationResourceType;
@@ -64,10 +56,10 @@ interface PublicNotificationBase {
   createdAt: string;
 }
 
+/** Notification item returned by the inbox/list API. */
 export type PublicNotification = {
   [TType in NotificationType]: PublicNotificationBase & {
     type: TType;
-    payload: NotificationPayloadMap[TType];
   };
 }[NotificationType];
 

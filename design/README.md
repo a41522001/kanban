@@ -15,6 +15,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | Notification dropdown | `notification-dropdown.svg` | — | `notification-dropdown-mobile.svg` | Current |
 | Notification states | `notification-dropdown-states.svg` | — | — | Current spec page |
 | Notification read actions | `notification-read-actions-states.svg` | — | — | Current spec page |
+| Notification item interactions | `notification-item-interactions.svg` | — | — | Current spec page |
 | Board | `board-overview.svg` | `board-overview-tablet.svg` | `board-overview-mobile.svg` | Current |
 | Create card | `create-card-dialog.svg` | — | `create-card-dialog-mobile.svg` | Current |
 | Card detail | `card-detail.svg` | — | `card-detail-mobile.svg` | Current |
@@ -64,19 +65,22 @@ Card
 - 列表與未讀數分別使用 `GET /notifications`、`GET /notifications/unreadCount`；單筆與全部已讀分別使用 `PATCH /notifications/read`、`PATCH /notifications/readAll`。
 - 每則未讀通知提供明確的單筆已讀按鈕；Desktop 以 tooltip 補充名稱，Mobile 保留至少 `44 × 44` 的觸控區，不讓整張通知卡隱含執行已讀。
 - 「全部設為已讀」位於 Dropdown header。處理中停用全部已讀操作但保持列表與 Dropdown 開啟；成功後原地更新 unread 樣式、未讀數與 Bell badge。
-- `WORKSPACE_INVITED` 文案來自 notification payload 的 `workspaceName`、`inviterDisplayName` 與 `role`；不得把翻譯後完整句子存入 payload。
+- `WORKSPACE_INVITED` 列表項目只依 notification type 與 resource pointer 導流；`workspaceName`、`inviterDisplayName` 與 `role` 由 Workspace Invitation detail API 提供，不存入 notification payload。
 - Unread 與 Read 使用背景、border、文字層級及 unread dot 同時區分，不只依賴顏色。
+- Notification Item 的內容區與已讀按鈕是兩個獨立操作目標；內容區依 Type 開啟對應的 domain UI，已讀按鈕只更新 readAt，不得觸發導頁或資源動作。
+- 通知列表不呈現 invitation 的 PENDING／ACCEPTED／DECLINED 等資源狀態；列表只負責通知摘要與已讀／未讀。
 - Runtime variants 至少包含 Default、Loading、Empty、Error；載入錯誤提供「重新載入」。
 - Socket.IO 日後只觸發列表／未讀數同步，PostgreSQL 與 HTTP read model 仍是通知真相。
 
 ## Workspace invitation response contract
 
-- PENDING 工作區邀請直接在 Notification Dropdown 內提供「接受邀請」與「婉拒」，不另外開啟確認 Dialog。
+- 點擊 WORKSPACE_INVITED 通知內容後關閉 Dropdown，以 notificationId 載入最新資源詳情，再開啟 Workspace Invitation Dialog；前端不得信任或自行提交列表中的 resourceId／Type 作授權依據。
+- Invitation Dialog 屬於 Workspace Invitation domain UI，不屬於 Notification Item。Desktop 使用置中 `520px` Dialog；Mobile 使用 `358px` inset Dialog，並保留 `16px` viewport gutter。
 - 「接受邀請」是唯一主要操作；「婉拒」使用中性 outline，不使用 danger 色，因為它不會刪除既有資料。
 - Desktop 動作高度為 `44px`，Mobile 為 `48px`；送出任一回覆時兩個動作都必須停用，避免 accept／decline 並行競爭。
-- 成功後在原卡片位置顯示 Accepted／Declined 結果。接受成功時重新載入 Workspace 列表，並提供「前往工作區」；婉拒成功後不再顯示動作。
-- API 失敗時保留通知並提供重新載入；畫面使用穩定 `ApiCode` 決定文案，不直接顯示後端 message。
-- 回覆狀態不等同已讀狀態；accept／decline 成功後由前端另外呼叫已讀 API，同步更新通知的 readAt、未讀數與 badge。
+- Dialog 支援 Loading、Pending、Responding、Accepted、Declined、Unavailable／Expired；接受成功時重新載入 Workspace 列表並提供「前往工作區」，婉拒後只保留關閉操作。
+- 詳情載入或 API 失敗時保留 Dialog，畫面使用穩定 `ApiCode` 決定文案，不直接顯示後端 message；關閉後焦點回到原通知項目。
+- 回覆狀態不等同已讀狀態；開啟詳情是否自動標記已讀是獨立產品規則，不得把 accept／decline 當成 Notification 本身的狀態。
 
 ## Single-page file rule
 
@@ -86,7 +90,8 @@ Card
 - `board-drag-states.svg` 與 `board-system-states.svg` 是狀態規格頁，允許在同一規格頁內展示多個 Variant。
 - `notification-dropdown-states.svg` 是 Notification runtime state 規格頁，允許展示 Loading、Empty、Error 與 Trigger variants。
 - `notification-read-actions-states.svg` 是已讀操作規格頁，允許展示單筆／全部的 Default、Processing、Complete 與 Error recovery。
-- `workspace-invitation-response-states.svg` 是邀請回覆狀態規格頁，允許展示 Pending、Responding、Accepted、Declined 與 Error recovery。
+- `notification-item-interactions.svg` 是 Notification Item 操作分區與 Type routing 規格頁，允許展示 Desktop／Mobile、Unread／Read 與 interaction anatomy。
+- `workspace-invitation-response-states.svg` 是邀請詳情 Dialog 規格頁，允許展示 Loading、Pending、Responding、Accepted、Declined 與 Unavailable／Expired。
 - 新增裝置版本時使用 `*-tablet.svg`、`*-mobile.svg` 命名，不再使用含混的 `*-rwd.svg`。
 
 ## Figma regeneration gate
@@ -99,3 +104,4 @@ Card
 - Workspace invitation 的 Dialog、Input 與 Button 皆有原生 Figma Component／Instance 對應。
 - Notification Trigger、Notification Item 與 Notification Dropdown 皆有原生 Component Set／Variant 對應。
 - Notification Read Action 需建立 Single／All 與 Default／Processing／Complete／Error variants，並保留 focus、disabled 與 `aria-live` 行為註記。
+- Notification Item 的 content action 與 read action 必須是分離的互動區；Workspace Invitation Response 必須由獨立 Dialog Component Set 組成，不在 Dropdown Item 內放接受／婉拒按鈕。

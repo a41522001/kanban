@@ -34,21 +34,11 @@
 
 ## 通知資料與讀取
 
-Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invitation.id；dedupeKey 為 `workspaceInvitation:<invitationId>`。Payload 保存：
-
-```json
-{
-  "workspaceName": "範例工作區",
-  "inviterDisplayName": "邀請者",
-  "role": "MEMBER"
-}
-```
-
-invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及 public mapping 時驗證上述 payload 欄位；其他預留通知類型目前只檢查是非 null、非 array 的 object。
+Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invitation.id；dedupeKey 為 `workspaceInvitation:<invitationId>`。Notification 不保存 payload；後續將由 Workspace Invitation detail API 以 resourceId 查詢工作區名稱、邀請者名稱、角色與邀請狀態。
 
 前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。每則未讀通知可單筆標記已讀，Dropdown header 可執行全部已讀；處理中會鎖定對應操作，成功後原地更新通知、未讀數與 badge，失敗則保留重試狀態。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態，兩種回覆成功後都會同步將該通知標記為已讀。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，前端清除暫存回覆狀態後重載通知；其他衝突或網路錯誤則顯示重新載入狀態。一般通知、邀請回覆卡與已讀操作已拆成可重用元件。
 
-邀請回覆狀態保存在 Notification Store，因此通知選單或頁內元件重建後仍能維持，但登出或整頁重新整理會清除。Backend notification read model 目前沒有 invitation status，前端無法從重新讀取的通知判斷已接受、婉拒、取消或排程過期；在 read model 補齊前，重新整理後可能再次顯示回覆按鈕。通知已提供單筆／全部已讀 HTTP API 與前端操作，但尚未提供 query 分頁或即時推送；過期通知仍會出現在列表與未讀計數。
+邀請回覆狀態以 WorkspaceInvitation 為準；通知選單開啟邀請 UI 時，應用 resourceId 呼叫詳細資訊 API，因此通知只負責 unread/read 與導流。通知已提供單筆／全部已讀 HTTP API 與前端操作，但尚未提供 query 分頁或即時推送；過期通知仍會出現在列表與未讀計數。
 
 ## 狀態機現況
 
@@ -64,7 +54,7 @@ invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及
 
 ## 後續交付與驗收
 
-- 補 Owner 取消邀請 API 與前端操作；讓通知 read model 提供可同步的邀請最終狀態。
+- 補 Owner 取消邀請 API 與前端操作；新增 detail API 後再完成前端 Dialog 串接。
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
 - 補通知 query DTO 與前端分頁操作；單筆／全部已讀的 API 與前端操作已完成。
 - Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。

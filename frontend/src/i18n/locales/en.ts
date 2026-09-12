@@ -46,6 +46,8 @@ export const en = {
       activity: 'Workspace activity',
     },
     workspaceInvited: {
+      summaryTitle: 'You received a workspace invitation',
+      summaryBody: 'A workspace invitation is waiting for your response.',
       title: '{inviter} invited you to join “{workspace}”',
       body: 'You will join this workspace as a member.',
       pendingStatus: 'Waiting for your response',
@@ -58,7 +60,8 @@ export const en = {
       declining: 'Declining',
       acceptingTitle: 'Accepting the invitation to “{workspace}”',
       decliningTitle: 'Declining the invitation to “{workspace}”',
-      processingDescription: 'Updating the invitation. Other actions are unavailable until it finishes.',
+      processingDescription:
+        'Updating the invitation. Other actions are unavailable until it finishes.',
       acceptedEyebrow: 'Invitation accepted',
       acceptedTitle: 'You joined “{workspace}”',
       acceptedDescription: 'Your workspace list is up to date and ready to open.',
@@ -67,7 +70,8 @@ export const en = {
       declinedDescription: 'Your response to this invitation is complete.',
       openWorkspace: 'Open workspace',
       errorTitle: 'Unable to respond to this invitation',
-      errorDescription: 'It may have expired or been canceled. Reload notifications to get the latest status.',
+      errorDescription:
+        'It may have expired or been canceled. Reload notifications to get the latest status.',
       responseError: 'Unable to respond to the invitation. Reload and try again.',
       acceptedToast: 'Workspace invitation accepted',
       declinedToast: 'Workspace invitation declined',

@@ -94,6 +94,12 @@ describe('markReadInvitation (e2e)', () => {
     }
     const notifications = getNotificationResponseBody.data.items;
     expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      type: 'WORKSPACE_INVITED',
+      resourceType: 'WORKSPACE_INVITATION',
+      resourceId: expect.any(String),
+    });
+    expect(notifications[0]).not.toHaveProperty('payload');
     expect(notifications[0].readAt).toBeNull();
     await inviteeAgent
       .patch('/notifications/read')

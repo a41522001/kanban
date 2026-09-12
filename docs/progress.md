@@ -79,7 +79,7 @@
 - Logout 只撤銷本次 token，尚未完整撤銷 Current／Grace family。
 - User／Workspace／Notification Store reset 尚未阻止舊 in-flight response 回寫。
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
-- Notification read model 尚未回傳 invitation 最終狀態；前端只在本次登入的 Pinia state 保留成功回覆結果，整頁重新整理後仍可能再次顯示操作，直到後端提供可同步的狀態或通知處理規則。
+- Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 尚待加入 Controller，前端通知 UI 之後再使用它取得邀請狀態。
 
 ## 更新方式
 

@@ -1,6 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { WorkspaceInvitationRepository } from './workspaceInvitation.repository';
-import { WorkspaceInvitationStatus } from '@kanban/contracts/workspaceInvitation';
+import type {
+  WorkspaceInvitationDetail,
+  WorkspaceInvitationStatus,
+} from '@kanban/contracts/workspaceInvitation';
 import type { Prisma } from '@/generated/prisma/client';
 import { CreateInvitationParams } from './workspaceInvitation.type';
 import { WorkspacesService } from '@/workspaces/workspaces.service';
@@ -20,6 +23,56 @@ export class WorkspaceInvitationService {
     private readonly prismaService: PrismaService,
     private readonly workspaceInvitationRepository: WorkspaceInvitationRepository,
   ) {}
+
+  /** 取得工作區邀請詳細資訊 by workspaceInvitationId */
+  async getWorkspaceInvitationDetail(
+    workspaceInvitationId: string,
+    userId: string,
+  ): Promise<WorkspaceInvitationDetail> {
+    const result = await this.workspaceInvitationRepository.getDetailById(
+      workspaceInvitationId,
+    );
+    if (result === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區邀請',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+
+    if (result.inviteeUserId !== userId) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區邀請',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    if (result.workspace.archivedAt !== null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區邀請',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    const now = DateTime.utc();
+
+    const status =
+      result.status === 'PENDING' &&
+      DateTime.fromJSDate(result.expiresAt).toUTC() <= now
+        ? 'EXPIRED'
+        : result.status;
+    return {
+      invitationId: result.id,
+      workspaceId: result.workspaceId,
+      workspaceName: result.workspace.name,
+      inviterName: result.inviter?.displayName ?? null,
+      role: result.role,
+      status,
+      expiresAt: result.expiresAt.toISOString(),
+      respondedAt: result.respondedAt?.toISOString() ?? null,
+    };
+  }
+
   /** 取得工作區所有成員的邀請*/
   async getMemberInvitationByWorkspace(
     workspaceId: string,
@@ -305,11 +358,6 @@ export class WorkspaceInvitationService {
           type: 'WORKSPACE_INVITED',
           resourceType: 'WORKSPACE_INVITATION',
           resourceId: newInvitation.id,
-          payload: {
-            workspaceName: member.workspaceName,
-            inviterDisplayName: member.memberName,
-            role: 'MEMBER',
-          },
           dedupeKey: `workspaceInvitation:${newInvitation.id}`,
           expiresAt,
         },

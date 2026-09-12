@@ -7,6 +7,7 @@
     <g id="mark"><rect width="16" height="24" rx="4" fill="#DF6E51"/><rect x="22" y="8" width="16" height="16" rx="4" fill="#A9D2C8"/></g>
     <g id="bell" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></g>
     <g id="check-check" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 8 4 4L14 4M10 12l2 2 6-7"/></g>
+    <g id="chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></g>
   </defs>
 
   <rect width="390" height="844" rx="20" fill="#E9ECF1"/>
@@ -16,17 +17,9 @@
     <circle cx="306" cy="-10" r="9" fill="#DF6E51"/><text x="306" y="-6" text-anchor="middle" class="label inverse">2</text>
     <circle cx="346" cy="12" r="16" fill="#A9D2C8"/><text x="346" y="17" text-anchor="middle" class="body medium">J</text>
   </g>
-  <g transform="translate(24 84)">
-    <text class="tiny">目前工作區</text><rect y="20" width="342" height="56" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
-    <rect x="12" y="32" width="32" height="32" rx="8" fill="#DF6E51"/><text x="28" y="53" text-anchor="middle" class="body inverse medium">J</text>
-    <text x="56" y="44" class="body medium">Jeffery 的工作區</text><text x="56" y="62" class="tiny">3 個專案 · 5 位成員</text>
-    <text y="120" class="title">選一個專案繼續</text><text y="148" class="small">所有專案都集中在這個工作區。</text>
-    <rect y="172" width="342" height="132" rx="12" fill="#F7F8FA"/><rect y="172" width="4" height="132" rx="2" fill="#DF6E51"/>
-    <text x="20" y="208" class="h2">Flowboard 即時協作</text><text x="20" y="234" class="small">主要看板 · WebSocket 練習</text>
-  </g>
 
-  <g id="notification-read-actions-mobile" transform="translate(16 68)" filter="url(#dropdown-shadow)">
-    <rect width="358" height="548" rx="18" fill="#FFFFFF" stroke="#D7DCE5"/>
+  <g id="notification-inbox-mobile" transform="translate(16 68)" filter="url(#dropdown-shadow)">
+    <rect width="358" height="532" rx="18" fill="#FFFFFF" stroke="#D7DCE5"/>
     <text x="16" y="39" class="title">通知</text>
     <rect x="70" y="18" width="72" height="24" rx="12" fill="#FCE5DF"/><text x="106" y="34" text-anchor="middle" class="label" fill="#9F3F2C">2 則未讀</text>
     <rect x="210" y="10" width="132" height="44" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/>
@@ -34,31 +27,33 @@
     <line x1="16" y1="66" x2="342" y2="66" stroke="#D7DCE5"/>
 
     <g transform="translate(16 78)">
-      <rect width="326" height="184" rx="12" fill="#FCE5DF" stroke="#DF6E51"/><rect width="4" height="184" rx="2" fill="#DF6E51"/>
-      <circle cx="38" cy="38" r="20" fill="#DF6E51"/><text x="38" y="43" text-anchor="middle" class="body inverse medium">J</text>
-      <text x="70" y="28" class="label" fill="#9F3F2C">工作區邀請</text>
-      <text x="70" y="58" class="body medium">Jeffery 邀請你加入</text><text x="70" y="80" class="body medium">「無限有限公司」</text>
-      <text x="70" y="108" class="small">你將以成員身分加入</text><text x="70" y="127" class="small">這個工作區。</text><text x="70" y="158" class="tiny">剛剛</text>
-      <circle cx="258" cy="34" r="4" fill="#DF6E51"/>
-      <rect x="272" y="12" width="44" height="44" rx="9" fill="#FFFFFF" stroke="#E8B8AB"/><g transform="translate(284 24)" color="#9F3F2C"><use href="#check-check"/></g>
+      <rect width="326" height="138" rx="12" fill="#FFF9F7" stroke="#DF6E51"/><rect width="4" height="138" rx="2" fill="#DF6E51"/>
+      <circle cx="36" cy="36" r="20" fill="#DF6E51"/><text x="36" y="41" text-anchor="middle" class="body inverse medium">M</text>
+      <text x="68" y="27" class="label" fill="#9F3F2C">工作區邀請</text>
+      <text x="68" y="56" class="body medium">Mia 邀請你加入</text><text x="68" y="78" class="body medium">「產品開發中心」</text>
+      <text x="68" y="103" class="tiny">5 分鐘前 · 點擊查看</text>
+      <circle cx="250" cy="24" r="4" fill="#DF6E51"/>
+      <rect x="266" y="10" width="44" height="44" rx="9" fill="#FFFFFF" stroke="#E8B8AB"/><g transform="translate(278 22)" color="#9F3F2C"><use href="#check-check"/></g>
+      <g transform="translate(282 108)" color="#697287"><use href="#chevron"/></g>
     </g>
 
-    <g transform="translate(16 274)">
-      <rect width="326" height="134" rx="12" fill="#FFFFFF" stroke="#D7DCE5"/>
-      <circle cx="38" cy="38" r="20" fill="#A9D2C8"/><text x="38" y="43" text-anchor="middle" class="body medium">M</text>
-      <text x="70" y="28" class="label" fill="#697287">工作區動態</text>
-      <text x="70" y="58" class="body medium">Mia 已加入</text><text x="70" y="80" class="body medium">「無限有限公司」</text>
-      <text x="70" y="112" class="tiny">昨天 · 已讀</text>
+    <g transform="translate(16 228)">
+      <rect width="326" height="112" rx="12" fill="#FFFFFF" stroke="#D7DCE5"/>
+      <circle cx="36" cy="36" r="20" fill="#A9D2C8"/><text x="36" y="41" text-anchor="middle" class="body medium">F</text>
+      <text x="68" y="27" class="label" fill="#697287">工作區動態</text>
+      <text x="68" y="56" class="body medium">Flowboard 即時協作</text><text x="68" y="78" class="body medium">有 2 項更新</text>
+      <text x="68" y="99" class="tiny">昨天 · 已讀</text><g transform="translate(282 48)" color="#8B95A8"><use href="#chevron"/></g>
     </g>
 
-    <g transform="translate(16 420)">
-      <rect width="326" height="76" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
-      <circle cx="30" cy="38" r="14" fill="#DF6E51"/><text x="30" y="42" text-anchor="middle" class="tiny inverse medium">A</text>
-      <text x="54" y="34" class="small medium">卡片「API 錯誤處理」提及了你</text><text x="54" y="54" class="tiny">2 天前</text>
-      <circle cx="258" cy="38" r="4" fill="#DF6E51"/>
-      <rect x="272" y="16" width="44" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/><g transform="translate(284 28)" color="#697287"><use href="#check-check"/></g>
+    <g transform="translate(16 352)">
+      <rect width="326" height="102" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+      <circle cx="36" cy="36" r="18" fill="#DF6E51"/><text x="36" y="41" text-anchor="middle" class="tiny inverse medium">A</text>
+      <text x="66" y="32" class="small medium">卡片「API 錯誤處理」提及了你</text><text x="66" y="56" class="tiny">2 天前</text>
+      <circle cx="250" cy="24" r="4" fill="#DF6E51"/>
+      <rect x="266" y="10" width="44" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/><g transform="translate(278 22)" color="#697287"><use href="#check-check"/></g>
+      <g transform="translate(282 72)" color="#697287"><use href="#chevron"/></g>
     </g>
 
-    <text x="16" y="526" class="tiny">單筆與全部已讀操作皆保留 44px 觸控區</text>
+    <text x="16" y="494" class="tiny">內容區與已讀按鈕是兩個獨立的 44px 操作目標</text>
   </g>
 </svg>
