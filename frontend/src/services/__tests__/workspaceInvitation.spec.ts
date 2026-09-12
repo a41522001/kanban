@@ -4,6 +4,7 @@ import api from '@/services/http';
 import {
   acceptWorkspaceInvitationApi,
   declineWorkspaceInvitationApi,
+  getWorkspaceInvitationDetailApi,
 } from '@/services/workspaceInvitation';
 
 vi.mock('@/services/http', () => ({
@@ -43,6 +44,15 @@ describe('workspace invitation response service', () => {
       url: '/workspaceInvitation/decline',
       method: 'post',
       data: { invitationId: 'invitation-2' },
+    });
+  });
+
+  it('依 resourceId 取得邀請詳細資訊', async () => {
+    await getWorkspaceInvitationDetailApi('invitation-3');
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/workspaceInvitation/invitation-3',
+      method: 'get',
     });
   });
 });

@@ -2,6 +2,7 @@ import type { ApiResponse } from '@kanban/contracts/api';
 import type {
   AcceptOrDeclineInvitationRequest,
   InviteWorkspaceMemberRequest,
+  WorkspaceInvitationDetail,
 } from '@kanban/contracts/workspaceInvitation';
 import api from './http';
 
@@ -40,4 +41,15 @@ export const declineWorkspaceInvitationApi = async (
   data: AcceptOrDeclineInvitationRequest,
 ): Promise<ApiResponse<null>> => {
   return respondToWorkspaceInvitationApi('decline', data);
+};
+
+export const getWorkspaceInvitationDetailApi = async (
+  invitationId: string,
+): Promise<ApiResponse<WorkspaceInvitationDetail>> => {
+  const response = await api<ApiResponse<WorkspaceInvitationDetail>>({
+    url: `/workspaceInvitation/${invitationId}`,
+    method: 'get',
+  });
+
+  return response.data;
 };

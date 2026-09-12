@@ -100,8 +100,11 @@
                   :created-at="item.createdAt"
                   :created-at-label="item.createdAtLabel"
                   :is-unread="item.isUnread"
+                  :interactive="item.kind === 'invitation'"
+                  :open-label="t('notification.workspaceInvited.openDetails')"
                   :read-state="getNotificationReadState(item.id)"
                   @mark-read="markNotification(item.id)"
+                  @open="openInvitationDetail(item.id)"
                 />
               </li>
             </ul>
@@ -114,6 +117,13 @@
       </section>
     </DropdownMenuContent>
   </DropdownMenu>
+
+  <WorkspaceInvitationDetailDialog
+    v-model:open="isInvitationDetailOpen"
+    :invitation-id="selectedInvitationId"
+    @accepted="refreshNotifications"
+    @declined="refreshNotifications"
+  />
 </template>
 
 <script setup lang="ts">
@@ -124,6 +134,7 @@ import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import type { PublicNotification } from '@kanban/contracts/notification';
 import NotificationItem from '@/components/notifications/NotificationItem/NotificationItem.vue';
+import WorkspaceInvitationDetailDialog from '@/components/notifications/WorkspaceInvitationDetailDialog/WorkspaceInvitationDetailDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import NotificationReadAction from '@/components/notifications/NotificationReadAction/NotificationReadAction.vue';
@@ -152,7 +163,7 @@ interface NotificationItemBase {
 }
 
 interface GenericNotificationItem extends NotificationItemBase, NotificationPresentation {
-  kind: 'generic';
+  kind: 'generic' | 'invitation';
 }
 
 type NotificationItemView = GenericNotificationItem;
@@ -170,6 +181,9 @@ const {
 const { loadUnreadCount, markAllNotificationsRead, markNotificationRead, refreshNotifications } =
   notificationStore;
 const isOpen = ref(false);
+const isInvitationDetailOpen = ref(false);
+const selectedInvitationId = ref<string | null>(null);
+const openingInvitationNotificationId = ref<string | null>(null);
 const titleId = 'notification-menu-title';
 
 const visibleUnreadCount = computed(() => (unreadCount.value > 99 ? '99+' : unreadCount.value));
@@ -236,7 +250,7 @@ const notificationItems = computed<NotificationItemView[]>(() => {
 
     return {
       ...base,
-      kind: 'generic' as const,
+      kind: notification.type === 'WORKSPACE_INVITED' ? ('invitation' as const) : ('generic' as const),
       actorInitial: presentation.actorInitial,
       eyebrow: presentation.eyebrow,
       title: presentation.title,
@@ -244,6 +258,34 @@ const notificationItems = computed<NotificationItemView[]>(() => {
     };
   });
 });
+
+const openInvitationDetail = async (notificationId: string) => {
+  if (openingInvitationNotificationId.value !== null) {
+    return;
+  }
+
+  const notification = notifications.value.find((item) => item.id === notificationId);
+  if (!notification || notification.type !== 'WORKSPACE_INVITED' || !notification.resourceId) {
+    return;
+  }
+
+  openingInvitationNotificationId.value = notificationId;
+
+  try {
+    // The invitation dialog is a separate domain UI. Persist the notification
+    // read state before handing control to it so a refresh cannot show it as unread.
+    await markNotificationRead(notificationId);
+    selectedInvitationId.value = notification.resourceId;
+    isOpen.value = false;
+    isInvitationDetailOpen.value = true;
+  } catch (error: unknown) {
+    toast.error(
+      getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'),
+    );
+  } finally {
+    openingInvitationNotificationId.value = null;
+  }
+};
 
 const showMarkAllReadAction = computed(
   () =>

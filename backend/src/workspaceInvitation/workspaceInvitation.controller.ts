@@ -3,9 +3,12 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  ParseUUIDPipe,
+  Param,
   Post,
   Req,
   UseGuards,
+  Get,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { InviteMemberDto } from './dto/inviteMember.dto';
@@ -13,6 +16,7 @@ import { SessionGuard } from '@/session/session.guard';
 import type { ApiResult } from '@kanban/contracts/api';
 import { WorkspaceInvitationService } from './workspaceInvitation.service';
 import { AcceptOrDeclineInvitationDto } from './dto/acceptInvitation.dto';
+import type { WorkspaceInvitationDetail } from '@kanban/contracts/workspaceInvitation';
 @UseGuards(SessionGuard)
 @Controller('workspaceInvitation')
 export class WorkspaceInvitationController {
@@ -65,5 +69,21 @@ export class WorkspaceInvitationController {
       acceptOrDeclineInvitationDto.invitationId,
     );
     return { data: null, message: '已拒絕邀請' };
+  }
+
+  /** 取得工作區邀請詳細資訊 by workspaceInvitationId */
+  @Get(':workspaceInvitationId')
+  @HttpCode(HttpStatus.OK)
+  async getWorkspaceInvitationDetail(
+    @Req() req: Request,
+    @Param('workspaceInvitationId', ParseUUIDPipe)
+    workspaceInvitationId: string,
+  ): Promise<ApiResult<WorkspaceInvitationDetail>> {
+    const result =
+      await this.workspaceInvitationService.getWorkspaceInvitationDetail(
+        workspaceInvitationId,
+        req.userId!,
+      );
+    return { data: result };
   }
 }
