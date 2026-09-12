@@ -1,6 +1,6 @@
 # API Contract 與錯誤處理規格
 
-最後靜態核對：2026-09-08。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；Swagger 共用 decorator、統一 frontend error parser 仍待實作。
+最後靜態核對：2026-09-12。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；Swagger 共用 decorator 仍待實作。
 
 ## 1. 目標
 
@@ -19,6 +19,8 @@ export enum ApiCode {
   ValidationError = 1000,
   InvalidCredentials = 2001,
   EmailAlreadyRegistered = 2002,
+  Unauthenticated = 2003,
+  ResourceNotFound = 3001,
   RequestError = 4000,
   InternalError = 5000,
 }
@@ -77,6 +79,8 @@ Validation response：
 | `1000` | `ValidationError` | 400 | DTO／request payload 驗證失敗 | 顯示 `error` 內的欄位訊息；表單頁不顯示通用 Alert。 |
 | `2001` | `InvalidCredentials` | 401 | Email 或密碼錯誤 | 顯示安全的登入失敗訊息。 |
 | `2002` | `EmailAlreadyRegistered` | 409 | 註冊 Email 已存在 | 顯示安全的註冊失敗訊息。 |
+| `2003` | `Unauthenticated` | 401 | Cookie 缺失、Session 不存在或已失效 | HTTP client 發出 session 失效事件；App 清空 User／Workspace／Notification Store 並導向 Login。 |
+| `3001` | `ResourceNotFound` | 404 | 找不到目前使用者可存取的資源 | 依情境顯示欄位錯誤或重新同步局部資料；不可用它判斷資源是否原本存在。 |
 | `4000` | `RequestError` | 預期的 4xx | 未以 `AppException` 明確分類的一般 `HttpException` | 顯示通用「請求失敗」或依頁面情境處理。 |
 | `5000` | `InternalError` | 500 | 未預期的 server error | 顯示本地化通用錯誤；不可顯示原始例外內容。 |
 
@@ -139,7 +143,7 @@ HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的
 ## 9. 驗收條件
 
 - 所有 endpoint 的 error response 都符合 ApiResponse。
-- Frontend 只需實作一個 error parser。
+- Frontend 已由 `frontend/src/services/http.ts` 的 `getApiErrorResponse()` 統一驗證及解析 Axios error envelope；新功能不可再自行假設 `error.response.data` 的形狀。
 - Validation field error 可直接對應表單欄位。
 - ValidationError 不顯示「請求參數錯誤」這類通用 Alert。
 - Password/Cookie/Token 不出現在 response。

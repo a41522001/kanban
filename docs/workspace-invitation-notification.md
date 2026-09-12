@@ -11,7 +11,7 @@
 3. 查同一工作區／受邀者的 PENDING 邀請；尚有效時回 409。
 4. 若舊邀請已到期，用 `id + status=PENDING + expiresAt<=now` 條件更新成 EXPIRED；更新筆數非 1 時回 409。
 5. 在同一 Prisma transaction 建立新 Invitation 與 WORKSPACE_INVITED Notification；任一寫入失敗會回滾這兩筆新增。
-6. 成功回 201、data null；前端關閉 Dialog 並顯示 toast。
+6. 成功回 201、data null；前端關閉 Dialog 並顯示 toast。不存在的已註冊帳號回 404 / `ResourceNotFound`，前端將 server message 顯示在 email 欄位。
 
 新邀請預設 PENDING、MEMBER，expiresAt 為建立流程計算的 now + 7 天。發送邀請不會建立 WorkspaceMember。
 
@@ -46,7 +46,7 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及 public mapping 時驗證上述 payload 欄位；其他預留通知類型目前只檢查是非 null、非 array 的 object。
 
-前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態，衝突或網路錯誤則顯示重新載入狀態。一般通知與邀請回覆卡已拆成可重用元件。
+前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。WORKSPACE_INVITED 通知以 resourceId 呼叫接受或婉拒 API，請求期間鎖定兩個操作；接受成功後重載工作區清單並提供前往工作區的操作，婉拒後顯示完成狀態。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，前端清除暫存回覆狀態後重載通知；其他衝突或網路錯誤則顯示重新載入狀態。一般通知與邀請回覆卡已拆成可重用元件。
 
 邀請回覆狀態保存在 Notification Store，因此通知選單或頁內元件重建後仍能維持，但登出或整頁重新整理會清除。Backend notification read model 目前沒有 invitation status，前端無法從重新讀取的通知判斷已接受、婉拒、取消或排程過期；在 read model 補齊前，重新整理後可能再次顯示回覆按鈕。通知也仍未提供標記已讀、下一頁或即時推送，過期通知仍會出現在列表與未讀計數。
 

@@ -1,11 +1,13 @@
+import { AppException } from '@/common/exceptions/app.exception';
 import { getCookieOptions } from '@/common/utils/cookie';
 import type { Env } from '@/config/env';
 import { SessionService } from '@/session/session.service';
+import { ApiCode } from '@kanban/contracts/api';
 import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  UnauthorizedException,
+  HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
@@ -30,11 +32,19 @@ export class SessionGuard implements CanActivate {
     const response = httpContext.getResponse<Response>();
     const { sessionId } = request.cookies;
     if (!sessionId || typeof sessionId !== 'string') {
-      throw new UnauthorizedException();
+      throw new AppException({
+        status: HttpStatus.UNAUTHORIZED,
+        code: ApiCode.Unauthenticated,
+        message: '登入已失效，請重新登入',
+      });
     }
     const authResult = await this.sessionService.authenticateSession(sessionId);
     if (authResult === null) {
-      throw new UnauthorizedException();
+      throw new AppException({
+        status: HttpStatus.UNAUTHORIZED,
+        code: ApiCode.Unauthenticated,
+        message: '登入已失效，請重新登入',
+      });
     }
     if (authResult.rotatedSessionId) {
       response.cookie(this.sessionCookieName, authResult.rotatedSessionId, {

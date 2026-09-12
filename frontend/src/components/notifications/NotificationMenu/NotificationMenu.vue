@@ -141,6 +141,8 @@ import {
   acceptWorkspaceInvitationApi,
   declineWorkspaceInvitationApi,
 } from '@/services/workspaceInvitation';
+import { getApiErrorResponse } from '@/services/http';
+import { ApiCode } from '@kanban/contracts/api';
 import { useNotificationStore } from '@/stores/notification';
 import { useWorkspaceStore } from '@/stores/workspace';
 import type {
@@ -382,7 +384,14 @@ const respondToInvitation = async (
     await declineWorkspaceInvitationApi(request);
     setInvitationResponseState(item.id, 'declined');
     toast.success(t('notification.workspaceInvited.declinedToast'));
-  } catch {
+  } catch (error: unknown) {
+    if (getApiErrorResponse(error)?.code === ApiCode.ResourceNotFound) {
+      clearInvitationResponseState(item.id);
+      await refreshNotifications();
+      toast.error(t('notification.workspaceInvited.responseError'));
+      return;
+    }
+
     setInvitationResponseState(item.id, 'error');
     toast.error(t('notification.workspaceInvited.responseError'));
   }

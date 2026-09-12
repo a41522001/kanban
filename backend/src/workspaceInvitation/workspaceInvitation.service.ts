@@ -118,7 +118,7 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '找不到此邀請',
-        code: ApiCode.RequestError,
+        code: ApiCode.ResourceNotFound,
       });
     }
 
@@ -176,7 +176,7 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '找不到此邀請',
-        code: ApiCode.RequestError,
+        code: ApiCode.ResourceNotFound,
       });
     }
     // 確認目前登入者不存在於workspace
@@ -226,7 +226,7 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '此帳號不存在',
-        code: ApiCode.RequestError,
+        code: ApiCode.ResourceNotFound,
       });
     }
     // 無法邀請自己

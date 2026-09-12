@@ -27,17 +27,17 @@
 | Session 輪轉 | 已完成核心流程 | 15 分鐘 request-driven rotation、20 秒 Grace、Lua 原子競爭 |
 | 5 裝置限制 | 已完成核心流程 | ZSET + create Lua 原子清理與淘汰 |
 | Session revoke／logout | 已完成最小版本 | `revokeSession` Lua 原子刪除請求攜帶的 Session Hash 與使用者 ZSET member；Controller 一律清除 Cookie |
-| 統一 API response 與錯誤 | 已完成 | ValidationPipe、AppException、全域 Filter、欄位錯誤遮蔽 |
+| 統一 API response 與錯誤 | 已完成 | ValidationPipe、AppException、全域 Filter、欄位錯誤遮蔽；`Unauthenticated` 與 `ResourceNotFound` 為前端可判斷的穩定 code |
 | Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
 | Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
 | Workspace Invitation | 已完成發送、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
-| Frontend Invitation／Notification | 已完成邀請回覆第一版 | 邀請 Dialog、通知列表、未讀 badge、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；已讀與分頁操作尚未完成 |
+| Frontend Invitation／Notification | 已完成邀請回覆第一版 | 邀請 Dialog、通知列表、未讀 badge、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；未知 email 顯示欄位錯誤，失去的邀請資源會重新同步通知；已讀與分頁操作尚未完成 |
 | 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
-| Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout 與前端表單驗證 |
+| Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
-| Notification read model | 已完成最小版本 | Notification schema、migration、shared contract、收件者列表與未讀數 API 已完成；邀請流程已呼叫內部 Service 建立通知；Repository 已有已讀方法，但 Service／Controller 尚未開放 |
+| Notification read model | 已完成最小版本 | Notification schema、migration、shared contract、收件者列表與未讀數 API 已完成；邀請流程已呼叫內部 Service 建立通知；Service 已有已讀方法，但 Controller／HTTP endpoint 尚未開放 |
 | Board／Project domain | 尚未開始 | 依 domain 與 WebSocket spec 實作 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
@@ -51,6 +51,7 @@
 - Frontend unit tests 目前覆蓋 signup／login 表單驗證、User Store 的 session restore 去重與 reset、共用 Alert／Loading；2026-09-04 執行 `pnpm --filter frontend test:unit --run`，共 5 個檔案、16 個測試通過。
 - Frontend production build 於 2026-09-04 執行 `pnpm --filter frontend build` 通過。
 - 2026-09-12 以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite build：8 個 frontend test files、25 個 tests 全數通過，type-check／lint／production build 亦通過。Playwright CLI 以攔截的本機 API 假資料驗證桌面邀請卡、接受成功、工作區清單更新及 375px 響應式畫面。
+- 2026-09-12 變更 frontend HTTP error handling 後，使用 Node 24.13 執行 `pnpm --filter frontend type-check` 與 `pnpm --filter frontend test:unit --run`：8 個 test files、25 個 tests 全數通過。Vite 顯示既有 `configLoader: 'native'` 未來相容性提醒，與測試結果及本次修改無關。
 - 尚未有 Playwright Auth flow；瀏覽器層的 signup → login → refresh → logout 仍是待辦。
 - 2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 全部通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。WorkspaceInvitationService spec 覆蓋發送、接受、拒絕與排程呼叫的 service delegation；Controller spec 覆蓋 invite／accept／decline 的參數轉交與回應。排程 job class 本身尚無 spec，因此該檔 coverage 為 0%。
 - 2026-09-11 執行 `pnpm --filter backend build` 通過。

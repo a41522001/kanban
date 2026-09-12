@@ -205,7 +205,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 - [x] Auth／User Store session restore、request 去重與 reset。
 - [x] Login／Signup form validation pure functions。
-- [ ] API error mapping 共用層。
+- [ ] API error mapping 共用層的 unit test：實作已完成，`getApiErrorResponse()` 驗證 Axios API envelope，`Unauthenticated` interceptor 以 app event 統一清空 session state。
 - Socket ack state machine。
 
 ### Component

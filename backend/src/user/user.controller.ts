@@ -1,5 +1,5 @@
 import { SessionGuard } from '@/session/session.guard';
-import { ApiResult } from '@kanban/contracts/api';
+import { ApiCode, ApiResult } from '@kanban/contracts/api';
 import type { PublicUser } from '@kanban/contracts/user';
 import {
   Controller,
@@ -7,7 +7,6 @@ import {
   HttpCode,
   HttpStatus,
   Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 // import { ConfigService } from '@nestjs/config';
@@ -19,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { UserService } from './user.service';
+import { AppException } from '@/common/exceptions/app.exception';
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -70,11 +70,19 @@ export class UserController {
   @UseGuards(SessionGuard)
   async userInfo(@Req() req: Request): Promise<ApiResult<PublicUser>> {
     if (!req.userId) {
-      throw new UnauthorizedException();
+      throw new AppException({
+        status: HttpStatus.UNAUTHORIZED,
+        code: ApiCode.Unauthenticated,
+        message: '登入已失效，請重新登入',
+      });
     }
     const user = await this.userService.getUserInfo(req.userId);
     if (!user) {
-      throw new UnauthorizedException();
+      throw new AppException({
+        status: HttpStatus.UNAUTHORIZED,
+        code: ApiCode.Unauthenticated,
+        message: '登入已失效，請重新登入',
+      });
     }
     return { data: user };
   }

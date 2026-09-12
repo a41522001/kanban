@@ -96,11 +96,9 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { isAxiosError } from 'axios';
 import { CircleAlert, X } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
-import type { ApiResponse } from '@kanban/contracts/api';
 import { ApiCode } from '@kanban/contracts/api';
 import type { WorkspaceListItemDto } from '@kanban/contracts/workspaces';
 import FormField from '@/components/shared/FormField/FormField.vue';
@@ -116,6 +114,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { inviteWorkspaceMemberApi } from '@/services/workspaceInvitation';
+import { getApiErrorResponse } from '@/services/http';
 
 interface Props {
   workspace: WorkspaceListItemDto;
@@ -225,11 +224,16 @@ const handleSubmit = async () => {
     open.value = false;
     resetForm();
   } catch (error: unknown) {
-    const response = isAxiosError<ApiResponse<null>>(error) ? error.response?.data : undefined;
+    const response = getApiErrorResponse(error);
     const emailMessages = response?.error?.email?.messages;
 
     if (response?.code === ApiCode.ValidationError && emailMessages?.[0]) {
       serverEmailError.value = emailMessages[0];
+      return;
+    }
+
+    if (response?.code === ApiCode.ResourceNotFound) {
+      serverEmailError.value = response.message;
       return;
     }
 

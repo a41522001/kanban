@@ -254,7 +254,7 @@ Cookie name `sessionId` 與 Grace 20 秒目前是程式常數，尚未環境變�
 
 - Current／Grace Redis 字串欄位可正確轉型。
 - 缺欄位或數字格式錯誤時 fail closed。
-- Cookie 缺少、型別錯誤、Session 不存在時回 401。
+- Cookie 缺少、型別錯誤、Session 不存在時由 SessionGuard 拋 `AppException`，回 401 / `ApiCode.Unauthenticated` (2003)。
 - Current 有效時設定 `request.userId`。
 
 ### 輪轉與並行
@@ -268,7 +268,7 @@ Cookie name `sessionId` 與 Grace 20 秒目前是程式常數，尚未環境變�
 ### 撤銷
 
 - [x] Logout 原子刪除請求攜帶的 Session Hash 與 ZSET member。
-- [x] 登出後 Cookie 被清除；E2E 驗證後續 `GET /user/userInfo` 回 401。
+- [x] 登出後 Cookie 被清除；E2E 驗證後續 `GET /user/userInfo` 回 401 / `Unauthenticated`。
 - [ ] Current logout 時同步刪除 Previous Grace。
 - [ ] Grace Cookie logout 時撤銷同 family 的新 Current。
 - [ ] ZSET 不殘留已撤銷 member 的 Redis integration test。

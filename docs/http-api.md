@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-11。以 Controllers、DTO、`packages/contracts`、unit tests、build 與 Node 24.13 E2E 為準。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-12。以 Controllers、DTO、`packages/contracts`、unit tests、build 與 Node 24.13 E2E 為準。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -47,20 +47,20 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 | 情況 | HTTP status / code |
 | --- | --- |
 | 不是 Owner、無 membership 或工作區封存 | 403 / RequestError (4000) |
-| 受邀帳號不存在 | 404 / RequestError (4000) |
+| 受邀帳號不存在 | 404 / ResourceNotFound (3001) |
 | 邀請自己 | 400 / RequestError (4000) |
 | 已是成員、已有有效 PENDING 邀請、過期更新競爭失敗 | 409 / RequestError (4000) |
 
-邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO，並以 Session userId 搭配 invitationId、PENDING status 與 expiresAt 做條件式狀態轉移；非受邀者、已回覆或已過期時更新筆數為 0，回 409。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。另有每分鐘執行的背景 job 將已到期 PENDING invitation 改為 EXPIRED；操作端仍自行驗證 expiresAt，不依賴排程已執行。詳見[邀請與通知](workspace-invitation-notification.md)。
+邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO；找不到 invitation 時回 404 / ResourceNotFound (3001)，其餘非受邀者、已回覆或已過期等條件式更新筆數為 0 時回 409 / RequestError (4000)。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。另有每分鐘執行的背景 job 將已到期 PENDING invitation 改為 EXPIRED；操作端仍自行驗證 expiresAt，不依賴排程已執行。詳見[邀請與通知](workspace-invitation-notification.md)。
 
 ## Notification 邊界
 
 目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。
 
-未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。Repository 的單筆／全部已讀方法尚未由 Service／Controller 開放。沒有公開建立通知端點，也沒有 Socket.IO 通知推送。
+未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。Service 已有單筆條件式已讀、全部已讀與收件者限定查詢；尚未由 Controller 開放 HTTP endpoint。沒有公開建立通知端點，也沒有 Socket.IO 通知推送。
 
 ## Swagger 與待辦
 
 Swagger 位於 `/api/docs`，目前 Auth 的手寫 error schema 仍使用 array 描述，與實際 FieldError object 不一致；尚未完成可重用 envelope decorators。不可將 Swagger 視為所有端點完整驗證結果。
 
-尚待補上邀請取消、通知已讀與 query DTO、前端邀請回覆，以及更完整的錯誤授權／併發測試與 Swagger。
+尚待補上邀請取消、通知已讀 HTTP endpoint 與 query DTO，以及更完整的錯誤授權／併發測試與 Swagger。

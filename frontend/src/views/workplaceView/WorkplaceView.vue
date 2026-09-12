@@ -245,6 +245,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import {
   Archive,
   CircleAlert,
@@ -273,6 +274,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWorkspaceMembersApi } from '@/services/workspace';
+import { getApiErrorResponse } from '@/services/http';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { validateWorkspaceName, workspaceNameMaxLength } from './workplace';
@@ -352,6 +354,8 @@ const handleCreateWorkspace = async () => {
     await createWorkspace(workspaceName.value.trim());
     isCreateDialogOpen.value = false;
     resetCreateForm();
+  } catch (error: unknown) {
+    toast.error(getApiErrorResponse(error)?.message ?? t('error.requestFailed'));
   } finally {
     isCreating.value = false;
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { NotificationRepository } from './notification.repository';
 import type {
   CreateNotificationParams,
@@ -11,6 +11,9 @@ import type {
   PublicNotification,
   WorkspaceInvitedPayload,
 } from '@kanban/contracts/notification';
+import { DateTime } from 'luxon';
+import { AppException } from '@/common/exceptions/app.exception';
+import { ApiCode } from '@kanban/contracts/api';
 
 /** 轉換一般Payload */
 const parseJsonObject = (payload: unknown): JsonObject => {
@@ -140,5 +143,53 @@ export class NotificationService {
     }
 
     return this.notificationRepository.createNotification(data, tx);
+  }
+
+  /** 標記已讀 */
+  async markReadIfUnread(id: string, userId: string): Promise<boolean> {
+    const now = DateTime.utc();
+    const notification = await this.notificationRepository.findByIdAndRecipient(
+      id,
+      userId,
+    );
+    if (notification === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        code: ApiCode.ResourceNotFound,
+        message: '找不到該通知',
+      });
+    }
+    const result = await this.notificationRepository.markReadIfUnread(
+      id,
+      userId,
+      now.toJSDate(),
+    );
+    // 0 = 表示沒有被更新到
+    return result.count === 0 ? false : true;
+  }
+
+  /** 標記全部訊息已讀 */
+  async markAllReadByRecipient(userId: string): Promise<number> {
+    const now = DateTime.utc();
+    const result = await this.notificationRepository.markAllReadByRecipient(
+      userId,
+      now.toJSDate(),
+    );
+    return result.count;
+  }
+
+  /** 取得單一郵件資訊 */
+  async findByIdAndRecipient(
+    id: string,
+    userId: string,
+  ): Promise<PublicNotification | null> {
+    const result = await this.notificationRepository.findByIdAndRecipient(
+      id,
+      userId,
+    );
+    if (result === null) {
+      return null;
+    }
+    return this.toPublicNotification(result);
   }
 }
