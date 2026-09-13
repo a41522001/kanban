@@ -14,7 +14,7 @@
 
 ## 目前實作邊界
 
-2026-09-12 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕 Backend API 已實作並通過對應 E2E happy paths；前端接受／婉拒已串接，取消邀請尚未完成。Project 起的資料模型、權限表與 command 均為目標設計。現行流程見[邀請與通知](workspace-invitation-notification.md)。
+2026-09-13 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕 Backend API 已實作並通過對應 E2E happy paths；前端接受／婉拒已串接，取消邀請尚未完成。Project Repository、Service、HTTP API、前端與 Board 起的資料模型／command 仍是目標設計。現行邀請流程見[邀請與通知](workspace-invitation-notification.md)。
 
 ## 2. 第一版 Domain
 
@@ -329,7 +329,8 @@ Board room domain events 只描述已 commit 的事實：
 
 - [x] Workspace／WorkspaceMember schema、migration、repository。
 - [x] 建立／讀取 Workspace 與成員查詢 authorization（靜態核對）。
-- [ ] Project schema、migration、repository。
+- [x] Project／ProjectMember schema 與 migration。
+- [ ] Project repository、Service 與 HTTP API。
 - [ ] 建立 Project transaction：ProjectMember OWNER、主要 Board、四個預設 Columns。
 - [ ] WorkspaceMember 與 ProjectMember 權限。
 

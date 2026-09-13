@@ -38,7 +38,7 @@
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
 | Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀與工作區邀請詳細資訊 API 已完成；邀請流程在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端以 id 去重並同步列表與未讀狀態 |
-| Board／Project domain | 尚未開始 | 依 domain 與 WebSocket spec 實作 |
+| Project／Board domain | Project schema 已完成 | Project、ProjectMember schema 與 migration 已建立；contracts、repository、Service、HTTP API、前端與 Board 起的資料模型尚未實作 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
 
