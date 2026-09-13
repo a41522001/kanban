@@ -13,6 +13,7 @@ import type {
   WorkspaceInvitation,
 } from '@/generated/prisma/client';
 import { DateTime } from 'luxon';
+import { SocketService } from '@/socket/socket.service';
 
 describe('WorkspaceInvitationService', () => {
   let workspaceInvitationService: WorkspaceInvitationService;
@@ -21,6 +22,7 @@ describe('WorkspaceInvitationService', () => {
   let notificationService: NotificationService;
   let workspaceInvitationRepository: WorkspaceInvitationRepository;
   let prismaService: PrismaService;
+  let socketService: SocketService;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -43,6 +45,7 @@ describe('WorkspaceInvitationService', () => {
           provide: NotificationService,
           useValue: {
             createNotification: jest.fn(),
+            toPublicNotification: jest.fn(),
           },
         },
         {
@@ -59,6 +62,12 @@ describe('WorkspaceInvitationService', () => {
             expirePendingInvitations: jest.fn(),
           },
         },
+        {
+          provide: SocketService,
+          useValue: {
+            emitNotificationCreated: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -72,6 +81,7 @@ describe('WorkspaceInvitationService', () => {
       WorkspaceInvitationRepository,
     );
     prismaService = module.get<PrismaService>(PrismaService);
+    socketService = module.get<SocketService>(SocketService);
   });
 
   it('should be defined', () => {
@@ -850,11 +860,16 @@ describe('WorkspaceInvitationService', () => {
           notificationService,
           'createNotification',
         );
+        const emitNotificationCreatedSpy = jest.spyOn(
+          socketService,
+          'emitNotificationCreated',
+        );
         const result = await workspaceInvitationService.inviteMember(
           inviterUserId,
           workspaceId,
           inviteeEmail,
         );
+
         expect(result.workspaceId).toEqual(workspaceId);
         expect(result.inviteeUserId).toEqual(inviteeUserId);
         expect(result.inviterUserId).toEqual(inviterUserId);
@@ -904,6 +919,7 @@ describe('WorkspaceInvitationService', () => {
           }),
           tx,
         );
+        expect(emitNotificationCreatedSpy).toHaveBeenCalledTimes(1);
       });
 
       it('成功創建邀請(無PENDING邀請)', async () => {
@@ -959,6 +975,10 @@ describe('WorkspaceInvitationService', () => {
           notificationService,
           'createNotification',
         );
+        const emitNotificationCreatedSpy = jest.spyOn(
+          socketService,
+          'emitNotificationCreated',
+        );
         const result = await workspaceInvitationService.inviteMember(
           inviterUserId,
           workspaceId,
@@ -1012,6 +1032,7 @@ describe('WorkspaceInvitationService', () => {
           }),
           tx,
         );
+        expect(emitNotificationCreatedSpy).toHaveBeenCalledTimes(1);
       });
     });
   });

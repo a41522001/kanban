@@ -9,6 +9,7 @@ import {
 } from '@/services/notification';
 import type { WorkspaceInvitationResponseState } from '@/types/workspaceInvitation';
 import type { NotificationReadActionState } from '@/types/notification';
+import { onNotificationCreated, offNotificationCreated } from '@/services/socket';
 
 export const useNotificationStore = defineStore('notificationStore', () => {
   // 通知列表只保存摘要與 resource pointer，不需要 deep reactive proxy。
@@ -201,6 +202,55 @@ export const useNotificationStore = defineStore('notificationStore', () => {
     }
   };
 
+  //#region socket
+  const handleNotificationCreated = (notification: PublicNotification) => {
+    console.log('收到新notification');
+    console.log(notification);
+
+    const existingNotification = notifications.value.find((item) => item.id === notification.id);
+    // 防止 Socket 重複推送同一筆通知
+    if (existingNotification) {
+      return;
+    }
+
+    notifications.value = [notification, ...notifications.value];
+
+    if (notification.readAt === null) {
+      unreadCount.value += 1;
+    }
+  };
+
+  const realtimeStarted = ref<boolean>(false);
+  const startRealtime = () => {
+    if (realtimeStarted.value) {
+      return;
+    }
+    onNotificationCreated(handleNotificationCreated);
+    realtimeStarted.value = true;
+  };
+
+  const stopRealtime = () => {
+    if (!realtimeStarted.value) {
+      return;
+    }
+    offNotificationCreated(handleNotificationCreated);
+    realtimeStarted.value = false;
+  };
+  // socket.on('demo:echoed', (payload) => {
+  //   console.log(payload);
+  // });
+
+  // onMounted(() => {
+  //   console.log('connect');
+  //   connect();
+  // });
+
+  // onUnmounted(() => {
+  //   console.log('disconnect');
+  //   disconnect();
+  // });
+  //#endregion
+
   return {
     notifications,
     unreadCount,
@@ -217,5 +267,7 @@ export const useNotificationStore = defineStore('notificationStore', () => {
     setInvitationResponseState,
     clearInvitationResponseState,
     resetNotifications,
+    startRealtime,
+    stopRealtime,
   };
 });

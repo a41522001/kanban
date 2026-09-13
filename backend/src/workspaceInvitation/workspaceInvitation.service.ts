@@ -13,6 +13,7 @@ import { DateTime } from 'luxon';
 import { UserService } from '@/user/user.service';
 import { NotificationService } from '@/notification/notification.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { SocketService } from '@/socket/socket.service';
 
 @Injectable()
 export class WorkspaceInvitationService {
@@ -22,6 +23,7 @@ export class WorkspaceInvitationService {
     private readonly notificationService: NotificationService,
     private readonly prismaService: PrismaService,
     private readonly workspaceInvitationRepository: WorkspaceInvitationRepository,
+    private readonly socketService: SocketService,
   ) {}
 
   /** 取得工作區邀請詳細資訊 by workspaceInvitationId */
@@ -339,33 +341,41 @@ export class WorkspaceInvitationService {
     }
     // 創建新邀請以及新通知
     const expiresAt = now.plus({ days: 7 }).toJSDate();
-    const invitation = await this.prismaService.$transaction(async (tx) => {
-      const createInvitationParams = {
-        workspaceId,
-        inviteeUserId,
-        inviterUserId,
-        expiresAt,
-      };
-      const newInvitation = await this.createInvitation(
-        createInvitationParams,
-        tx,
-      );
-      await this.notificationService.createNotification(
-        {
-          recipientUserId: inviteeUserId,
-          actorUserId: inviterUserId,
+    const { newInvitation, newNotification } =
+      await this.prismaService.$transaction(async (tx) => {
+        const createInvitationParams = {
           workspaceId,
-          type: 'WORKSPACE_INVITED',
-          resourceType: 'WORKSPACE_INVITATION',
-          resourceId: newInvitation.id,
-          dedupeKey: `workspaceInvitation:${newInvitation.id}`,
+          inviteeUserId,
+          inviterUserId,
           expiresAt,
-        },
-        tx,
-      );
-      return newInvitation;
-    });
+        };
+        const newInvitation = await this.createInvitation(
+          createInvitationParams,
+          tx,
+        );
+        const newNotification =
+          await this.notificationService.createNotification(
+            {
+              recipientUserId: inviteeUserId,
+              actorUserId: inviterUserId,
+              workspaceId,
+              type: 'WORKSPACE_INVITED',
+              resourceType: 'WORKSPACE_INVITATION',
+              resourceId: newInvitation.id,
+              dedupeKey: `workspaceInvitation:${newInvitation.id}`,
+              expiresAt,
+            },
+            tx,
+          );
+        return { newInvitation, newNotification };
+      });
 
-    return invitation;
+    // 推播socket
+    this.socketService.emitNotificationCreated(
+      inviteeUserId,
+      this.notificationService.toPublicNotification(newNotification),
+    );
+
+    return newInvitation;
   }
 }

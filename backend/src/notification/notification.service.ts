@@ -20,7 +20,7 @@ export class NotificationService {
   ) {}
 
   /** Prisma notification to Public notification */
-  private toPublicNotification(item: Notification): PublicNotification {
+  toPublicNotification(item: Notification): PublicNotification {
     return {
       id: item.id,
       type: item.type,

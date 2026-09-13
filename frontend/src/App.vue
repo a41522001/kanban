@@ -24,7 +24,7 @@ import { sessionExpiredEvent } from '@/services/http';
 import { useNotificationStore } from '@/stores/notification';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
-
+import { disconnect } from '@/services/socket';
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const userStore = useUserStore();
@@ -32,6 +32,8 @@ const workspaceStore = useWorkspaceStore();
 
 const handleSessionExpired = () => {
   notificationStore.resetNotifications();
+  notificationStore.stopRealtime();
+  disconnect();
   userStore.resetUser();
   workspaceStore.resetWorkspaces();
 
