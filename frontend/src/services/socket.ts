@@ -1,17 +1,7 @@
+import type { ServerToClientEvents, ClientToServerEvents } from '@kanban/contracts/socket';
 import { io, type Socket } from 'socket.io-client';
 import { ref } from 'vue';
 export const isConnected = ref<boolean>(false);
-type EchoPayload = {
-  text: string;
-};
-
-interface ServerToClientEvents {
-  'demo:echoed': (payload: EchoPayload & { serverTime: string }) => void;
-}
-
-interface ClientToServerEvents {
-  'demo:echo': (payload: EchoPayload) => void;
-}
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
   import.meta.env.VITE_API_URL,
@@ -39,8 +29,24 @@ export const disconnect = () => {
   socket.disconnect();
 };
 
+export const ensureConnected = () => {
+  if (!socket.connected) {
+    socket.connect();
+  }
+};
+
 export const emitEcho = (message: string) => {
   socket.emit('demo:echo', {
     text: message,
   });
+};
+
+/** 監聽通知創建 */
+export const onNotificationCreated = (handler: ServerToClientEvents['notification:created']) => {
+  socket.on('notification:created', handler);
+};
+
+/** 移除監聽通知創建 */
+export const offNotificationCreated = (handler: ServerToClientEvents['notification:created']) => {
+  socket.off('notification:created', handler);
 };

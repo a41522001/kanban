@@ -7,11 +7,25 @@ import { CreateInvitationParams } from './workspaceInvitation.type';
 export class WorkspaceInvitationRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  /** 取得工作區邀請 by id */
+  /** 取得工作區邀請 by invitationId */
   async getById(invitationId: string): Promise<WorkspaceInvitation | null> {
     const invitation = await this.prismaService.workspaceInvitation.findUnique({
       where: {
         id: invitationId,
+      },
+    });
+    return invitation;
+  }
+
+  /** 取得工作區邀請詳細資訊 by invitationId */
+  async getDetailById(invitationId: string) {
+    const invitation = await this.prismaService.workspaceInvitation.findUnique({
+      where: {
+        id: invitationId,
+      },
+      include: {
+        inviter: true,
+        workspace: true,
       },
     });
     return invitation;

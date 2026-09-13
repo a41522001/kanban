@@ -1,0 +1,43 @@
+@reference '../../../styles/index.css';
+
+.notification-read-action {
+  @apply inline-flex shrink-0 items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-[11px] leading-4 font-bold text-content-primary transition-[background-color,border-color,color,box-shadow,opacity] duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+.notification-read-action:hover:not(:disabled) {
+  @apply bg-surface-subtle;
+}
+
+.notification-read-action--single {
+  @apply size-10 p-0;
+}
+
+.notification-read-action--all {
+  @apply h-8 min-w-32;
+}
+
+.notification-read-action--processing {
+  @apply border-action-primary bg-action-primary-soft text-category-coral;
+}
+
+.notification-read-action--complete {
+  @apply border-flow-active bg-flow-active-soft text-category-mint;
+}
+
+.notification-read-action--error {
+  @apply border-feedback-danger bg-feedback-danger-soft text-feedback-danger;
+}
+
+.notification-read-action__icon {
+  @apply size-4;
+}
+
+.notification-read-action--single .notification-read-action__icon {
+  @apply size-4.5;
+}
+
+@media (max-width: 640px) {
+  .notification-read-action--single {
+    @apply size-11;
+  }
+}

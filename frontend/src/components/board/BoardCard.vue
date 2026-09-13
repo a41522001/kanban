@@ -10,7 +10,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import Clip from '@/components/common/Clip.vue';
+import Clip from '@/components/shared/Clip/Clip.vue';
 import { cardCategoryColorMap } from '@/constants/cardCategoryColors';
 import type { BoardCardData } from '@/types/board';
 

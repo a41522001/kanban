@@ -25,6 +25,8 @@ type SocketData = {
 
 禁止從事件 payload 接受 userId 作為操作身分。事件內一律使用 socket.data.userId。
 
+目前第一版已實作上述 handshake：`SocketService` 從 handshake Cookie 取得 `sessionId`，透過 `SessionService.authenticateSession()` 驗證，並把 userId 寫入 `socket.data`。驗證成功後會加入伺服器管理的 `user:{userId}` room；client 不提供 userId，也不能自行選擇 room。Session rotation 在 Socket handshake 中的 Cookie 更新策略、connect error 的前端處理與完整 lifecycle 測試仍待補強。
+
 ## 3. Cookie、CORS 與 Origin
 
 - 前端 Socket.IO client 啟用 withCredentials。
@@ -64,6 +66,7 @@ type SocketAck<T> =
 
 ## 5. Room 與權限
 
+- 通知使用 `user:{userId}` room；room 名稱只在 server 端由已驗證的 `socket.data.userId` 組成。
 - Board room 命名統一，例如 board:{boardId}。
 - joinBoard 前由 Board 找到 Project，再確認使用者具有有效的 ProjectMember。
 - 每一個 mutation event 都再次確認資源權限，不能只依賴已加入 room。
@@ -145,10 +148,10 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 ## 10. 完成條件
 
-- [ ] 建立 Socket authentication middleware。
-- [ ] socket.data 有明確型別。
-- [ ] 定義 client/server event map 與 ack 型別。
+- [x] 建立 Socket authentication middleware。
+- [x] socket.data 有明確型別。
+- [x] 定義目前 client/server event map（echo 與 notification）；mutation ack 型別仍待 Board command 階段補上。
 - [ ] join room 與每個 mutation 都有 authorization。
-- [ ] 統一 Socket error code。
+- [ ] 統一 Socket error code 與前端 `connect_error` 處理。
 - [ ] 建立 reconnect recovery 流程。
-- [ ] connection、permission、event、reconnect 測試通過。
+- [ ] connection、permission、event、reconnect 測試通過；目前尚缺真實 Socket.IO clients integration tests。

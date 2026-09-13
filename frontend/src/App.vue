@@ -15,9 +15,40 @@
 </template>
 
 <script setup lang="ts">
-import Alert from '@/components/common/Alert.vue';
-import Loading from '@/components/common/Loading.vue';
+import { onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+import Alert from '@/components/app/Alert/Alert.vue';
+import Loading from '@/components/app/Loading/Loading.vue';
 import { Toaster } from '@/components/ui/sonner';
+import { sessionExpiredEvent } from '@/services/http';
+import { useNotificationStore } from '@/stores/notification';
+import { useUserStore } from '@/stores/user';
+import { useWorkspaceStore } from '@/stores/workspace';
+import { disconnect } from '@/services/socket';
+const router = useRouter();
+const notificationStore = useNotificationStore();
+const userStore = useUserStore();
+const workspaceStore = useWorkspaceStore();
+
+const handleSessionExpired = () => {
+  notificationStore.resetNotifications();
+  notificationStore.stopRealtime();
+  disconnect();
+  userStore.resetUser();
+  workspaceStore.resetWorkspaces();
+
+  if (router.currentRoute.value.name !== 'login') {
+    void router.replace({ name: 'login' });
+  }
+};
+
+onMounted(() => {
+  window.addEventListener(sessionExpiredEvent, handleSessionExpired);
+});
+
+onUnmounted(() => {
+  window.removeEventListener(sessionExpiredEvent, handleSessionExpired);
+});
 
 // import { ref } from 'vue';
 // import { socket, connect, disconnect, emitEcho, isConnected } from '@/services/socket';

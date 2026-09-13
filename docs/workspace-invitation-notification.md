@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-11（依原始碼、Backend unit tests 與隔離環境 E2E）。此文件區分已實作行為與後續目標；Backend happy paths 已驗收，前端回覆操作仍未完成。
+最後核對：2026-09-13（依原始碼、Frontend unit tests、type-check、build，以及既有 Backend unit tests、coverage 與 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -11,7 +11,8 @@
 3. 查同一工作區／受邀者的 PENDING 邀請；尚有效時回 409。
 4. 若舊邀請已到期，用 `id + status=PENDING + expiresAt<=now` 條件更新成 EXPIRED；更新筆數非 1 時回 409。
 5. 在同一 Prisma transaction 建立新 Invitation 與 WORKSPACE_INVITED Notification；任一寫入失敗會回滾這兩筆新增。
-6. 成功回 201、data null；前端關閉 Dialog 並顯示 toast。
+6. transaction commit 後，由 `SocketService` 向受邀者的 user room 推送 `notification:created`，只傳送 public notification 摘要。
+7. 成功回 201、data null；前端關閉 Dialog 並顯示 toast。不存在的已註冊帳號回 404 / `ResourceNotFound`，前端將 server message 顯示在 email 欄位。
 
 新邀請預設 PENDING、MEMBER，expiresAt 為建立流程計算的 now + 7 天。發送邀請不會建立 WorkspaceMember。
 
@@ -20,7 +21,9 @@
 1. 以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 ACCEPTED 並寫入 respondedAt。
 2. 僅在更新筆數為 1 時建立 WorkspaceMember；狀態已變更、失效或非受邀者都不會建立 membership。
 
-`POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。Backend 接受／拒絕 API 已完成，前端操作與 Owner 取消邀請仍未實作。
+`POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。前端通知卡已串接接受／婉拒 API；Owner 取消邀請仍未實作。
+
+`WorkspaceInvitationExpirationJob` 由 `ScheduleModule.forRoot()` 註冊，每分鐘執行一次。它呼叫 service／repository，以 `status=PENDING AND expiresAt<=now` 做 `updateMany`，將所有符合條件的 invitation 更新為 EXPIRED。`waitForCompletion: true` 只避免同一個 Nest process 的重疊執行；多 instance 下仍可能同時掃描，但更新是冪等的。接受／拒絕的條件式更新仍保留 `expiresAt>now`，因此排程尚未跑到的剛過期邀請也不能被回覆。
 
 ## Transaction 與併發限制
 
@@ -32,42 +35,46 @@
 
 ## 通知資料與讀取
 
-Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invitation.id；dedupeKey 為 `workspaceInvitation:<invitationId>`。Payload 保存：
+Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invitation.id；dedupeKey 為 `workspaceInvitation:<invitationId>`。Notification 不保存 payload；後續將由 Workspace Invitation detail API 以 resourceId 查詢工作區名稱、邀請者名稱、角色與邀請狀態。
 
-```json
-{
-  "workspaceName": "範例工作區",
-  "inviterDisplayName": "邀請者",
-  "role": "MEMBER"
-}
-```
+前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。每則未讀通知可單筆標記已讀，Dropdown header 可執行全部已讀；處理中會鎖定對應操作，成功後原地更新通知、未讀數與 badge，失敗則保留重試狀態。WORKSPACE_INVITED 通知的 content action 會先標記已讀，再以 resourceId 呼叫詳細資訊 API 並開啟邀請 Dialog；接受／婉拒請求期間鎖定兩個操作，接受成功後重載工作區清單，婉拒後顯示完成狀態。若 API 回 `ResourceNotFound`，代表通知指向的邀請已不存在，Dialog 顯示不可用狀態；其他衝突或網路錯誤則顯示重新載入狀態。一般通知、邀請詳細 Dialog 與已讀操作已拆成可重用元件。全域 Toaster 載入 `vue-sonner/style.css`，toast 使用 fixed overlay，不會參與頁面排版。
 
-invitation ID 位於 resourceId，不重複放進 payload。Service 在建立及 public mapping 時驗證上述 payload 欄位；其他預留通知類型目前只檢查是非 null、非 array 的 object。
+邀請回覆狀態以 WorkspaceInvitation 為準；通知選單開啟邀請 UI 時，使用 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId` 取得詳細資訊，因此通知只負責 unread/read 與導流。使用者點擊 WORKSPACE_INVITED 的內容區時，前端會先呼叫單筆已讀 API，成功後才開啟邀請詳細 Dialog；已讀通知不重複發送請求，已讀 API 失敗則不開啟 Dialog 並保留重試機會。通知已提供單筆／全部已讀 HTTP API 與 `notification:created` 即時推送，但尚未提供 query 分頁；過期通知仍會出現在列表與未讀計數。
 
-前端通知選單 mount 載入未讀數，每次開啟重新讀取列表與未讀數；支援 loading／error／empty 與重試。Backend 已提供接受／拒絕 API，但前端目前仍只能閱讀通知，尚未提供回覆、標記已讀、下一頁或即時推送。過期通知目前仍會出現在列表與未讀計數。
+### 通知 Socket.IO 推播（第一版已實作）
+
+Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 Notification 資料表或 HTTP API。工作區邀請與通知先在同一個 PostgreSQL transaction 建立，commit 成功後才向伺服器內部的 `user:{recipientUserId}` room emit；room 名稱由 server 依已驗證的 `socket.data.userId` 建立，client 不可傳入或選擇 userId。transaction rollback 或建立失敗時不得推播。
+
+事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、workspaceId、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
+
+這項推播已完成 Session Cookie handshake 與 user room 的第一版。Socket.IO 預設可自動重連，但目前尚未在 reconnect 後主動以 HTTP 重新同步列表／未讀數，也尚未完成事件漏收補償、跨分頁同步與真實多 client integration tests。
 
 ## 狀態機現況
 
 | 狀態 | 目前程式是否會寫入 |
 | --- | --- |
 | PENDING | 建立邀請時預設 |
-| EXPIRED | 再次邀請遇到已到期的 PENDING 時條件更新 |
+| EXPIRED | 每分鐘排程批次更新；再次邀請遇到已到期 PENDING 時也會條件更新作為即時 fallback |
 | ACCEPTED | `POST /workspaceInvitation/accept` 條件更新，並在同一 transaction 建立 WorkspaceMember |
 | DECLINED | `POST /workspaceInvitation/decline` 條件更新，不建立 WorkspaceMember |
 | CANCELED | 僅 enum／schema 預留，尚無取消流程 |
 
-沒有到期排程；超過 expiresAt 不會自動改變 status。接受與拒絕成功時都會寫入 respondedAt；CANCELED 仍未有寫入流程。
+排程是 eventual consistency：邀請實體狀態最晚在下一分鐘掃描後才變為 EXPIRED，不保證時間一到立刻變更。接受與拒絕成功時都會寫入 respondedAt；CANCELED 仍未有寫入流程。
 
 ## 後續交付與驗收
 
-- 補 Owner 取消邀請 API，以及前端接受／拒絕／取消操作。
+- 補 Owner 取消邀請 API 與前端操作。
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
-- 補通知單筆／全部已讀、query DTO、前端回覆與分頁操作。
-- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；仍需並行發送與真實資料庫測試。
+- 補通知 query DTO 與前端分頁操作；單筆／全部已讀的 API 與前端操作已完成。
+- Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。
 - 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
-- Session handshake 完成後才加入 commit 後通知 push；HTTP 資料仍是重新同步來源。
+- Socket.IO Session handshake 與 transaction commit 後通知 push 的第一版已完成；HTTP 資料仍是重新同步來源，後續補斷線重連、去重與漏收同步測試。
 
-2026-09-11 執行 `pnpm test:backend`：WorkspaceInvitationService 已覆蓋發送、接受與拒絕的主要 branches，WorkspaceInvitationController spec 已覆蓋 invite／accept／decline。`pnpm test:backend:e2e` 的 WorkspaceInvitation suite 已驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
+2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。以 Node 24.13 執行 `pnpm test:backend:e2e`：WorkspaceInvitation suite 驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
+
+2026-09-12 執行 frontend `vue-tsc --build`、Vitest、ESLint 與 Vite production build：8 個 test files、25 個 tests 通過。Playwright CLI 以本機攔截 API 驗證桌面邀請卡、接受後狀態、工作區清單更新及 375px 響應式版面；尚未加入連真實 Backend 的 frontend E2E。
+
+2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 
 ## 模組依賴
 

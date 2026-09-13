@@ -154,13 +154,13 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import googleLogo from '/img/google-logo.png';
 import { Button } from '@/components/ui/button';
-import FormField from '@/components/common/FormField.vue';
-import Input from '@/components/common/Input.vue';
-import Logo from '@/components/common/Logo.vue';
-import { isAxiosError } from 'axios';
+import FormField from '@/components/shared/FormField/FormField.vue';
+import Input from '@/components/shared/Input/Input.vue';
+import Logo from '@/components/shared/Logo/Logo.vue';
 import { computed, ref } from 'vue';
-import { ApiCode, type ApiResponse } from '@kanban/contracts/api';
+import { ApiCode } from '@kanban/contracts/api';
 import { loginApi } from '@/services/auth';
+import { getApiErrorResponse } from '@/services/http';
 import { useAlertStore } from '@/stores/alert';
 import { useLoadingStore } from '@/stores/loading';
 import { useUserStore } from '@/stores/user';
@@ -235,7 +235,7 @@ const handleLogin = async () => {
       confirm: goWorkspacePage,
     });
   } catch (error: unknown) {
-    const response = isAxiosError<ApiResponse<null>>(error) ? error.response?.data : undefined;
+    const response = getApiErrorResponse(error);
 
     fieldErrors.value = mapLoginFieldErrors(response?.error ?? null);
 

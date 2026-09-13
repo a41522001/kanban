@@ -1,4 +1,4 @@
-@reference '../../styles/index.css';
+@reference '../../../styles/index.css';
 
 .notification-menu__trigger {
   @apply relative grid size-10 cursor-pointer place-items-center rounded-control text-content-on-dark transition-[background-color,color,box-shadow] duration-150 hover:bg-content-on-dark/10 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/40;
@@ -21,7 +21,7 @@
 }
 
 .notification-menu__header {
-  @apply flex h-15 items-center justify-between gap-4 px-4;
+  @apply flex min-h-15 flex-wrap items-center justify-between gap-3 px-4 py-3;
 }
 
 .notification-menu__title {
@@ -32,12 +32,20 @@
   @apply text-xs text-content-secondary;
 }
 
+.notification-menu__header-actions {
+  @apply ml-auto flex flex-wrap items-center justify-end gap-2;
+}
+
 .notification-menu__count-badge {
   @apply border-0 bg-action-primary-soft px-2.5 py-1 text-[11px] font-bold text-category-coral;
 }
 
 .notification-menu__divider {
   @apply mx-4 h-px bg-border;
+}
+
+.notification-menu__read-error {
+  @apply mx-4 mt-0 rounded-control bg-feedback-danger-soft px-3 py-2 text-xs leading-5 text-feedback-danger;
 }
 
 .notification-menu__loading {
@@ -98,50 +106,6 @@
 
 .notification-menu__list {
   @apply grid gap-2 p-4;
-}
-
-.notification-menu__item {
-  @apply relative flex min-h-31.5 min-w-0 gap-3 rounded-surface border border-border bg-surface p-3.5 sm:min-h-30;
-}
-
-.notification-menu__item--unread {
-  @apply min-h-37.5 border-action-primary bg-action-primary-soft sm:min-h-35;
-}
-
-.notification-menu__avatar {
-  @apply grid size-10 shrink-0 place-items-center rounded-full bg-flow-active text-sm font-bold text-content-primary;
-}
-
-.notification-menu__item--unread .notification-menu__avatar {
-  @apply bg-action-primary text-content-on-dark;
-}
-
-.notification-menu__copy {
-  @apply min-w-0 flex-1;
-}
-
-.notification-menu__eyebrow {
-  @apply pr-4 text-[11px] leading-4 font-bold tracking-[0.03em] text-content-secondary;
-}
-
-.notification-menu__item--unread .notification-menu__eyebrow {
-  @apply text-category-coral;
-}
-
-.notification-menu__item-title {
-  @apply mt-1 text-sm leading-5 font-bold text-content-primary;
-}
-
-.notification-menu__body {
-  @apply mt-1.5 text-xs leading-5 text-content-secondary;
-}
-
-.notification-menu__time {
-  @apply mt-2 block text-[11px] leading-4 text-content-tertiary;
-}
-
-.notification-menu__unread-dot {
-  @apply absolute top-4 right-4 size-2 rounded-full bg-action-primary;
 }
 
 .notification-menu__footer-hint {

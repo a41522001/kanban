@@ -1,12 +1,12 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-11（schema、migration、邀請狀態轉移與 E2E 核對）。
+最後檢視：2026-09-13（Prisma schema、Project migration、邀請狀態轉移與既有 E2E 核對）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
 ## 1. 目前範圍
 
-目前已定義五張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation。
+目前已定義七張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember。
 
 ```text
 User
@@ -14,22 +14,29 @@ User
 ├── WorkspaceMember
 ├── Notification (recipient)
 ├── Notification (actor)
-└── WorkspaceInvitation (invitee / inviter)
+├── WorkspaceInvitation (invitee / inviter)
+├── Project (createdBy)
+└── ProjectMember
 
 Workspace
 ├── WorkspaceMember
 ├── Notification
-└── WorkspaceInvitation
+├── WorkspaceInvitation
+└── Project
+
+Project
+└── ProjectMember
 ```
 
 ```text
-users ──< workspace_members >── workspaces
-  │                                  │
-  ├────< notifications (recipient) ──┤
-  └────< notifications (actor) ──────┘
+users ──< workspace_members >── workspaces ──< projects
+  │                                  │              │
+  ├────< notifications (recipient) ──┤              │
+  ├────< notifications (actor) ──────┘              │
+  └────────────< project_members >───────────────────┘
 ```
 
-`Project`、`Board`、`BoardColumn` 與 `Card` 尚未建立資料表。Notification enum 已預留其 resource type，但不代表這些資源已可使用。
+`Project` 與 `ProjectMember` 已建立 schema 與 migration，但 Repository、Service、HTTP API 與前端尚未實作。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
 
 ## 2. Enum
 
@@ -39,6 +46,26 @@ users ──< workspace_members >── workspaces
 | --- | --- |
 | `OWNER` | 可管理工作區設定、成員與邀請。 |
 | `MEMBER` | 可進入工作區；具體管理能力由後續 policy 決定。 |
+
+### `ProjectStatus`
+
+| 值 | 意義 |
+| --- | --- |
+| `ACTIVE` | 專案進行中，也是建立 Project 時的預設狀態。 |
+| `ON_HOLD` | 專案暫停中，仍保留在一般專案資料與權限範圍內。 |
+| `COMPLETED` | 專案已完成；不等同封存。 |
+
+`status` 描述專案生命週期，`archived_at` 則控制專案是否從一般列表隱藏，兩者是不同概念。
+
+### `ProjectRole`
+
+| 值 | 意義 |
+| --- | --- |
+| `OWNER` | 可管理 Project metadata、狀態、成員與 Board。 |
+| `EDITOR` | 可操作允許編輯的 Board、Column、Card 與 Project 範圍資源。 |
+| `VIEWER` | 只能讀取 Project 與 Board。 |
+
+`ProjectMember.role` 沒有資料庫預設值，建立 membership 時必須由 application service 明確指定角色；建立 Project 時建立者應明確寫入 `OWNER`。
 
 ### `NotificationType`
 
@@ -57,7 +84,7 @@ users ──< workspace_members >── workspaces
 | --- | --- |
 | `WORKSPACE_INVITATION` | `workspace_invitations.id`（應用層引用，無外鍵）。 |
 | `WORKSPACE` | `workspaces.id`。 |
-| `PROJECT` | 未來的 `projects.id`。 |
+| `PROJECT` | `projects.id`（Notification 仍使用 application-level resource pointer，沒有外鍵）。 |
 | `BOARD` | 未來的 `boards.id`。 |
 | `CARD` | 未來的 `cards.id`。 |
 
@@ -75,7 +102,7 @@ users ──< workspace_members >── workspaces
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
 
-關聯：一位使用者可建立多個 Workspace、加入多個 Workspace、收到多則 Notification，也可作為多則 Notification 的 actor。
+關聯：一位使用者可建立多個 Workspace 與 Project、加入多個 Workspace 與 Project、收到多則 Notification，也可作為多則 Notification 的 actor。
 
 ## 4. `workspaces`
 
@@ -94,6 +121,7 @@ users ──< workspace_members >── workspaces
 
 - `created_by_id` 外鍵指向 `users.id`，`ON DELETE RESTRICT`。
 - index：`created_by_id`、`archived_at`。
+- 一個 Workspace 可包含多個 Project；Project 的外鍵使用 `ON DELETE RESTRICT`，避免硬刪除仍有 Project 的 Workspace。
 
 ## 5. `workspace_members`
 
@@ -126,7 +154,6 @@ users ──< workspace_members >── workspaces
 | `type` | `NotificationType` | 否 | 業務語意，決定前端顯示文案與互動。 |
 | `resource_type` | `NotificationResourceType` | 否 | `resource_id` 所指資源的種類。 |
 | `resource_id` | UUID | 是 | polymorphic resource pointer；不建立外鍵。 |
-| `payload` | JSONB | 否 | 各 type 需要的結構化顯示資料。 |
 | `dedupe_key` | VARCHAR(160) | 是 | 同一收件者通知去重 key。 |
 | `read_at` | TIMESTAMP(3) | 是 | null 代表未讀。 |
 | `expires_at` | TIMESTAMP(3) | 是 | 到期後通知仍保留在歷史列表，但不可再執行資源操作；一般通知為 null。 |
@@ -140,21 +167,11 @@ users ──< workspace_members >── workspaces
 - `recipient_user_id` 使用 `ON DELETE CASCADE`；刪除收件者時一併刪除通知。
 - `actor_user_id`、`workspace_id` 使用 `ON DELETE SET NULL`；保留歷史通知，但移除已不存在的脈絡。
 
-### 6.1 `payload` 原則
+### 6.1 Notification routing 原則
 
-目標是依各 NotificationType 驗證 payload。目前 Service 對 WORKSPACE_INVITED 驗證 workspaceName／inviterDisplayName 為字串、role=MEMBER；其他類型只檢查是非 null、非 array 的 object，尚無各事件專用 schema。Payload 只保存顯示或導向所需的小型資料。不要存翻譯後文案、邀請 token、Session ID、Email 密碼或其他敏感資料。
+Notification 不保存 payload。前端先依 `type` 判斷顯示文案與互動，再依 `resourceType + resourceId` 呼叫對應的 domain detail API；例如 `WORKSPACE_INVITED` 的 `resourceId` 就是 `WorkspaceInvitation.id`。工作區名稱、邀請者名稱、角色與邀請狀態都以邀請資料為準，不在 Notification 重複保存。
 
-例如 `WORKSPACE_INVITED`：
-
-```json
-{
-  "workspaceName": "無限有限公司",
-  "inviterDisplayName": "Jeffery",
-  "role": "MEMBER"
-}
-```
-
-invitation ID 保存於 resourceId；通知過期不會自動標記已讀，目前未讀查詢沒有排除 expiresAt。
+通知過期不會自動標記已讀，目前未讀查詢沒有排除 expiresAt。
 
 ## 7. `workspace_invitations`
 
@@ -173,7 +190,7 @@ invitation ID 保存於 resourceId；通知過期不會自動標記已讀，目�
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
 
-WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPIRED。目前可建立 PENDING、再次邀請時將過期 PENDING 改為 EXPIRED、透過 HTTP API 將有效 PENDING 更新為 ACCEPTED 並建立 WorkspaceMember，或更新為 DECLINED 且不建立 membership。取消與到期排程尚未實作。
+WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPIRED。目前可建立 PENDING；`WorkspaceInvitationExpirationJob` 每分鐘將已到期 PENDING 批次更新為 EXPIRED，再次邀請發現過期 PENDING 時也會條件更新作為 fallback；透過 HTTP API 可將有效 PENDING 更新為 ACCEPTED 並建立 WorkspaceMember，或更新為 DECLINED 且不建立 membership。取消尚未實作。排程只提供最長約一分鐘的最終一致性，回覆操作仍以 `expires_at > now` 作為真相。
 
 - workspace／invitee 外鍵採 ON DELETE CASCADE，inviter 採 ON DELETE SET NULL。
 - 索引：`invitee_user_id, status, created_at DESC`、`workspace_id, status, created_at DESC`、`expires_at`。
@@ -182,16 +199,61 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 發送邀請的驗證、transaction 範圍與待辦見[邀請與通知](workspace-invitation-notification.md)。
 
-## 8. 後續資料模型
+## 8. `projects`
+
+Workspace 之下的專案邊界。Project schema 與 migration 已建立；目前尚未實作 Repository、Service、HTTP API 或前端資料流。
+
+| 欄位 | 型別 | Null | 說明 |
+| --- | --- | --- | --- |
+| `id` | UUID | 否 | Project 主鍵。 |
+| `workspace_id` | UUID | 否 | 所屬 Workspace，參照 `workspaces.id`。 |
+| `name` | VARCHAR(100) | 否 | Project 顯示名稱。 |
+| `description` | VARCHAR(500) | 是 | Project 的簡短說明。 |
+| `status` | `ProjectStatus` | 否 | 專案生命週期；預設 `ACTIVE`。 |
+| `created_by_id` | UUID | 否 | 建立者，參照 `users.id`；此欄位保存建立紀錄，不直接代表目前操作權限。 |
+| `archived_at` | TIMESTAMP(3) | 是 | 軟封存時間；null 代表未封存。 |
+| `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
+| `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+
+約束與索引：
+
+- `workspace_id`、`created_by_id` 都使用 `ON DELETE RESTRICT`，避免硬刪除仍被 Project 引用的 Workspace 或建立者。
+- index：`workspace_id, archived_at, updated_at DESC`，支援一般 Project 列表與最近更新排序。
+- index：`workspace_id, status, archived_at`，支援 Workspace 範圍的狀態篩選。
+- index：`created_by_id`，支援依建立者查詢。
+- 目前沒有 `workspace_id + name` unique constraint，因此同一 Workspace 可以有同名 Project；API 與前端必須以 UUID 識別。
+- `COMPLETED` 不會自動寫入 `archived_at`；完成與封存必須分別處理。
+
+## 9. `project_members`
+
+Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMember，不另外建立 BoardMember。
+
+| 欄位 | 型別 | Null | 說明 |
+| --- | --- | --- | --- |
+| `project_id` | UUID | 否 | 所屬 Project，參照 `projects.id`。 |
+| `user_id` | UUID | 否 | 成員使用者，參照 `users.id`。 |
+| `role` | `ProjectRole` | 否 | Project 角色；沒有資料庫預設值。 |
+| `joined_at` | TIMESTAMP(3) | 否 | 實際加入 Project 的時間。 |
+
+約束與索引：
+
+- `project_id + user_id` 是 composite primary key，同一使用者在同一 Project 最多一筆 membership。
+- index：`user_id`，支援查詢使用者可進入的 Project。
+- Project 或 User 被硬刪除時，ProjectMember 使用 `ON DELETE CASCADE` 一併刪除。
+- ProjectMember 必須同時是該 Project 所屬 Workspace 的 WorkspaceMember；目前 schema 沒有跨資料表約束，必須由 application service 在 transaction 內驗證。
+- 建立 Project 時，後續 Service 應在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。
+
+Project／ProjectMember migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名，後續以新 migration 修正 schema。
+
+## 10. 後續資料模型
 
 下列是已規劃、但尚未建立的資料表；新增時需同步更新本文件、Prisma schema、contracts、migration 與測試：
 
-- `projects`、`project_members`：Project 與其最小權限邊界。
 - `boards`、`board_columns`、`cards`：Kanban read model 與協作指令的持久化資料。
 - `reminders`：負責未來排程時間；到期時才建立 `CARD_REMINDER` Notification。
 - `outbox_messages`：需要可靠背景投遞與 message queue 時才加入。
 
-## 9. Migration 規則
+## 11. Migration 規則
 
 1. 先修改 `backend/prisma/schema.prisma`。
 2. 產生可審閱的 Prisma migration，確認 SQL 的 enum、index、FK 與 delete behavior。

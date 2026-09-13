@@ -42,12 +42,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import Avatar from '@/components/common/Avatar.vue';
+import Avatar from '@/components/shared/Avatar/Avatar.vue';
 import { logoutApi } from '@/services/auth';
 import { useNotificationStore } from '@/stores/notification';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
-
+import { disconnect } from '@/services/socket';
 interface Props {
   user: PublicUser;
 }
@@ -73,11 +73,13 @@ const handleLogout = async () => {
   } catch {
     // Request 無法送達時仍清除本機登入狀態，避免受保護頁面繼續可用。
   } finally {
-    notificationStore.resetNotifications();
     userStore.resetUser();
     workspaceStore.resetWorkspaces();
     await router.replace({ name: 'login' });
     isLoggingOut.value = false;
+    notificationStore.stopRealtime();
+    notificationStore.resetNotifications();
+    disconnect();
   }
 };
 </script>

@@ -86,9 +86,12 @@ describe('WorkspaceInvitation (e2e)', () => {
     }
     const notifications = getNotificationResponseBody.data.items;
     expect(notifications).toHaveLength(1);
+    expect(notifications[0]).not.toHaveProperty('payload');
+    expect(notifications[0].resourceId).toEqual(expect.any(String));
+    const invitationId = notifications[0].resourceId!;
     const acceptWorkspaceInvitationResponse = await inviteeAgent
       .post('/workspaceInvitation/accept')
-      .send({ invitationId: notifications[0].resourceId })
+      .send({ invitationId })
       .expect(200);
     const acceptWorkspaceInvitationResponseBody =
       acceptWorkspaceInvitationResponse.body as ApiResponse<void>;
@@ -173,9 +176,12 @@ describe('WorkspaceInvitation (e2e)', () => {
     }
     const notifications = getNotificationResponseBody.data.items;
     expect(notifications).toHaveLength(1);
+    expect(notifications[0]).not.toHaveProperty('payload');
+    expect(notifications[0].resourceId).toEqual(expect.any(String));
+    const invitationId = notifications[0].resourceId!;
     const declineInvitationResponse = await inviteeAgent
       .post('/workspaceInvitation/decline')
-      .send({ invitationId: notifications[0].resourceId })
+      .send({ invitationId })
       .expect(200);
     const declineInvitationResponseBody =
       declineInvitationResponse.body as ApiResponse<void>;
@@ -195,7 +201,7 @@ describe('WorkspaceInvitation (e2e)', () => {
     // 同一邀請已變成 DECLINED，不能再接受
     await inviteeAgent
       .post('/workspaceInvitation/accept')
-      .send({ invitationId: notifications[0].resourceId })
+      .send({ invitationId })
       .expect(409);
   });
 

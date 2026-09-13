@@ -26,16 +26,28 @@
             {{ t('notification.title') }}
           </h2>
 
-          <span v-if="isLoading" class="notification-menu__state-label">
-            {{ t('notification.loading') }}
-          </span>
-          <span v-else-if="hasLoadError" class="notification-menu__state-label">
-            {{ t('notification.unavailable') }}
-          </span>
-          <Badge v-else class="notification-menu__count-badge">
-            {{ t('notification.unreadCount', { count: unreadCount }) }}
-          </Badge>
+          <div class="notification-menu__header-actions">
+            <span v-if="isLoading" class="notification-menu__state-label">
+              {{ t('notification.loading') }}
+            </span>
+            <span v-else-if="hasLoadError" class="notification-menu__state-label">
+              {{ t('notification.unavailable') }}
+            </span>
+            <Badge v-else class="notification-menu__count-badge">
+              {{ t('notification.unreadCount', { count: unreadCount }) }}
+            </Badge>
+            <NotificationReadAction
+              v-if="showMarkAllReadAction"
+              scope="all"
+              :state="markAllReadState"
+              @click="markAllRead"
+            />
+          </div>
         </header>
+
+        <p v-if="markAllReadState === 'error'" class="notification-menu__read-error" role="alert">
+          {{ t('notification.readActions.errorDescription') }}
+        </p>
 
         <div class="notification-menu__divider"></div>
 
@@ -80,35 +92,20 @@
           <ScrollArea class="notification-menu__scroll-area">
             <ul class="notification-menu__list" :aria-label="t('notification.listLabel')">
               <li v-for="item in notificationItems" :key="item.id">
-                <article
-                  class="notification-menu__item"
-                  :class="{ 'notification-menu__item--unread': item.isUnread }"
-                >
-                  <span class="notification-menu__avatar" aria-hidden="true">
-                    {{ item.actorInitial }}
-                  </span>
-
-                  <div class="notification-menu__copy">
-                    <p class="notification-menu__eyebrow">
-                      {{ item.eyebrow }}
-                    </p>
-                    <p class="notification-menu__item-title">
-                      {{ item.title }}
-                    </p>
-                    <p v-if="item.body" class="notification-menu__body">
-                      {{ item.body }}
-                    </p>
-                    <time class="notification-menu__time" :datetime="item.createdAt">
-                      {{ item.createdAtLabel }}
-                    </time>
-                  </div>
-
-                  <span
-                    v-if="item.isUnread"
-                    class="notification-menu__unread-dot"
-                    :aria-label="t('notification.unread')"
-                  ></span>
-                </article>
+                <NotificationItem
+                  :actor-initial="item.actorInitial"
+                  :eyebrow="item.eyebrow"
+                  :title="item.title"
+                  :body="item.body"
+                  :created-at="item.createdAt"
+                  :created-at-label="item.createdAtLabel"
+                  :is-unread="item.isUnread"
+                  :interactive="item.kind === 'invitation'"
+                  :open-label="t('notification.workspaceInvited.openDetails')"
+                  :read-state="getNotificationReadState(item.id)"
+                  @mark-read="markNotification(item.id)"
+                  @open="openInvitationDetail(item.id)"
+                />
               </li>
             </ul>
           </ScrollArea>
@@ -120,6 +117,13 @@
       </section>
     </DropdownMenuContent>
   </DropdownMenu>
+
+  <WorkspaceInvitationDetailDialog
+    v-model:open="isInvitationDetailOpen"
+    :invitation-id="selectedInvitationId"
+    @accepted="refreshNotifications"
+    @declined="refreshNotifications"
+  />
 </template>
 
 <script setup lang="ts">
@@ -127,9 +131,13 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Bell, CircleAlert } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
-import type { JsonObject, PublicNotification } from '@kanban/contracts/notification';
+import { toast } from 'vue-sonner';
+import type { PublicNotification } from '@kanban/contracts/notification';
+import NotificationItem from '@/components/notifications/NotificationItem/NotificationItem.vue';
+import WorkspaceInvitationDetailDialog from '@/components/notifications/WorkspaceInvitationDetailDialog/WorkspaceInvitationDetailDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import NotificationReadAction from '@/components/notifications/NotificationReadAction/NotificationReadAction.vue';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,6 +145,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getApiErrorResponse } from '@/services/http';
 import { useNotificationStore } from '@/stores/notification';
 
 interface NotificationPresentation {
@@ -146,50 +155,46 @@ interface NotificationPresentation {
   body?: string;
 }
 
-interface NotificationItemView extends NotificationPresentation {
+interface NotificationItemBase {
   id: string;
   isUnread: boolean;
   createdAt: string;
   createdAtLabel: string;
 }
 
+interface GenericNotificationItem extends NotificationItemBase, NotificationPresentation {
+  kind: 'generic' | 'invitation';
+}
+
+type NotificationItemView = GenericNotificationItem;
+
 const { locale, t } = useI18n();
 const notificationStore = useNotificationStore();
-const { hasLoadError, isLoading, notifications, unreadCount } = storeToRefs(notificationStore);
-const { loadUnreadCount, refreshNotifications } = notificationStore;
+const {
+  hasLoadError,
+  isLoading,
+  notifications,
+  unreadCount,
+  notificationReadStates,
+  markAllReadState,
+} = storeToRefs(notificationStore);
+const { loadUnreadCount, markAllNotificationsRead, markNotificationRead, refreshNotifications } =
+  notificationStore;
 const isOpen = ref(false);
+const isInvitationDetailOpen = ref(false);
+const selectedInvitationId = ref<string | null>(null);
+const openingInvitationNotificationId = ref<string | null>(null);
 const titleId = 'notification-menu-title';
 
 const visibleUnreadCount = computed(() => (unreadCount.value > 99 ? '99+' : unreadCount.value));
 
-const isJsonObject = (value: PublicNotification['payload']): value is JsonObject => {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-};
-
-const getPayloadText = (payload: PublicNotification['payload'], key: string) => {
-  if (!isJsonObject(payload)) {
-    return undefined;
-  }
-
-  const value = payload[key];
-  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
-};
-
 const getPresentation = (notification: PublicNotification): NotificationPresentation => {
   if (notification.type === 'WORKSPACE_INVITED') {
-    const inviterDisplayName =
-      getPayloadText(notification.payload, 'inviterDisplayName') ?? t('notification.fallbackActor');
-    const workspaceName =
-      getPayloadText(notification.payload, 'workspaceName') ?? t('notification.fallbackWorkspace');
-
     return {
-      actorInitial: inviterDisplayName.charAt(0).toUpperCase() || 'F',
+      actorInitial: 'F',
       eyebrow: t('notification.types.workspaceInvited'),
-      title: t('notification.workspaceInvited.title', {
-        inviter: inviterDisplayName,
-        workspace: workspaceName,
-      }),
-      body: t('notification.workspaceInvited.body'),
+      title: t('notification.workspaceInvited.summaryTitle'),
+      body: t('notification.workspaceInvited.summaryBody'),
     };
   }
 
@@ -236,12 +241,16 @@ const formatCreatedAt = (value: string) => {
 const notificationItems = computed<NotificationItemView[]>(() => {
   return notifications.value.map((notification) => {
     const presentation = getPresentation(notification);
-
-    return {
+    const base = {
       id: notification.id,
       isUnread: notification.readAt === null,
       createdAt: notification.createdAt,
       createdAtLabel: formatCreatedAt(notification.createdAt),
+    };
+
+    return {
+      ...base,
+      kind: notification.type === 'WORKSPACE_INVITED' ? ('invitation' as const) : ('generic' as const),
       actorInitial: presentation.actorInitial,
       eyebrow: presentation.eyebrow,
       title: presentation.title,
@@ -249,6 +258,67 @@ const notificationItems = computed<NotificationItemView[]>(() => {
     };
   });
 });
+
+const openInvitationDetail = async (notificationId: string) => {
+  if (openingInvitationNotificationId.value !== null) {
+    return;
+  }
+
+  const notification = notifications.value.find((item) => item.id === notificationId);
+  if (!notification || notification.type !== 'WORKSPACE_INVITED' || !notification.resourceId) {
+    return;
+  }
+
+  openingInvitationNotificationId.value = notificationId;
+
+  try {
+    // The invitation dialog is a separate domain UI. Persist the notification
+    // read state before handing control to it so a refresh cannot show it as unread.
+    await markNotificationRead(notificationId);
+    selectedInvitationId.value = notification.resourceId;
+    isOpen.value = false;
+    isInvitationDetailOpen.value = true;
+  } catch (error: unknown) {
+    toast.error(
+      getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'),
+    );
+  } finally {
+    openingInvitationNotificationId.value = null;
+  }
+};
+
+const showMarkAllReadAction = computed(
+  () =>
+    !isLoading.value &&
+    !hasLoadError.value &&
+    notificationItems.value.length > 0 &&
+    (unreadCount.value > 0 || markAllReadState.value !== 'default'),
+);
+
+const getNotificationReadState = (notificationId: string) => {
+  return notificationReadStates.value[notificationId] ?? 'default';
+};
+
+const markNotification = async (notificationId: string) => {
+  try {
+    await markNotificationRead(notificationId);
+  } catch (error: unknown) {
+    toast.error(
+      getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'),
+    );
+  }
+};
+
+const markAllRead = async () => {
+  try {
+    await markAllNotificationsRead();
+    toast.success(t('notification.readActions.complete'));
+  } catch (error: unknown) {
+    toast.error(
+      getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'),
+    );
+  }
+};
 
 watch(isOpen, (open) => {
   if (open) {

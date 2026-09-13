@@ -1,4 +1,4 @@
-@reference '../../styles/index.css';
+@reference '../../../styles/index.css';
 
 .workspace-invite-dialog {
   @apply max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[520px] gap-0 overflow-y-auto rounded-frame border-border bg-surface p-6 shadow-card sm:p-8;

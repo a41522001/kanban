@@ -16,6 +16,8 @@
 <script setup lang="ts">
 import { cn } from '@/utils/cn';
 
+defineOptions({ name: 'SharedClip' });
+
 const props = defineProps<{
   class?: string;
   content: string;

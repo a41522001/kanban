@@ -1,6 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { WorkspaceInvitationRepository } from './workspaceInvitation.repository';
-import { WorkspaceInvitationStatus } from '@kanban/contracts/workspaceInvitation';
+import type {
+  WorkspaceInvitationDetail,
+  WorkspaceInvitationStatus,
+} from '@kanban/contracts/workspaceInvitation';
 import type { Prisma } from '@/generated/prisma/client';
 import { CreateInvitationParams } from './workspaceInvitation.type';
 import { WorkspacesService } from '@/workspaces/workspaces.service';
@@ -10,6 +13,7 @@ import { DateTime } from 'luxon';
 import { UserService } from '@/user/user.service';
 import { NotificationService } from '@/notification/notification.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { SocketService } from '@/socket/socket.service';
 
 @Injectable()
 export class WorkspaceInvitationService {
@@ -19,7 +23,58 @@ export class WorkspaceInvitationService {
     private readonly notificationService: NotificationService,
     private readonly prismaService: PrismaService,
     private readonly workspaceInvitationRepository: WorkspaceInvitationRepository,
+    private readonly socketService: SocketService,
   ) {}
+
+  /** 取得工作區邀請詳細資訊 by workspaceInvitationId */
+  async getWorkspaceInvitationDetail(
+    workspaceInvitationId: string,
+    userId: string,
+  ): Promise<WorkspaceInvitationDetail> {
+    const result = await this.workspaceInvitationRepository.getDetailById(
+      workspaceInvitationId,
+    );
+    if (result === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區邀請',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+
+    if (result.inviteeUserId !== userId) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區邀請',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    if (result.workspace.archivedAt !== null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區邀請',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    const now = DateTime.utc();
+
+    const status =
+      result.status === 'PENDING' &&
+      DateTime.fromJSDate(result.expiresAt).toUTC() <= now
+        ? 'EXPIRED'
+        : result.status;
+    return {
+      invitationId: result.id,
+      workspaceId: result.workspaceId,
+      workspaceName: result.workspace.name,
+      inviterName: result.inviter?.displayName ?? null,
+      role: result.role,
+      status,
+      expiresAt: result.expiresAt.toISOString(),
+      respondedAt: result.respondedAt?.toISOString() ?? null,
+    };
+  }
+
   /** 取得工作區所有成員的邀請*/
   async getMemberInvitationByWorkspace(
     workspaceId: string,
@@ -118,7 +173,7 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '找不到此邀請',
-        code: ApiCode.RequestError,
+        code: ApiCode.ResourceNotFound,
       });
     }
 
@@ -176,7 +231,7 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '找不到此邀請',
-        code: ApiCode.RequestError,
+        code: ApiCode.ResourceNotFound,
       });
     }
     // 確認目前登入者不存在於workspace
@@ -226,7 +281,7 @@ export class WorkspaceInvitationService {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '此帳號不存在',
-        code: ApiCode.RequestError,
+        code: ApiCode.ResourceNotFound,
       });
     }
     // 無法邀請自己
@@ -286,38 +341,41 @@ export class WorkspaceInvitationService {
     }
     // 創建新邀請以及新通知
     const expiresAt = now.plus({ days: 7 }).toJSDate();
-    const invitation = await this.prismaService.$transaction(async (tx) => {
-      const createInvitationParams = {
-        workspaceId,
-        inviteeUserId,
-        inviterUserId,
-        expiresAt,
-      };
-      const newInvitation = await this.createInvitation(
-        createInvitationParams,
-        tx,
-      );
-      await this.notificationService.createNotification(
-        {
-          recipientUserId: inviteeUserId,
-          actorUserId: inviterUserId,
+    const { newInvitation, newNotification } =
+      await this.prismaService.$transaction(async (tx) => {
+        const createInvitationParams = {
           workspaceId,
-          type: 'WORKSPACE_INVITED',
-          resourceType: 'WORKSPACE_INVITATION',
-          resourceId: newInvitation.id,
-          payload: {
-            workspaceName: member.workspaceName,
-            inviterDisplayName: member.memberName,
-            role: 'MEMBER',
-          },
-          dedupeKey: `workspaceInvitation:${newInvitation.id}`,
+          inviteeUserId,
+          inviterUserId,
           expiresAt,
-        },
-        tx,
-      );
-      return newInvitation;
-    });
+        };
+        const newInvitation = await this.createInvitation(
+          createInvitationParams,
+          tx,
+        );
+        const newNotification =
+          await this.notificationService.createNotification(
+            {
+              recipientUserId: inviteeUserId,
+              actorUserId: inviterUserId,
+              workspaceId,
+              type: 'WORKSPACE_INVITED',
+              resourceType: 'WORKSPACE_INVITATION',
+              resourceId: newInvitation.id,
+              dedupeKey: `workspaceInvitation:${newInvitation.id}`,
+              expiresAt,
+            },
+            tx,
+          );
+        return { newInvitation, newNotification };
+      });
 
-    return invitation;
+    // 推播socket
+    this.socketService.emitNotificationCreated(
+      inviteeUserId,
+      this.notificationService.toPublicNotification(newNotification),
+    );
+
+    return newInvitation;
   }
 }

@@ -245,6 +245,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import {
   Archive,
   CircleAlert,
@@ -255,12 +256,12 @@ import {
   UsersRound,
 } from 'lucide-vue-next';
 import type { WorkspaceMemberDto, WorkspaceRole } from '@kanban/contracts/workspaces';
-import FormField from '@/components/common/FormField.vue';
-import Input from '@/components/common/Input.vue';
-import Logo from '@/components/common/Logo.vue';
-import NotificationMenu from '@/components/common/NotificationMenu.vue';
-import UserMenu from '@/components/common/UserMenu.vue';
-import WorkspaceInviteDialog from './WorkspaceInviteDialog.vue';
+import FormField from '@/components/shared/FormField/FormField.vue';
+import Input from '@/components/shared/Input/Input.vue';
+import Logo from '@/components/shared/Logo/Logo.vue';
+import NotificationMenu from '@/components/notifications/NotificationMenu/NotificationMenu.vue';
+import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
+import WorkspaceInviteDialog from '@/components/workspace/WorkspaceInviteDialog/WorkspaceInviteDialog.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -273,6 +274,7 @@ import {
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getWorkspaceMembersApi } from '@/services/workspace';
+import { getApiErrorResponse } from '@/services/http';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { validateWorkspaceName, workspaceNameMaxLength } from './workplace';
@@ -352,6 +354,8 @@ const handleCreateWorkspace = async () => {
     await createWorkspace(workspaceName.value.trim());
     isCreateDialogOpen.value = false;
     resetCreateForm();
+  } catch (error: unknown) {
+    toast.error(getApiErrorResponse(error)?.message ?? t('error.requestFailed'));
   } finally {
     isCreating.value = false;
   }

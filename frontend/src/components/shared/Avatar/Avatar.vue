@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+defineOptions({ name: 'SharedAvatar' });
+
 interface Props {
   name: string;
 }

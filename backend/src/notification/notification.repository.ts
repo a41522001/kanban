@@ -91,7 +91,10 @@ export class NotificationRepository {
   }
 
   /** 取得單一郵件資訊 */
-  async findByIdAndRecipient(id: string, userId: string) {
+  async findByIdAndRecipient(
+    id: string,
+    userId: string,
+  ): Promise<Notification | null> {
     return await this.prismaService.notification.findFirst({
       where: {
         id,

@@ -4,6 +4,8 @@ import SignupView from '@/views/signupView/SignupView.vue';
 import BoardView from '@/views/boardView/BoardView.vue';
 import WorkplaceView from '@/views/workplaceView/WorkplaceView.vue';
 import { useUserStore } from '@/stores/user';
+import { useNotificationStore } from '@/stores/notification';
+import { ensureConnected } from '@/services/socket';
 
 const publicPaths = new Set(['/login', '/signup']);
 
@@ -40,9 +42,12 @@ router.beforeEach(async (to) => {
   }
 
   const userStore = useUserStore();
+  const notificationStore = useNotificationStore();
   const user = await userStore.initializeUser();
 
   if (user) {
+    ensureConnected();
+    notificationStore.startRealtime();
     return true;
   }
 

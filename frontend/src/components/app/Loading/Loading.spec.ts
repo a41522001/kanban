@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-import Loading from '@/components/common/Loading.vue';
+import Loading from '@/components/app/Loading/Loading.vue';
 import { useLoadingStore } from '@/stores/loading';
 
 describe('Loading', () => {

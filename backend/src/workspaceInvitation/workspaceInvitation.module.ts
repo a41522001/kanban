@@ -8,6 +8,7 @@ import { NotificationModule } from '@/notification/notification.module';
 import { WorkspaceInvitationController } from './workspaceInvitation.controller';
 import { WorkspacesModule } from '@/workspaces/workspaces.module';
 import { WorkspaceInvitationExpirationJob } from './workspaceInvitation.job';
+import { SocketModule } from '@/socket/socket.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { WorkspaceInvitationExpirationJob } from './workspaceInvitation.job';
     UserModule,
     NotificationModule,
     WorkspacesModule,
+    SocketModule,
   ],
   providers: [
     WorkspaceInvitationService,

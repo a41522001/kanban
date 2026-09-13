@@ -42,11 +42,12 @@ POST /auth/logout
 目前實作的單一 Axios client：
 - Base URL 來自 VITE_API_URL。
 - Axios 使用 withCredentials: true，timeout 為 10 秒。
-- 各 service 取出 ApiResponse；http.ts 本身回傳 Axios response，尚無全域 error／401 interceptor。
-- Login／Signup view 使用 Axios error response 解析 backend envelope，將欄位錯誤映射到表單。
+- 各 service 取出 ApiResponse；`getApiErrorResponse()` 會驗證並解析 Axios error envelope，網路錯誤或非本系統 envelope 則回傳 undefined。
+- Axios response interceptor 收到 `ApiCode.Unauthenticated` 時發出 `kanban:session-expired` event；App 統一清空 User／Workspace／Notification Store，並在非 Login 頁導向 Login。
+- Login／Signup 與邀請 Dialog 使用共用 parser。Validation Error 映射欄位訊息；邀請對象不存在的 `ResourceNotFound` 顯示在 email 欄位。
 - 不在 localStorage 保存 Session ID 或任何 auth token。
 
-尚未抽成共用 `ApiClientError`；現階段由各 view 處理 submit error。若 API 呼叫種類增加，再集中處理：
+目前不另包裝成自訂 `ApiClientError`，而是保留 Axios error 供呼叫點決定頁面互動，僅把 envelope 驗證與 session 失效副作用集中於 HTTP 層。若未來需要區分 timeout、取消與網路錯誤，再擴充為：
 
 ~~~ts
 type ApiClientError = {
@@ -76,7 +77,7 @@ Store 至少包含：
 
 Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
-目前 reset 未取消或忽略 in-flight request，舊 response 仍可能回寫。userInfo 的網路／server error 也會快取為未登入；一般 API 的 401 尚未統一清空狀態。這些失敗情境仍待補強。
+目前 reset 未取消或忽略 in-flight request，舊 response 仍可能回寫。userInfo 的網路／server error 也會快取為未登入；這些失敗情境仍待補強。一般 API 的 `Unauthenticated` 已統一清空狀態與導向 Login。
 
 ## 5. Form 行為
 
