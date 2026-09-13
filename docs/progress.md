@@ -33,11 +33,11 @@
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
 | Workspace Invitation | 已完成發送、詳細資訊、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／detail／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
-| Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；點擊邀請通知時會先標記已讀，再載入詳細資訊；已拆出 `NotificationReadAction` 共用元件，未知 email 顯示欄位錯誤，失去的邀請資源會重新同步通知 |
-| 最小 Socket.IO typed echo | 已完成 | 尚未接 Session handshake |
+| Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；點擊邀請通知時會先標記已讀，再載入詳細資訊；已拆出 `NotificationReadAction` 共用元件，未知 email 顯示欄位錯誤，失去的邀請資源會重新同步通知；全域 Toaster 已載入 `vue-sonner/style.css`，toast 使用固定定位不會撐開頁面 |
+| Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；邀請通知在 transaction commit 後推送，重連後 HTTP resync 與更完整 lifecycle 測試尚待補 |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
-| Notification read model | 已完成最小版本 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀與工作區邀請詳細資訊 API 已完成；邀請流程已呼叫內部 Service 建立通知，前端已串接並同步未讀狀態；Socket.IO 推播尚未實作 |
+| Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀與工作區邀請詳細資訊 API 已完成；邀請流程在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端以 id 去重並同步列表與未讀狀態 |
 | Board／Project domain | 尚未開始 | 依 domain 與 WebSocket spec 實作 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
@@ -70,8 +70,8 @@
 2. 完成邀請取消；補 PENDING 邀請的資料庫唯一性、前端接受／拒絕 E2E、錯誤授權 E2E 與併發衝突處理。
 3. 補 Notification 的列表 query filters，以及通知收件匣隔離／transaction rollback E2E；已讀 API 的基礎前端流程已完成。
 4. 建立 Project read model（後端 API 與前端專案清單），讓 Workspace overview 的專案區可使用真實資料。
-5. 將同一套 Session 驗證接到 Socket.IO handshake。
-6. 在 transaction commit 後推送 `notification.created` 摘要事件；前端以 idempotent reducer 更新列表，重連後以 HTTP 重新同步。
+5. 補 Socket.IO handshake 的 Session rotation／過期策略、`connect_error` 處理與 Origin／連線 lifecycle 測試。
+6. 補通知 Socket.IO 的 reconnect／漏收 HTTP resync、跨分頁同步與真實 client integration tests。
 
 ## 已知限制
 
@@ -80,7 +80,7 @@
 - Logout 只撤銷本次 token，尚未完整撤銷 Current／Grace family。
 - User／Workspace／Notification Store reset 尚未阻止舊 in-flight response 回寫。
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
-- Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 即時推送仍未實作。
+- Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 已提供第一版 `notification:created` 推送，但重連後重新同步、事件遺失補償與跨分頁同步仍未完成。
 
 ## 更新方式
 

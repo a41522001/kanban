@@ -98,8 +98,9 @@
 - [ ] `GET /notifications` 與 `GET /notifications/unreadCount` 需要有效 Session，且只以 Guard 寫入的 `request.userId` 查詢。
 - [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
+- [ ] Socket.IO：有效 Session handshake 才能連線，邀請 transaction commit 後只向受邀者推送 `notification:created`，且 client 可用 notification id 去重。
 
-Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程已呼叫內部建立通知方法。`markReadInvitation.e2e.spec.ts` 已建立，仍待在隔離 PostgreSQL／Redis 環境實際執行；目前不把它計入通過覆蓋。前端單筆已讀、全部已讀、接受與婉拒流程已於 2026-09-12 手動驗收通過。
+Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程會在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。`markReadInvitation.e2e.spec.ts` 已建立，仍待在隔離 PostgreSQL／Redis 環境實際執行；目前不把它計入通過覆蓋。前端單筆已讀、全部已讀、接受與婉拒流程已於 2026-09-12 手動驗收通過。Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
 
 ### Workspace Invitation
 

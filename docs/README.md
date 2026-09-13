@@ -4,8 +4,8 @@
 
 ## 目前優先順序
 
-1. [Workspace 邀請與通知](workspace-invitation-notification.md)：補取消、query 分頁、Socket.IO push 與隔離／併發測試；回覆、詳細資訊與已讀基礎流程已完成。
-2. Project read model，接著完成 [Socket.IO Session handshake](socketio-auth-plan.md)。
+1. [Workspace 邀請與通知](workspace-invitation-notification.md)：補取消、query 分頁、Socket reconnect／漏收同步與隔離／併發測試；回覆、詳細資訊、已讀與通知推播第一版已完成。
+2. Project read model，接著補完 [Socket.IO Session handshake](socketio-auth-plan.md) 的 rotation／lifecycle 細節與 reconnect resync。
 3. [Session 架構與輪轉](session-architecture.md)：補 SessionService 與 Lua 的單元／Redis integration tests。
 4. [Kanban domain 與一致性](kanban-domain-plan.md)。
 5. [API contract 與錯誤處理](api-contract-plan.md)。

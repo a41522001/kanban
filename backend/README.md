@@ -9,7 +9,7 @@ NestJS + Prisma／PostgreSQL + Redis + Socket.IO。以下指令都從 monorepo �
 - `workspaces`：建立 Workspace 與 Owner membership、列表、成員授權查詢，以及提供 membership 查詢給其他 domain service。
 - `workspaceInvitation`：發送、接受與拒絕邀請，查詢 PENDING、條件式狀態更新與邀請 HTTP Controller；Owner 取消邀請尚未實作。
 - `notification`：public read model、未讀數與內部建立通知。
-- `socket`：掛在 HTTP server 的 Socket.IO echo；尚未接 Session handshake。
+- `socket`：掛在 HTTP server 的 Socket.IO service；以 HttpOnly Session Cookie 驗證 handshake、將 userId 寫入 `socket.data`，管理 user room，並提供 transaction commit 後的 `notification:created` 推播。
 - `common`：ValidationPipe、AppException、Filter、response interceptor 與 Cookie 工具。
 
 主要分層為 Controller → Service → Repository。邀請流程由 `WorkspaceInvitationController → WorkspaceInvitationService` 協調；Invitation Service 單向依賴 WorkspacesService 取得 membership 資訊，並使用同一 Prisma TransactionClient 寫入 Invitation 與 Notification。WorkspacesService 不再依賴 WorkspaceInvitationService。
@@ -40,4 +40,4 @@ Build／start／test 的 pre scripts 會先建置共用 contracts。Production e
 - [Session 架構](../docs/session-architecture.md)
 - [測試範圍與未完成項目](../docs/testing-strategy.md)
 
-文件最後靜態核對：2026-09-08；不代表本次已執行測試。
+文件最後靜態核對：2026-09-13；Socket.IO reconnect resync、完整 lifecycle tests 與 Board events 尚未完成，不代表所有待辦測試皆已執行。
