@@ -43,6 +43,11 @@
       "types": "./dist/esm/workspaceInvitation.d.ts",
       "import": "./dist/esm/workspaceInvitation.js",
       "require": "./dist/cjs/workspaceInvitation.cjs"
+    },
+    "./project": {
+      "types": "./dist/esm/project.d.ts",
+      "import": "./dist/esm/project.js",
+      "require": "./dist/cjs/project.cjs"
     }
   },
   "devDependencies": {
