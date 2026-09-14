@@ -1,12 +1,18 @@
 export type ProjectStatus = 'ACTIVE' | 'ON_HOLD' | 'COMPLETED';
 export type ProjectRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 
+/** 創建專案請求 */
 export interface CreateProjectRequest {
   name: string;
   description?: string;
   workspaceId: string;
 }
-
+/** 創建專案成員請求 */
+export interface CreateProjectMemberRequest {
+  projectId: string;
+  memberEmail: string;
+  role: ProjectRole;
+}
 export interface ProjectListItemDto {
   id: string;
   workspaceId: string;
