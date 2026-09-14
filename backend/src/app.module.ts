@@ -18,6 +18,7 @@ import { HttpExceptionFilter } from './common/filters/httpException.filter';
 import { createValidationPipe } from './common/pipes/validation.pipe';
 import { WrapResponseInterceptor } from './common/interceptors/wrapResponse.interceptor';
 import { WorkspaceInvitationModule } from './workspaceInvitation/workspaceInvitation.module';
+import { ProjectModule } from './project/project.module';
 const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
   imports: [
@@ -40,6 +41,7 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
     UserModule,
     NotificationModule,
     WorkspaceInvitationModule,
+    ProjectModule,
   ],
   providers: [
     {

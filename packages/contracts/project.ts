@@ -4,6 +4,7 @@ export type ProjectRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 export interface CreateProjectRequest {
   name: string;
   description?: string;
+  workspaceId: string;
 }
 
 export interface ProjectListItemDto {
