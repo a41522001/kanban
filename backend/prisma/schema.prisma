@@ -116,13 +116,12 @@ model Workspace {
   archivedAt  DateTime? @map("archived_at")
 
   /// 建立者；不可隨意刪除仍有工作區的使用者。
-  createdBy     User                  @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy User              @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   /// 可進入此工作區的使用者與其角色。
-  members       WorkspaceMember[]
-  /// 帶有此工作區脈絡的通知。
-  notifications Notification[]
-  invitations   WorkspaceInvitation[]
-  projects      Project[]
+  members   WorkspaceMember[]
+
+  invitations WorkspaceInvitation[]
+  projects    Project[]
 
   @@index([createdById])
   @@index([archivedAt])
@@ -159,8 +158,6 @@ model Notification {
   recipientUserId String  @map("recipient_user_id") @db.Uuid
   /// 觸發通知的使用者；系統排程提醒可為 null。
   actorUserId     String? @map("actor_user_id") @db.Uuid
-  /// 通知所屬工作區脈絡；系統層級通知可為 null。
-  workspaceId     String? @map("workspace_id") @db.Uuid
 
   /// 通知的業務語意，決定前端文案與行為。
   type         NotificationType
@@ -180,18 +177,14 @@ model Notification {
   createdAt DateTime  @default(now()) @map("created_at")
 
   /// 收件者；刪除使用者時移除其通知。
-  recipient User       @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  recipient User  @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
   /// 觸發者；刪除使用者時保留通知並將 actor 設為 null。
-  actor     User?      @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-  /// 工作區脈絡；刪除工作區時保留通知並清除工作區連結。
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  actor     User? @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   /// 同一收件者不可收到相同 dedupe key 的通知；不同收件者可各自收到。
   @@unique([recipientUserId, dedupeKey])
   /// 支援通知列表、未讀篩選與依建立時間倒序查詢。
   @@index([recipientUserId, readAt, createdAt(sort: Desc)])
-  /// 支援工作區脈絡下的通知查詢。
-  @@index([workspaceId, createdAt(sort: Desc)])
   @@map("notifications")
 }
 

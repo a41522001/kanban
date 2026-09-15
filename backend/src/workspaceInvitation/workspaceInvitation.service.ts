@@ -358,7 +358,6 @@ export class WorkspaceInvitationService {
             {
               recipientUserId: inviteeUserId,
               actorUserId: inviterUserId,
-              workspaceId,
               type: 'WORKSPACE_INVITED',
               resourceType: 'WORKSPACE_INVITATION',
               resourceId: newInvitation.id,

@@ -87,7 +87,6 @@ export class ProjectService {
         {
           recipientUserId: invitee.id,
           actorUserId: inviterId,
-          workspaceId: '',
           type: 'PROJECT_MEMBER_ADDED',
           resourceType: 'PROJECT',
           resourceId: projectId,

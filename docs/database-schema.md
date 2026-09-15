@@ -150,7 +150,6 @@ users ──< workspace_members >── workspaces ──< projects
 | `id` | UUID | 否 | 通知主鍵與前端列表 key。 |
 | `recipient_user_id` | UUID | 否 | 收件者；通知列表、未讀數的主要查詢條件。 |
 | `actor_user_id` | UUID | 是 | 觸發通知的使用者；系統排程提醒可為 null。 |
-| `workspace_id` | UUID | 是 | 工作區脈絡；系統層級通知可為 null。 |
 | `type` | `NotificationType` | 否 | 業務語意，決定前端顯示文案與互動。 |
 | `resource_type` | `NotificationResourceType` | 否 | `resource_id` 所指資源的種類。 |
 | `resource_id` | UUID | 是 | polymorphic resource pointer；不建立外鍵。 |
@@ -163,9 +162,8 @@ users ──< workspace_members >── workspaces ──< projects
 
 - `@@unique([recipientUserId, dedupeKey])`：同一收件者不能有相同 dedupe key；不同收件者可收到同一事件。PostgreSQL 允許多筆 `dedupe_key = NULL`。
 - index：`recipient_user_id, read_at, created_at DESC`，支援未讀篩選與通知列表。
-- index：`workspace_id, created_at DESC`，支援工作區脈絡下的通知查詢。
 - `recipient_user_id` 使用 `ON DELETE CASCADE`；刪除收件者時一併刪除通知。
-- `actor_user_id`、`workspace_id` 使用 `ON DELETE SET NULL`；保留歷史通知，但移除已不存在的脈絡。
+- `actor_user_id` 使用 `ON DELETE SET NULL`；保留歷史通知，但移除已不存在的觸發者。
 
 ### 6.1 Notification routing 原則
 

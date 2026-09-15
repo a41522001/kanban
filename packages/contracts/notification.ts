@@ -48,7 +48,6 @@ export interface FindByRecipientResponse {
  */
 export interface PublicNotificationBase {
   id: string;
-  workspaceId: string | null;
   resourceType: NotificationResourceType;
   resourceId: string | null;
   readAt: string | null;

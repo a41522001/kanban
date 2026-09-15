@@ -16,7 +16,6 @@ interface CreateNotificationBase<
 > {
   recipientUserId: string;
   actorUserId: string | null;
-  workspaceId: string | null;
   resourceType: TResourceType;
   resourceId: string | null;
   dedupeKey: string | null;
