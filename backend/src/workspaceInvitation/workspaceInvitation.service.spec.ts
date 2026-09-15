@@ -912,7 +912,6 @@ describe('WorkspaceInvitationService', () => {
           expect.objectContaining({
             recipientUserId: inviteeUserId,
             actorUserId: inviterUserId,
-            workspaceId,
             type: 'WORKSPACE_INVITED',
             resourceType: 'WORKSPACE_INVITATION',
             resourceId: invitation.id,
@@ -1025,7 +1024,6 @@ describe('WorkspaceInvitationService', () => {
           expect.objectContaining({
             recipientUserId: inviteeUserId,
             actorUserId: inviterUserId,
-            workspaceId,
             type: 'WORKSPACE_INVITED',
             resourceType: 'WORKSPACE_INVITATION',
             resourceId: invitation.id,

@@ -50,7 +50,6 @@ describe('NotificationService', () => {
           id: 'testId1',
           recipientUserId,
           actorUserId: 'testActor',
-          workspaceId: 'workspaceId1',
           type: 'WORKSPACE_INVITED',
           resourceType: 'WORKSPACE_INVITATION',
           resourceId: 'testResourceId1',
@@ -74,7 +73,6 @@ describe('NotificationService', () => {
         items: [
           {
             id: 'testId1',
-            workspaceId: 'workspaceId1',
             type: 'WORKSPACE_INVITED',
             resourceType: 'WORKSPACE_INVITATION',
             resourceId: 'testResourceId1',

@@ -24,7 +24,6 @@ export class NotificationService {
     return {
       id: item.id,
       type: item.type,
-      workspaceId: item.workspaceId,
       resourceType: item.resourceType,
       resourceId: item.resourceId,
       readAt: item.readAt?.toISOString() ?? null,

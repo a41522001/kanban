@@ -39,7 +39,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
 - WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
-- PublicNotification：`id, type, workspaceId, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
+- PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
 
 ## Workspace 邊界

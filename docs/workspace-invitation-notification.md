@@ -45,7 +45,7 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 Notification 資料表或 HTTP API。工作區邀請與通知先在同一個 PostgreSQL transaction 建立，commit 成功後才向伺服器內部的 `user:{recipientUserId}` room emit；room 名稱由 server 依已驗證的 `socket.data.userId` 建立，client 不可傳入或選擇 userId。transaction rollback 或建立失敗時不得推播。
 
-事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、workspaceId、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
+事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
 
 這項推播已完成 Session Cookie handshake 與 user room 的第一版。Socket.IO 預設可自動重連，但目前尚未在 reconnect 後主動以 HTTP 重新同步列表／未讀數，也尚未完成事件漏收補償、跨分頁同步與真實多 client integration tests。
 
