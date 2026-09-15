@@ -9,6 +9,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | Login | `auth-login.svg` | — | `auth-login-mobile.svg` | Current |
 | Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
 | Workspace | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
+| Project overview | `project-overview.svg` | — | `project-overview-mobile.svg` | Current |
 | Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
 | Workspace invitation response | `workspace-invitation-response.svg` | — | `workspace-invitation-response-mobile.svg` | Current |
 | Workspace invitation response states | `workspace-invitation-response-states.svg` | — | — | Current spec page |
@@ -35,6 +36,15 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 - Tablet 與 Mobile 透過水平捲動瀏覽欄位，並保留 scroll indicator；不可壓縮欄寬。
 - `44 × 44` Card drag handle 與 `40 × 40` Column drag handle 是操作元件，不是裝飾文字。
 - Board 必須包含進度、完成、soft lock、Add card、Add column 等不同卡片／欄位語意。
+
+## Project overview contract
+
+- Desktop 使用「專案清單 + 已選取專案成員面板」的 master-detail 結構；選取專案不等同直接進入 Board，主要看板入口需保留為明確操作。
+- Project Card 顯示 `status`、目前使用者的 `ProjectRole`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。
+- 成員面板列出選取專案的所有成員與角色，僅顯示 `displayName`、`avatarUrl`、`joinedAt` 與 Project role，不得暴露其他 User 欄位。
+- Mobile 不保留雙欄；Project Card 顯示成員 avatar rail 與成員數，再由明確操作進入成員管理或主要看板。
+- Workspace membership 只代表可進入工作區；列表是否顯示 Project 仍以 `ProjectMember` 權限為準。Repository 可載入 Projects 與 Members，但 Service 必須完成目前使用者的權限驗證。
+- Project 狀態包含 `ACTIVE`、`ON_HOLD`、`COMPLETED`；封存是另一個維度，不與 `COMPLETED` 混用。
 
 ## Card data contract
 

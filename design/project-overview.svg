@@ -1,0 +1,286 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="surface-shadow" x="-12%" y="-12%" width="124%" height="132%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#29324A" flood-opacity=".08"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec-label{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.display{font-size:32px;font-weight:750;letter-spacing:-.03em}.title{font-size:22px;font-weight:700}.h2{font-size:18px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.soft{fill:#BFC7D7}.button{font-size:14px;font-weight:700}.medium{font-weight:700}.status{font-size:11px;font-weight:700;letter-spacing:.05em}.member-name{font-size:13px;font-weight:700}.member-role{font-size:11px;font-weight:700}.tab{font-size:13px;font-weight:700}
+    </style>
+    <g id="logo">
+      <rect width="18" height="24" rx="4" fill="#DF6E51"/>
+      <rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/>
+      <text x="56" y="20" class="title inverse">Flowboard</text>
+    </g>
+    <g id="plus-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M8 2v12M2 8h12"/>
+    </g>
+    <g id="bell-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12c1.4-1.4 2-3.2 2-5a5 5 0 0 1 10 0c0 1.8.6 3.6 2 5H3Z"/><path d="M8 15c.5 1.2 1.5 2 2 2s1.5-.8 2-2"/>
+    </g>
+    <g id="users-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="5" r="3"/><path d="M1 15c0-3 2-5 5-5s5 2 5 5M11 4c2 0 3 1 3 3 0 1-.5 2-1.5 2.5M12 11c2.5 0 4 1.5 4 4"/>
+    </g>
+    <g id="archive-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 5h14v11H2zM1 2h16v4H1zM7 9h4"/>
+    </g>
+    <g id="folder-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 5h6l2 2h8v9H2z"/>
+    </g>
+    <g id="search-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <circle cx="7" cy="7" r="5"/><path d="m11 11 4 4"/>
+    </g>
+    <g id="arrow-icon" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 8h12M10 4l4 4-4 4"/>
+    </g>
+    <g id="more-icon" fill="currentColor">
+      <circle cx="3" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="13" cy="8" r="1.5"/>
+    </g>
+  </defs>
+
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="48" class="spec-label">PROJECT / OVERVIEW + MEMBERS / 1440 × 900</text>
+
+  <g id="project-overview-desktop">
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
+    <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
+
+    <g id="top-navigation" transform="translate(72 100)">
+      <use href="#logo"/>
+      <text x="180" y="20" class="body inverse medium">工作區</text>
+      <rect x="180" y="40" width="44" height="4" rx="2" fill="#DF6E51"/>
+      <text x="256" y="20" class="body soft">最近</text>
+      <rect x="1192" y="-8" width="40" height="40" rx="10" fill="#29324A"/>
+      <g transform="translate(1203 3)" color="#F7F8FA"><use href="#bell-icon"/></g>
+      <circle cx="1227" cy="-4" r="8" fill="#DF6E51"/>
+      <text x="1227" y="0" text-anchor="middle" font-size="9" font-weight="700" fill="#FFFFFF">2</text>
+      <rect x="1248" y="-8" width="40" height="40" rx="10" fill="#44506A"/>
+      <g transform="translate(1260 4)" color="#F7F8FA"><use href="#plus-icon"/></g>
+      <circle cx="1328" cy="12" r="16" fill="#A9D2C8"/>
+      <text x="1328" y="17" text-anchor="middle" class="body medium">J</text>
+    </g>
+
+    <g id="workspace-sidebar" transform="translate(72 176)">
+      <text class="tiny">你的工作區</text>
+      <g transform="translate(0 28)">
+        <rect width="224" height="56" rx="12" fill="#29324A"/>
+        <rect x="12" y="12" width="32" height="32" rx="8" fill="#DF6E51"/>
+        <text x="28" y="33" text-anchor="middle" class="body inverse medium">J</text>
+        <text x="56" y="24" class="body inverse medium">Jeffery 的工作區</text>
+        <text x="56" y="42" class="tiny soft">擁有者 · 3 個專案</text>
+      </g>
+      <g transform="translate(0 96)" color="#697287">
+        <rect width="224" height="44" rx="10" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <g transform="translate(16 14)"><use href="#plus-icon"/></g>
+        <text x="48" y="27" class="body">新增工作區</text>
+      </g>
+      <line x1="0" y1="168" x2="224" y2="168" stroke="#CDD3DE"/>
+      <text y="204" class="tiny">工作區管理</text>
+      <g transform="translate(0 224)" color="#29324A">
+        <rect x="-8" y="-10" width="224" height="40" rx="10" fill="#F7F8FA"/>
+        <g transform="translate(4 2)"><use href="#folder-icon"/></g>
+        <text x="32" y="16" class="body medium">專案</text>
+        <text x="208" y="16" text-anchor="end" class="small">3</text>
+      </g>
+      <g transform="translate(0 272)" color="#697287">
+        <g transform="translate(4 2)"><use href="#users-icon"/></g>
+        <text x="32" y="16" class="body">工作區成員</text>
+        <text x="208" y="16" text-anchor="end" class="small">5</text>
+      </g>
+      <g transform="translate(0 312)" color="#697287">
+        <g transform="translate(4 1)"><use href="#archive-icon"/></g>
+        <text x="32" y="16" class="body">已封存專案</text>
+        <text x="208" y="16" text-anchor="end" class="small">1</text>
+      </g>
+
+      <g transform="translate(0 592)">
+        <text class="tiny">工作區成員</text>
+        <g transform="translate(0 20)">
+          <circle cx="16" cy="16" r="16" fill="#A9D2C8"/><text x="16" y="21" text-anchor="middle" class="body medium">J</text>
+          <circle cx="48" cy="16" r="16" fill="#907ECE" stroke="#E9ECF1" stroke-width="2"/><text x="48" y="21" text-anchor="middle" class="body inverse medium">M</text>
+          <circle cx="80" cy="16" r="16" fill="#E6B960" stroke="#E9ECF1" stroke-width="2"/><text x="80" y="21" text-anchor="middle" class="body medium">A</text>
+          <circle cx="112" cy="16" r="16" fill="#DF6E51" stroke="#E9ECF1" stroke-width="2"/><text x="112" y="21" text-anchor="middle" class="body inverse medium">L</text>
+          <circle cx="144" cy="16" r="16" fill="#D9DEE7" stroke="#E9ECF1" stroke-width="2"/><text x="144" y="21" text-anchor="middle" class="small medium">+1</text>
+        </g>
+        <text y="76" class="small">5 位成員，可分配到不同專案</text>
+      </g>
+    </g>
+
+    <g id="project-content" transform="translate(328 168)">
+      <text class="tiny">JEFFERY 的工作區 / 專案</text>
+      <text y="46" class="display">專案中心</text>
+      <text y="78" class="body" fill="#697287">選擇專案進入主要看板，或查看各專案的協作成員。</text>
+
+      <g transform="translate(742 4)">
+        <rect width="156" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+        <g transform="translate(20 13)" color="#697287"><use href="#users-icon"/></g>
+        <text x="92" y="27" text-anchor="middle" class="button">邀請成員</text>
+      </g>
+      <g transform="translate(912 4)">
+        <rect width="208" height="44" rx="9" fill="#DF6E51"/>
+        <g transform="translate(24 14)" color="#FFF9F4"><use href="#plus-icon"/></g>
+        <text x="116" y="28" text-anchor="middle" class="button inverse">新增專案</text>
+      </g>
+
+      <g id="project-toolbar" transform="translate(0 112)">
+        <rect width="1120" height="64" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <g transform="translate(16 12)">
+          <rect width="296" height="40" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+          <g transform="translate(14 12)" color="#697287"><use href="#search-icon"/></g>
+          <text x="44" y="25" class="body" fill="#8B95A8">搜尋專案</text>
+        </g>
+        <g transform="translate(332 12)">
+          <rect width="80" height="40" rx="20" fill="#29324A"/>
+          <text x="40" y="25" text-anchor="middle" class="tab inverse">全部 3</text>
+        </g>
+        <g transform="translate(420 12)">
+          <rect width="92" height="40" rx="20" fill="#FFFFFF"/>
+          <circle cx="18" cy="20" r="4" fill="#6EA99E"/>
+          <text x="57" y="25" text-anchor="middle" class="tab">進行中 1</text>
+        </g>
+        <g transform="translate(520 12)">
+          <rect width="92" height="40" rx="20" fill="#FFFFFF"/>
+          <circle cx="18" cy="20" r="4" fill="#E6B960"/>
+          <text x="57" y="25" text-anchor="middle" class="tab">暫停 1</text>
+        </g>
+        <g transform="translate(620 12)">
+          <rect width="92" height="40" rx="20" fill="#FFFFFF"/>
+          <circle cx="18" cy="20" r="4" fill="#907ECE"/>
+          <text x="57" y="25" text-anchor="middle" class="tab">完成 1</text>
+        </g>
+        <text x="1096" y="25" text-anchor="end" class="small">依最近更新排序</text>
+        <text x="1096" y="43" text-anchor="end" class="tiny">3 個可見專案</text>
+      </g>
+
+      <g id="project-list" transform="translate(0 196)">
+        <text class="h2">所有專案</text>
+        <text x="704" y="0" text-anchor="end" class="small">選取專案即可查看成員</text>
+
+        <g id="project-flowboard-selected" transform="translate(0 20)" filter="url(#surface-shadow)">
+          <rect width="704" height="168" rx="14" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/>
+          <path d="M0 14Q0 0 14 0h0v168h0Q0 168 0 154z" fill="#DF6E51"/>
+          <g transform="translate(24 20)">
+            <rect width="72" height="26" rx="13" fill="#E3F1EC"/>
+            <circle cx="14" cy="13" r="4" fill="#6EA99E"/>
+            <text x="44" y="17" text-anchor="middle" class="status" fill="#31665D">進行中</text>
+            <rect x="84" width="78" height="26" rx="13" fill="#FCE5DF"/>
+            <text x="123" y="17" text-anchor="middle" class="status" fill="#9F3F2C">你是 OWNER</text>
+          </g>
+          <text x="24" y="78" class="title">Flowboard 即時協作</text>
+          <text x="24" y="104" class="body" fill="#697287">Socket.IO 即時通知與多人 Kanban 協作練習。</text>
+          <g transform="translate(24 128)">
+            <text y="14" class="small">主要看板</text>
+            <text x="76" y="14" class="body medium">產品交付看板</text>
+            <circle cx="224" cy="9" r="2" fill="#CDD3DE"/>
+            <text x="238" y="14" class="small">更新於 5 分鐘前</text>
+          </g>
+          <g transform="translate(552 48)">
+            <rect width="120" height="72" rx="10" fill="#F7F8FA"/>
+            <rect x="12" y="14" width="18" height="44" rx="5" fill="#FCE5DF"/><rect x="38" y="14" width="18" height="44" rx="5" fill="#E3F1EC"/><rect x="64" y="14" width="18" height="44" rx="5" fill="#FFF1D8"/><rect x="90" y="14" width="18" height="44" rx="5" fill="#E9E6F7"/>
+            <rect x="16" y="22" width="10" height="12" rx="2" fill="#FFFFFF"/><rect x="42" y="22" width="10" height="22" rx="2" fill="#FFFFFF"/><rect x="68" y="22" width="10" height="16" rx="2" fill="#FFFFFF"/><rect x="94" y="22" width="10" height="28" rx="2" fill="#FFFFFF"/>
+          </g>
+          <g transform="translate(664 16)" color="#697287"><use href="#more-icon"/></g>
+        </g>
+
+        <g id="project-release" transform="translate(0 204)">
+          <rect width="704" height="148" rx="14" fill="#F7F8FA" stroke="#D7DCE5"/>
+          <rect width="6" height="148" rx="3" fill="#E6B960"/>
+          <g transform="translate(24 18)">
+            <rect width="68" height="26" rx="13" fill="#FFF1D8"/>
+            <circle cx="14" cy="13" r="4" fill="#E6B960"/>
+            <text x="43" y="17" text-anchor="middle" class="status" fill="#7A4D00">暫停中</text>
+            <rect x="80" width="78" height="26" rx="13" fill="#F7F8FA" stroke="#D7DCE5"/>
+            <text x="119" y="17" text-anchor="middle" class="status" fill="#465066">你是 EDITOR</text>
+          </g>
+          <text x="24" y="72" class="h2">發佈自動化</text>
+          <text x="24" y="98" class="body" fill="#697287">CI/CD、部署檢查與環境穩定性追蹤。</text>
+          <text x="24" y="128" class="small">主要看板 · 發佈流程</text>
+          <g transform="translate(552 42)">
+            <rect width="120" height="64" rx="10" fill="#FFFFFF"/>
+            <path d="M18 26h20m12 0h20m12 0h20" stroke="#CDD3DE" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="14" cy="26" r="6" fill="#DF6E51"/><circle cx="46" cy="26" r="6" fill="#A9D2C8"/><circle cx="78" cy="26" r="6" fill="#E6B960"/><circle cx="110" cy="26" r="6" fill="#907ECE"/>
+            <text x="60" y="50" text-anchor="middle" class="tiny">更新於昨天</text>
+          </g>
+          <g transform="translate(664 16)" color="#697287"><use href="#more-icon"/></g>
+        </g>
+
+        <g id="project-learning" transform="translate(0 368)">
+          <rect width="704" height="148" rx="14" fill="#F7F8FA" stroke="#D7DCE5"/>
+          <rect width="6" height="148" rx="3" fill="#907ECE"/>
+          <g transform="translate(24 18)">
+            <rect width="68" height="26" rx="13" fill="#E9E6F7"/>
+            <circle cx="14" cy="13" r="4" fill="#907ECE"/>
+            <text x="43" y="17" text-anchor="middle" class="status" fill="#55438F">已完成</text>
+            <rect x="80" width="78" height="26" rx="13" fill="#F7F8FA" stroke="#D7DCE5"/>
+            <text x="119" y="17" text-anchor="middle" class="status" fill="#465066">你是 VIEWER</text>
+          </g>
+          <text x="24" y="72" class="h2">技術成長計畫</text>
+          <text x="24" y="98" class="body" fill="#697287">.NET、AWS 與系統設計學習路線。</text>
+          <text x="24" y="128" class="small">主要看板 · 2026 學習地圖</text>
+          <g transform="translate(552 42)">
+            <rect width="120" height="64" rx="10" fill="#FFFFFF"/>
+            <circle cx="60" cy="26" r="18" fill="none" stroke="#D9DEE7" stroke-width="6"/>
+            <path d="M60 8a18 18 0 1 1-17 24" fill="none" stroke="#907ECE" stroke-width="6" stroke-linecap="round"/>
+            <text x="60" y="30" text-anchor="middle" class="tiny" font-weight="700">100%</text>
+            <text x="60" y="54" text-anchor="middle" class="tiny">8 月 18 日完成</text>
+          </g>
+          <g transform="translate(664 16)" color="#697287"><use href="#more-icon"/></g>
+        </g>
+      </g>
+
+      <g id="selected-project-members" transform="translate(728 216)" filter="url(#surface-shadow)">
+        <rect width="392" height="516" rx="16" fill="#FFFFFF"/>
+        <rect width="392" height="6" rx="3" fill="#DF6E51"/>
+        <g transform="translate(24 30)">
+          <text class="tiny">已選取的專案</text>
+          <text y="34" class="h2">Flowboard 即時協作</text>
+          <text y="60" class="small">4 位成員 · 1 位擁有者</text>
+          <rect x="298" y="2" width="46" height="28" rx="9" fill="#F7F8FA"/>
+          <g transform="translate(313 8)" color="#697287"><use href="#more-icon"/></g>
+        </g>
+        <line x1="24" y1="112" x2="368" y2="112" stroke="#D7DCE5"/>
+        <text x="24" y="144" class="tiny">專案成員</text>
+
+        <g transform="translate(24 164)">
+          <circle cx="24" cy="24" r="24" fill="#A9D2C8"/>
+          <text x="24" y="29" text-anchor="middle" class="body medium">J</text>
+          <text x="64" y="20" class="member-name">Jeffery</text>
+          <text x="64" y="40" class="small">加入於 9 月 13 日</text>
+          <rect x="276" y="10" width="68" height="28" rx="14" fill="#FCE5DF"/>
+          <text x="310" y="28" text-anchor="middle" class="member-role" fill="#9F3F2C">OWNER</text>
+        </g>
+        <g transform="translate(24 232)">
+          <circle cx="24" cy="24" r="24" fill="#907ECE"/>
+          <text x="24" y="29" text-anchor="middle" class="body inverse medium">M</text>
+          <text x="64" y="20" class="member-name">Mina</text>
+          <text x="64" y="40" class="small">加入於 9 月 13 日</text>
+          <rect x="276" y="10" width="68" height="28" rx="14" fill="#E3F1EC"/>
+          <text x="310" y="28" text-anchor="middle" class="member-role" fill="#31665D">EDITOR</text>
+        </g>
+        <g transform="translate(24 300)">
+          <circle cx="24" cy="24" r="24" fill="#E6B960"/>
+          <text x="24" y="29" text-anchor="middle" class="body medium">A</text>
+          <text x="64" y="20" class="member-name">Alex</text>
+          <text x="64" y="40" class="small">加入於 9 月 14 日</text>
+          <rect x="276" y="10" width="68" height="28" rx="14" fill="#E3F1EC"/>
+          <text x="310" y="28" text-anchor="middle" class="member-role" fill="#31665D">EDITOR</text>
+        </g>
+        <g transform="translate(24 368)">
+          <circle cx="24" cy="24" r="24" fill="#DF6E51"/>
+          <text x="24" y="29" text-anchor="middle" class="body inverse medium">L</text>
+          <text x="64" y="20" class="member-name">Lena</text>
+          <text x="64" y="40" class="small">加入於 9 月 14 日</text>
+          <rect x="276" y="10" width="68" height="28" rx="14" fill="#E9E6F7"/>
+          <text x="310" y="28" text-anchor="middle" class="member-role" fill="#55438F">VIEWER</text>
+        </g>
+        <g transform="translate(24 448)">
+          <rect width="164" height="44" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/>
+          <g transform="translate(20 13)" color="#697287"><use href="#users-icon"/></g>
+          <text x="96" y="27" text-anchor="middle" class="button">管理成員</text>
+          <rect x="176" width="168" height="44" rx="9" fill="#DF6E51"/>
+          <text x="252" y="27" text-anchor="middle" class="button inverse">進入看板</text>
+          <g transform="translate(312 14)" color="#FFF9F4"><use href="#arrow-icon"/></g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
