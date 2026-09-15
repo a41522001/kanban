@@ -88,7 +88,7 @@ export class ProjectRepository {
     return result;
   }
 
-  /** 創建專案成員 */
+  /** 新增專案成員 */
   async addProjectMember(
     data: AddProjectMemberParams,
     tx?: Prisma.TransactionClient,
@@ -98,5 +98,32 @@ export class ProjectRepository {
       data,
     });
     return result;
+  }
+
+  /** 找尋成員關係 */
+  async findMembership(userId: string, projectId: string) {
+    return this.prismaService.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+      select: {
+        id: true,
+        role: true,
+        project: {
+          select: {
+            name: true,
+            archivedAt: true,
+          },
+        },
+        user: {
+          select: {
+            displayName: true,
+          },
+        },
+      },
+    });
   }
 }

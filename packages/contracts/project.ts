@@ -7,8 +7,8 @@ export interface CreateProjectRequest {
   description?: string;
   workspaceId: string;
 }
-/** 創建專案成員請求 */
-export interface CreateProjectMemberRequest {
+/** 新增專案成員請求 */
+export interface AddProjectMemberRequest {
   projectId: string;
   memberEmail: string;
   role: ProjectRole;

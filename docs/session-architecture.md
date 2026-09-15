@@ -277,5 +277,5 @@ Cookie name `sessionId` 與 Grace 20 秒目前是程式常數，尚未環境變�
 
 1. 補齊 SessionService、SessionRepository 與三支 Lua 的 unit／integration tests。
 2. 決定無效 Session 回 401 時是否由 Server 主動清除 Cookie；目前未實作。
-3. Socket.IO 接入前，決定 handshake 是否允許觸發輪轉；不能讓 Redis 已輪轉但瀏覽器沒有收到新 Cookie。
+3. 修正已接入的 Socket.IO handshake：目前直接呼叫可能觸發輪轉的 `authenticateSession()`，卻無法把 `rotatedSessionId` 寫回 Cookie。應改用不輪轉驗證模式，或實作並驗證可靠的 handshake Cookie 回寫。
 4. 若提供裝置管理頁，再新增 device metadata 與 revoke endpoint，不提前把 user-agent 塞進核心 Session Hash。

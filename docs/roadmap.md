@@ -36,17 +36,19 @@ Vue 3 browser WebSocket
 4. Presence / online count。
 5. Application-level heartbeat。
 6. Basic reconnect。
+7. Runtime validation。
+8. Heartbeat timeout。
 
 ### Native 收尾
 
-7. Runtime validation。
-8. Heartbeat timeout。
 9. Exponential backoff、jitter、max retries。
 10. Backpressure 概念與小實驗。
 
-完成第 10 章後停止擴張 Native Lab，進入 Socket.IO。
+專案已先進入 Socket.IO／Flowboard 主線；Native 第 9、10 章保留為獨立收尾，不再阻塞 Kanban vertical slices。
 
 ## Phase 2：Socket.IO 協作 Kanban
+
+目前進度（2026-09-15）：步驟 1、2 已完成第一版；Project 資料層與 create Service 建置中。下一個可交付點是 Project HTTP create／list，再進入 Board room authorization。Session handshake 的 rotation Cookie 風險與真實 lifecycle tests 仍需在 Board commands 前補完。
 
 題材：多人協作 Kanban。
 

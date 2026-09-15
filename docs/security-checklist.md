@@ -1,5 +1,7 @@
 # Security Checklist
 
+最後靜態核對：2026-09-15。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
+
 ## 1. 使用方式
 
 這份文件是開發與上線前的安全檢查表。每個項目必須標記完成、接受風險或建立後續工作，不應只在部署當天快速掃過。
@@ -46,6 +48,7 @@
 - [x] 發送 Workspace 邀請已檢查未封存工作區的 OWNER 身分；通知讀取依 Session userId 隔離。
 - [x] 接受／拒絕邀請的條件式更新會綁定 Session userId、invitationId、PENDING status 與 expiresAt，非受邀者不會改變狀態。
 - [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
+- [ ] Project HTTP endpoint 尚未實作；目前 create Service 允許任一 Workspace member 建立 Project，符合既定規格，但仍需在對外開放前補 DTO runtime validation、授權與 transaction 測試。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
 - [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
@@ -64,13 +67,14 @@
 
 ## 7. Socket.IO
 
-- [ ] Handshake 驗證 Cookie 與 Session。
-- [ ] 不信任 payload 中的 userId、role、board owner。
+- [x] Handshake 由 middleware 驗證 Cookie 與 Redis Session，並把 userId 寫入 `socket.data`。
+- [x] 現有 echo／notification flow 不接受 payload 中的 userId、role 或 resource owner；user room 由 server 組成。
+- [ ] Handshake 必須避免觸發無法回寫 Cookie 的 Session rotation；現行 middleware 直接呼叫 `authenticateSession()` 並忽略 `rotatedSessionId`。
 - [ ] join room 與每個 mutation event 都重新做 authorization。
 - [ ] Event payload 有 validation 與大小限制。
 - [ ] Event 有 rate limit 或基本節流策略。
 - [ ] Ack 不暴露內部 exception。
-- [ ] DB commit 前不 broadcast 成功事件。
+- [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；未來 Board commands 仍需各自驗證此規則。
 
 ## 8. Database 與 Redis
 

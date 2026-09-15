@@ -7,7 +7,7 @@
 - 目標：先完成單節點下可靠的多人 Kanban，再考慮 Redis adapter、多節點與 RabbitMQ。
 - 已存在的 Auth API、HTTP response envelope 與 Session Cookie 機制維持不變。
 
-2026-09-08 靜態核對：Workspace 建立／列表／成員查詢已實作；成員查詢已檢查呼叫者 membership 與封存狀態。Owner 發送邀請及 Invitation／Notification transaction 也已存在。Project、Board 與下列 Socket commands 仍是目標規格。現行端點以[目前 HTTP API](http-api.md)為準。
+2026-09-15 靜態核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀與 Socket user-room 通知第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository 與 create Service transaction，但尚無 HTTP endpoint、有效測試或前端資料流；Board 與下列 Socket commands 仍是目標規格。現行端點以[目前 HTTP API](http-api.md)為準。
 
 這份文件描述預期契約，不代表所有功能必須一次完成。建議依照「實作階段」逐步交付，每一階段都應可獨立驗收。
 
@@ -461,7 +461,7 @@ Validation error：
 
 ### 5.3 Board 功能新增 code
 
-Board／Project 功能尚未實作時，不預先把設計草案中的數字視為正式 contract。實作某個錯誤情境前，必須先在 `packages/contracts/api.ts` 新增 `ApiCode`，再同步更新 API contract、HTTP／Socket 測試與前端處理。
+Board／Project HTTP 功能尚未實作完成時，不預先把設計草案中的數字視為正式 contract。實作某個錯誤情境前，必須先在 `packages/contracts/api.ts` 新增 `ApiCode`，再同步更新 API contract、HTTP／Socket 測試與前端處理。
 
 對沒有 membership 的使用者，建議回覆 `404`，避免透露 Workspace、Project 或 Board 是否存在。已確認具有 membership、但角色不足時才回 `403`。實作時仍需提供對應的穩定 `ApiCode`；不可重用目前 `InvalidCredentials`（`2001`）或 `EmailAlreadyRegistered`（`2002`）。
 
@@ -1504,6 +1504,8 @@ board:leave
 ## 25. 實作階段
 
 ### Phase 1：Workspace、Project 與 Board read model
+
+2026-09-15 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository 與 create Service transaction 已有，但 Project endpoints／tests／frontend 尚未完成。Board 起的 schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。
 
 - Prisma：Workspace、WorkspaceMember、Project、ProjectMember、Board、BoardColumn、CardCategory、CardLabel、Card、CardLabelAssignment。
 - `POST /workspaces`、`GET /workspaces`。
