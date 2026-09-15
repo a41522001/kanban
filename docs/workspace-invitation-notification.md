@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-13（依原始碼、Frontend unit tests、type-check、build，以及既有 Backend unit tests、coverage 與 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
+最後核對：2026-09-15（依原始碼、完整 build、Frontend unit tests、Backend coverage 與隔離 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -67,12 +67,12 @@ Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 
 - 補重複接受、非受邀者／未登入回覆，以及接受／拒絕並行競爭測試；目前條件式更新可阻止第二次狀態轉移，但尚未完成完整競爭驗收。
 - 補通知 query DTO 與前端分頁操作；單筆／全部已讀的 API 與前端操作已完成。
 - Unit tests 已覆蓋 Owner 授權、未知 email、自邀、既有成員、有效／過期邀請、發送 transaction，以及接受／拒絕 invitation 的核心分支；`expirePendingInvitations` service delegation 已覆蓋，但 Cron job 本身與真實過期資料的資料庫批次更新仍需測試。
-- 真實資料庫測試邀請／通知 rollback、收件匣隔離與未讀數；完整 E2E 驗證發送 → 受邀者讀取 → 回覆 → 成員清單。
+- 真實資料庫測試邀請／通知 rollback 與跨使用者收件匣隔離；未讀數的單筆／全部已讀 E2E，以及發送 → 受邀者讀取 → 接受／拒絕的 happy paths 已完成。
 - Socket.IO Session handshake 與 transaction commit 後通知 push 的第一版已完成；HTTP 資料仍是重新同步來源，後續補斷線重連、去重與漏收同步測試。
 
-2026-09-11 執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；WorkspaceInvitationService 已覆蓋發送、接受、拒絕與過期批次 service delegation，Controller spec 已覆蓋 invite／accept／decline。以 Node 24.13 執行 `pnpm test:backend:e2e`：WorkspaceInvitation suite 驗證發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 → 再接受回 409；NotificationController spec 仍為 skipped。
+2026-09-15 執行 `pnpm test:backend:cov`：17 suites、86 tests 通過，另有 Project 2 suites／2 tests skipped；WorkspaceInvitationService 覆蓋發送、接受、拒絕與過期批次 delegation，Controller spec 覆蓋 invite／accept／decline。隔離 Backend E2E 為 3 suites、5 tests 通過：WorkspaceInvitation suite 驗證接受／拒絕流程，`markReadInvitation` suite 驗證單筆與全部已讀及未讀數變化。
 
-2026-09-12 執行 frontend `vue-tsc --build`、Vitest、ESLint 與 Vite production build：8 個 test files、25 個 tests 通過。Playwright CLI 以本機攔截 API 驗證桌面邀請卡、接受後狀態、工作區清單更新及 375px 響應式版面；尚未加入連真實 Backend 的 frontend E2E。
+2026-09-15 完整 build 內的 frontend `vue-tsc --build` 與 Vite production build 通過，Vitest 為 8 個 test files、26 tests 通過。2026-09-12 的 ESLint 與 Playwright CLI 攔截 API 驗收仍是最近紀錄；尚未加入連真實 Backend 的 frontend E2E。
 
 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 

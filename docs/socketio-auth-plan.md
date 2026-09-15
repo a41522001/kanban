@@ -25,7 +25,7 @@ type SocketData = {
 
 禁止從事件 payload 接受 userId 作為操作身分。事件內一律使用 socket.data.userId。
 
-目前第一版已實作上述 handshake：`SocketService` 從 handshake Cookie 取得 `sessionId`，透過 `SessionService.authenticateSession()` 驗證，並把 userId 寫入 `socket.data`。驗證成功後會加入伺服器管理的 `user:{userId}` room；client 不提供 userId，也不能自行選擇 room。Session rotation 在 Socket handshake 中的 Cookie 更新策略、connect error 的前端處理與完整 lifecycle 測試仍待補強。
+2026-09-15 核對：第一版已實作上述 handshake。`SocketService` 從 handshake Cookie 取得 `sessionId`，透過 `SessionService.authenticateSession()` 驗證，並把 userId 寫入 `socket.data`；驗證成功後加入伺服器管理的 `user:{userId}` room。Client 不提供 userId，也不能自行選擇 room。這一版仍有明確的 rotation 邊界風險：middleware 呼叫的 `authenticateSession()` 可能完成 Redis rotation，但 Socket handshake 不會把 `rotatedSessionId` 寫回瀏覽器 Cookie。前端 `connect_error`、Origin 的真實驗證與完整 lifecycle tests 也尚未完成。
 
 ## 3. Cookie、CORS 與 Origin
 
@@ -96,12 +96,12 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 ### 7.1 輪轉與 Socket handshake 的限制
 
-目前 `authenticateSession()` 可能在驗證時觸發輪轉，HTTP Guard 可以用 response `Set-Cookie` 回傳新 Session ID；Socket.IO middleware 沒有直接沿用這段 Guard response 行為。因此接 Session handshake 前必須先選定並測試以下策略之一：
+目前 `authenticateSession()` 可能在驗證時觸發輪轉，HTTP Guard 可以用 response `Set-Cookie` 回傳新 Session ID；Socket.IO middleware 沒有直接沿用這段 Guard response 行為。現行 `SocketService` 已直接呼叫這個方法，卻忽略可能回傳的 `rotatedSessionId`，因此到達 rotation 時間的握手可能造成 Redis 已切換 Current、瀏覽器仍持有舊 Cookie。這是待修正的 correctness risk，不是尚未接線的抽象決策。應選定並測試以下策略之一：
 
 1. Handshake 只接受／驗證既有 Session，不在 middleware 觸發輪轉；之後由正常 HTTP request 完成輪轉。
 2. 明確在 Engine.IO handshake response 設定 Cookie，並以真實瀏覽器測試 Cookie 是否可靠更新。
 
-第一版建議採策略 1，避免同一個 service 在 HTTP 與 Socket transport 上產生不同的 Cookie 副作用。若沿用現有 `authenticateSession()`，則需要新增不輪轉的驗證模式，不能只忽略回傳的 `rotatedSessionId`，否則 Redis 已切換至新 Current，但瀏覽器沒有取得新 Cookie。
+建議採策略 1，避免同一個 service 在 HTTP 與 Socket transport 上產生不同的 Cookie 副作用：新增明確的不輪轉驗證模式，Socket middleware 不可繼續忽略 `rotatedSessionId`。修正前需把此限制視為 Session lifecycle 尚未完成。
 
 ## 8. Logging
 

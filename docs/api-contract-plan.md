@@ -1,6 +1,6 @@
 # API Contract 與錯誤處理規格
 
-最後靜態核對：2026-09-12。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；Swagger 共用 decorator 仍待實作。
+最後靜態核對：2026-09-15。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；Swagger 共用 decorator 仍待實作。
 
 ## 1. 目標
 
@@ -97,7 +97,7 @@ HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的
 
 - ValidationPipe 將 ValidationError 轉成 FieldErrors，再建立 AppException。
 - Controller 可拋出 transport 或 business exception。
-- Service 不組 HTTP envelope；目前 WorkspaceInvitationService 會拋帶 HTTP status 的 AppException，WorkspacesService 會拋 NotFoundException，尚未完全分離 domain error 與 transport。
+- Service 不組 HTTP envelope；目前 WorkspaceInvitationService 與 ProjectService 會拋帶 HTTP status 的 AppException，WorkspacesService 會拋 NotFoundException，尚未完全分離 domain error 與 transport。
 - HttpExceptionFilter 是唯一組裝 error envelope 的地方。
 - 未預期錯誤不可將 stack、SQL、Redis key 或內部錯誤訊息回傳給 client。
 - `ApiCode` 是 runtime contract；`packages/contracts` 會同時輸出 ESM 給 frontend 與 CJS 給 backend，不能將它改回 type-only export。

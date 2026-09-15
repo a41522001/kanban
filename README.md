@@ -1,8 +1,8 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-11（依原始碼、Backend unit tests、coverage、build 與 Node 24.13 E2E 核對）。
+最後檢視：2026-09-15（依目前原始碼、完整 build、Backend coverage、Frontend unit tests 與隔離環境 Backend E2E 核對）。
 
-多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace 與邀請通知基礎；Project／Board 持久化與即時協作仍待實作。
+多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace、邀請通知與 Socket user-room 推播；Project domain 正在建置，Board 持久化與即時協作仍待實作。
 
 ## 專案結構
 
@@ -23,11 +23,12 @@
 - Workspace Owner 可邀請已註冊使用者；邀請與通知在同一 PostgreSQL transaction 建立。
 - Workspace Invitation 已提供發送、接受與拒絕 Backend API；接受流程只在條件式轉為 ACCEPTED 成功後，才於同一 transaction 建立 WorkspaceMember，拒絕流程則條件式轉為 DECLINED。
 - Nest 排程每分鐘批次將 `expiresAt <= now` 的 PENDING invitation 改為 EXPIRED；操作端仍保留 `expiresAt` 條件，避免等待下一輪排程期間接受或拒絕過期邀請。
-- 通知列表、未讀數 API 與前端通知選單。
+- 通知列表、未讀數、單筆／全部已讀 API 與前端通知選單；新通知會在 transaction commit 後推送至受邀者 user room。
 - 統一 API response、validation、exception filter、HTTP log redact 與 Swagger。
-- Socket.IO 最小 typed echo。
+- Socket.IO 已有 typed echo、Session Cookie handshake、`socket.data.userId` 與 server-managed user room。
+- Project／ProjectMember 已有 Prisma schema、migration、shared contracts、Repository，以及建立 Project 並同 transaction 建立 OWNER membership 的 Service；Controller 尚未提供 endpoint。
 
-尚未完成：邀請取消、通知已讀 API／分頁 query、Project／Board／Card 資料模型與 API、Socket Session handshake、room authorization、ack／retry／idempotency／recovery。Board 畫面目前使用本機假資料。
+尚未完成：邀請取消、通知 query 分頁、Project HTTP API／前端資料流／有效測試、Board／Column／Card 資料模型與 API、Board room authorization、ack／retry／idempotency／recovery。Socket handshake 尚缺 rotation 安全策略、前端 `connect_error` 與真實 lifecycle tests；Board 畫面目前使用本機假資料。
 
 ## 本機啟動
 
@@ -80,9 +81,9 @@ Backend E2E 首次先複製 `backend/.env.e2e.example` 為 `backend/.env.e2e`，
 pnpm test:backend:e2e
 ```
 
-runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth 與 Workspace Invitation E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
+runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth、Workspace Invitation 與 Notification read-action E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
 
-2026-09-11 已執行 `pnpm test:backend:cov`：17 suites、87 tests 通過；整體 coverage 為 statements 52.15%、branches 59.19%、functions 39.07%、lines 51.38%。`pnpm --filter backend build` 通過。以 Node 24.13 執行 `pnpm test:backend:e2e`：2 suites、3 tests 通過，覆蓋 Auth lifecycle，以及 Workspace 邀請的接受與拒絕流程。既有執行紀錄與測試缺口見 [進度](docs/progress.md)及[測試策略](docs/testing-strategy.md)。
+2026-09-15 以 Node 24.13／pnpm 11.25 執行 `pnpm build` 通過；Frontend Vitest 為 8 個 test files、26 tests 通過。`pnpm test:backend:cov` 為 17 suites、86 tests 通過，另有 Project 2 suites／2 tests skipped；整體 coverage 為 statements 50.09%、branches 56.7%、functions 32.94%、lines 48.86%。隔離 PostgreSQL／Redis 的 `pnpm test:backend:e2e` 為 3 suites、5 tests 通過，覆蓋 Auth lifecycle、Workspace Invitation 接受／拒絕，以及通知單筆／全部已讀。Vite build 有單一 chunk 超過 500 kB 的既有警告。詳細測試缺口見[進度](docs/progress.md)與[測試策略](docs/testing-strategy.md)。
 
 ## 文件入口
 

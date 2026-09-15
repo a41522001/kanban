@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-12。既有 Backend coverage、build 與 Node 24.13 E2E 紀錄見 [progress](progress.md)；前端 type-check、unit tests、lint、production build 均通過，通知單筆／全部已讀及邀請接受／婉拒流程另已手動驗收通過。
+最後檢視：2026-09-15。最新 Backend coverage、完整 build、Frontend unit tests 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。本次 E2E 已實際覆蓋通知單筆／全部已讀；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
 
 ## 1. 目標
 
@@ -100,7 +100,7 @@
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
 - [ ] Socket.IO：有效 Session handshake 才能連線，邀請 transaction commit 後只向受邀者推送 `notification:created`，且 client 可用 notification id 去重。
 
-Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程會在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。`markReadInvitation.e2e.spec.ts` 已建立，仍待在隔離 PostgreSQL／Redis 環境實際執行；目前不把它計入通過覆蓋。前端單筆已讀、全部已讀、接受與婉拒流程已於 2026-09-12 手動驗收通過。Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
+Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程會在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。`markReadInvitation.e2e.spec.ts` 已於 2026-09-15 在隔離 PostgreSQL／Redis 執行通過，覆蓋受邀者單筆已讀、全部已讀與未讀數變化；跨使用者收件匣隔離、Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
 
 ### Workspace Invitation
 
@@ -121,6 +121,14 @@ Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流
 - [x] E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409；以 Node 24.13 驗收通過。
 
 WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases，符合重構後責任。WorkspaceInvitationService unit tests 的 transaction mock 會將同一個可辨識 tx 傳入 callback，並驗證 Invitation／Notification 或 membership 寫入收到該 tx。真實 rollback、唯一性與併發仍需 PostgreSQL integration test。
+
+### Project
+
+- [ ] 將 `ProjectService` 與 `ProjectController` 的 scaffold specs 從 `describe.skip` 改為有效測試。
+- [ ] 建立 Project 時驗證 Workspace membership、封存 workspace、transaction rollback、Project 與 OWNER membership 同時建立。
+- [ ] Project Controller 的 Session userId、DTO validation、成功 status／response mapping 與錯誤 envelope。
+- [ ] Project list 只回目前使用者實際具有 ProjectMember 的未封存 Projects。
+- [ ] 隔離 PostgreSQL E2E：建立、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
 
 ### Common
 
@@ -161,7 +169,7 @@ REDIS_URL=redis://localhost:6379/1
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
-目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts` 與新增的 `markReadInvitation.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受；已讀 suite 覆蓋單筆與全部已讀的 API 情境，尚待實際執行。`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
+目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts` 與 `markReadInvitation.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受；已讀 suite 覆蓋單筆與全部已讀。2026-09-15 三個 suites、五個 tests 已在隔離環境通過；`afterAll` 關閉 Nest application，讓 Prisma 與 Redis module lifecycle 一起釋放資源。
 
 ## 5. Test Data Factory
 
@@ -253,9 +261,9 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 11. 目前最優先的測試順序
 
-1. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
-2. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
-3. SessionService unit tests：驗證分支與 Lua reply mapping。
-4. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
-5. Socket.IO Session handshake integration tests。
-6. Frontend Auth 與 Socket.IO handshake 完成後加入 Playwright multi-user tests。
+1. Project create／list Service、Controller 與隔離 E2E；先移除目前兩個 skipped scaffold suites。
+2. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
+3. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
+4. SessionService unit tests：驗證分支與 Lua reply mapping。
+5. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
+6. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。

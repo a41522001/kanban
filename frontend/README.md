@@ -38,12 +38,12 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 - Workspace Store 保存工作區與目前選取 ID。
 - Notification Store 保存通知、未讀數、單筆／全部已讀的處理狀態與本次登入期間的邀請回覆狀態；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。工作區邀請可直接接受或婉拒，成功後會同步標記通知已讀，接受再重新載入工作區清單。
 - Logout 不論 HTTP 成敗皆清空 User／Workspace／Notification Store 並導向登入；網路失敗不保證伺服器 Session 已撤銷。
-- Store reset 尚未阻止舊的 in-flight response 回寫；HTTP 層尚未統一處理一般 API 401。
-- Session ID 不放在 localStorage；Socket.IO 尚未整合 Auth lifecycle。
+- Store reset 尚未阻止舊的 in-flight response 回寫；一般 API 收到 `Unauthenticated` 已由 Axios interceptor 發出 app event，統一清空 User／Workspace／Notification state 並導向 Login。
+- Session ID 不放在 localStorage；protected route 恢復 Session 後會連接 Socket.IO 並啟動通知監聽，登出或 HTTP Session 失效時會停止監聽並斷線。Socket `connect_error`、rotation 與 reconnect resync 尚未完成。
 - Google 登入、忘記密碼與帳號設定尚未完成；通知選單尚未提供分頁操作。Backend 通知 read model 未回傳邀請最終狀態，因此整頁重新整理後無法單靠通知資料還原已接受／婉拒 UI。
 
 通知手動驗收（2026-09-12）已確認單筆已讀、全部已讀、接受邀請與婉拒邀請皆可正常完成；已讀操作集中於 `components/notifications/NotificationReadAction/`，並由 Notification Store 統一管理 optimistic 更新、重試與未讀數同步。
 
 更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 
-文件最後核對：2026-09-12；`vue-tsc --build`、25 個 frontend unit tests、ESLint、Vite production build 與桌面／375px 瀏覽器驗收均通過。
+文件最後核對：2026-09-15；完整 build 內的 `vue-tsc --build` 與 Vite production build 通過，Vitest 為 8 個 test files、26 tests 通過。Vite 仍提示 production chunk 超過 500 kB；2026-09-12 的 ESLint 與桌面／375px 手動驗收紀錄保留有效。

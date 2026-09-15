@@ -1,6 +1,6 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-08（靜態核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 最後檢視：2026-09-15（依 router、Axios interceptor、App lifecycle、stores 與 unit tests 靜態核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
 
 ## 1. 目標
 
@@ -114,12 +114,14 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - 若 production frontend/backend 為 cross-site，需重新評估 SameSite=None 與 CSRF protection。
 - State-changing endpoint 後續加入 Origin/Referer 檢查或 CSRF token。
 
-## 8. Socket Integration（待辦）
+## 8. Socket Integration（第一版已完成）
 
-- Auth Store authenticated 後才 connect Socket.IO。
-- Logout 時 disconnect。
-- connect_error 為 session invalid 時，清空 Auth Store 並導向 Login。
-- Reconnect 不從 client payload 傳 userId。
+- [x] Protected route 的 User Store 恢復成功後才 connect Socket.IO，並啟動 Notification Store realtime handler。
+- [x] Logout 與 HTTP `Unauthenticated` app event 會停止通知 handler、disconnect Socket，並清空 stores。
+- [ ] `connect_error` 為 session invalid 時，清空 Auth Store 並導向 Login。
+- [x] Reconnect／event payload 不從 client 傳 userId；server 以 handshake Session 建立 `socket.data.userId`。
+- [ ] Reconnect 成功後以 HTTP 重新同步通知列表與未讀數。
+- [ ] 修正 Socket handshake 可能觸發 Session rotation 卻無法回寫新 Cookie 的 lifecycle 風險。
 
 ## 9. 測試與 UI 實作
 
@@ -141,7 +143,7 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - [x] Signup API integration。
 - [x] Protected route guard。
 - [x] Logout。
-- [ ] Socket connect/disconnect hook。
+- [x] Socket connect/disconnect hook 與 Notification realtime handler。
 - [x] Form validation／User Store unit tests。
 - [ ] Login／Signup component tests。
 - [ ] Playwright auth flow。

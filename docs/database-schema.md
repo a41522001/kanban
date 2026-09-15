@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-13（Prisma schema、Project migration、邀請狀態轉移與既有 E2E 核對）。
+最後檢視：2026-09-15（依 Prisma schema、7 個 migrations、Project Repository／Service 與隔離 E2E migration deploy 核對）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -36,7 +36,7 @@ users ──< workspace_members >── workspaces ──< projects
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema 與 migration，但 Repository、Service、HTTP API 與前端尚未實作。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts 與 Repository；ProjectService 已能在同一 transaction 建立 Project 與建立者的 OWNER membership。Project Controller 仍無 endpoint，前端也尚未串接。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
 
 ## 2. Enum
 
@@ -201,7 +201,7 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 ## 8. `projects`
 
-Workspace 之下的專案邊界。Project schema 與 migration 已建立；目前尚未實作 Repository、Service、HTTP API 或前端資料流。
+Workspace 之下的專案邊界。Project schema、migration 與 Repository 已建立；ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember。HTTP API、前端資料流及有效自動測試尚未完成。
 
 | 欄位 | 型別 | Null | 說明 |
 | --- | --- | --- | --- |

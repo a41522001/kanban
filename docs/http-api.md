@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-13。以 Controllers、DTO、`packages/contracts`、unit tests、build 與 Node 24.13 E2E 為準。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-15。以 Controllers、DTO、`packages/contracts`、build、unit tests 與隔離 Node 24.13 E2E 為準。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -67,4 +67,6 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 Swagger 位於 `/api/docs`，目前 Auth 的手寫 error schema 仍使用 array 描述，與實際 FieldError object 不一致；尚未完成可重用 envelope decorators。不可將 Swagger 視為所有端點完整驗證結果。
 
-尚待補上邀請取消、通知 query DTO，以及更完整的錯誤授權／併發測試與 Swagger；通知已讀 HTTP endpoint 已完成。
+`ProjectController` 雖已註冊於 AppModule，但目前沒有 route，因此本頁沒有 Project endpoint；ProjectService 的內部 create flow 不代表 HTTP API 已交付。
+
+尚待補上 Project endpoints、邀請取消、通知 query DTO，以及更完整的錯誤授權／併發測試與 Swagger；通知已讀 HTTP endpoint 與對應 E2E 已完成。
