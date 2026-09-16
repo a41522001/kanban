@@ -121,7 +121,7 @@
   <WorkspaceInvitationDetailDialog
     v-model:open="isInvitationDetailOpen"
     :invitation-id="selectedInvitationId"
-    @accepted="refreshNotifications"
+    @accepted="handleWorkspaceInvitationAccepted"
     @declined="refreshNotifications"
   />
 </template>
@@ -147,6 +147,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getApiErrorResponse } from '@/services/http';
 import { useNotificationStore } from '@/stores/notification';
+import { syncNotificationResource } from '@/services/notificationEffects';
 
 interface NotificationPresentation {
   actorInitial: string;
@@ -250,7 +251,8 @@ const notificationItems = computed<NotificationItemView[]>(() => {
 
     return {
       ...base,
-      kind: notification.type === 'WORKSPACE_INVITED' ? ('invitation' as const) : ('generic' as const),
+      kind:
+        notification.type === 'WORKSPACE_INVITED' ? ('invitation' as const) : ('generic' as const),
       actorInitial: presentation.actorInitial,
       eyebrow: presentation.eyebrow,
       title: presentation.title,
@@ -318,6 +320,10 @@ const markAllRead = async () => {
       getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'),
     );
   }
+};
+
+const handleWorkspaceInvitationAccepted = async (workspaceId: string) => {
+  await Promise.all([refreshNotifications(), syncNotificationResource('WORKSPACE', workspaceId)]);
 };
 
 watch(isOpen, (open) => {

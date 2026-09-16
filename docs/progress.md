@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-16（依目前原始碼、完整 build 與 Backend unit tests 核對；Frontend unit tests、Backend coverage 與隔離 PostgreSQL／Redis E2E 沿用 2026-09-15 紀錄）。
+最後檢視：2026-09-16（依目前原始碼、完整 build、Backend unit tests、Frontend type-check 與 unit tests 核對；Backend coverage 與隔離 PostgreSQL／Redis E2E 沿用 2026-09-15 紀錄）。
 
 ## Native WebSocket
 
@@ -33,7 +33,7 @@
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
 | Workspace Invitation | 已完成發送、詳細資訊、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／detail／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
-| Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定、成功／錯誤狀態與接受後重載工作區；點擊邀請通知時會先標記已讀，再載入詳細資訊；已拆出 `NotificationReadAction` 共用元件，未知 email 顯示欄位錯誤，失去的邀請資源會重新同步通知；全域 Toaster 已載入 `vue-sonner/style.css`，toast 使用固定定位不會撐開頁面 |
+| Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定與成功／錯誤狀態已完成；接受成功後同時刷新通知與 Workspace read model。Socket 通知透過集中式 notification effect／resource sync handler 分派 domain 更新，Workspace 已接上，Project／Board／Card 先保留型別完整的佔位 |
 | Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；邀請通知在 transaction commit 後推送，重連後 HTTP resync 與更完整 lifecycle 測試尚待補 |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
@@ -49,7 +49,7 @@
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
 - Backend E2E 使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；目前案例覆蓋 Auth lifecycle、邀請接受／拒絕，以及通知單筆／全部已讀。
 - runner 結束後會移除 E2E containers、network 與暫存 volumes；專案以 `.nvmrc` 與 CI 的 `node-version-file` 固定 Node 24.13，避免 Jest 30 在 Node 22 載入 `@nestjs/schedule` 12 ESM 時失敗。
-- Frontend unit tests 目前覆蓋 signup／login 表單驗證、User／Notification Store、WorkspaceInvitation service、回覆卡，以及共用 Alert／Loading。
+- Frontend unit tests 目前覆蓋 signup／login 表單驗證、User／Notification Store、WorkspaceInvitation service、通知副作用 handler、回覆卡，以及共用 Alert／Loading。
 - 2026-09-12 以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite build：8 個 frontend test files、25 個 tests 全數通過，type-check／lint／production build 亦通過。Playwright CLI 以攔截的本機 API 假資料驗證桌面邀請卡、接受成功、工作區清單更新及 375px 響應式畫面。
 - 2026-09-12 變更 frontend HTTP error handling 後，使用 Node 24.13 執行 `pnpm --filter frontend type-check` 與 `pnpm --filter frontend test:unit --run`：8 個 test files、25 個 tests 全數通過。Vite 顯示既有 `configLoader: 'native'` 未來相容性提醒，與測試結果及本次修改無關。
 - 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；列表狀態與未讀 badge 會即時更新，邀請回覆成功後同步標記該通知為已讀。
@@ -59,7 +59,8 @@
 - 2026-09-15 執行 `pnpm test:backend:cov`：17 suites、86 tests 通過，Project 2 suites／2 tests skipped；整體 coverage 為 statements 50.09%、branches 56.7%、functions 32.94%、lines 48.86%。Project Service／Repository 幾乎沒有有效行為測試，新增程式碼使整體 coverage 較先前下降。
 - 2026-09-15 執行 `pnpm test:backend:e2e`：3 suites、5 tests 全部通過。當時 runner 套用 7 個 migrations，覆蓋 Auth lifecycle、Workspace Invitation 接受／拒絕，以及 Notification 單筆／全部已讀，完成後移除 containers、network 與 volumes；目前 schema 已有 9 個 migrations，本輪尚未重跑 E2E migration deploy。
 - 2026-09-16 執行完整 `pnpm build`：contracts、Frontend type-check／Vite build、Backend Nest build 全部通過；Vite 仍只有 main chunk 541.55 kB 警告。補齊所有現有 Controller 的 Swagger metadata 後再次執行 Backend build，結果通過。
-- 2026-09-16 執行 Backend unit tests：17 suites、86 tests 通過，Project Service／Controller 2 suites／2 tests skipped。本輪未重跑 coverage、Frontend unit tests、Playwright 或隔離 E2E。
+- 2026-09-16 執行 Backend unit tests：17 suites、86 tests 通過，Project Service／Controller 2 suites／2 tests skipped。本輪未重跑 coverage、Playwright 或隔離 E2E。
+- 2026-09-16 加入集中式 notification effect／resource sync handler 後執行 Frontend `vue-tsc --build` 與 Vitest：type-check 通過，9 個 test files／30 tests 全部通過；測試確認 Workspace resource 會刷新 Store、邀請到達時不會提早刷新，以及 Project handler 目前維持無副作用佔位。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。

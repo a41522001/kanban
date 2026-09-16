@@ -12,12 +12,10 @@ export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
 );
 
 socket.on('connect', () => {
-  console.log('用戶端已連線');
   isConnected.value = true;
 });
 
 socket.on('disconnect', () => {
-  console.log('用戶端已離線');
   isConnected.value = false;
 });
 

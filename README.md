@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-16（依目前原始碼、完整 build 與 Backend unit tests 核對；Frontend unit tests、coverage 與隔離 Backend E2E 沿用 2026-09-15 紀錄）。
+最後檢視：2026-09-16（依目前原始碼、完整 build、Backend unit tests、Frontend type-check 與 unit tests 核對；coverage 與隔離 Backend E2E 沿用 2026-09-15 紀錄）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace、邀請通知與 Socket user-room 推播；Project domain 正在建置，Board 持久化與即時協作仍待實作。
 
@@ -83,7 +83,7 @@ pnpm test:backend:e2e
 
 runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth、Workspace Invitation 與 Notification read-action E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有 scaffold，尚未覆蓋完整 Auth flow。
 
-2026-09-16 以 Node 24.13／pnpm 11.25 執行完整 `pnpm build` 通過；補完 Swagger 後再次執行 Backend Nest build 與 unit tests，17 suites／86 tests 通過，Project 2 suites／2 tests 仍 skipped。2026-09-15 的 Frontend Vitest 為 8 個 test files／26 tests 通過；Backend coverage 為 statements 50.09%、branches 56.7%、functions 32.94%、lines 48.86%；隔離 PostgreSQL／Redis E2E 為 3 suites／5 tests 通過。Vite build 仍有 main chunk 超過 500 kB 的警告。本輪未重跑 Frontend tests、coverage 或 E2E，詳細缺口見[進度](docs/progress.md)與[測試策略](docs/testing-strategy.md)。
+2026-09-16 以 Node 24.13／pnpm 11.25 執行完整 `pnpm build` 通過；補完 Swagger 後再次執行 Backend Nest build 與 unit tests，17 suites／86 tests 通過，Project 2 suites／2 tests 仍 skipped。加入集中式 notification effect handler 後，Frontend type-check 與 Vitest 9 個 test files／30 tests 通過。2026-09-15 的 Backend coverage 為 statements 50.09%、branches 56.7%、functions 32.94%、lines 48.86%；隔離 PostgreSQL／Redis E2E 為 3 suites／5 tests 通過。Vite build 仍有 main chunk 超過 500 kB 的警告。本輪未重跑 coverage 或 E2E，詳細缺口見[進度](docs/progress.md)與[測試策略](docs/testing-strategy.md)。
 
 ## 文件入口
 

@@ -10,6 +10,7 @@ import {
 import type { WorkspaceInvitationResponseState } from '@/types/workspaceInvitation';
 import type { NotificationReadActionState } from '@/types/notification';
 import { onNotificationCreated, offNotificationCreated } from '@/services/socket';
+import { handleNotificationEffect } from '@/services/notificationEffects';
 
 export const useNotificationStore = defineStore('notificationStore', () => {
   // 通知列表只保存摘要與 resource pointer，不需要 deep reactive proxy。
@@ -204,9 +205,6 @@ export const useNotificationStore = defineStore('notificationStore', () => {
 
   //#region socket
   const handleNotificationCreated = (notification: PublicNotification) => {
-    console.log('收到新notification');
-    console.log(notification);
-
     const existingNotification = notifications.value.find((item) => item.id === notification.id);
     // 防止 Socket 重複推送同一筆通知
     if (existingNotification) {
@@ -218,6 +216,11 @@ export const useNotificationStore = defineStore('notificationStore', () => {
     if (notification.readAt === null) {
       unreadCount.value += 1;
     }
+
+    // 通知先即時顯示；domain read model 在背景依通知類型集中同步。
+    void handleNotificationEffect(notification).catch(() => {
+      // 通知本身已成功接收；domain Store 保留自己的錯誤狀態供畫面重試。
+    });
   };
 
   const realtimeStarted = ref<boolean>(false);
@@ -236,20 +239,6 @@ export const useNotificationStore = defineStore('notificationStore', () => {
     offNotificationCreated(handleNotificationCreated);
     realtimeStarted.value = false;
   };
-  // socket.on('demo:echoed', (payload) => {
-  //   console.log(payload);
-  // });
-
-  // onMounted(() => {
-  //   console.log('connect');
-  //   connect();
-  // });
-
-  // onUnmounted(() => {
-  //   console.log('disconnect');
-  //   disconnect();
-  // });
-  //#endregion
 
   return {
     notifications,

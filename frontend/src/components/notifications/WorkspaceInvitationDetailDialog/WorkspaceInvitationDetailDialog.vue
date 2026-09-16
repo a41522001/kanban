@@ -161,7 +161,11 @@ type ResponseAction = 'accept' | 'decline' | null;
 
 const props = defineProps<{ invitationId: string | null }>();
 const open = defineModel<boolean>('open', { default: false });
-const emit = defineEmits<{ accepted: []; declined: []; loaded: [WorkspaceInvitationDetail] }>();
+const emit = defineEmits<{
+  accepted: [workspaceId: string];
+  declined: [];
+  loaded: [WorkspaceInvitationDetail];
+}>();
 const { locale, t } = useI18n();
 
 const detail = ref<WorkspaceInvitationDetail | null>(null);
@@ -270,7 +274,9 @@ const respond = async (action: 'accept' | 'decline') => {
       await acceptWorkspaceInvitationApi(request);
       viewState.value = 'accepted';
       toast.success(t('notification.workspaceInvited.acceptedToast'));
-      emit('accepted');
+      if (detail.value) {
+        emit('accepted', detail.value.workspaceId);
+      }
     } else {
       await declineWorkspaceInvitationApi(request);
       viewState.value = 'declined';

@@ -63,7 +63,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。通知列表只回傳 type 與 resource pointer；WORKSPACE_INVITED 再以 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId` 取得詳細資訊。
 
-未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。通知以 HTTP 載入為持久化真相；邀請建立 transaction commit 後，Socket.IO 會以 `notification:created` 推送 `PublicNotification` 摘要給受邀者目前在線的 user room。Socket 斷線或漏收時，仍需由前端重新呼叫通知列表與未讀數 API，因目前尚未完成 reconnect resync。
+未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。通知以 HTTP 載入為持久化真相；邀請建立 transaction commit 後，Socket.IO 會以 `notification:created` 推送 `PublicNotification` 摘要給受邀者目前在線的 user room。前端透過集中式 notification effect／resource sync handler 更新 domain Store：Workspace 已接上，Project／Board／Card 尚為佔位。Socket 斷線或漏收時仍需由前端重新呼叫通知列表與未讀數 API，因目前尚未完成 reconnect resync。
 
 ## Project 邊界
 
