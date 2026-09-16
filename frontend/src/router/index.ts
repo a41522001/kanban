@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '@/views/loginView/LoginView.vue';
 import SignupView from '@/views/signupView/SignupView.vue';
 import BoardView from '@/views/boardView/BoardView.vue';
-import WorkplaceView from '@/views/workplaceView/WorkplaceView.vue';
+import WorkspaceView from '@/views/workspaceView/WorkspaceView.vue';
 import { useUserStore } from '@/stores/user';
 import { useNotificationStore } from '@/stores/notification';
 import { ensureConnected } from '@/services/socket';
@@ -28,7 +28,7 @@ const routes = [
   {
     path: '/workspace',
     name: 'workspace',
-    component: WorkplaceView,
+    component: WorkspaceView,
   },
 ];
 const router = createRouter({

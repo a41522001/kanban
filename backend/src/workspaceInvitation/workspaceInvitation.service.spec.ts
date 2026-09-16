@@ -66,6 +66,7 @@ describe('WorkspaceInvitationService', () => {
           provide: SocketService,
           useValue: {
             emitNotificationCreated: jest.fn(),
+            emitWorkspaceMemberChanged: jest.fn(),
           },
         },
       ],
@@ -288,6 +289,10 @@ describe('WorkspaceInvitationService', () => {
         });
 
       const joinMemberSpy = jest.spyOn(workspacesService, 'joinMember');
+      const emitWorkspaceMemberChangedSpy = jest.spyOn(
+        socketService,
+        'emitWorkspaceMemberChanged',
+      );
       await workspaceInvitationService.acceptedInvitationAndCreateMember(
         userId,
         invitationId,
@@ -308,6 +313,8 @@ describe('WorkspaceInvitationService', () => {
       expect(transactionSpy).toHaveBeenCalledTimes(1);
       expect(joinMemberSpy).toHaveBeenCalledTimes(1);
       expect(joinMemberSpy).toHaveBeenCalledWith(userId, workspaceId, tx);
+      expect(emitWorkspaceMemberChangedSpy).toHaveBeenCalledTimes(1);
+      expect(emitWorkspaceMemberChangedSpy).toHaveBeenCalledWith(workspaceId);
     });
   });
 

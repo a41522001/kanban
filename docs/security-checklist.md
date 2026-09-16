@@ -1,6 +1,6 @@
 # Security Checklist
 
-最後靜態核對：2026-09-15。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
+最後靜態核對：2026-09-16。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
 
 ## 1. 使用方式
 
@@ -48,7 +48,9 @@
 - [x] 發送 Workspace 邀請已檢查未封存工作區的 OWNER 身分；通知讀取依 Session userId 隔離。
 - [x] 接受／拒絕邀請的條件式更新會綁定 Session userId、invitationId、PENDING status 與 expiresAt，非受邀者不會改變狀態。
 - [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
-- [ ] Project HTTP endpoint 尚未實作；目前 create Service 允許任一 Workspace member 建立 Project，符合既定規格，但仍需在對外開放前補 DTO runtime validation、授權與 transaction 測試。
+- [x] `POST /project` 只允許有效且未封存的 WorkspaceMember 建立 Project，建立者身分由 Session 取得，Project 與 OWNER membership 同 transaction。
+- [x] `POST /project/addMember` 只允許未封存 Project 的 OWNER 操作；目標必須是同 Workspace 的有效成員，角色 DTO 只允許 EDITOR／VIEWER，重複 membership 由資料庫 unique constraint 保護。
+- [ ] 補 Project create／addMember 的授權、transaction rollback、P2002 併行衝突與跨使用者 E2E；目前兩個 Project scaffold test suites 仍 skipped。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
 - [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
@@ -70,11 +72,14 @@
 - [x] Handshake 由 middleware 驗證 Cookie 與 Redis Session，並把 userId 寫入 `socket.data`。
 - [x] 現有 echo／notification flow 不接受 payload 中的 userId、role 或 resource owner；user room 由 server 組成。
 - [ ] Handshake 必須避免觸發無法回寫 Cookie 的 Session rotation；現行 middleware 直接呼叫 `authenticateSession()` 並忽略 `rotatedSessionId`。
-- [ ] join room 與每個 mutation event 都重新做 authorization。
+- [x] Workspace room join 會由 server 依 `socket.data.userId` 驗證 WorkspaceMember 與 archivedAt；client 只能提出 Workspace ID，不能指定 user room。
+- [ ] 每個 mutation event 都重新做 resource authorization；目前 Board／Project Socket commands 尚未實作。
 - [ ] Event payload 有 validation 與大小限制。
 - [ ] Event 有 rate limit 或基本節流策略。
 - [ ] Ack 不暴露內部 exception。
-- [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；未來 Board commands 仍需各自驗證此規則。
+- [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；接受邀請建立 WorkspaceMember 後的 `workspace:memberChanged` 也在 transaction commit 後 emit。未來 Board／Project commands 仍需各自驗證此規則。
+- [ ] Socket reconnect 後重新加入 Workspace room；目前 room subscription 只在 Workspace View 初次選取／切換時 emit。
+- [ ] Workspace member 被移除後，既有 Socket 必須被強制移出 Workspace room。
 
 ## 8. Database 與 Redis
 

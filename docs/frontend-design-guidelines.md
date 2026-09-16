@@ -58,7 +58,7 @@
 
 - Vue SFC 順序固定為 `<template>`、`<script setup lang="ts">`、`<style scoped>`。
 - 頁面專屬的 Vue、TypeScript 與 CSS 可放在同一個 view 目錄。大型頁面樣式使用 `<style scoped src="./page-name.css">` 引入。
-- 頁面 CSS 使用 BEM 命名，例如 `workplace__dialog-footer`；避免 template 堆疊大量只服務單一頁面的 utility class。
+- 頁面 CSS 使用 BEM 命名，例如 `workspace__dialog-footer`；避免 template 堆疊大量只服務單一頁面的 utility class。
 - `components/ui` 保留 shadcn-vue 原有組織方式；共用元件若樣式很短，可使用 SFC scoped style 或必要的 utility class，不必為每個小元件額外建立 CSS 檔。
 - Tailwind CSS v4 採 CSS-first 設定，不新增 `tailwind.config.js`。
 - Import 優先使用 `@/` alias；同一 view 內的 `.css`、測試與 view-specific TypeScript 才使用相對路徑。

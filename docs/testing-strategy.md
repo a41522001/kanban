@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-15。最新 Backend coverage、完整 build、Frontend unit tests 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。本次 E2E 已實際覆蓋通知單筆／全部已讀；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
+最後檢視：2026-09-16。最新 Backend build／unit tests、Frontend type-check／unit tests，以及 2026-09-15 的 coverage 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋通知單筆／全部已讀，但尚未覆蓋 Project 或 Workspace room；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
 
 ## 1. 目標
 
@@ -99,6 +99,7 @@
 - [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
 - [ ] Socket.IO：有效 Session handshake 才能連線，邀請 transaction commit 後只向受邀者推送 `notification:created`，且 client 可用 notification id 去重。
+- [ ] Workspace room：只有有效 WorkspaceMember 可加入 `workspace:{workspaceId}`；接受邀請 transaction commit 後推送 `workspace:memberChanged`，目前尚缺真實 Socket.IO client authorization／lifecycle test。
 
 Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程會在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。`markReadInvitation.e2e.spec.ts` 已於 2026-09-15 在隔離 PostgreSQL／Redis 執行通過，覆蓋受邀者單筆已讀、全部已讀與未讀數變化；跨使用者收件匣隔離、Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
 
@@ -110,6 +111,7 @@ Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流
 - [x] 過期 PENDING 條件更新、更新失敗衝突，以及建立 Invitation／Notification 的 transaction interaction。
 - [x] `expirePendingInvitations` 將時間正確轉交給 Repository，並回傳批次更新筆數。
 - [x] 接受 invitation 的查無 invitation、既有 member、封存 workspace、狀態衝突與成功建立 membership。
+- [x] 接受 invitation 成功後驗證 transaction 完成才呼叫 `emitWorkspaceMemberChanged(workspaceId)`；SocketService mock 與 interaction assertion 已補上。
 - [x] WorkspaceInvitationController 正確轉交 Session userId、workspaceId／invitationId 與 email，並回傳 invite／accept／decline 成功訊息。
 - [x] 接受與拒絕 invitation 的 Controller、DTO、shared contract 與 Service use case。
 - [ ] 取消 invitation use case 與 Owner 授權。
@@ -126,9 +128,13 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 
 - [ ] 將 `ProjectService` 與 `ProjectController` 的 scaffold specs 從 `describe.skip` 改為有效測試。
 - [ ] 建立 Project 時驗證 Workspace membership、封存 workspace、transaction rollback、Project 與 OWNER membership 同時建立。
-- [ ] Project Controller 的 Session userId、DTO validation、成功 status／response mapping 與錯誤 envelope。
+- [ ] Project Controller 的 Session userId、create／addMember DTO validation、成功 status／response mapping 與錯誤 envelope。
+- [ ] addMember：僅 Project OWNER 可操作，Project／Workspace 封存、帳號不存在、目標不是 WorkspaceMember、角色 whitelist 與成功通知推播。
+- [ ] addMember transaction：ProjectMember 與 Notification 一起成功或 rollback，Socket 只在 commit 後 emit。
+- [ ] addMember 併行重複請求：`(projectId, userId)` unique constraint 只允許一筆，Prisma P2002 映射為 409 且不產生第二筆通知。
 - [ ] Project list 只回目前使用者實際具有 ProjectMember 的未封存 Projects。
-- [ ] 隔離 PostgreSQL E2E：建立、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
+- [ ] 隔離 PostgreSQL E2E：建立、addMember、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
+- [ ] Migration upgrade test：既有 `project_members` 有資料時，新增獨立 required UUID `id` 可安全回填並完成 primary key 變更。
 
 ### Common
 
@@ -222,6 +228,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - [ ] Login/Signup submit、loading、field errors、general error。
 - [ ] Route guard redirect。
 - [ ] Logout state reset。
+- [ ] Workspace View 的 Workspace room into／leave、memberChanged listener refresh 與 unmount cleanup。
 
 ### Playwright
 
@@ -261,9 +268,10 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 11. 目前最優先的測試順序
 
-1. Project create／list Service、Controller 與隔離 E2E；先移除目前兩個 skipped scaffold suites。
+1. Project create／addMember／list Service、Controller 與隔離 E2E；先移除目前兩個 skipped scaffold suites，覆蓋 P2002 併行衝突與 transaction 後 Socket emit。
 2. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
 3. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 4. SessionService unit tests：驗證分支與 Lua reply mapping。
 5. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
-6. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。
+6. Workspace room authorization／lifecycle integration tests，包含 reconnect rejoin 與快速切換競速。
+7. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。

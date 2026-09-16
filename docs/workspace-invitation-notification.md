@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-15（依原始碼、完整 build、Frontend unit tests、Backend coverage 與隔離 Node 24.13 E2E 核對）。此文件區分已實作行為與後續目標。
+最後核對：2026-09-16（依原始碼、完整 build、Backend unit tests、Frontend type-check／unit tests 核對；Backend coverage 與隔離 Node 24.13 E2E 沿用 2026-09-15 紀錄）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -20,6 +20,8 @@
 
 1. 以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 ACCEPTED 並寫入 respondedAt。
 2. 僅在更新筆數為 1 時建立 WorkspaceMember；狀態已變更、失效或非受邀者都不會建立 membership。
+
+transaction commit 成功後，Service 呼叫 `SocketService.emitWorkspaceMemberChanged(workspaceId)`，向目前訂閱該 Workspace room 的使用者推播 `workspace:memberChanged`。這個事件只表示成員 read model 可能變更，前端收到後會重新呼叫 `GET /workspaces/:workspaceId/members`；事件不會在發送邀請時推播。
 
 `POST /workspaceInvitation/decline` 與接受 API 共用 `AcceptOrDeclineInvitationRequest`／DTO。Service 先確認 invitation 存在且使用者尚未是 member，再以 `id + inviteeUserId + status=PENDING + expiresAt>now` 條件更新為 DECLINED 並寫入 respondedAt；更新筆數為 0 時回 409，且不建立 WorkspaceMember。前端通知卡已串接接受／婉拒 API；Owner 取消邀請仍未實作。
 
@@ -45,9 +47,17 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 Notification 資料表或 HTTP API。工作區邀請與通知先在同一個 PostgreSQL transaction 建立，commit 成功後才向伺服器內部的 `user:{recipientUserId}` room emit；room 名稱由 server 依已驗證的 `socket.data.userId` 建立，client 不可傳入或選擇 userId。transaction rollback 或建立失敗時不得推播。
 
-事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
+事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數，再交由集中式 handler 以 `notification.type` 決定 side effect、以 `resourceType + resourceId` 定位 domain resource。Workspace resource sync 已接上 Workspace Store；Project／Board／Card 目前為明確佔位。`WORKSPACE_INVITED` 不會提前刷新 Workspace，只有接受 API 成功後才透過相同 resource sync 重新取得 Workspace 列表。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
 
 這項推播已完成 Session Cookie handshake 與 user room 的第一版。Socket.IO 預設可自動重連，但目前尚未在 reconnect 後主動以 HTTP 重新同步列表／未讀數，也尚未完成事件漏收補償、跨分頁同步與真實多 client integration tests。
+
+### Workspace room 成員同步（第一版已實作）
+
+Workspace View 會依目前選取的 Workspace emit `workspace:into`，後端先透過 `WorkspacesService.findMembership()` 驗證使用者是未封存 Workspace 的成員，成功後才加入 `workspace:{workspaceId}` room。切換 Workspace 時前端先 emit 舊 Workspace 的 `workspace:leave`，離開 View 時移除 `workspace:memberChanged` listener 並 leave 目前 room。
+
+接受邀請並建立 WorkspaceMember 的 transaction commit 後，後端才向該 Workspace room emit `workspace:memberChanged` 與 `{ workspaceId }`。Workspace View 僅處理目前選取的 Workspace，收到事件後重新取得成員清單，不直接相信 Socket payload 作為成員資料。
+
+目前刻意保留的後續問題：Socket reconnect 後尚未自動 rejoin、快速切換時驗證與 leave／join 可能競速、成員被移除後既有 Socket 尚未強制離開 room、subscribe 失敗尚未透過 ack 回報前端；這些不影響目前接受邀請的正常流程，但尚未達到完整 lifecycle／security 驗收。
 
 ## 狀態機現況
 
@@ -74,6 +84,8 @@ Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 
 
 2026-09-15 完整 build 內的 frontend `vue-tsc --build` 與 Vite production build 通過，Vitest 為 8 個 test files、26 tests 通過。2026-09-12 的 ESLint 與 Playwright CLI 攔截 API 驗收仍是最近紀錄；尚未加入連真實 Backend 的 frontend E2E。
 
+2026-09-16 重新執行 Backend unit tests：17 suites／86 tests 通過，Project 2 suites／2 tests skipped；Frontend `vue-tsc --build` 通過，Vitest 為 9 個 test files／30 tests 通過。Workspace room 的實際 Socket.IO client、重連、快速切換與 listener lifecycle 尚未有自動化測試。
+
 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 
 ## 模組依賴
@@ -81,12 +93,16 @@ Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 
 目前依賴已整理為單向：
 
 ```text
-WorkspaceInvitationModule
+SocketModule
 └── WorkspacesModule
 
+WorkspaceInvitationModule
+├── WorkspacesModule
+└── SocketModule
+
 WorkspaceInvitationService
-└── WorkspacesService
-    └── WorkspacesRepository
+├── WorkspacesService
+└── SocketService
 ```
 
-`WorkspacesService` 不再注入 `WorkspaceInvitationService`。邀請 endpoint 已改為 `POST /workspaceInvitation/invite`，Controller 位於 WorkspaceInvitationModule。PrismaModule 是 global module；WorkspaceInvitationModule 仍明確 import PrismaModule。
+`WorkspacesService` 不注入 `SocketService`，避免形成循環依賴；SocketService 只依賴 WorkspacesService 做 room subscription authorization。邀請 endpoint 已改為 `POST /workspaceInvitation/invite`，Controller 位於 WorkspaceInvitationModule。PrismaModule 是 global module；WorkspaceInvitationModule 仍明確 import PrismaModule。

@@ -7,7 +7,7 @@
 - 目標：先完成單節點下可靠的多人 Kanban，再考慮 Redis adapter、多節點與 RabbitMQ。
 - 已存在的 Auth API、HTTP response envelope 與 Session Cookie 機制維持不變。
 
-2026-09-15 靜態核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀與 Socket user-room 通知第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository 與 create Service transaction，但尚無 HTTP endpoint、有效測試或前端資料流；Board 與下列 Socket commands 仍是目標規格。現行端點以[目前 HTTP API](http-api.md)為準。
+2026-09-16 靜態核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀、Socket user-room 通知與 Workspace room 成員同步第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository、runtime DTO、`POST /project` 與 `POST /project/addMember`；有效 Project tests、list read model 與前端資料流仍未完成。Board 與下列 Socket commands 仍是目標規格，現行 command 路徑不必與本草案的 REST-style 路徑相同；實際端點以[目前 HTTP API](http-api.md)為準。
 
 這份文件描述預期契約，不代表所有功能必須一次完成。建議依照「實作階段」逐步交付，每一階段都應可獨立驗收。
 
@@ -33,7 +33,7 @@
 - REST path 使用複數名詞，例如 `/workspaces`、`/projects`、`/members`。
 - Client command 使用動詞原形，例如 `card:create`。
 - Server domain event 使用完成式，例如 `card:created`。
-- Room name 只能由 Server 產生，格式為 `board:{boardId}`。
+- Room name 只能由 Server 產生；目前已實作 `user:{userId}` 個人通知 room 與 `workspace:{workspaceId}` Workspace room，Board 協作階段預計使用 `board:{boardId}`。
 - Client payload 不傳 `userId`、`actorId` 或 room name；Server 從 Session 與資源關聯取得。
 
 ### 1.3 Authoritative state
@@ -127,12 +127,13 @@ Project status 與 archivedAt 是不同概念；完成 Project 不會自動移�
 
 | 欄位        | 型別      | 說明                        |
 | ----------- | --------- | --------------------------- |
+| `id`        | UUID      | Project membership ID       |
 | `projectId` | UUID      | Project ID                  |
 | `userId`    | UUID      | User ID                     |
 | `role`      | enum      | `OWNER`、`EDITOR`、`VIEWER` |
 | `joinedAt`  | timestamp | 加入時間                    |
 
-Primary key 使用 `(projectId, userId)`。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember。Board 不建立獨立 membership；所有 Boards 透過 ProjectMember 繼承權限。
+Primary key 使用獨立 UUID `id`，`(projectId, userId)` 使用 unique constraint。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember。Board 不建立獨立 membership；所有 Boards 透過 ProjectMember 繼承權限。
 
 #### Board
 
@@ -303,6 +304,7 @@ export interface WorkspaceMemberDto {
 }
 
 export interface ProjectMemberDto extends MemberUserDto {
+  memberId: string;
   role: ProjectRole;
   joinedAt: string;
 }
@@ -703,8 +705,9 @@ Client 監聽 `connect_error`；收到 `2001` 時清除前端使用者狀態並�
 
 | Room              | 用途                                 |
 | ----------------- | ------------------------------------ |
+| `workspace:{workspaceId}` | Workspace 成員 read model 變更 invalidation；目前由 `workspace:memberChanged` 使用 |
 | `board:{boardId}` | Board domain events 與 presence      |
-| `user:{userId}`   | 成員異動、權限撤銷等個人通知；可延後 |
+| `user:{userId}`   | `notification:created` 等個人通知    |
 
 Client 只傳 `boardId`。Server 在驗證 UUID，並透過 `Board → Project → ProjectMember` 完成授權後，自行組出 room name。
 
@@ -1505,7 +1508,7 @@ board:leave
 
 ### Phase 1：Workspace、Project 與 Board read model
 
-2026-09-15 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository 與 create Service transaction 已有，但 Project endpoints／tests／frontend 尚未完成。Board 起的 schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。
+2026-09-16 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository、create／addMember Service transaction 與 command endpoints 已有，但 Project list／detail、有效 tests 與 frontend 尚未完成。Board 起的 schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。下列 REST-style 路徑是目標設計；目前實作採 `POST /project` 與 `POST /project/addMember`，以現行 HTTP API 文件為準。
 
 - Prisma：Workspace、WorkspaceMember、Project、ProjectMember、Board、BoardColumn、CardCategory、CardLabel、Card、CardLabelAssignment。
 - `POST /workspaces`、`GET /workspaces`。

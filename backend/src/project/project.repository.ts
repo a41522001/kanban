@@ -3,7 +3,18 @@ import { Injectable } from '@nestjs/common';
 import { CreateProjectDto } from './dto/createProject.dto';
 import type { Prisma, Project, ProjectMember } from '@/generated/prisma/client';
 import type { AddProjectMemberParams } from './project.type';
-
+type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
+  select: {
+    id: true;
+    role: true;
+    user: {
+      select: {
+        displayName: true;
+        avatarUrl: true;
+      };
+    };
+  };
+}>;
 @Injectable()
 export class ProjectRepository {
   constructor(private readonly prismaService: PrismaService) {}
@@ -116,6 +127,7 @@ export class ProjectRepository {
           select: {
             name: true,
             archivedAt: true,
+            workspaceId: true,
           },
         },
         user: {
@@ -125,5 +137,27 @@ export class ProjectRepository {
         },
       },
     });
+  }
+
+  /** 取得單一專案的所有成員 */
+  async getSingleProjectMember(
+    projectId: string,
+  ): Promise<ProjectMemberResponse[]> {
+    const result = await this.prismaService.projectMember.findMany({
+      where: {
+        projectId,
+      },
+      select: {
+        id: true,
+        role: true,
+        user: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+    return result;
   }
 }

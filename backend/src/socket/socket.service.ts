@@ -11,7 +11,7 @@ import { SessionService } from '@/session/session.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import type { PublicNotification } from '@kanban/contracts/notification';
-
+import { WorkspacesService } from '@/workspaces/workspaces.service';
 interface SocketData {
   userId: string;
 }
@@ -28,7 +28,16 @@ export class SocketService implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService<Env>,
     private readonly sessionService: SessionService,
+    private readonly workspacesService: WorkspacesService,
   ) {}
+
+  // #region room
+  /** 取得user room */
+  private getUserRoom = (userId: string): string => `user:${userId}`;
+  /** 取得workspace room */
+  private getWorkspaceRoom = (workspaceId: string): string =>
+    `workspace:${workspaceId}`;
+  // #endregion
 
   initialize(httpServer: HttpServer): void {
     if (this.io) {
@@ -49,7 +58,7 @@ export class SocketService implements OnModuleDestroy {
         credentials: true,
       },
     });
-
+    // socket middleware
     this.io.use((socket, next) => {
       void this.authenticateSocket(socket)
         .then(() => next())
@@ -57,7 +66,7 @@ export class SocketService implements OnModuleDestroy {
           next(error instanceof Error ? error : new Error('Socket 驗證失敗'));
         });
     });
-
+    // 連線
     this.io.on('connection', (socket) => {
       void socket.join(this.getUserRoom(socket.data.userId));
       console.log(`a user connected: ${socket.data.userId}`);
@@ -67,10 +76,35 @@ export class SocketService implements OnModuleDestroy {
           serverTime: new Date().toISOString(),
         });
       });
+      // 進入工作區
+      socket.on('workspace:into', (payload) => {
+        void this.authenticateWorkspace(socket, payload.workspaceId)
+          .then(() => socket.join(this.getWorkspaceRoom(payload.workspaceId)))
+          .catch((error: unknown) => {
+            console.error(
+              error instanceof Error ? error.message : '工作區驗證失敗',
+            );
+          });
+      });
+      // 離開工作區
+      socket.on('workspace:leave', (payload) => {
+        void socket.leave(this.getWorkspaceRoom(payload.workspaceId));
+      });
+      // 離線
       socket.on('disconnect', () => {
         console.log(`a user disconnected: ${socket.data.userId}`);
       });
     });
+  }
+
+  /** 推播工作區成員改變 */
+  emitWorkspaceMemberChanged(workspaceId: string): void {
+    if (!this.io) {
+      return;
+    }
+    this.io
+      .to(this.getWorkspaceRoom(workspaceId))
+      .emit('workspace:memberChanged', { workspaceId });
   }
 
   /** 推播通知 */
@@ -120,6 +154,29 @@ export class SocketService implements OnModuleDestroy {
     socket.data.userId = authResult.userId;
   };
 
+  /** 驗證工作區 */
+  private authenticateWorkspace = async (
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      DefaultEventsMap,
+      SocketData
+    >,
+    workspaceId: string,
+  ): Promise<void> => {
+    const member = await this.workspacesService.findMembership(
+      socket.data.userId,
+      workspaceId,
+    );
+    if (!member || member.workspaceArchivedAt !== null) {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        code: ApiCode.RequestError,
+        message: '你沒有存取此工作區的權限',
+      });
+    }
+  };
+
   /** 從cookie取得sessionId */
   private getSessionIdFromCookie = (
     cookieHeader: string | undefined,
@@ -134,9 +191,6 @@ export class SocketService implements OnModuleDestroy {
     const sessionId = sessionCookie.slice('sessionId='.length);
     return sessionId.length > 0 ? sessionId : null;
   };
-
-  /** 取得user room */
-  private getUserRoom = (userId: string): string => `user:${userId}`;
 
   async onModuleDestroy(): Promise<void> {
     if (!this.io) {

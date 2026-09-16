@@ -53,6 +53,15 @@ export const useWorkspaceStore = defineStore('workspaceStore', () => {
     return pendingWorkspacesRequest;
   };
 
+  /** 等待既有 request 完成後重新取得最新 Workspace read model。 */
+  const refreshWorkspaces = async () => {
+    if (pendingWorkspacesRequest) {
+      await pendingWorkspacesRequest;
+    }
+
+    return loadWorkspaces();
+  };
+
   const createWorkspace = async (name: string) => {
     const response = await createWorkspaceApi({ name });
     await loadWorkspaces();
@@ -76,6 +85,7 @@ export const useWorkspaceStore = defineStore('workspaceStore', () => {
     hasLoadError,
     selectWorkspace,
     loadWorkspaces,
+    refreshWorkspaces,
     createWorkspace,
     resetWorkspaces,
   };

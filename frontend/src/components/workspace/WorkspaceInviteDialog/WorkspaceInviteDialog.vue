@@ -10,10 +10,10 @@
       <DialogHeader class="workspace-invite-dialog__header">
         <div class="workspace-invite-dialog__heading-copy">
           <DialogTitle class="workspace-invite-dialog__title">
-            {{ t('workplace.invite.title') }}
+            {{ t('workspace.invite.title') }}
           </DialogTitle>
           <DialogDescription class="workspace-invite-dialog__description">
-            {{ t('workplace.invite.description') }}
+            {{ t('workspace.invite.description') }}
           </DialogDescription>
         </div>
 
@@ -21,7 +21,7 @@
           type="button"
           class="workspace-invite-dialog__close"
           :disabled="isSubmitting"
-          :aria-label="t('workplace.invite.close')"
+          :aria-label="t('workspace.invite.close')"
           @click="closeDialog"
         >
           <X :size="18" :stroke-width="2" aria-hidden="true" />
@@ -30,7 +30,7 @@
 
       <section
         class="workspace-invite-dialog__workspace"
-        :aria-label="t('workplace.invite.context')"
+        :aria-label="t('workspace.invite.context')"
       >
         <span class="workspace-invite-dialog__monogram" aria-hidden="true">
           {{ workspaceMonogram }}
@@ -38,20 +38,20 @@
         <span class="workspace-invite-dialog__workspace-copy">
           <strong class="workspace-invite-dialog__workspace-name">{{ workspace.name }}</strong>
           <span class="workspace-invite-dialog__workspace-hint">
-            {{ t('workplace.invite.workspaceHint') }}
+          {{ t('workspace.invite.workspaceHint') }}
           </span>
         </span>
         <Badge class="workspace-invite-dialog__role-badge">
-          {{ t('workplace.invite.role') }}
+          {{ t('workspace.invite.role') }}
         </Badge>
       </section>
 
       <form class="workspace-invite-dialog__form" novalidate @submit.prevent="handleSubmit">
         <FormField
           input-id="workspace-invite-email"
-          :label="t('workplace.invite.emailLabel')"
+          :label="t('workspace.invite.emailLabel')"
           required
-          :hint="t('workplace.invite.emailHint')"
+          :hint="t('workspace.invite.emailHint')"
           :error="emailError"
         >
           <template #default="{ invalid, describedBy }">
@@ -62,7 +62,7 @@
               autocomplete="email"
               clearable
               :disabled="isSubmitting"
-              :placeholder="t('workplace.invite.emailPlaceholder')"
+                :placeholder="t('workspace.invite.emailPlaceholder')"
               :maxlength="emailMaxLength"
               :invalid="invalid"
               :aria-describedby="describedBy"
@@ -83,10 +83,10 @@
 
         <DialogFooter class="workspace-invite-dialog__footer">
           <Button type="button" variant="outline" :disabled="isSubmitting" @click="closeDialog">
-            {{ t('workplace.actions.cancel') }}
+            {{ t('workspace.actions.cancel') }}
           </Button>
           <Button type="submit" :loading="isSubmitting">
-            {{ isSubmitting ? t('workplace.invite.sending') : t('workplace.invite.send') }}
+            {{ isSubmitting ? t('workspace.invite.sending') : t('workspace.invite.send') }}
           </Button>
         </DialogFooter>
       </form>
@@ -220,7 +220,7 @@ const handleSubmit = async () => {
       workspaceId: props.workspace.id,
       email: email.value.trim(),
     });
-    toast.success(t('workplace.invite.success'));
+    toast.success(t('workspace.invite.success'));
     open.value = false;
     resetForm();
   } catch (error: unknown) {
@@ -237,7 +237,7 @@ const handleSubmit = async () => {
       return;
     }
 
-    submitError.value = response?.message ?? t('workplace.invite.error');
+    submitError.value = response?.message ?? t('workspace.invite.error');
   } finally {
     isSubmitting.value = false;
   }

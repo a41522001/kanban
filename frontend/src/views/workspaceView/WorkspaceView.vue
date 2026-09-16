@@ -1,28 +1,28 @@
 <template>
-  <main class="workplace">
-    <header class="workplace__header">
-      <div class="workplace__header-content">
-        <RouterLink class="workplace__brand" :to="{ name: 'workspace' }">
+  <main class="workspace">
+    <header class="workspace__header">
+      <div class="workspace__header-content">
+        <RouterLink class="workspace__brand" :to="{ name: 'workspace' }">
           <Logo />
         </RouterLink>
 
-        <nav class="workplace__navigation" :aria-label="t('workplace.navigation.label')">
+        <nav class="workspace__navigation" :aria-label="t('workspace.navigation.label')">
           <RouterLink
             :to="{ name: 'workspace' }"
-            class="workplace__navigation-link workplace__navigation-link--active"
+            class="workspace__navigation-link workspace__navigation-link--active"
           >
-            {{ t('workplace.navigation.workspaces') }}
+            {{ t('workspace.navigation.workspaces') }}
           </RouterLink>
-          <span class="workplace__navigation-link workplace__navigation-link--muted">
-            {{ t('workplace.navigation.recent') }}
+          <span class="workspace__navigation-link workspace__navigation-link--muted">
+            {{ t('workspace.navigation.recent') }}
           </span>
         </nav>
 
-        <div class="workplace__header-actions">
+        <div class="workspace__header-actions">
           <Button
-            class="workplace__create-icon-button"
+            class="workspace__create-icon-button"
             size="icon"
-            :aria-label="t('workplace.actions.createWorkspace')"
+            :aria-label="t('workspace.actions.createWorkspace')"
             @click="openCreateDialog"
           >
             <Plus :size="20" aria-hidden="true" />
@@ -33,160 +33,160 @@
       </div>
     </header>
 
-    <div class="workplace__layout">
-      <aside class="workplace__sidebar" :aria-label="t('workplace.sidebar.label')">
-        <p class="workplace__sidebar-label">{{ t('workplace.sidebar.yourWorkspaces') }}</p>
+    <div class="workspace__layout">
+      <aside class="workspace__sidebar" :aria-label="t('workspace.sidebar.label')">
+        <p class="workspace__sidebar-label">{{ t('workspace.sidebar.yourWorkspaces') }}</p>
 
-        <div v-if="isLoading" class="workplace__workspace-list" aria-busy="true">
+        <div v-if="isLoading" class="workspace__workspace-list" aria-busy="true">
           <Skeleton v-for="index in 2" :key="index" class="h-14 w-full" />
         </div>
-        <div v-else class="workplace__workspace-list">
+        <div v-else class="workspace__workspace-list">
           <button
             v-for="workspace in workspaces"
             :key="workspace.id"
             type="button"
-            class="workplace__workspace-option"
+            class="workspace__workspace-option"
             :class="{
-              'workplace__workspace-option--selected': workspace.id === selectedWorkspaceId,
+              'workspace__workspace-option--selected': workspace.id === selectedWorkspaceId,
             }"
             :aria-current="workspace.id === selectedWorkspaceId ? 'page' : undefined"
             @click="selectWorkspace(workspace.id)"
           >
-            <span class="workplace__workspace-monogram" aria-hidden="true">
+            <span class="workspace__workspace-monogram" aria-hidden="true">
               {{ workspace.name.trim().charAt(0).toUpperCase() }}
             </span>
-            <span class="workplace__workspace-details">
-              <span class="workplace__workspace-name">{{ workspace.name }}</span>
-              <span class="workplace__workspace-meta">
+            <span class="workspace__workspace-details">
+              <span class="workspace__workspace-name">{{ workspace.name }}</span>
+              <span class="workspace__workspace-meta">
                 {{ getRoleLabel(workspace.currentUserRole) }}
               </span>
             </span>
           </button>
         </div>
 
-        <Button variant="outline" class="workplace__new-workspace-button" @click="openCreateDialog">
+        <Button variant="outline" class="workspace__new-workspace-button" @click="openCreateDialog">
           <Plus :size="18" aria-hidden="true" />
-          {{ t('workplace.actions.createWorkspace') }}
+          {{ t('workspace.actions.createWorkspace') }}
         </Button>
 
-        <section v-if="selectedWorkspace" class="workplace__sidebar-management">
-          <p class="workplace__sidebar-label">{{ t('workplace.sidebar.management') }}</p>
-          <div class="workplace__management-row">
+        <section v-if="selectedWorkspace" class="workspace__sidebar-management">
+          <p class="workspace__sidebar-label">{{ t('workspace.sidebar.management') }}</p>
+          <div class="workspace__management-row">
             <UsersRound :size="17" aria-hidden="true" />
-            <span>{{ t('workplace.sidebar.members') }}</span>
-            <span class="workplace__management-count">{{ members.length }}</span>
+            <span>{{ t('workspace.sidebar.members') }}</span>
+            <span class="workspace__management-count">{{ members.length }}</span>
           </div>
-          <div class="workplace__management-row workplace__management-row--muted">
+          <div class="workspace__management-row workspace__management-row--muted">
             <Archive :size="17" aria-hidden="true" />
-            <span>{{ t('workplace.sidebar.archivedProjects') }}</span>
+            <span>{{ t('workspace.sidebar.archivedProjects') }}</span>
           </div>
         </section>
 
-        <section v-if="selectedWorkspace" class="workplace__members">
-          <p class="workplace__sidebar-label">{{ t('workplace.sidebar.workspaceMembers') }}</p>
-          <div v-if="isMembersLoading" class="workplace__member-skeletons" aria-busy="true">
+        <section v-if="selectedWorkspace" class="workspace__members">
+          <p class="workspace__sidebar-label">{{ t('workspace.sidebar.workspaceMembers') }}</p>
+          <div v-if="isMembersLoading" class="workspace__member-skeletons" aria-busy="true">
             <Skeleton v-for="index in 3" :key="index" class="size-8 rounded-full" />
           </div>
           <template v-else>
             <ul
-              class="workplace__member-list"
-              :aria-label="t('workplace.sidebar.workspaceMembers')"
+              class="workspace__member-list"
+              :aria-label="t('workspace.sidebar.workspaceMembers')"
             >
               <li v-for="member in visibleMembers" :key="member.memberId">
-                <span class="workplace__member-avatar" :title="member.displayName">
+                <span class="workspace__member-avatar" :title="member.displayName">
                   {{ member.displayName.trim().charAt(0).toUpperCase() }}
                 </span>
               </li>
               <li v-if="remainingMemberCount > 0">
-                <span class="workplace__member-avatar workplace__member-avatar--more">
+                <span class="workspace__member-avatar workspace__member-avatar--more">
                   +{{ remainingMemberCount }}
                 </span>
               </li>
             </ul>
-            <p class="workplace__member-summary">
-              {{ t('workplace.sidebar.memberSummary', { count: members.length }) }}
+            <p class="workspace__member-summary">
+              {{ t('workspace.sidebar.memberSummary', { count: members.length }) }}
             </p>
           </template>
         </section>
       </aside>
 
-      <section class="workplace__content">
-        <label class="workplace__mobile-switcher-label" for="workspace-switcher">
-          {{ t('workplace.mobile.currentWorkspace') }}
+      <section class="workspace__content">
+        <label class="workspace__mobile-switcher-label" for="workspace-switcher">
+          {{ t('workspace.mobile.currentWorkspace') }}
         </label>
         <select
           id="workspace-switcher"
           v-model="selectedWorkspaceId"
-          class="workplace__mobile-switcher"
-          :aria-label="t('workplace.mobile.selectWorkspace')"
+          class="workspace__mobile-switcher"
+          :aria-label="t('workspace.mobile.selectWorkspace')"
         >
           <option v-for="workspace in workspaces" :key="workspace.id" :value="workspace.id">
             {{ workspace.name }}
           </option>
         </select>
 
-        <div v-if="isLoading" class="workplace__content-skeleton" aria-busy="true">
+        <div v-if="isLoading" class="workspace__content-skeleton" aria-busy="true">
           <Skeleton class="h-3 w-16" />
           <Skeleton class="mt-4 h-10 w-64" />
           <Skeleton class="mt-3 h-5 w-96 max-w-full" />
-          <div class="workplace__project-skeleton-grid">
+          <div class="workspace__project-skeleton-grid">
             <Skeleton v-for="index in 3" :key="index" class="h-52 w-full" />
           </div>
         </div>
 
-        <div v-else-if="hasLoadError" class="workplace__state" role="alert">
+        <div v-else-if="hasLoadError" class="workspace__state" role="alert">
           <CircleAlert :size="28" aria-hidden="true" />
-          <h1 class="workplace__state-title">{{ t('workplace.states.loadErrorTitle') }}</h1>
-          <p>{{ t('workplace.states.loadErrorDescription') }}</p>
+          <h1 class="workspace__state-title">{{ t('workspace.states.loadErrorTitle') }}</h1>
+          <p>{{ t('workspace.states.loadErrorDescription') }}</p>
           <Button variant="outline" @click="void loadWorkspaces()">
-            {{ t('workplace.actions.retry') }}
+            {{ t('workspace.actions.retry') }}
           </Button>
         </div>
 
-        <div v-else-if="!selectedWorkspace" class="workplace__state">
+        <div v-else-if="!selectedWorkspace" class="workspace__state">
           <Layers3 :size="32" aria-hidden="true" />
-          <h1 class="workplace__state-title">{{ t('workplace.states.noWorkspaceTitle') }}</h1>
-          <p>{{ t('workplace.states.noWorkspaceDescription') }}</p>
+          <h1 class="workspace__state-title">{{ t('workspace.states.noWorkspaceTitle') }}</h1>
+          <p>{{ t('workspace.states.noWorkspaceDescription') }}</p>
           <Button @click="openCreateDialog">
             <Plus :size="18" aria-hidden="true" />
-            {{ t('workplace.actions.createWorkspace') }}
+            {{ t('workspace.actions.createWorkspace') }}
           </Button>
         </div>
 
         <template v-else>
-          <div class="workplace__content-heading">
+          <div class="workspace__content-heading">
             <div>
-              <p class="workplace__eyebrow">{{ t('workplace.eyebrow') }}</p>
-              <h1 class="workplace__title">{{ selectedWorkspace.name }}</h1>
-              <p class="workplace__description">{{ t('workplace.description') }}</p>
+              <p class="workspace__eyebrow">{{ t('workspace.eyebrow') }}</p>
+              <h1 class="workspace__title">{{ selectedWorkspace.name }}</h1>
+              <p class="workspace__description">{{ t('workspace.description') }}</p>
             </div>
-            <div class="workplace__project-action">
+            <div class="workspace__project-action">
               <Button v-if="canInviteMembers" variant="outline" @click="isInviteDialogOpen = true">
                 <UserPlus :size="18" aria-hidden="true" />
-                {{ t('workplace.actions.inviteMember') }}
+                {{ t('workspace.actions.inviteMember') }}
               </Button>
               <Button disabled :aria-describedby="'project-api-note'">
                 <Plus :size="18" aria-hidden="true" />
-                {{ t('workplace.actions.createProject') }}
+                {{ t('workspace.actions.createProject') }}
               </Button>
               <p id="project-api-note" class="sr-only">
-                {{ t('workplace.states.projectApiPending') }}
+                {{ t('workspace.states.projectApiPending') }}
               </p>
             </div>
           </div>
 
-          <section class="workplace__projects" :aria-labelledby="'all-projects-title'">
-            <div class="workplace__section-heading">
+          <section class="workspace__projects" :aria-labelledby="'all-projects-title'">
+            <div class="workspace__section-heading">
               <div>
-                <h2 id="all-projects-title">{{ t('workplace.projects.title') }}</h2>
-                <p>{{ t('workplace.projects.sortHint') }}</p>
+                <h2 id="all-projects-title">{{ t('workspace.projects.title') }}</h2>
+                <p>{{ t('workspace.projects.sortHint') }}</p>
               </div>
             </div>
 
-            <div class="workplace__projects-empty">
+            <div class="workspace__projects-empty">
               <PanelTop :size="28" aria-hidden="true" />
-              <h3>{{ t('workplace.states.noProjectsTitle') }}</h3>
-              <p>{{ t('workplace.states.projectApiPending') }}</p>
+              <h3>{{ t('workspace.states.noProjectsTitle') }}</h3>
+              <p>{{ t('workspace.states.projectApiPending') }}</p>
             </div>
           </section>
         </template>
@@ -194,16 +194,16 @@
     </div>
 
     <Dialog v-model:open="isCreateDialogOpen" @update:open="handleCreateDialogChange">
-      <DialogContent class="workplace__dialog" :show-close-button="false">
+      <DialogContent class="workspace__dialog" :show-close-button="false">
         <DialogHeader>
-          <DialogTitle>{{ t('workplace.dialog.title') }}</DialogTitle>
-          <DialogDescription>{{ t('workplace.dialog.description') }}</DialogDescription>
+          <DialogTitle>{{ t('workspace.dialog.title') }}</DialogTitle>
+          <DialogDescription>{{ t('workspace.dialog.description') }}</DialogDescription>
         </DialogHeader>
 
-        <form class="workplace__dialog-form" @submit.prevent="handleCreateWorkspace">
+        <form class="workspace__dialog-form" @submit.prevent="handleCreateWorkspace">
           <FormField
             input-id="workspace-name"
-            :label="t('workplace.dialog.nameLabel')"
+            :label="t('workspace.dialog.nameLabel')"
             required
             :error="workspaceNameError"
           >
@@ -211,7 +211,7 @@
               <Input
                 id="workspace-name"
                 v-model="workspaceName"
-                :placeholder="t('workplace.dialog.namePlaceholder')"
+                :placeholder="t('workspace.dialog.namePlaceholder')"
                 :maxlength="workspaceNameMaxLength"
                 autocomplete="organization"
                 :invalid="invalid"
@@ -221,12 +221,12 @@
             </template>
           </FormField>
 
-          <DialogFooter class="workplace__dialog-footer">
+          <DialogFooter class="workspace__dialog-footer">
             <DialogClose as-child>
-              <Button type="button" variant="outline">{{ t('workplace.actions.cancel') }}</Button>
+              <Button type="button" variant="outline">{{ t('workspace.actions.cancel') }}</Button>
             </DialogClose>
             <Button type="submit" :loading="isCreating">
-              {{ t('workplace.actions.create') }}
+              {{ t('workspace.actions.create') }}
             </Button>
           </DialogFooter>
         </form>
@@ -242,7 +242,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
@@ -277,7 +277,15 @@ import { getWorkspaceMembersApi } from '@/services/workspace';
 import { getApiErrorResponse } from '@/services/http';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
-import { validateWorkspaceName, workspaceNameMaxLength } from './workplace';
+import { validateWorkspaceName, workspaceNameMaxLength } from './workspace';
+import type { WorkspaceMemberChangedPayload } from '@kanban/contracts/socket';
+
+import {
+  emitWorkspaceInto,
+  emitWorkspaceLeave,
+  onWorkspaceMemberChanged,
+  offWorkspaceMemberChanged,
+} from '@/services/socket';
 
 const { t } = useI18n();
 const userStore = useUserStore();
@@ -303,11 +311,11 @@ const workspaceNameError = computed(() => {
   const validation = validateWorkspaceName(workspaceName.value);
 
   if (validation === 'required') {
-    return t('workplace.validation.nameRequired');
+    return t('workspace.validation.nameRequired');
   }
 
   if (validation === 'maxLength') {
-    return t('workplace.validation.nameMaxLength', { count: workspaceNameMaxLength });
+    return t('workspace.validation.nameMaxLength', { count: workspaceNameMaxLength });
   }
 
   return undefined;
@@ -321,7 +329,7 @@ const remainingMemberCount = computed(() =>
 );
 
 const getRoleLabel = (role: WorkspaceRole) => {
-  return role === 'OWNER' ? t('workplace.roles.owner') : t('workplace.roles.member');
+  return role === 'OWNER' ? t('workspace.roles.owner') : t('workspace.roles.member');
 };
 
 const openCreateDialog = () => {
@@ -386,14 +394,42 @@ const loadMembers = async (workspaceId: string | null) => {
   }
 };
 
-watch(selectedWorkspaceId, (workspaceId) => {
-  isInviteDialogOpen.value = false;
-  void loadMembers(workspaceId);
-});
+// #region socket
+const handleWorkspaceMemberChanged = ({ workspaceId }: WorkspaceMemberChangedPayload) => {
+  if (workspaceId !== selectedWorkspaceId.value) {
+    return;
+  }
+  loadMembers(workspaceId);
+};
+
+watch(
+  selectedWorkspaceId,
+  (newWorkspaceId, previousWorkspaceId) => {
+    if (previousWorkspaceId) {
+      emitWorkspaceLeave(previousWorkspaceId);
+    }
+    if (newWorkspaceId) {
+      emitWorkspaceInto(newWorkspaceId);
+    }
+    isInviteDialogOpen.value = false;
+    void loadMembers(newWorkspaceId);
+  },
+  {
+    immediate: true,
+  },
+);
 
 onMounted(() => {
+  onWorkspaceMemberChanged(handleWorkspaceMemberChanged);
   void loadWorkspaces();
 });
+onUnmounted(() => {
+  offWorkspaceMemberChanged(handleWorkspaceMemberChanged);
+  if (selectedWorkspaceId.value) {
+    emitWorkspaceLeave(selectedWorkspaceId.value);
+  }
+});
+// #endregion
 </script>
 
-<style scoped src="./workplace-view.css"></style>
+<style scoped src="./workspace-view.css"></style>

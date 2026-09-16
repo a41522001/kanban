@@ -25,7 +25,7 @@ type SocketData = {
 
 禁止從事件 payload 接受 userId 作為操作身分。事件內一律使用 socket.data.userId。
 
-2026-09-15 核對：第一版已實作上述 handshake。`SocketService` 從 handshake Cookie 取得 `sessionId`，透過 `SessionService.authenticateSession()` 驗證，並把 userId 寫入 `socket.data`；驗證成功後加入伺服器管理的 `user:{userId}` room。Client 不提供 userId，也不能自行選擇 room。這一版仍有明確的 rotation 邊界風險：middleware 呼叫的 `authenticateSession()` 可能完成 Redis rotation，但 Socket handshake 不會把 `rotatedSessionId` 寫回瀏覽器 Cookie。前端 `connect_error`、Origin 的真實驗證與完整 lifecycle tests 也尚未完成。
+2026-09-16 核對：第一版已實作上述 handshake。`SocketService` 從 handshake Cookie 取得 `sessionId`，透過 `SessionService.authenticateSession()` 驗證，並把 userId 寫入 `socket.data`；驗證成功後加入伺服器管理的 `user:{userId}` room。Client 不提供 userId，也不能自行選擇 user room。Workspace View 另以 `workspace:into`／`workspace:leave` 管理 Workspace room，加入前由 server 驗證 membership 與 archivedAt。這一版仍有明確的 rotation 邊界風險：middleware 呼叫的 `authenticateSession()` 可能完成 Redis rotation，但 Socket handshake 不會把 `rotatedSessionId` 寫回瀏覽器 Cookie。前端 `connect_error`、Origin 的真實驗證與完整 lifecycle tests 也尚未完成。
 
 ## 3. Cookie、CORS 與 Origin
 
@@ -67,6 +67,8 @@ type SocketAck<T> =
 ## 5. Room 與權限
 
 - 通知使用 `user:{userId}` room；room 名稱只在 server 端由已驗證的 `socket.data.userId` 組成。
+- Workspace 使用 `workspace:{workspaceId}` room。Client 只能提出 `workspace:into`／`workspace:leave`，Server 在加入前透過 `WorkspacesService.findMembership()` 驗證 userId 對應的有效 WorkspaceMember 與 archivedAt；client 不可自行選擇 user room。
+- `workspace:memberChanged` 只傳 `{ workspaceId }` 作為 invalidation signal；目前 Workspace View 收到後重新呼叫成員清單 API。
 - Board room 命名統一，例如 board:{boardId}。
 - joinBoard 前由 Board 找到 Project，再確認使用者具有有效的 ProjectMember。
 - 每一個 mutation event 都再次確認資源權限，不能只依賴已加入 room。
@@ -129,6 +131,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 - Project member 可加入其 Project 下的 Board room。
 - 非 Project member 無法加入 room。
+- Workspace member 可加入未封存 Workspace room；非成員或已封存 Workspace 不可加入。
 - Viewer 無法修改卡片。
 - 已被移除的成員，即使仍在 room，也無法執行下一個 mutation。
 
@@ -150,7 +153,8 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 - [x] 建立 Socket authentication middleware。
 - [x] socket.data 有明確型別。
-- [x] 定義目前 client/server event map（echo 與 notification）；mutation ack 型別仍待 Board command 階段補上。
+- [x] 定義目前 client/server event map（echo、notification、Workspace room into／leave／memberChanged）；mutation ack 型別仍待 Board command 階段補上。
+- [x] Workspace room subscribe 前驗證 membership 與 archivedAt，接受邀請 commit 後 broadcast `workspace:memberChanged`。
 - [ ] join room 與每個 mutation 都有 authorization。
 - [ ] 統一 Socket error code 與前端 `connect_error` 處理。
 - [ ] 建立 reconnect recovery 流程。
