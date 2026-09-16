@@ -72,11 +72,14 @@
 - [x] Handshake 由 middleware 驗證 Cookie 與 Redis Session，並把 userId 寫入 `socket.data`。
 - [x] 現有 echo／notification flow 不接受 payload 中的 userId、role 或 resource owner；user room 由 server 組成。
 - [ ] Handshake 必須避免觸發無法回寫 Cookie 的 Session rotation；現行 middleware 直接呼叫 `authenticateSession()` 並忽略 `rotatedSessionId`。
-- [ ] join room 與每個 mutation event 都重新做 authorization。
+- [x] Workspace room join 會由 server 依 `socket.data.userId` 驗證 WorkspaceMember 與 archivedAt；client 只能提出 Workspace ID，不能指定 user room。
+- [ ] 每個 mutation event 都重新做 resource authorization；目前 Board／Project Socket commands 尚未實作。
 - [ ] Event payload 有 validation 與大小限制。
 - [ ] Event 有 rate limit 或基本節流策略。
 - [ ] Ack 不暴露內部 exception。
-- [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；未來 Board commands 仍需各自驗證此規則。
+- [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；接受邀請建立 WorkspaceMember 後的 `workspace:memberChanged` 也在 transaction commit 後 emit。未來 Board／Project commands 仍需各自驗證此規則。
+- [ ] Socket reconnect 後重新加入 Workspace room；目前 room subscription 只在 Workspace View 初次選取／切換時 emit。
+- [ ] Workspace member 被移除後，既有 Socket 必須被強制移出 Workspace room。
 
 ## 8. Database 與 Redis
 

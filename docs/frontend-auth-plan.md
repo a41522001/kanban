@@ -1,6 +1,6 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-15（依 router、Axios interceptor、App lifecycle、stores 與 unit tests 靜態核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 最後檢視：2026-09-16（依 router、Axios interceptor、App lifecycle、stores、Workspace View 與最新 type-check／unit tests 核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
 
 ## 1. 目標
 
@@ -118,9 +118,10 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
 - [x] Protected route 的 User Store 恢復成功後才 connect Socket.IO，並啟動 Notification Store realtime handler。
 - [x] Logout 與 HTTP `Unauthenticated` app event 會停止通知 handler、disconnect Socket，並清空 stores。
+- [x] Workspace View 依目前選取的 Workspace 加入／離開 `workspace:{workspaceId}` room，收到 `workspace:memberChanged` 後重新取得成員清單。
 - [ ] `connect_error` 為 session invalid 時，清空 Auth Store 並導向 Login。
 - [x] Reconnect／event payload 不從 client 傳 userId；server 以 handshake Session 建立 `socket.data.userId`。
-- [ ] Reconnect 成功後以 HTTP 重新同步通知列表與未讀數。
+- [ ] Reconnect 成功後重新加入 Workspace room，並以 HTTP 重新同步通知列表、未讀數與目前 domain read model。
 - [ ] 修正 Socket handshake 可能觸發 Session rotation 卻無法回寫新 Cookie 的 lifecycle 風險。
 
 ## 9. 測試與 UI 實作

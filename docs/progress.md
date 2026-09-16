@@ -30,11 +30,11 @@
 | 統一 API response 與錯誤 | 已完成 | ValidationPipe、AppException、全域 Filter、欄位錯誤遮蔽；`Unauthenticated` 與 `ResourceNotFound` 為前端可判斷的穩定 code |
 | Pino HTTP log 與 Swagger | 已完成基礎 | 現有 Controller 已有 tags、operation、Cookie auth、成功／錯誤描述，request DTO 有欄位 metadata；共用 response envelope decorator、FieldError schema 與 application lifecycle logging tests 待補 |
 | Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單已完成；Workspace 成員角色調整、移除與離開尚未補，Project create／addMember 已由獨立 Controller 提供 |
-| Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
+| Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Workspace View 會依目前選取的 Workspace 加入／離開 Socket room，收到 `workspace:memberChanged` 後重新取得成員清單；Project 區等待 Project API |
 | Workspace Invitation | 已完成發送、詳細資訊、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／detail／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
 | Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定與成功／錯誤狀態已完成；接受成功後同時刷新通知與 Workspace read model。Socket 通知透過集中式 notification effect／resource sync handler 分派 domain 更新，Workspace 已接上，Project／Board／Card 先保留型別完整的佔位 |
-| Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；邀請通知在 transaction commit 後推送，重連後 HTTP resync 與更完整 lifecycle 測試尚待補 |
+| Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；Workspace `workspace:into` 會驗證 membership／archivedAt 後加入 `workspace:{workspaceId}`，`workspace:leave` 負責離開；接受邀請 transaction commit 後推送 `workspace:memberChanged`，邀請通知則推送 `notification:created`；重連、快速切換競速與更完整 lifecycle 測試尚待補 |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
 | Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀與工作區邀請詳細資訊 API 已完成；邀請流程在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端以 id 去重並同步列表與未讀狀態 |
@@ -45,7 +45,7 @@
 
 ## 測試現況
 
-- Backend 目前有 Auth、User、Workspace、WorkspaceInvitation、Notification、Validation、Filter 與 Session schema 的 unit／integration-style specs；Project 的兩個 scaffold suites 仍被 skip。
+- Backend 目前有 Auth、User、Workspace、WorkspaceInvitation、Notification、Validation、Filter 與 Session schema 的 unit／integration-style specs；WorkspaceInvitation 成功接受案例也驗證 transaction 後的 `emitWorkspaceMemberChanged`；Project 的兩個 scaffold suites 仍被 skip，SocketService 本身尚無有效 room lifecycle integration test。
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
 - Backend E2E 使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；目前案例覆蓋 Auth lifecycle、邀請接受／拒絕，以及通知單筆／全部已讀。
 - runner 結束後會移除 E2E containers、network 與暫存 volumes；專案以 `.nvmrc` 與 CI 的 `node-version-file` 固定 Node 24.13，避免 Jest 30 在 Node 22 載入 `@nestjs/schedule` 12 ESM 時失敗。
@@ -59,13 +59,13 @@
 - 2026-09-15 執行 `pnpm test:backend:cov`：17 suites、86 tests 通過，Project 2 suites／2 tests skipped；整體 coverage 為 statements 50.09%、branches 56.7%、functions 32.94%、lines 48.86%。Project Service／Repository 幾乎沒有有效行為測試，新增程式碼使整體 coverage 較先前下降。
 - 2026-09-15 執行 `pnpm test:backend:e2e`：3 suites、5 tests 全部通過。當時 runner 套用 7 個 migrations，覆蓋 Auth lifecycle、Workspace Invitation 接受／拒絕，以及 Notification 單筆／全部已讀，完成後移除 containers、network 與 volumes；目前 schema 已有 9 個 migrations，本輪尚未重跑 E2E migration deploy。
 - 2026-09-16 執行完整 `pnpm build`：contracts、Frontend type-check／Vite build、Backend Nest build 全部通過；Vite 仍只有 main chunk 541.55 kB 警告。補齊所有現有 Controller 的 Swagger metadata 後再次執行 Backend build，結果通過。
-- 2026-09-16 執行 Backend unit tests：17 suites、86 tests 通過，Project Service／Controller 2 suites／2 tests skipped。本輪未重跑 coverage、Playwright 或隔離 E2E。
-- 2026-09-16 加入集中式 notification effect／resource sync handler 後執行 Frontend `vue-tsc --build` 與 Vitest：type-check 通過，9 個 test files／30 tests 全部通過；測試確認 Workspace resource 會刷新 Store、邀請到達時不會提早刷新，以及 Project handler 目前維持無副作用佔位。
+- 2026-09-16 重新執行 Backend unit tests：17 suites、86 tests 通過，Project Service／Controller 2 suites／2 tests skipped；本輪未重跑 coverage、Playwright 或隔離 E2E。
+- 2026-09-16 加入集中式 notification effect／resource sync handler 與 Workspace room lifecycle 後執行 Frontend `vue-tsc --build` 與 Vitest：type-check 通過，9 個 test files／30 tests 全部通過；測試確認 Workspace resource 會刷新 Store、邀請到達時不會提早刷新，以及 Project handler 目前維持無副作用佔位。Workspace View 的 room listener 尚未有 component／real Socket.IO client test。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
-- 上述較早的 2026-09-04／09-08／09-11／09-12 結果是歷史紀錄；目前 HEAD 的自動驗證基準以 2026-09-15 四筆紀錄為準。
+- 上述較早的 2026-09-04／09-08／09-11／09-12 結果是歷史紀錄；目前 HEAD 的自動驗證基準以 2026-09-16 的 Backend unit／Frontend type-check／Frontend unit 與 2026-09-15 的 coverage／隔離 E2E 紀錄為準。
 - 進度只在實際跑過對應指令後標記完成，不以「已有 spec 檔」代替通過結果。
 
 ## 下一步
@@ -75,7 +75,8 @@
 3. 完成邀請取消；補 PENDING 邀請的資料庫唯一性、錯誤授權 E2E 與併發衝突處理。
 4. 補 Notification 列表 query filters，以及通知收件匣隔離／transaction rollback E2E；已讀 E2E 已完成。
 5. 補 Socket.IO handshake 的 Session rotation／過期策略、`connect_error` 處理與 Origin／連線 lifecycle 測試。
-6. 補通知 Socket.IO 的 reconnect／漏收 HTTP resync、跨分頁同步與真實 client integration tests。
+6. 補 Workspace room 的 reconnect rejoin、快速切換競速、membership 移除後清理與真實 client integration tests。
+7. 補通知 Socket.IO 的 reconnect／漏收 HTTP resync、跨分頁同步與真實 client integration tests。
 
 ## 已知限制
 
@@ -85,6 +86,7 @@
 - User／Workspace／Notification Store reset 尚未阻止舊 in-flight response 回寫。
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
 - Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 已提供第一版 `notification:created` 推送，但重連後重新同步、事件遺失補償與跨分頁同步仍未完成。
+- Workspace View 已透過 `workspace:into`／`workspace:leave` 管理目前 Workspace room，後端加入前會驗證 membership 與 archivedAt；目前尚未處理 Socket reconnect 後 rejoin、快速切換造成的非同步 room 競速，以及成員被移除後既有 Socket 的 room 清理。`workspace:memberChanged` 只傳 Workspace ID，前端收到後重新呼叫成員清單 API。
 - Project create／addMember 已有 HTTP route 與 runtime DTO validation，但 create 仍只回 `null`，Repository 的兩個 list queries 尚未由 Service／HTTP 暴露，前端也未串接。addMember 採直接加入，不具接受／拒絕狀態；被加入者必須先是同一 Workspace 的有效成員。
 - Shared `AddProjectMemberRequest.role` 目前仍使用完整 `ProjectRole`，會在型別層允許 OWNER；Backend DTO runtime 只接受 EDITOR／VIEWER。後續應將 shared contract 收斂為可指派角色型別，避免前後端契約不一致。
 - `20260915080141_add_project_member_id` 直接對 `project_members` 新增 required UUID `id`，沒有 SQL default／回填；全新資料庫可依序套用，但已有 ProjectMember 資料的既有環境會 migration 失敗，部署前必須修正 migration 策略。

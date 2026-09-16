@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-16。最新 Backend build／unit tests，以及 2026-09-15 的 coverage、Frontend unit tests 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋通知單筆／全部已讀，但尚未覆蓋 Project；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
+最後檢視：2026-09-16。最新 Backend build／unit tests、Frontend type-check／unit tests，以及 2026-09-15 的 coverage 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋通知單筆／全部已讀，但尚未覆蓋 Project 或 Workspace room；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
 
 ## 1. 目標
 
@@ -99,6 +99,7 @@
 - [ ] Workspace invitation E2E：建立邀請與 `WORKSPACE_INVITED` Notification 必須在同一 transaction；受邀者可取得通知與正確未讀數。
 - [ ] 受邀者標記單筆或全部已讀後，未讀數正確變化；不得讀取或修改其他使用者的通知。
 - [ ] Socket.IO：有效 Session handshake 才能連線，邀請 transaction commit 後只向受邀者推送 `notification:created`，且 client 可用 notification id 去重。
+- [ ] Workspace room：只有有效 WorkspaceMember 可加入 `workspace:{workspaceId}`；接受邀請 transaction commit 後推送 `workspace:memberChanged`，目前尚缺真實 Socket.IO client authorization／lifecycle test。
 
 Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程會在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。`markReadInvitation.e2e.spec.ts` 已於 2026-09-15 在隔離 PostgreSQL／Redis 執行通過，覆蓋受邀者單筆已讀、全部已讀與未讀數變化；跨使用者收件匣隔離、Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
 
@@ -110,6 +111,7 @@ Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流
 - [x] 過期 PENDING 條件更新、更新失敗衝突，以及建立 Invitation／Notification 的 transaction interaction。
 - [x] `expirePendingInvitations` 將時間正確轉交給 Repository，並回傳批次更新筆數。
 - [x] 接受 invitation 的查無 invitation、既有 member、封存 workspace、狀態衝突與成功建立 membership。
+- [x] 接受 invitation 成功後驗證 transaction 完成才呼叫 `emitWorkspaceMemberChanged(workspaceId)`；SocketService mock 與 interaction assertion 已補上。
 - [x] WorkspaceInvitationController 正確轉交 Session userId、workspaceId／invitationId 與 email，並回傳 invite／accept／decline 成功訊息。
 - [x] 接受與拒絕 invitation 的 Controller、DTO、shared contract 與 Service use case。
 - [ ] 取消 invitation use case 與 Owner 授權。
@@ -226,6 +228,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - [ ] Login/Signup submit、loading、field errors、general error。
 - [ ] Route guard redirect。
 - [ ] Logout state reset。
+- [ ] Workspace View 的 Workspace room into／leave、memberChanged listener refresh 與 unmount cleanup。
 
 ### Playwright
 
@@ -270,4 +273,5 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 3. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 4. SessionService unit tests：驗證分支與 Lua reply mapping。
 5. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
-6. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。
+6. Workspace room authorization／lifecycle integration tests，包含 reconnect rejoin 與快速切換競速。
+7. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。

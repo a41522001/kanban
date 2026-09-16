@@ -5,7 +5,7 @@
 ## 目前優先順序
 
 1. 完成 Project vertical slice：目前 create／addMember HTTP commands、DTO runtime validation、transaction 與通知推播已具備；下一步補回傳 contract／mapping、有效 unit／E2E tests、Project list read model 與前端串接。
-2. [Workspace 邀請與通知](workspace-invitation-notification.md)：補取消、query 分頁、Socket reconnect／漏收同步與隔離／併發測試；回覆、詳細資訊、已讀、已讀 E2E 與通知推播第一版已完成。
+2. [Workspace 邀請與通知](workspace-invitation-notification.md)：邀請回覆、通知讀取、user room 推播與 Workspace room 成員同步第一版已完成；補取消、query 分頁、room reconnect／漏收同步、快速切換競速與隔離／併發測試。
 3. [Session 架構與輪轉](session-architecture.md)：補 SessionService 與 Lua 的單元／Redis integration tests。
 4. [Kanban domain 與一致性](kanban-domain-plan.md)。
 5. [API contract 與錯誤處理](api-contract-plan.md)。
