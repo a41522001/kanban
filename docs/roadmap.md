@@ -48,7 +48,7 @@ Vue 3 browser WebSocket
 
 ## Phase 2：Socket.IO 協作 Kanban
 
-目前進度（2026-09-15）：步驟 1、2 已完成第一版；Project 資料層與 create Service 建置中。下一個可交付點是 Project HTTP create／list，再進入 Board room authorization。Session handshake 的 rotation Cookie 風險與真實 lifecycle tests 仍需在 Board commands 前補完。
+目前進度（2026-09-16）：步驟 1、2 已完成第一版；Project 資料層、create／addMember Service transaction 與 command HTTP API 已建立。下一個可交付點是 Project 有效測試、list read model 與前端串接，再進入 Board room authorization。Session handshake 的 rotation Cookie 風險與真實 lifecycle tests 仍需在 Board commands 前補完。
 
 題材：多人協作 Kanban。
 

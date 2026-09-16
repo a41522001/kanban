@@ -1,6 +1,6 @@
 # API Contract 與錯誤處理規格
 
-最後靜態核對：2026-09-15。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；Swagger 共用 decorator 仍待實作。
+最後靜態核對：2026-09-16。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；所有現有 Controller 已有 Swagger operation／auth／主要 response 描述與 request DTO metadata，共用 response envelope decorator 仍待實作。
 
 ## 1. 目標
 
@@ -126,9 +126,12 @@ HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的
 
 ## 7. Swagger
 
-- 建立可重用的 success/error schema decorator，避免 controller 內重複手寫 envelope。
-- Validation error schema 必須反映 FieldError 的 value 與 messages。
-- Auth endpoints 應文件化 400、401、409。
+- [x] 現有 Auth、User、Workspace、WorkspaceInvitation、Notification、Project Controller 已設定 domain tag 與 operation summary。
+- [x] 受 SessionGuard 保護的 Controller 已標示 Session Cookie auth 與 401；各 endpoint 已列出主要成功與 400／403／404／409 業務狀態。
+- [x] 現有 request DTO 已提供 Swagger 欄位描述、format、enum 與 example。
+- [ ] 建立可重用的 success/error schema decorator，避免 controller 內重複手寫 envelope。
+- [ ] Validation error schema 必須反映 FieldError 的 value 與 messages；Auth 現有手寫 schema 仍與實際格式不完全一致。
+- [ ] 為所有 success response 補齊可重用的 typed data schema，而不只提供 description。
 
 ## 8. 測試
 

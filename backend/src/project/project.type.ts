@@ -11,4 +11,5 @@ export interface FindMembershipResponse {
   role: ProjectRole;
   projectName: string;
   projectArchivedAt: Date | null;
+  workspaceId: string;
 }

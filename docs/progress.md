@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-15（依目前原始碼、完整 build、Frontend unit tests、Backend coverage 與隔離 PostgreSQL／Redis E2E 核對）。
+最後檢視：2026-09-16（依目前原始碼、完整 build 與 Backend unit tests 核對；Frontend unit tests、Backend coverage 與隔離 PostgreSQL／Redis E2E 沿用 2026-09-15 紀錄）。
 
 ## Native WebSocket
 
@@ -28,8 +28,8 @@
 | 5 裝置限制 | 已完成核心流程 | ZSET + create Lua 原子清理與淘汰 |
 | Session revoke／logout | 已完成最小版本 | `revokeSession` Lua 原子刪除請求攜帶的 Session Hash 與使用者 ZSET member；Controller 一律清除 Cookie |
 | 統一 API response 與錯誤 | 已完成 | ValidationPipe、AppException、全域 Filter、欄位錯誤遮蔽；`Unauthenticated` 與 `ResourceNotFound` 為前端可判斷的穩定 code |
-| Pino HTTP log 與 Swagger | 已完成基礎 | application lifecycle events 與 logging tests 待補 |
-| Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單；Project API 與完整成員管理尚未補 |
+| Pino HTTP log 與 Swagger | 已完成基礎 | 現有 Controller 已有 tags、operation、Cookie auth、成功／錯誤描述，request DTO 有欄位 metadata；共用 response envelope decorator、FieldError schema 與 application lifecycle logging tests 待補 |
+| Workspace 基礎 API | 已完成部分 | 建立、列出、成員清單已完成；Workspace 成員角色調整、移除與離開尚未補，Project create／addMember 已由獨立 Controller 提供 |
 | Frontend Workspace overview | 已完成第一版 | 工作區列表、建立 Dialog、切換、成員摘要、loading／error／empty state 已串接；Project 區等待 Project API |
 | Workspace Invitation | 已完成發送、詳細資訊、接受與拒絕 Backend API 及前端回覆 | Controller 提供 invite／detail／accept／decline；接受流程以條件式 ACCEPTED 更新與建立 membership 同 transaction 執行，拒絕流程條件式更新為 DECLINED。Owner 取消及並行唯一性尚未完成 |
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
@@ -38,7 +38,7 @@
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
 | Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀與工作區邀請詳細資訊 API 已完成；邀請流程在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端以 id 去重並同步列表與未讀狀態 |
-| Project domain | 建置中，尚未形成可用 API | Project、ProjectMember schema／migration、shared contracts、Repository 已建立；Service 已有建立 Project 並在同一 transaction 建立 OWNER membership 的流程。Controller 仍為空、DTO 沒有 runtime validation、Service 不回傳新 Project、兩個 scaffold specs 都 skipped，前端尚未串接 |
+| Project domain | 建置中，已有兩個 command API | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 建立 Project 與 OWNER membership，`POST /project/addMember` 由 Project OWNER 直接加入同 Workspace 成員，使用 unique constraint／P2002 處理重複並在 commit 後推送通知。Service 仍不回傳新 Project，list read model 未暴露，兩個 scaffold specs skipped，前端尚未串接 |
 | Board／Column／Card domain | 尚未開始持久化 | 目前只有目標規格、設計稿與前端假資料；尚無 Prisma models、REST API、Socket commands 或有效測試 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
@@ -57,7 +57,9 @@
 - 2026-09-15 以 Node 24.13／pnpm 11.25 執行 `pnpm build`：contracts ESM／CJS、Frontend type-check／Vite production build、Backend Nest build 全部通過。Vite 唯一警告是 main chunk 541.55 kB，超過 500 kB 建議值。
 - 2026-09-15 執行 Frontend Vitest：8 個 test files、26 tests 全部通過；仍顯示 `vitest.config.ts` extensionless import 不相容於未來 `configLoader: native` 的既有提醒。本次未重跑 ESLint 或 Playwright，兩者只保留 2026-09-12 的歷史驗收紀錄。
 - 2026-09-15 執行 `pnpm test:backend:cov`：17 suites、86 tests 通過，Project 2 suites／2 tests skipped；整體 coverage 為 statements 50.09%、branches 56.7%、functions 32.94%、lines 48.86%。Project Service／Repository 幾乎沒有有效行為測試，新增程式碼使整體 coverage 較先前下降。
-- 2026-09-15 執行 `pnpm test:backend:e2e`：3 suites、5 tests 全部通過。runner 套用 7 個 migrations，覆蓋 Auth lifecycle、Workspace Invitation 接受／拒絕，以及 Notification 單筆／全部已讀，完成後移除 containers、network 與 volumes。
+- 2026-09-15 執行 `pnpm test:backend:e2e`：3 suites、5 tests 全部通過。當時 runner 套用 7 個 migrations，覆蓋 Auth lifecycle、Workspace Invitation 接受／拒絕，以及 Notification 單筆／全部已讀，完成後移除 containers、network 與 volumes；目前 schema 已有 9 個 migrations，本輪尚未重跑 E2E migration deploy。
+- 2026-09-16 執行完整 `pnpm build`：contracts、Frontend type-check／Vite build、Backend Nest build 全部通過；Vite 仍只有 main chunk 541.55 kB 警告。補齊所有現有 Controller 的 Swagger metadata 後再次執行 Backend build，結果通過。
+- 2026-09-16 執行 Backend unit tests：17 suites、86 tests 通過，Project Service／Controller 2 suites／2 tests skipped。本輪未重跑 coverage、Frontend unit tests、Playwright 或隔離 E2E。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
@@ -67,7 +69,7 @@
 
 ## 下一步
 
-1. 先把 Project 建立流程變成可驗收 vertical slice：補 DTO decorators、Controller、回傳 contract／mapping、Service／Controller tests 與 E2E；再實作 Project list read model 與 Workspace overview 串接。
+1. 將 Project create／addMember 變成可驗收 vertical slice：補 Service／Controller tests、重複加入併行測試與隔離 E2E，處理既有資料下 ProjectMember `id` migration，再實作 Project list read model、回傳 mapping與 Workspace overview 串接。
 2. 補 expiration job unit test 與真實資料庫過期批次更新測試。
 3. 完成邀請取消；補 PENDING 邀請的資料庫唯一性、錯誤授權 E2E 與併發衝突處理。
 4. 補 Notification 列表 query filters，以及通知收件匣隔離／transaction rollback E2E；已讀 E2E 已完成。
@@ -82,7 +84,9 @@
 - User／Workspace／Notification Store reset 尚未阻止舊 in-flight response 回寫。
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
 - Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 已提供第一版 `notification:created` 推送，但重連後重新同步、事件遺失補償與跨分頁同步仍未完成。
-- Project create Service 目前完成 transaction 寫入但不回傳新 Project；Controller 沒有 route，DTO 沒有 class-validator decorators，Repository 的兩個 list queries 也尚未由 Service／HTTP 暴露。現階段只能視為內部建置中，不能由 client 使用。
+- Project create／addMember 已有 HTTP route 與 runtime DTO validation，但 create 仍只回 `null`，Repository 的兩個 list queries 尚未由 Service／HTTP 暴露，前端也未串接。addMember 採直接加入，不具接受／拒絕狀態；被加入者必須先是同一 Workspace 的有效成員。
+- Shared `AddProjectMemberRequest.role` 目前仍使用完整 `ProjectRole`，會在型別層允許 OWNER；Backend DTO runtime 只接受 EDITOR／VIEWER。後續應將 shared contract 收斂為可指派角色型別，避免前後端契約不一致。
+- `20260915080141_add_project_member_id` 直接對 `project_members` 新增 required UUID `id`，沒有 SQL default／回填；全新資料庫可依序套用，但已有 ProjectMember 資料的既有環境會 migration 失敗，部署前必須修正 migration 策略。
 
 ## 更新方式
 

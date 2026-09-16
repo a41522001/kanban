@@ -116,6 +116,7 @@ export class ProjectRepository {
           select: {
             name: true,
             archivedAt: true,
+            workspaceId: true,
           },
         },
         user: {

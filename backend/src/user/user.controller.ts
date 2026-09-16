@@ -14,11 +14,14 @@ import {
   ApiCookieAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { UserService } from './user.service';
 import { AppException } from '@/common/exceptions/app.exception';
+
+@ApiTags('Users')
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}

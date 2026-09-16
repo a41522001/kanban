@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-15（依 Prisma schema、7 個 migrations、Project Repository／Service 與隔離 E2E migration deploy 核對）。
+最後檢視：2026-09-16（依 Prisma schema、9 個 migrations、Project Repository／Service／Controller 與完整 build 核對；隔離 E2E migration deploy 沿用 2026-09-15 紀錄）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -20,7 +20,6 @@ User
 
 Workspace
 ├── WorkspaceMember
-├── Notification
 ├── WorkspaceInvitation
 └── Project
 
@@ -31,12 +30,12 @@ Project
 ```text
 users ──< workspace_members >── workspaces ──< projects
   │                                  │              │
-  ├────< notifications (recipient) ──┤              │
-  ├────< notifications (actor) ──────┘              │
+  ├────< notifications (recipient)   └─< workspace_invitations
+  ├────< notifications (actor)
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts 與 Repository；ProjectService 已能在同一 transaction 建立 Project 與建立者的 OWNER membership。Project Controller 仍無 endpoint，前端也尚未串接。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／addMember command API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Project list、前端資料流及有效 Project tests 尚未完成。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
 
 ## 2. Enum
 
@@ -199,7 +198,7 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 ## 8. `projects`
 
-Workspace 之下的專案邊界。Project schema、migration 與 Repository 已建立；ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember。HTTP API、前端資料流及有效自動測試尚未完成。
+Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list／detail、前端資料流及有效自動測試尚未完成。
 
 | 欄位 | 型別 | Null | 說明 |
 | --- | --- | --- | --- |
@@ -228,6 +227,7 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 
 | 欄位 | 型別 | Null | 說明 |
 | --- | --- | --- | --- |
+| `id` | UUID | 否 | Membership 獨立主鍵，供角色調整、移除與通知去重引用。 |
 | `project_id` | UUID | 否 | 所屬 Project，參照 `projects.id`。 |
 | `user_id` | UUID | 否 | 成員使用者，參照 `users.id`。 |
 | `role` | `ProjectRole` | 否 | Project 角色；沒有資料庫預設值。 |
@@ -235,13 +235,16 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 
 約束與索引：
 
-- `project_id + user_id` 是 composite primary key，同一使用者在同一 Project 最多一筆 membership。
+- `id` 是 UUID primary key；`project_id + user_id` 為 unique constraint，同一使用者在同一 Project 最多一筆 membership。
 - index：`user_id`，支援查詢使用者可進入的 Project。
 - Project 或 User 被硬刪除時，ProjectMember 使用 `ON DELETE CASCADE` 一併刪除。
 - ProjectMember 必須同時是該 Project 所屬 Workspace 的 WorkspaceMember；目前 schema 沒有跨資料表約束，必須由 application service 在 transaction 內驗證。
-- 建立 Project 時，後續 Service 應在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。
+- 建立 Project 時，Service 會在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。
+- `POST /project/addMember` 會先驗證操作者是未封存 Project 的 OWNER，並確認目標使用者是同一 Workspace 的有效成員；ProjectMember 與 Notification 同 transaction 寫入，`(project_id, user_id)` unique conflict 由 application service 轉為 409。
 
-Project／ProjectMember migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名，後續以新 migration 修正 schema。
+Project／ProjectMember 初始 migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名。獨立 member ID 由 `backend/prisma/migrations/20260915080141_add_project_member_id/migration.sql` 加入。
+
+`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填。全新資料庫在前一個 migration 建立空表後可套用；已經存在 ProjectMember 資料的環境會失敗。部署到保留既有資料的環境前，必須改成「nullable/default → 回填 → NOT NULL／primary key」的安全 migration，並以真實 PostgreSQL 驗證。
 
 ## 10. 後續資料模型
 

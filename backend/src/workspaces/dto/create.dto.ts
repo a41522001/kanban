@@ -1,8 +1,14 @@
 import type { CreateWorkspaceDto } from '@kanban/contracts/workspaces';
+import { ApiProperty } from '@nestjs/swagger';
 import { Transform, type TransformFnParams } from 'class-transformer';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class CreateDto implements CreateWorkspaceDto {
+  @ApiProperty({
+    description: '工作區名稱',
+    example: '產品研發團隊',
+    maxLength: 100,
+  })
   @Transform((params: TransformFnParams): unknown => {
     const rawValue: unknown = params.value;
     return typeof rawValue === 'string' ? rawValue.trim() : rawValue;

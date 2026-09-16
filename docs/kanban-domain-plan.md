@@ -14,7 +14,7 @@
 
 ## 目前實作邊界
 
-2026-09-15 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過對應 E2E。Project 已有 shared contracts、Repository 與 create Service transaction，但 Controller、runtime DTO validation、回傳 mapping、有效測試與前端尚未完成；Board 起的資料模型／commands 仍是目標設計。現行邀請流程見[邀請與通知](workspace-invitation-notification.md)。
+2026-09-16 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過既有 E2E。Project 已有 shared contracts、Repository、runtime DTO validation、create／addMember Service transaction 與 HTTP command；回傳 mapping、Project list、有效測試與前端尚未完成。Board 起的資料模型／commands 仍是目標設計。現行端點以[目前 HTTP API](http-api.md)為準。
 
 ## 2. 第一版 Domain
 
@@ -72,12 +72,13 @@
 
 ### ProjectMember
 
+- id
 - projectId
 - userId
 - role：`OWNER`、`EDITOR`、`VIEWER`
 - joinedAt
 
-`projectId + userId` 使用 composite primary key。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember；這個跨 table 條件由 application service 在 transaction 內驗證。
+目前 Prisma schema 使用獨立 UUID `id` 作為 primary key，並以 `@@unique([projectId, userId])` 防止重複 membership。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember；這個跨 table 條件由 application service 驗證。現行 `POST /project/addMember` 是由 Project OWNER 直接加入同 Workspace 的既有成員，不建立 ProjectInvitation，也沒有接受／拒絕狀態。
 
 Board room join、Board snapshot、Column/Card command 都透過 `Board → Project → ProjectMember` 取得權限，不建立重複的 BoardMember。
 
@@ -301,7 +302,7 @@ Board room domain events 只描述已 commit 的事實：
 
 - 所有外鍵明確設定 delete 行為。
 - WorkspaceMember 使用獨立 UUID primary key，加上 `(workspaceId, userId)` unique constraint。
-- ProjectMember、CardLabelAssignment 預計使用 composite primary key；實作 ProjectMember 時再以當時的 API mutation 路徑確認是否也需要獨立 member ID。
+- ProjectMember 使用獨立 UUID primary key，加上 `(projectId, userId)` unique constraint；CardLabelAssignment 仍預計使用 composite primary key。
 - Project 內 Category／Label 使用 normalizedName unique constraint。
 - CardCategory.colorKey 使用 varchar + shared contract whitelist，不使用 PostgreSQL enum。
 - ProjectStatus、WorkspaceRole、ProjectRole 是穩定 domain values，可使用 Prisma/PostgreSQL enum。
@@ -330,9 +331,9 @@ Board room domain events 只描述已 commit 的事實：
 - [x] Workspace／WorkspaceMember schema、migration、repository。
 - [x] 建立／讀取 Workspace 與成員查詢 authorization（靜態核對）。
 - [x] Project／ProjectMember schema 與 migration。
-- [ ] Project repository、Service 與 HTTP API。
-- [ ] 建立 Project transaction：ProjectMember OWNER、主要 Board、四個預設 Columns。
-- [ ] WorkspaceMember 與 ProjectMember 權限。
+- [x] Project repository、create／addMember Service 與 command HTTP API（靜態核對；有效 Project tests 待補）。
+- [ ] 完整建立 Project transaction：目前已建立 Project 與 OWNER ProjectMember；主要 Board、四個預設 Columns 尚未實作。
+- [ ] WorkspaceMember 與 ProjectMember 完整權限：create／addMember 已有檢查，list、detail、角色調整、移除成員與 Board commands 尚未實作。
 
 ### M2：Board read model 與 Card metadata
 

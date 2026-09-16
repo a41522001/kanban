@@ -28,17 +28,17 @@
 - 成功 API envelope：`code`、`data`、`message`、`time`、`error`。
 - `AppException` 與全域 HTTP exception filter 骨架。
 - Pino HTTP request log，並 redact Cookie、Authorization、password、Set-Cookie。
-- Swagger `/api/docs`。
+- Swagger `/api/docs`；現有 Controller 已有 domain tags、operation、Cookie auth、主要成功／錯誤描述與 request DTO metadata。
 - Socket.IO middleware 以 HttpOnly Session Cookie 驗證連線，將 userId 寫入 `socket.data`，並加入伺服器管理的 `user:{userId}` room。
 - typed `demo:echo` event 與 `notification:created` Server event。
 - Frontend Auth vertical slice：signup、login、userInfo session restore、protected route、logout、表單驗證與共用 UI 基礎。
 - Notification 持久化與推播基礎：PostgreSQL schema、shared contract、`GET /notifications`、`GET /notifications/unreadCount`、`PATCH /notifications/read`、`PATCH /notifications/readAll` 與 `GET /workspaceInvitation/:invitationId`；資料庫是通知真相，Workspace 邀請在 transaction commit 後以 `notification:created` 推送摘要。
 - Workspace 列表／建立／成員授權查詢與前端 overview；Owner 邀請 Dialog 及通知選單已串接。
-- Project／ProjectMember schema、migration、shared contracts、Repository 與 create Service transaction；Controller、有效測試與前端尚未完成。
+- Project／ProjectMember schema、migration、shared contracts、Repository、runtime DTO 與 create／addMember HTTP commands；addMember 的 membership／notification 同 transaction，commit 後推送 `notification:created`。有效 Project tests、list read model 與前端尚未完成。
 
 尚未完成的 Session 收尾：logout／revoke 僅刪除本次 Cookie 對應的 Session 與 ZSET member，尚未處理 Current／Previous Grace family 的完整撤銷；Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
 
-2026-09-15 核對：隔離 Backend E2E 的 3 suites／5 tests 已通過，包含 Auth、邀請接受／拒絕與通知單筆／全部已讀。Socket.IO Session handshake、user room 與 transaction commit 後的 `notification:created` 推播第一版已完成；但 handshake 仍直接呼叫可能觸發 rotation 的 Session 方法且不回寫新 Cookie，需優先修正。近期主線先完成 Project HTTP vertical slice，再補邀請取消／query／併發與 Socket reconnect／漏收同步測試。Socket.IO 不作為通知真相，也不需要先導入 message queue。
+2026-09-16 核對：隔離 Backend E2E 的 3 suites／5 tests 沿用 2026-09-15 通過紀錄，包含 Auth、邀請接受／拒絕與通知單筆／全部已讀；本輪 Backend unit tests 為 17 suites／86 tests 通過，Project 2 suites／2 tests skipped。Socket.IO Session handshake、user room 與 transaction commit 後的 `notification:created` 推播第一版已完成；但 handshake 仍直接呼叫可能觸發 rotation 的 Session 方法且不回寫新 Cookie。近期主線是補 Project create／addMember 測試與 list read model，再處理邀請取消／query／併發與 Socket reconnect／漏收同步。Socket.IO 不作為通知真相，也不需要先導入 message queue。
 
 ## 小章順序
 

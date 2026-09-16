@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-15。最新 Backend coverage、完整 build、Frontend unit tests 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。本次 E2E 已實際覆蓋通知單筆／全部已讀；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
+最後檢視：2026-09-16。最新 Backend build／unit tests，以及 2026-09-15 的 coverage、Frontend unit tests 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋通知單筆／全部已讀，但尚未覆蓋 Project；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
 
 ## 1. 目標
 
@@ -126,9 +126,13 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 
 - [ ] 將 `ProjectService` 與 `ProjectController` 的 scaffold specs 從 `describe.skip` 改為有效測試。
 - [ ] 建立 Project 時驗證 Workspace membership、封存 workspace、transaction rollback、Project 與 OWNER membership 同時建立。
-- [ ] Project Controller 的 Session userId、DTO validation、成功 status／response mapping 與錯誤 envelope。
+- [ ] Project Controller 的 Session userId、create／addMember DTO validation、成功 status／response mapping 與錯誤 envelope。
+- [ ] addMember：僅 Project OWNER 可操作，Project／Workspace 封存、帳號不存在、目標不是 WorkspaceMember、角色 whitelist 與成功通知推播。
+- [ ] addMember transaction：ProjectMember 與 Notification 一起成功或 rollback，Socket 只在 commit 後 emit。
+- [ ] addMember 併行重複請求：`(projectId, userId)` unique constraint 只允許一筆，Prisma P2002 映射為 409 且不產生第二筆通知。
 - [ ] Project list 只回目前使用者實際具有 ProjectMember 的未封存 Projects。
-- [ ] 隔離 PostgreSQL E2E：建立、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
+- [ ] 隔離 PostgreSQL E2E：建立、addMember、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
+- [ ] Migration upgrade test：既有 `project_members` 有資料時，新增獨立 required UUID `id` 可安全回填並完成 primary key 變更。
 
 ### Common
 
@@ -261,7 +265,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 11. 目前最優先的測試順序
 
-1. Project create／list Service、Controller 與隔離 E2E；先移除目前兩個 skipped scaffold suites。
+1. Project create／addMember／list Service、Controller 與隔離 E2E；先移除目前兩個 skipped scaffold suites，覆蓋 P2002 併行衝突與 transaction 後 Socket emit。
 2. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
 3. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 4. SessionService unit tests：驗證分支與 Lua reply mapping。

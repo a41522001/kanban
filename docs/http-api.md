@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-15。以 Controllers、DTO、`packages/contracts`、build、unit tests 與隔離 Node 24.13 E2E 為準。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-16。以 Controllers、DTO、`packages/contracts`、完整 build 與 Backend unit tests 為準；隔離 E2E 沿用 2026-09-15 紀錄。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -29,6 +29,8 @@
 | GET `/notifications/unreadCount` | 有效 Session，只查本人未讀數 | 無 | 200 / `{ count }` |
 | PATCH `/notifications/read` | 有效 Session，只能標記本人通知 | `{ notificationId }` | 200 / null；通知不存在或不屬於本人回 404 |
 | PATCH `/notifications/readAll` | 有效 Session，只能標記本人通知 | 無 | 200 / number；回傳本次實際標記的筆數，沒有未讀時為 0 |
+| POST `/project` | 有效 Session，且為未封存 Workspace 的成員 | `{ name, description?, workspaceId }` | 201 / null，message 為「創建成功」；建立 Project 與 OWNER ProjectMember |
+| POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標帳號必須是同 Workspace 的有效成員 | `{ projectId, memberEmail, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
 
@@ -63,10 +65,22 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。通知以 HTTP 載入為持久化真相；邀請建立 transaction commit 後，Socket.IO 會以 `notification:created` 推送 `PublicNotification` 摘要給受邀者目前在線的 user room。Socket 斷線或漏收時，仍需由前端重新呼叫通知列表與未讀數 API，因目前尚未完成 reconnect resync。
 
+## Project 邊界
+
+建立 Project 時，name 會 trim 且限制 100 字元，description 會 trim、空字串轉為未提供並限制 500 字元，workspaceId 必須是 UUID v4。任一未封存 WorkspaceMember 都可建立 Project；Service 在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。目前成功回應不回傳新 Project，Project list Repository 也尚未由 HTTP 暴露。
+
+`POST /project/addMember` 是 command-style endpoint，不採邀請接受／拒絕流程。memberEmail 會 trim／lowercase，目標必須是已註冊且仍屬於 Project 所在 Workspace 的使用者；只有未封存 Project 的 OWNER 可操作，且不能透過此 DTO 指派另一個 OWNER。ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立，commit 後才向目標使用者的 user room 推送 `notification:created`。`(projectId, userId)` unique constraint 是重複加入的最終併行保護，Prisma P2002 轉為 409。
+
+| 情況 | HTTP status / code |
+| --- | --- |
+| 建立者不是 WorkspaceMember | 404 / ResourceNotFound (3001) |
+| 建立 Project 時 Workspace 已封存 | 400 / RequestError (4000) |
+| addMember 操作者不是 Project OWNER、Project 不存在或已封存 | 403 / RequestError (4000) |
+| 目標帳號不存在或不是同 Workspace 的有效成員 | 404 / ResourceNotFound (3001) |
+| 目標已是 ProjectMember，包含併行 unique conflict | 409 / RequestError (4000) |
+
 ## Swagger 與待辦
 
-Swagger 位於 `/api/docs`，目前 Auth 的手寫 error schema 仍使用 array 描述，與實際 FieldError object 不一致；尚未完成可重用 envelope decorators。不可將 Swagger 視為所有端點完整驗證結果。
+Swagger 位於 `/api/docs`。現有 Controller 均已標示 domain tag、operation summary、Cookie auth 與主要成功／錯誤狀態，request DTO 也提供欄位描述、格式、enum 與 example。Auth 的手寫 envelope schema 仍把 error 描述為 array，與實際 FieldError object 不一致；可重用 success/error envelope decorators 也尚未完成，因此 Swagger 仍不是完整 response contract 的唯一真相。
 
-`ProjectController` 雖已註冊於 AppModule，但目前沒有 route，因此本頁沒有 Project endpoint；ProjectService 的內部 create flow 不代表 HTTP API 已交付。
-
-尚待補上 Project endpoints、邀請取消、通知 query DTO，以及更完整的錯誤授權／併發測試與 Swagger；通知已讀 HTTP endpoint 與對應 E2E 已完成。
+尚待補上 Project list／detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。
