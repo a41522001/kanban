@@ -2,8 +2,11 @@ import { SessionGuard } from '@/session/session.guard';
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UseGuards,
@@ -25,6 +28,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { ProjectMemberDto } from '@kanban/contracts/project';
 
 @ApiTags('Projects')
 @ApiCookieAuth()
@@ -75,5 +79,18 @@ export class ProjectController {
       data: null,
       message: '新增專案成員成功',
     };
+  }
+
+  /** 取得單一專案的所有成員 */
+  @Get(':projectId/members')
+  async getListProjectMembers(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Req() req: Request,
+  ): Promise<ApiResult<ProjectMemberDto[]>> {
+    const result = await this.projectService.getSingleProjectMember(
+      req.userId!,
+      projectId,
+    );
+    return { data: result };
   }
 }

@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { ProjectRepository } from './project.repository';
 import { CreateProjectDto } from './dto/createProject.dto';
 import { WorkspacesService } from '@/workspaces/workspaces.service';
@@ -11,6 +11,7 @@ import { FindMembershipResponse } from './project.type';
 import { NotificationService } from '@/notification/notification.service';
 import { SocketService } from '@/socket/socket.service';
 import { Prisma, type Notification } from '@/generated/prisma/client';
+import type { ProjectMemberDto } from '@kanban/contracts/project';
 @Injectable()
 export class ProjectService {
   constructor(
@@ -173,6 +174,29 @@ export class ProjectService {
         },
         tx,
       );
+    });
+  }
+
+  /** 取得單一專案的所有成員 */
+  async getSingleProjectMember(
+    userId: string,
+    projectId: string,
+  ): Promise<ProjectMemberDto[]> {
+    const membership = await this.findMembership(userId, projectId);
+
+    if (!membership || membership.projectArchivedAt) {
+      throw new NotFoundException('找不到專案或你沒有存取權限');
+    }
+
+    const result =
+      await this.projectRepository.getSingleProjectMember(projectId);
+    return result.map(({ id, role, user }) => {
+      return {
+        memberId: id,
+        role: role,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      };
     });
   }
 }

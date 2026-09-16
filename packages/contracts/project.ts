@@ -13,6 +13,12 @@ export interface AddProjectMemberRequest {
   memberEmail: string;
   role: ProjectRole;
 }
+export interface ProjectMemberDto {
+    memberId: string;
+    displayName: string;
+    avatarUrl: string | null;
+    role: ProjectRole;
+}
 export interface ProjectListItemDto {
   id: string;
   workspaceId: string;
