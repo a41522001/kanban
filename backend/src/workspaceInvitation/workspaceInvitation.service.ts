@@ -221,6 +221,9 @@ export class WorkspaceInvitationService {
         tx,
       );
     });
+
+    // 推播工作區成員改變
+    this.socketService.emitWorkspaceMemberChanged(invitation.workspaceId);
   }
 
   /** 拒絕邀請 */
@@ -369,7 +372,7 @@ export class WorkspaceInvitationService {
         return { newInvitation, newNotification };
       });
 
-    // 推播socket
+    // 推播通知
     this.socketService.emitNotificationCreated(
       inviteeUserId,
       this.notificationService.toPublicNotification(newNotification),

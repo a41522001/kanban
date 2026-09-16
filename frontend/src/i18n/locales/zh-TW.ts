@@ -107,7 +107,7 @@ export const zhTW = {
       },
     },
   },
-  workplace: {
+  workspace: {
     navigation: {
       label: '主要導覽',
       workspaces: '工作區',

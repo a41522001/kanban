@@ -33,18 +33,52 @@ export const ensureConnected = () => {
   }
 };
 
+// #region emit
+/** echo */
 export const emitEcho = (message: string) => {
   socket.emit('demo:echo', {
     text: message,
   });
 };
+/** 進入工作區 */
+export const emitWorkspaceInto = (workspaceId: string) => {
+  const payload = {
+    workspaceId,
+  };
+  socket.emit('workspace:into', payload);
+};
+/** 離開工作區 */
+export const emitWorkspaceLeave = (workspaceId: string) => {
+  const payload = {
+    workspaceId,
+  };
+  socket.emit('workspace:leave', payload);
+};
+// #endregion
 
+// #region on
 /** 監聽通知創建 */
 export const onNotificationCreated = (handler: ServerToClientEvents['notification:created']) => {
   socket.on('notification:created', handler);
 };
+/** 監聽工作區成員加入 */
+export const onWorkspaceMemberChanged = (
+  handler: ServerToClientEvents['workspace:memberChanged'],
+) => {
+  socket.on('workspace:memberChanged', handler);
+};
+// #endregion
 
+// #region off
 /** 移除監聽通知創建 */
 export const offNotificationCreated = (handler: ServerToClientEvents['notification:created']) => {
   socket.off('notification:created', handler);
 };
+
+/** 移除工作區成員加入 */
+export const offWorkspaceMemberChanged = (
+  handler: ServerToClientEvents['workspace:memberChanged'],
+) => {
+  socket.off('workspace:memberChanged', handler);
+};
+// #endregion

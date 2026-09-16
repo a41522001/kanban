@@ -109,7 +109,7 @@ export const en = {
       },
     },
   },
-  workplace: {
+  workspace: {
     navigation: {
       label: 'Primary navigation',
       workspaces: 'Workspaces',
