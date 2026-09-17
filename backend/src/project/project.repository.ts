@@ -37,8 +37,8 @@ export class ProjectRepository {
     return result;
   }
 
-  /** 取得所有專案by workspaceId */
-  async getProjectsByWorkspaceId(
+  /** 取得所有專案by workspaceId & userId */
+  async getProjectsByWorkspaceIdAndUserId(
     workspaceId: string,
     userId: string,
   ): Promise<Project[]> {

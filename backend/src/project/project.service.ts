@@ -11,7 +11,10 @@ import { FindMembershipResponse } from './project.type';
 import { NotificationService } from '@/notification/notification.service';
 import { SocketService } from '@/socket/socket.service';
 import { Prisma, type Notification } from '@/generated/prisma/client';
-import type { ProjectMemberDto } from '@kanban/contracts/project';
+import type {
+  ProjectListItemDto,
+  ProjectMemberDto,
+} from '@kanban/contracts/project';
 @Injectable()
 export class ProjectService {
   constructor(
@@ -22,6 +25,56 @@ export class ProjectService {
     private readonly socketService: SocketService,
     private readonly projectRepository: ProjectRepository,
   ) {}
+
+  /** 取得所有專案by workspaceId & userId*/
+  async getProjectsByWorkspaceIdAndUserId(
+    workspaceId: string,
+    userId: string,
+  ): Promise<ProjectListItemDto[]> {
+    const workspace = await this.workspaceService.findMembership(
+      userId,
+      workspaceId,
+    );
+    if (workspace === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此工作區',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    if (workspace.workspaceArchivedAt !== null) {
+      throw new AppException({
+        status: HttpStatus.BAD_REQUEST,
+        message: '此工作區已被封存',
+        code: ApiCode.RequestError,
+      });
+    }
+    const projects =
+      await this.projectRepository.getProjectsByWorkspaceIdAndUserId(
+        workspaceId,
+        userId,
+      );
+    return projects.map((item) => {
+      const {
+        name,
+        id,
+        workspaceId,
+        description,
+        status,
+        createdAt,
+        updatedAt,
+      } = item;
+      return {
+        name,
+        id,
+        workspaceId,
+        description,
+        status,
+        createdAt: createdAt.toISOString(),
+        updatedAt: updatedAt.toISOString(),
+      };
+    });
+  }
   /** 找尋成員 */
   async findMembership(
     userId: string,

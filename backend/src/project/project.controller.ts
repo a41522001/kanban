@@ -24,11 +24,16 @@ import {
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { ProjectMemberDto } from '@kanban/contracts/project';
+import type {
+  ProjectListItemDto,
+  ProjectMemberDto,
+} from '@kanban/contracts/project';
 
 @ApiTags('Projects')
 @ApiCookieAuth()
@@ -90,6 +95,34 @@ export class ProjectController {
     const result = await this.projectService.getSingleProjectMember(
       req.userId!,
       projectId,
+    );
+    return { data: result };
+  }
+
+  /** 取得使用者所屬的專案by workspaceId & userId */
+  @ApiOperation({ summary: '取得使用者在指定工作區所屬的專案' })
+  @ApiParam({
+    name: 'workspaceId',
+    description: '工作區 UUID v4',
+    format: 'uuid',
+  })
+  @ApiOkResponse({
+    description: '回傳目前使用者所屬且未封存的專案列表',
+  })
+  @ApiBadRequestResponse({
+    description: 'workspaceId 格式錯誤或工作區已封存',
+  })
+  @ApiNotFoundResponse({
+    description: '工作區不存在或目前使用者不是工作區成員',
+  })
+  @Get(':workspaceId')
+  async getProjectsByWorkspaceIdAndUserId(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Req() req: Request,
+  ): Promise<ApiResult<ProjectListItemDto[]>> {
+    const result = await this.projectService.getProjectsByWorkspaceIdAndUserId(
+      workspaceId,
+      req.userId!,
     );
     return { data: result };
   }

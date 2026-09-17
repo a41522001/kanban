@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-16。以 Controllers、DTO、`packages/contracts`、完整 build 與 Backend unit tests 為準；隔離 E2E 沿用 2026-09-15 紀錄。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-17。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；測試紀錄見[進度](progress.md)。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -31,6 +31,7 @@
 | PATCH `/notifications/readAll` | 有效 Session，只能標記本人通知 | 無 | 200 / number；回傳本次實際標記的筆數，沒有未讀時為 0 |
 | POST `/project` | 有效 Session，且為未封存 Workspace 的成員 | `{ name, description?, workspaceId }` | 201 / null，message 為「創建成功」；建立 Project 與 OWNER ProjectMember |
 | POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標帳號必須是同 Workspace 的有效成員 | `{ projectId, memberEmail, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
+| GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID v4 path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
 
@@ -41,6 +42,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
 - WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
+- ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。
 - PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
 
@@ -67,7 +69,9 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 ## Project 邊界
 
-建立 Project 時，name 會 trim 且限制 100 字元，description 會 trim、空字串轉為未提供並限制 500 字元，workspaceId 必須是 UUID v4。任一未封存 WorkspaceMember 都可建立 Project；Service 在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。目前成功回應不回傳新 Project，Project list Repository 也尚未由 HTTP 暴露。
+建立 Project 時，name 會 trim 且限制 100 字元，description 會 trim、空字串轉為未提供並限制 500 字元，workspaceId 必須是 UUID v4。任一未封存 WorkspaceMember 都可建立 Project；Service 在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。目前成功回應不回傳新 Project。
+
+`GET /project/:workspaceId` 會先驗證目前使用者是該 Workspace 的有效成員，再透過 `workspaceId + userId` 查詢其所屬且未封存的 Project。Project 的 `status` 不作額外過濾，因此 `ACTIVE`、`ON_HOLD`、`COMPLETED` 都可能回傳。
 
 `POST /project/addMember` 是 command-style endpoint，不採邀請接受／拒絕流程。memberEmail 會 trim／lowercase，目標必須是已註冊且仍屬於 Project 所在 Workspace 的使用者；只有未封存 Project 的 OWNER 可操作，且不能透過此 DTO 指派另一個 OWNER。ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立，commit 後才向目標使用者的 user room 推送 `notification:created`。`(projectId, userId)` unique constraint 是重複加入的最終併行保護，Prisma P2002 轉為 409。
 
@@ -79,8 +83,15 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 | 目標帳號不存在或不是同 Workspace 的有效成員 | 404 / ResourceNotFound (3001) |
 | 目標已是 ProjectMember，包含併行 unique conflict | 409 / RequestError (4000) |
 
+Project list 的存取錯誤如下：
+
+| 情況 | HTTP status / code |
+| --- | --- |
+| 不是 WorkspaceMember 或找不到 Workspace | 404 / ResourceNotFound (3001) |
+| Workspace 已封存 | 400 / RequestError (4000) |
+
 ## Swagger 與待辦
 
 Swagger 位於 `/api/docs`。現有 Controller 均已標示 domain tag、operation summary、Cookie auth 與主要成功／錯誤狀態，request DTO 也提供欄位描述、格式、enum 與 example。Auth 的手寫 envelope schema 仍把 error 描述為 array，與實際 FieldError object 不一致；可重用 success/error envelope decorators 也尚未完成，因此 Swagger 仍不是完整 response contract 的唯一真相。
 
-尚待補上 Project list／detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。
+尚待補上 Project detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。
