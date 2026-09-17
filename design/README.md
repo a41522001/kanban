@@ -40,8 +40,8 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 ## Project overview contract
 
 - Desktop 使用「專案清單 + 已選取專案成員面板」的 master-detail 結構；選取專案不等同直接進入 Board，主要看板入口需保留為明確操作。
-- Project Card 顯示 `status`、目前使用者的 `ProjectRole`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。
-- 成員面板列出選取專案的所有成員與角色，僅顯示 `displayName`、`avatarUrl`、`joinedAt` 與 Project role，不得暴露其他 User 欄位。
+- Project Card 顯示 `status`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。Project role 不在 overview 顯示，進入專案內部後再呈現。
+- 成員面板列出選取專案的所有成員，僅顯示 `displayName`、`avatarUrl` 與 `joinedAt`，不在 overview 暴露 Project role 或其他 User 欄位。
 - Mobile 不保留雙欄；Project Card 顯示成員 avatar rail 與成員數，再由明確操作進入成員管理或主要看板。
 - Workspace membership 只代表可進入工作區；列表是否顯示 Project 仍以 `ProjectMember` 權限為準。Repository 可載入 Projects 與 Members，但 Service 必須完成目前使用者的權限驗證。
 - Project 狀態包含 `ACTIVE`、`ON_HOLD`、`COMPLETED`；封存是另一個維度，不與 `COMPLETED` 混用。
@@ -115,3 +115,5 @@ Card
 - Notification Trigger、Notification Item 與 Notification Dropdown 皆有原生 Component Set／Variant 對應。
 - Notification Read Action 需建立 Single／All 與 Default／Processing／Complete／Error variants，並保留 focus、disabled 與 `aria-live` 行為註記。
 - Notification Item 的 content action 與 read action 必須是分離的互動區；Workspace Invitation Response 必須由獨立 Dialog Component Set 組成，不在 Dropdown Item 內放接受／婉拒按鈕。
+- Workspace Overview 必須對應 `workspace-overview.svg`、`workspace-overview-tablet.svg`、`workspace-overview-mobile.svg` 三個 Current SVG，並保留各裝置不同的資訊密度與導覽結構。
+- Workspace 專案摘要使用獨立的 `Workspace Project Preview` Component Set，不得直接沿用 Project Overview 的 `Project Card` variants。
