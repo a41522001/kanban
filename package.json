@@ -11,7 +11,9 @@
     "test:backend:watch": "pnpm --filter backend test:watch",
     "test:backend:cov": "pnpm --filter backend test:cov",
     "test:backend:debug": "pnpm --filter backend test:debug",
-    "test:backend:e2e": "node scripts/runBackend.e2e.mjs"
+    "test:backend:e2e": "node scripts/runBackend.e2e.mjs",
+    "prisma:generate": "pnpm --filter backend exec prisma generate",
+    "prisma:deploy": "pnpm --filter backend exec prisma migrate deploy"
   },
   "license": "ISC",
   "engines": {

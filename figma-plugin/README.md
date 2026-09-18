@@ -28,14 +28,21 @@ npm run watch
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
 5. 按 `Generate All`；也可以單獨重建 Foundations、Components 或 Screens。
 
-目前 UI 版本標記為 `v7`。此版本將 Notification inbox 與 Workspace Invitation domain action 分離：Dropdown 只呈現通知摘要與已讀狀態；點擊 `WORKSPACE_INVITED` 的 content action 後，才開啟獨立的 `Workspace Invitation Detail Dialog`。通知卡的 content action 與 read action 是不同操作目標。
+目前 UI 版本標記為 `v9`。此版本將 Workspace Overview 的 Desktop／Tablet／Mobile Screen 重新對齊 Current SVG，並新增獨立的 `Workspace Project Preview` variants，避免 Workspace 卡片誤用 Project Overview 的 `Project Card`。Project role 仍不在 overview 顯示，進入專案內部後再呈現。Notification inbox 與 Workspace Invitation domain action 的分離亦維持不變。
 
 2026-09-12 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次修正後的 v7 `Generate All`：兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。已確認 Dialog Component Set 有 12 個分開排列的 variants，Screen 使用 Instances，並完成 Dialog states 與 Notification Item interaction contract 的 runtime／visual check。
 
-## v7 source-to-output manifest
+2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。Workspace Overview 的 Desktop／Tablet／Mobile 畫面亦已完成 runtime／visual check。
+
+## v9 source-to-output manifest
 
 | Source | Viewport／state | Figma output |
 | --- | --- | --- |
+| `../design/workspace-overview.svg` | Desktop `1440 × 900` | `02 · Components` → `Workspace Project Preview`; `03 · Screens` → `Workspace Overview` → Desktop |
+| `../design/workspace-overview-tablet.svg` | Tablet `768 × 1024` | 同上 → Tablet |
+| `../design/workspace-overview-mobile.svg` | Mobile `390 × 844` | 同上 → Mobile |
+| `../design/project-overview.svg` | Desktop `1440 × 900` | `02 · Components` → `Project Card`／`Selected Project Members`; `03 · Screens` → `Project Overview` → Desktop |
+| `../design/project-overview-mobile.svg` | Mobile `390 × 844` | `02 · Components` → `Project Card`; `03 · Screens` → `Project Overview` → Mobile |
 | `../design/notification-dropdown.svg` | Desktop `1440 × 900` | `02 · Components` → `Notification Item`／`Notification Dropdown`; `03 · Screens` → `Notifications` → Desktop |
 | `../design/notification-dropdown-mobile.svg` | Mobile `390 × 844` | 同上 → Mobile |
 | `../design/notification-dropdown-states.svg` | Loading／Empty／Error | `02 · Components` → `Notification Dropdown`; `03 · Screens` → Runtime States |

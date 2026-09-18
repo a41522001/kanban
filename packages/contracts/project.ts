@@ -14,10 +14,10 @@ export interface AddProjectMemberRequest {
   role: ProjectRole;
 }
 export interface ProjectMemberDto {
-    memberId: string;
-    displayName: string;
-    avatarUrl: string | null;
-    role: ProjectRole;
+  memberId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: ProjectRole;
 }
 export interface ProjectListItemDto {
   id: string;
@@ -25,7 +25,6 @@ export interface ProjectListItemDto {
   name: string;
   description: string | null;
   status: ProjectStatus;
-  currentUserRole: ProjectRole;
   createdAt: string;
   updatedAt: string;
 }

@@ -13,6 +13,8 @@ type NotificationState = 'Default' | 'Loading' | 'Empty' | 'Error';
 type NotificationReadScope = 'Single' | 'All';
 type NotificationReadState = 'Default' | 'Processing' | 'Complete' | 'Error';
 type InvitationDetailState = 'Loading' | 'Pending' | 'Responding' | 'Accepted' | 'Declined' | 'Unavailable';
+type WorkspaceProjectLayout = 'DesktopRecent' | 'DesktopGrid' | 'TabletRecent' | 'TabletGrid' | 'MobileRecent' | 'MobileGrid';
+type WorkspaceProjectPreview = 'Columns' | 'Timeline' | 'Progress';
 
 interface TokenStore {
   colors: Record<string, Variable>;
@@ -39,6 +41,7 @@ const colors: ColorMap = {
   'bg/surface': '#FFFFFF',
   'bg/subtle': '#F7F8FA',
   'bg/dark': '#29324A',
+  'bg/dark-raised': '#44506A',
   'text/primary': '#29324A',
   'text/secondary': '#697287',
   'text/tertiary': '#8B95A8',
@@ -506,22 +509,324 @@ function boardColumnComponent(): ComponentNode {
   return column;
 }
 
-function projectCardComponent(): ComponentNode {
+type ProjectCardViewport = 'Desktop' | 'Mobile';
+type ProjectCardState = 'Default' | 'Selected';
+type ProjectStatus = 'Active' | 'OnHold' | 'Completed';
+
+const projectStatusDetails: Record<ProjectStatus, { label: string; color: string; soft: string }> = {
+  Active: { label: '進行中', color: 'flow/active-strong', soft: 'flow/active-soft' },
+  OnHold: { label: '暫停中', color: 'flow/review', soft: 'flow/review-soft' },
+  Completed: { label: '已完成', color: 'flow/done', soft: 'flow/done-soft' },
+};
+
+function projectStatusBadge(status: ProjectStatus): FrameNode {
+  const details = projectStatusDetails[status];
+  const badge = auto('Status badge', 'HORIZONTAL', { gap: 8, padding: [3, 10], fill: details.soft, radius: 'radius/full' });
+  const dot = figma.createEllipse();
+  dot.name = 'Status dot';
+  dot.resize(8, 8);
+  applyFill(dot, details.color);
+  badge.appendChild(dot);
+  badge.appendChild(text('Status label', details.label, 'Label / Small', `category/${status === 'Active' ? 'mint' : status === 'OnHold' ? 'amber' : 'lavender'}`));
+  return badge;
+}
+
+function projectMemberAvatar(initial: string, size = 32): InstanceNode | FrameNode {
+  const avatar = instance(componentVariant('Avatar', `Size=${size}`), 'Project member avatar');
+  overrideText(avatar, 'Initial', initial);
+  return avatar;
+}
+
+function projectMemberRail(initials: string[], size = 32): FrameNode {
+  const rail = auto('Member avatars', 'HORIZONTAL', { gap: 4 });
+  initials.forEach((initial) => rail.appendChild(projectMemberAvatar(initial, size)));
+  return rail;
+}
+
+function workspaceColumnsPreview(width: number, height: number): FrameNode {
+  const preview = auto('Column summary', 'HORIZONTAL', { gap: 8 });
+  fixed(preview, width, height);
+  const columnWidth = (width - 24) / 4;
+  const fills = ['action/primary-soft', 'flow/active-soft', 'flow/review-soft', 'flow/done-soft'];
+  const accents = ['flow/ready', 'flow/active-strong', 'flow/review', 'flow/done'];
+  fills.forEach((fillName, index) => {
+    const column = auto(`Column ${index + 1}`, 'VERTICAL', { gap: 8, padding: [8], fill: fillName, radius: 'radius/sm' });
+    fixed(column, columnWidth, height);
+    const accent = figma.createRectangle();
+    accent.name = 'Column accent';
+    accent.resize(Math.max(columnWidth - 16, 8), 4);
+    accent.cornerRadius = 2;
+    applyFill(accent, accents[index]);
+    const task = figma.createRectangle();
+    task.name = 'Task preview';
+    task.resize(Math.max(columnWidth - 16, 8), Math.max(height - 36 - (index % 2) * 8, 14));
+    task.cornerRadius = 4;
+    applyFill(task, 'bg/surface');
+    column.appendChild(accent);
+    column.appendChild(task);
+    preview.appendChild(column);
+  });
+  return preview;
+}
+
+function workspaceTimelinePreview(width: number, labels = false): FrameNode {
+  const preview = auto('Timeline summary', 'VERTICAL', { gap: 10 });
+  fixed(preview, width, labels ? 54 : 28);
+  const track = auto('Timeline track', 'HORIZONTAL');
+  fixed(track, width, 16);
+  const line = figma.createRectangle();
+  line.name = 'Timeline line';
+  line.resize(width - 16, 2);
+  line.cornerRadius = 1;
+  applyFill(line, 'border/strong');
+  track.appendChild(line);
+  line.layoutPositioning = 'ABSOLUTE';
+  line.x = 8;
+  line.y = 7;
+  ['flow/ready', 'flow/active', 'flow/review', 'flow/done'].forEach((colorName, index) => {
+    const dot = figma.createEllipse();
+    dot.name = `Milestone ${index + 1}`;
+    dot.resize(16, 16);
+    applyFill(dot, colorName);
+    track.appendChild(dot);
+    dot.layoutPositioning = 'ABSOLUTE';
+    dot.x = index * ((width - 16) / 3);
+    dot.y = 0;
+  });
+  preview.appendChild(track);
+  if (labels) {
+    const labelRow = auto('Timeline labels', 'HORIZONTAL');
+    fixed(labelRow, width, 18);
+    labelRow.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    ['需求確認', '建置', '驗收', '上線'].forEach((label) => labelRow.appendChild(text('Milestone label', label, 'Label / Small', 'text/secondary')));
+    preview.appendChild(labelRow);
+  }
+  return preview;
+}
+
+function workspaceProgressPreview(width: number): FrameNode {
+  const preview = auto('Progress summary', 'VERTICAL', { gap: 8, padding: [12], fill: 'flow/done-soft', radius: 'radius/sm' });
+  fixed(preview, width, 52);
+  preview.appendChild(text('Progress label', '本週進度', 'Label / Small', 'text/secondary'));
+  const track = auto('Progress track', 'HORIZONTAL', { fill: 'border/default', radius: 'radius/full' });
+  fixed(track, width - 24, 6);
+  const value = figma.createRectangle();
+  value.name = 'Progress value';
+  value.resize((width - 24) * 0.66, 6);
+  value.cornerRadius = 3;
+  applyFill(value, 'flow/done');
+  track.appendChild(value);
+  preview.appendChild(track);
+  return preview;
+}
+
+function workspaceProjectPreviewVariant(layout: WorkspaceProjectLayout, previewType: WorkspaceProjectPreview): ComponentNode {
+  const recent = layout.endsWith('Recent');
+  const mobile = layout.startsWith('Mobile');
+  const tablet = layout.startsWith('Tablet');
+  const width = mobile ? 342 : tablet ? 352 : recent ? 552 : 352;
+  const height = recent ? 132 : mobile ? 136 : tablet ? 180 : 212;
+  const contentWidth = width - 40;
   const card = figma.createComponent();
-  card.name = 'Project Card';
-  card.description = 'Vertical Auto Layout · Padding 20px · Gap 12px';
+  card.name = `Layout=${layout}, Preview=${previewType}`;
+  card.description = 'Workspace overview project preview · recent or all-project summary · separate from Project Overview cards';
   card.layoutMode = 'VERTICAL';
-  card.primaryAxisSizingMode = 'AUTO';
+  card.primaryAxisSizingMode = 'FIXED';
   card.counterAxisSizingMode = 'FIXED';
-  card.itemSpacing = 12;
-  card.resize(352, 188);
-  setPadding(card, 20);
+  card.itemSpacing = recent ? 12 : 10;
+  fixed(card, width, height);
+  setPadding(card, 18, 20, 16, 20);
   applyFill(card, 'bg/subtle');
   setRadius(card, 'radius/lg');
+  card.effects = tokenStore.shadow?.effects ?? [{ type: 'DROP_SHADOW', color: { ...hex('#29324A'), a: 0.1 }, offset: { x: 0, y: 4 }, radius: 14, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const accentColor = previewType === 'Columns' ? 'flow/ready' : previewType === 'Timeline' ? 'flow/active' : 'flow/done';
+  if (recent || mobile) {
+    const accent = figma.createRectangle();
+    accent.name = 'Project accent';
+    accent.resize(4, height);
+    accent.cornerRadius = 2;
+    applyFill(accent, accentColor);
+    card.appendChild(accent);
+    accent.layoutPositioning = 'ABSOLUTE';
+    accent.x = 0;
+    accent.y = 0;
+  } else {
+    const accent = auto('Project accent', 'HORIZONTAL');
+    fixed(accent, width, 4);
+    const accentColors = previewType === 'Columns'
+      ? ['flow/ready', 'flow/active', 'flow/review', 'flow/done']
+      : [accentColor];
+    accentColors.forEach((colorName) => {
+      const segment = figma.createRectangle();
+      segment.name = 'Accent segment';
+      segment.resize(width / accentColors.length, 4);
+      applyFill(segment, colorName);
+      accent.appendChild(segment);
+    });
+    card.appendChild(accent);
+    accent.layoutPositioning = 'ABSOLUTE';
+    accent.x = 0;
+    accent.y = 0;
+  }
+
+  if (recent) {
+    const body = auto('Project summary', 'HORIZONTAL', { gap: 16 });
+    fixed(body, contentWidth, 66);
+    body.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    const copy = auto('Project copy', 'VERTICAL', { gap: 4 });
+    fixed(copy, mobile ? 196 : tablet ? 210 : 300, 62);
+    copy.appendChild(text('Title', 'Flowboard 即時協作', 'Heading / H3'));
+    copy.appendChild(text('Description', '主要看板 · WebSocket 練習', 'Body / Small', 'text/secondary'));
+    body.appendChild(copy);
+    const previewWidth = mobile ? 88 : tablet ? 96 : 184;
+    body.appendChild(previewType === 'Timeline'
+      ? workspaceTimelinePreview(previewWidth)
+      : previewType === 'Progress'
+        ? workspaceProgressPreview(previewWidth)
+        : workspaceColumnsPreview(previewWidth, mobile ? 52 : 64));
+    card.appendChild(body);
+    const meta = auto('Recent metadata', 'HORIZONTAL', { gap: 12 });
+    meta.appendChild(text('Meta', '9 張卡片 · 剛剛開啟', 'Body / Small', 'text/secondary'));
+    card.appendChild(meta);
+    return card;
+  }
+
   card.appendChild(text('Title', 'Flowboard 即時協作', 'Heading / H3'));
   card.appendChild(text('Description', '主要看板 · WebSocket 練習', 'Body / Small', 'text/secondary'));
-  card.appendChild(text('Meta', '9 張卡片 · 剛剛開啟', 'Body / Small', 'text/secondary'));
+  const previewWidth = contentWidth;
+  if (previewType === 'Timeline') card.appendChild(workspaceTimelinePreview(previewWidth, !mobile));
+  else if (previewType === 'Progress') card.appendChild(workspaceProgressPreview(previewWidth));
+  else card.appendChild(workspaceColumnsPreview(previewWidth, mobile ? 40 : tablet ? 40 : 48));
+  if (!mobile) {
+    const divider = figma.createRectangle();
+    divider.name = 'Divider';
+    divider.resize(contentWidth, 1);
+    applyFill(divider, 'border/default');
+    card.appendChild(divider);
+  }
+  card.appendChild(text('Meta', previewType === 'Timeline' ? '更新於昨天' : previewType === 'Progress' ? '更新於 8 月 18 日' : '更新於 5 分鐘前', 'Body / Small', 'text/secondary'));
   return card;
+}
+
+function projectOverviewCardVariant(viewport: ProjectCardViewport, state: ProjectCardState, status: ProjectStatus): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const selected = state === 'Selected';
+  const card = figma.createComponent();
+  card.name = `Viewport=${viewport}, State=${state}, Status=${status}`;
+  card.description = mobile
+    ? 'Project Card · Mobile · Project status, description, member avatars and board entry action'
+    : 'Project Card · Desktop · Project status, description, main board preview and updated time';
+  card.layoutMode = 'VERTICAL';
+  card.primaryAxisSizingMode = 'FIXED';
+  card.counterAxisSizingMode = 'FIXED';
+  card.itemSpacing = mobile ? 10 : 12;
+  card.resize(mobile ? 342 : 704, mobile ? (selected ? 188 : 156) : (selected ? 168 : 148));
+  setPadding(card, mobile ? 18 : 20, mobile ? 20 : 24, mobile ? 14 : 20, mobile ? 20 : 24);
+  applyFill(card, selected ? 'bg/surface' : 'bg/subtle');
+  applyStroke(card, selected ? 'action/primary' : 'border/default', selected ? 2 : 1);
+  setRadius(card, 'radius/lg');
+  if (selected) {
+    card.effects = tokenStore.shadow?.effects ?? [{ type: 'DROP_SHADOW', color: { ...hex('#29324A'), a: 0.1 }, offset: { x: 0, y: 4 }, radius: 14, spread: 0, visible: true, blendMode: 'NORMAL' }];
+  }
+
+  card.appendChild(projectStatusBadge(status));
+
+  if (mobile) {
+    card.appendChild(text('Title', 'Flowboard 即時協作', 'Heading / H3'));
+    card.appendChild(text('Description', 'Socket.IO 通知與多人 Kanban 協作。', 'Body / Small', 'text/secondary'));
+    card.appendChild(text('Member summary', selected ? '專案成員 · 4' : '專案成員 · 3', 'Label / Small', 'text/secondary'));
+    const footer = auto('Mobile card footer', 'HORIZONTAL', { gap: 12 });
+    footer.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    footer.resize(302, 36);
+    footer.appendChild(projectMemberRail(selected ? ['J', 'M', 'A', 'L'] : ['J', 'M', '+1'], 32));
+    const enter = auto('Enter board action', 'HORIZONTAL', { gap: 6, padding: [8, 12], fill: selected ? 'action/primary' : 'bg/surface', radius: 'radius/md' });
+    fixed(enter, 104, 36);
+    if (!selected) applyStroke(enter);
+    enter.appendChild(text('Label', '進入看板', 'Label / Medium', selected ? 'text/on-dark' : 'text/primary'));
+    enter.appendChild(icon('Arrow icon', '<path d="M2 12h16M12 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 14, selected ? 'text/on-dark' : 'text/secondary'));
+    footer.appendChild(enter);
+    card.appendChild(footer);
+    return card;
+  }
+
+  const content = auto('Project content', 'HORIZONTAL', { gap: 16 });
+  content.resize(656, 72);
+  const copy = auto('Project copy', 'VERTICAL', { gap: 8 });
+  fixed(copy, 500, 72);
+  copy.appendChild(text('Title', 'Flowboard 即時協作', 'Heading / H3'));
+  copy.appendChild(text('Description', 'Socket.IO 即時通知與多人 Kanban 協作練習。', 'Body / Small', 'text/secondary'));
+  content.appendChild(copy);
+
+  const preview = auto('Board preview', 'HORIZONTAL', { gap: 8, padding: [14], fill: 'bg/subtle', radius: 'radius/md' });
+  fixed(preview, 120, 72);
+  ['action/primary-soft', 'flow/active-soft', 'flow/review-soft', 'flow/done-soft'].forEach((colorName, index) => {
+    const column = figma.createRectangle();
+    column.name = `Board preview column ${index + 1}`;
+    column.resize(18, index % 2 === 0 ? 44 : 32);
+    column.cornerRadius = 5;
+    applyFill(column, colorName);
+    preview.appendChild(column);
+  });
+  content.appendChild(preview);
+  card.appendChild(content);
+
+  const meta = auto('Project metadata', 'HORIZONTAL', { gap: 8 });
+  meta.appendChild(text('Board label', '主要看板', 'Body / Small', 'text/secondary'));
+  meta.appendChild(text('Board name', '產品交付看板', 'Label / Medium'));
+  meta.appendChild(text('Updated', '更新於 5 分鐘前', 'Body / Small', 'text/secondary'));
+  card.appendChild(meta);
+  return card;
+}
+
+function selectedProjectMembersComponent(): ComponentNode {
+  const panel = figma.createComponent();
+  panel.name = 'Selected Project Members';
+  panel.description = 'Project overview master-detail panel · ProjectMember displayName, avatarUrl and joinedAt only';
+  panel.layoutMode = 'VERTICAL';
+  panel.primaryAxisSizingMode = 'FIXED';
+  panel.counterAxisSizingMode = 'FIXED';
+  panel.itemSpacing = 16;
+  panel.resize(392, 516);
+  setPadding(panel, 30, 24, 24, 24);
+  applyFill(panel, 'bg/surface');
+  setRadius(panel, 'radius/xl');
+  panel.effects = tokenStore.shadow?.effects ?? [{ type: 'DROP_SHADOW', color: { ...hex('#29324A'), a: 0.1 }, offset: { x: 0, y: 4 }, radius: 14, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const accent = figma.createRectangle();
+  accent.name = 'Selection accent';
+  accent.resize(344, 6);
+  accent.cornerRadius = 3;
+  applyFill(accent, 'action/primary');
+  panel.insertChild(0, accent);
+
+  panel.appendChild(text('Eyebrow', '已選取的專案', 'Label / Small', 'text/secondary'));
+  panel.appendChild(text('Title', 'Flowboard 即時協作', 'Heading / H3'));
+  panel.appendChild(text('Member count', '4 位成員', 'Body / Small', 'text/secondary'));
+  panel.appendChild(text('Section label', '專案成員', 'Label / Small', 'text/secondary'));
+
+  [['J', 'Jeffery', '加入於 9 月 13 日'], ['M', 'Mina', '加入於 9 月 13 日'], ['A', 'Alex', '加入於 9 月 14 日'], ['L', 'Lena', '加入於 9 月 14 日']].forEach(([initial, name, joinedAt]) => {
+    const row = auto(`Member / ${name}`, 'HORIZONTAL', { gap: 16 });
+    fixed(row, 344, 48);
+    row.appendChild(projectMemberAvatar(initial, 40));
+    const copy = auto('Member copy', 'VERTICAL', { gap: 2 });
+    copy.appendChild(text('Display name', name, 'Label / Medium'));
+    copy.appendChild(text('Joined at', joinedAt, 'Body / Small', 'text/secondary'));
+    row.appendChild(copy);
+    panel.appendChild(row);
+  });
+
+  const actions = auto('Project actions', 'HORIZONTAL', { gap: 8 });
+  const manage = instance(componentVariant('Button', 'Outline'), 'Manage members');
+  fixed(manage, 164, 44);
+  overrideText(manage, 'Label', '管理成員');
+  const enter = instance(componentVariant('Button', 'Primary'), 'Enter board');
+  fixed(enter, 168, 44);
+  overrideText(enter, 'Label', '進入看板');
+  actions.appendChild(manage);
+  actions.appendChild(enter);
+  panel.appendChild(actions);
+  return panel;
 }
 
 function dialogComponent(): ComponentNode {
@@ -1156,11 +1461,46 @@ async function buildComponents(replace = true): Promise<FrameNode> {
   root.appendChild(taskCardRow);
   componentSets['Task Card'] = componentSet('Task Card', (['Default', 'Progress', 'Locked', 'Done'] as const).map(taskCardVariant), taskCardRow);
 
+  const workspaceProjectPreviewRow = auto('Workspace Project Preview', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(workspaceProjectPreviewRow);
+  const workspaceProjectPreviewVariants: Array<[WorkspaceProjectLayout, WorkspaceProjectPreview]> = [
+    ['DesktopRecent', 'Columns'],
+    ['DesktopRecent', 'Timeline'],
+    ['DesktopGrid', 'Columns'],
+    ['DesktopGrid', 'Timeline'],
+    ['DesktopGrid', 'Progress'],
+    ['TabletRecent', 'Columns'],
+    ['TabletRecent', 'Timeline'],
+    ['TabletGrid', 'Columns'],
+    ['TabletGrid', 'Timeline'],
+    ['TabletGrid', 'Progress'],
+    ['MobileRecent', 'Columns'],
+    ['MobileGrid', 'Timeline'],
+    ['MobileGrid', 'Progress'],
+  ];
+  componentSets['Workspace Project Preview'] = componentSet(
+    'Workspace Project Preview',
+    workspaceProjectPreviewVariants.map(([layout, preview]) => workspaceProjectPreviewVariant(layout, preview)),
+    workspaceProjectPreviewRow,
+  );
+
+  const projectCardRow = auto('Project Card', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(projectCardRow);
+  componentSets['Project Card'] = componentSet(
+    'Project Card',
+    (['Desktop', 'Mobile'] as const).flatMap((viewport) =>
+      (['Default', 'Selected'] as const).flatMap((state) =>
+        (['Active', 'OnHold', 'Completed'] as const).map((status) => projectOverviewCardVariant(viewport, state, status)),
+      ),
+    ),
+    projectCardRow,
+  );
+
   const core = auto('Core components', 'HORIZONTAL', { gap: 48 });
   root.appendChild(core);
   [
     boardColumnComponent(),
-    projectCardComponent(),
+    selectedProjectMembersComponent(),
     dialogComponent(),
     workspaceInviteDialogComponent(),
     workspaceInviteDialogComponent(true),
@@ -1183,7 +1523,7 @@ function localComponent(name: string): ComponentNode | undefined {
 }
 
 async function hydrateComponentCache(): Promise<void> {
-  if (componentSets.Button && componentSets['Task Card'] && componentSets['Notification Read Action'] && componentSets['Notification Dropdown'] && componentSets['Workspace Invitation Detail Dialog']) return;
+  if (componentSets.Button && componentSets['Task Card'] && componentSets['Workspace Project Preview'] && componentSets['Project Card'] && componentSets['Notification Read Action'] && componentSets['Notification Dropdown'] && componentSets['Workspace Invitation Detail Dialog'] && standaloneComponents['Selected Project Members']) return;
   const page = figma.root.children.find((candidate) => candidate.name === '02 · Components');
   if (!page) return;
   await figma.setCurrentPageAsync(page);
@@ -1230,37 +1570,162 @@ function appHeader(): FrameNode {
   return header;
 }
 
-function sidebar(): FrameNode {
-  const sidebar = auto('Sidebar', 'VERTICAL', { gap: 24, padding: [24, 16], fill: 'bg/dark' });
+function workspaceOverviewSidebar(): FrameNode {
+  const sidebar = auto('Workspace overview sidebar', 'VERTICAL', { padding: [32, 16, 24, 16], fill: 'bg/canvas' });
   fixed(sidebar, 256, 844);
-  const workspace = auto('Workspace switcher', 'HORIZONTAL', { gap: 12, padding: [12], fill: 'bg/dark', radius: 'radius/lg' });
-  const logo = auto('Workspace avatar', 'HORIZONTAL', { padding: [8], fill: 'action/primary', radius: 'radius/md' });
+  sidebar.primaryAxisAlignItems = 'SPACE_BETWEEN';
+
+  const upper = auto('Workspace navigation', 'VERTICAL', { gap: 16 });
+  fixed(upper, 224, 420);
+  upper.appendChild(text('Workspace label', '你的工作區', 'Label / Small', 'text/secondary'));
+  const workspace = auto('Selected workspace', 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: 'bg/dark', radius: 'radius/lg' });
+  fixed(workspace, 224, 56);
+  workspace.counterAxisAlignItems = 'CENTER';
+  const logo = auto('Workspace avatar', 'HORIZONTAL', { fill: 'action/primary', radius: 'radius/md' });
+  fixed(logo, 40, 40);
+  logo.primaryAxisAlignItems = 'CENTER';
+  logo.counterAxisAlignItems = 'CENTER';
   logo.appendChild(text('Initial', 'J', 'Label / Medium', 'text/on-dark'));
-  workspace.appendChild(logo);
   const labels = auto('Workspace labels', 'VERTICAL', { gap: 2 });
   labels.appendChild(text('Workspace name', 'Jeffery 的工作區', 'Label / Medium', 'text/on-dark'));
-  labels.appendChild(text('Workspace meta', '擁有者 · 3 個專案', 'Body / Small', 'text/on-dark'));
+  labels.appendChild(text('Workspace meta', '擁有者 · 3 個專案', 'Body / Small', 'text/on-dark-muted'));
+  workspace.appendChild(logo);
   workspace.appendChild(labels);
-  sidebar.appendChild(workspace);
-  const navigation = auto('Navigation', 'VERTICAL', { gap: 4 });
-  ['工作區', '最近', '成員', '已封存專案'].forEach((label, index) => {
-    const item = auto(`Nav item / ${label}`, 'HORIZONTAL', { padding: [10, 12], fill: index === 0 ? 'bg/subtle' : 'bg/dark', radius: 'radius/md' });
-    item.appendChild(text('Label', label, 'Label / Medium', index === 0 ? 'text/primary' : 'text/on-dark'));
-    navigation.appendChild(item);
+  upper.appendChild(workspace);
+
+  const createWorkspace = auto('Create workspace', 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: 'bg/surface', stroke: 'border/default', radius: 'radius/md' });
+  fixed(createWorkspace, 224, 44);
+  createWorkspace.counterAxisAlignItems = 'CENTER';
+  createWorkspace.appendChild(icon('Plus icon', '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 18));
+  createWorkspace.appendChild(text('Label', '新增工作區', 'Body / Medium'));
+  upper.appendChild(createWorkspace);
+
+  const divider = figma.createRectangle();
+  divider.name = 'Sidebar divider';
+  divider.resize(224, 1);
+  applyFill(divider, 'border/strong');
+  upper.appendChild(divider);
+  upper.appendChild(text('Management label', '工作區管理', 'Label / Small', 'text/secondary'));
+  const management = auto('Management links', 'VERTICAL', { gap: 4 });
+  const rows: Array<[string, string, string]> = [
+    ['Members', '成員', '5'],
+    ['Archive', '已封存專案', '1'],
+  ];
+  rows.forEach(([name, label, count]) => {
+    const row = auto(`Management / ${name}`, 'HORIZONTAL', { gap: 12, padding: [9, 4] });
+    fixed(row, 224, 36);
+    row.counterAxisAlignItems = 'CENTER';
+    row.appendChild(icon(`${name} icon`, name === 'Members'
+      ? '<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-4 2.5-6 6-6s6 2 6 6M17 7c2 0 4 1.5 4 4M17 14c2.5 0 4 2 4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      : '<path d="M3 6h18v14H3zM2 3h20v4H2zM9 12h6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>', 18));
+    const labelNode = text('Label', label, 'Body / Medium');
+    labelNode.resize(164, 22);
+    row.appendChild(labelNode);
+    row.appendChild(text('Count', count, 'Body / Small', 'text/secondary'));
+    management.appendChild(row);
   });
-  sidebar.appendChild(navigation);
-  sidebar.appendChild(text('Members label', '工作區成員', 'Label / Small', 'text/on-dark'));
-  const members = auto('Members', 'HORIZONTAL', { gap: 8 });
-  [32, 32, 32].forEach(() => members.appendChild(instance(componentVariant('Avatar', 'Size=32'), 'Avatar')));
+  upper.appendChild(management);
+  sidebar.appendChild(upper);
+
+  const members = auto('Workspace members', 'VERTICAL', { gap: 12 });
+  members.appendChild(text('Members label', '工作區成員', 'Label / Small', 'text/secondary'));
+  members.appendChild(projectMemberRail(['J', 'M', 'A', '+2'], 32));
+  members.appendChild(text('Members hint', '5 位成員正在一起推進工作', 'Body / Small', 'text/secondary'));
   sidebar.appendChild(members);
   return sidebar;
 }
 
-function projectCard(titleValue: string, description: string, flowColor: string): InstanceNode | FrameNode {
-  const card = instance(localComponent('Project Card'), 'Project Card');
+function workspaceProjectCard(
+  layout: WorkspaceProjectLayout,
+  preview: WorkspaceProjectPreview,
+  titleValue: string,
+  description: string,
+  meta: string,
+): InstanceNode | FrameNode {
+  const card = instance(componentVariant('Workspace Project Preview', `Layout=${layout}, Preview=${preview}`), 'Workspace Project Preview');
   overrideText(card, 'Title', titleValue);
   overrideText(card, 'Description', description);
+  overrideText(card, 'Meta', meta);
   return card;
+}
+
+function workspacePrimaryAction(width: number): InstanceNode | FrameNode {
+  const action = instance(componentVariant('Button', 'Primary'), 'Create project');
+  fixed(action, width, 48);
+  overrideText(action, 'Label', '新增專案');
+  return action;
+}
+
+function workspaceSelector(width: number): FrameNode {
+  const selector = auto('Current workspace switcher', 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: 'bg/subtle', stroke: 'border/default', radius: 'radius/lg' });
+  fixed(selector, width, 56);
+  selector.counterAxisAlignItems = 'CENTER';
+  const avatar = auto('Workspace avatar', 'HORIZONTAL', { fill: 'action/primary', radius: 'radius/md' });
+  fixed(avatar, 32, 32);
+  avatar.primaryAxisAlignItems = 'CENTER';
+  avatar.counterAxisAlignItems = 'CENTER';
+  avatar.appendChild(text('Initial', 'J', 'Label / Medium', 'text/on-dark'));
+  selector.appendChild(avatar);
+  const copy = auto('Workspace copy', 'VERTICAL', { gap: 2 });
+  const copyWidth = width - 100;
+  fixed(copy, copyWidth, 38);
+  copy.appendChild(text('Workspace name', 'Jeffery 的工作區', 'Label / Medium'));
+  copy.appendChild(text('Workspace meta', '3 個專案 · 5 位成員', 'Body / Small', 'text/secondary'));
+  selector.appendChild(copy);
+  selector.appendChild(icon('Chevron down', '<path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 20));
+  return selector;
+}
+
+function workspaceCompactHeader(width: 768 | 390): FrameNode {
+  const mobile = width === 390;
+  const header = auto('Workspace header', 'HORIZONTAL', { padding: [12, mobile ? 20 : 24], fill: 'bg/dark' });
+  fixed(header, width, 64);
+  header.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  header.counterAxisAlignItems = 'CENTER';
+  const brand = auto('Brand', 'HORIZONTAL', { gap: 12 });
+  brand.counterAxisAlignItems = 'CENTER';
+  if (mobile) {
+    const menu = auto('Menu button', 'HORIZONTAL', { fill: 'bg/dark-raised', radius: 'radius/md' });
+    fixed(menu, 40, 40);
+    menu.primaryAxisAlignItems = 'CENTER';
+    menu.counterAxisAlignItems = 'CENTER';
+    menu.appendChild(icon('Menu icon', '<path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 20, 'text/on-dark'));
+    brand.appendChild(menu);
+  }
+  const mark = auto('Logo mark', 'HORIZONTAL', { gap: 6 });
+  const coral = figma.createRectangle(); coral.resize(18, 24); coral.cornerRadius = 4; applyFill(coral, 'action/primary');
+  const mint = figma.createRectangle(); mint.resize(18, 16); mint.cornerRadius = 4; applyFill(mint, 'flow/active');
+  mark.appendChild(coral); mark.appendChild(mint); brand.appendChild(mark);
+  brand.appendChild(text('Wordmark', 'Flowboard', mobile ? 'Heading / H2' : 'Heading / H3', 'text/on-dark'));
+  const actions = auto('Header actions', 'HORIZONTAL', { gap: 16 });
+  actions.counterAxisAlignItems = 'CENTER';
+  const plus = auto('Create project shortcut', 'HORIZONTAL', { fill: 'bg/dark-raised', radius: 'radius/md' });
+  fixed(plus, 40, 40);
+  plus.primaryAxisAlignItems = 'CENTER';
+  plus.counterAxisAlignItems = 'CENTER';
+  plus.appendChild(icon('Plus icon', '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 22, 'text/on-dark'));
+  actions.appendChild(plus);
+  actions.appendChild(instance(componentVariant('Avatar', 'Size=32'), 'Avatar'));
+  header.appendChild(brand);
+  header.appendChild(actions);
+  return header;
+}
+
+function workspaceCreateProjectTile(): FrameNode {
+  const tile = auto('Create new project', 'VERTICAL', { gap: 10, fill: 'bg/canvas', stroke: 'text/tertiary', radius: 'radius/lg' });
+  fixed(tile, 352, 180);
+  tile.primaryAxisAlignItems = 'CENTER';
+  tile.counterAxisAlignItems = 'CENTER';
+  tile.dashPattern = [8, 8];
+  const plus = auto('Create icon', 'HORIZONTAL', { fill: 'bg/subtle', radius: 'radius-full' });
+  fixed(plus, 48, 48);
+  plus.primaryAxisAlignItems = 'CENTER';
+  plus.counterAxisAlignItems = 'CENTER';
+  plus.appendChild(icon('Plus icon', '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 20));
+  tile.appendChild(plus);
+  tile.appendChild(text('Title', '建立新的專案', 'Label / Medium'));
+  tile.appendChild(text('Description', '從主要看板與四個預設欄位開始', 'Body / Small', 'text/secondary'));
+  return tile;
 }
 
 function workspaceScreen(): FrameNode {
@@ -1270,28 +1735,44 @@ function workspaceScreen(): FrameNode {
   screen.appendChild(appHeader());
   const shell = auto('App shell', 'HORIZONTAL');
   fixed(shell, 1440, 844);
-  shell.appendChild(sidebar());
-  const main = auto('Main content', 'VERTICAL', { gap: 32, padding: [40], fill: 'bg/canvas' });
+  shell.appendChild(workspaceOverviewSidebar());
+  const main = auto('Main content', 'VERTICAL', { gap: 24, padding: [40, 32], fill: 'bg/canvas' });
   fixed(main, 1184, 844);
   const pageHeader = auto('Page header', 'HORIZONTAL');
   pageHeader.primaryAxisAlignItems = 'SPACE_BETWEEN';
-  pageHeader.resize(1104, 84);
+  fixed(pageHeader, 1120, 84);
   const heading = auto('Heading', 'VERTICAL', { gap: 8 });
   heading.appendChild(text('Eyebrow', '工作區', 'Label / Small', 'text/secondary'));
   heading.appendChild(text('Title', 'Jeffery 的工作區', 'Heading / H1'));
   heading.appendChild(text('Description', '集中查看所有專案，選一個進入主要看板。', 'Body / Medium', 'text/secondary'));
   pageHeader.appendChild(heading);
-  pageHeader.appendChild(instance(componentVariant('Button', 'Primary'), 'Button'));
+  pageHeader.appendChild(workspacePrimaryAction(200));
   main.appendChild(pageHeader);
-  main.appendChild(text('Section title', '最近開啟', 'Heading / H3'));
-  const recent = auto('Recent projects', 'HORIZONTAL', { gap: 20 });
-  recent.appendChild(projectCard('Flowboard 即時協作', '主要看板 · WebSocket 練習', 'flow/ready'));
-  recent.appendChild(projectCard('發佈自動化', '主要看板 · CI/CD 與部署檢查', 'flow/active'));
-  main.appendChild(recent);
-  main.appendChild(text('Section title', '所有專案', 'Heading / H3'));
-  const projects = auto('Project grid', 'HORIZONTAL', { gap: 20 });
-  ['Flowboard 即時協作', '發佈自動化', '技術成長計畫'].forEach((name, index) => projects.appendChild(projectCard(name, ['WebSocket 練習', 'CI/CD 與部署檢查', '.NET、AWS、系統設計'][index], 'flow/done')));
-  main.appendChild(projects);
+  const recentSection = auto('Recent section', 'VERTICAL', { gap: 12 });
+  const recentHeading = auto('Recent heading', 'HORIZONTAL');
+  fixed(recentHeading, 1120, 28);
+  recentHeading.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  recentHeading.appendChild(text('Section title', '最近開啟', 'Heading / H3'));
+  recentHeading.appendChild(text('View all', '查看全部', 'Body / Small', 'action/primary-hover'));
+  recentSection.appendChild(recentHeading);
+  const recent = auto('Recent projects', 'HORIZONTAL', { gap: 16 });
+  recent.appendChild(workspaceProjectCard('DesktopRecent', 'Columns', 'Flowboard 即時協作', '主要看板 · WebSocket 練習', '9 張卡片 · 剛剛開啟'));
+  recent.appendChild(workspaceProjectCard('DesktopRecent', 'Timeline', '發佈自動化', '主要看板 · CI/CD 與部署檢查', '14 張卡片 · 昨天開啟'));
+  recentSection.appendChild(recent);
+  main.appendChild(recentSection);
+
+  const allSection = auto('All projects section', 'VERTICAL', { gap: 12 });
+  const allHeading = auto('All projects heading', 'VERTICAL', { gap: 2 });
+  allHeading.appendChild(text('Section title', '所有專案', 'Heading / H3'));
+  allHeading.appendChild(text('Section meta', '3 個專案 · 依最近更新排序', 'Body / Small', 'text/secondary'));
+  allSection.appendChild(allHeading);
+  const projects = auto('Project grid', 'HORIZONTAL', { gap: 16 });
+  projects.appendChild(workspaceProjectCard('DesktopGrid', 'Columns', 'Flowboard 即時協作', '主要看板 · WebSocket 練習', '更新於 5 分鐘前'));
+  projects.appendChild(workspaceProjectCard('DesktopGrid', 'Timeline', '發佈自動化', '主要看板 · CI/CD 與部署檢查', '更新於昨天'));
+  projects.appendChild(workspaceProjectCard('DesktopGrid', 'Progress', '技術成長計畫', '主要看板 · .NET、AWS、系統設計', '更新於 8 月 18 日'));
+  allSection.appendChild(projects);
+  allSection.appendChild(text('Archived projects', '已封存 1 個專案　›', 'Body / Small', 'text/secondary'));
+  main.appendChild(allSection);
   shell.appendChild(main);
   screen.appendChild(shell);
   return screen;
@@ -1471,21 +1952,305 @@ function dragStatesScreen(): FrameNode {
 }
 
 function workspaceTabletScreen(): FrameNode {
-  const screen = auto('Workspace / Tablet / 768×1024', 'VERTICAL', { gap: 24, padding: [24], fill: 'bg/canvas' }); fixed(screen, 768, 1024);
-  const header = appHeader(); header.resize(720, 56); screen.appendChild(header);
-  screen.appendChild(text('Eyebrow', '目前工作區', 'Label / Small', 'text/secondary'));
-  screen.appendChild(text('Title', 'Jeffery 的工作區', 'Heading / H2'));
-  screen.appendChild(text('Description', '選一個專案，進入主要看板繼續推進。', 'Body / Medium', 'text/secondary'));
-  const recent = auto('Recent projects', 'HORIZONTAL', { gap: 16 }); recent.appendChild(projectCard('Flowboard 即時協作', '主要看板 · WebSocket 練習', 'flow/ready')); recent.appendChild(projectCard('發佈自動化', '主要看板 · CI/CD 與部署檢查', 'flow/active')); screen.appendChild(recent);
-  screen.appendChild(text('Section title', '所有專案', 'Heading / H3')); return screen;
+  const screen = auto('Workspace / Tablet / 768×1024', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 768, 1024);
+  screen.clipsContent = true;
+  screen.appendChild(workspaceCompactHeader(768));
+  const content = auto('Workspace tablet content', 'VERTICAL', { gap: 20, padding: [32, 24], fill: 'bg/canvas' });
+  fixed(content, 768, 960);
+  const context = auto('Workspace context', 'VERTICAL', { gap: 8 });
+  context.appendChild(text('Eyebrow', '目前工作區', 'Label / Small', 'text/secondary'));
+  context.appendChild(workspaceSelector(720));
+  content.appendChild(context);
+
+  const pageHeader = auto('Page heading', 'HORIZONTAL');
+  fixed(pageHeader, 720, 72);
+  pageHeader.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  pageHeader.counterAxisAlignItems = 'CENTER';
+  const heading = auto('Heading copy', 'VERTICAL', { gap: 4 });
+  heading.appendChild(text('Title', '所有專案都在這裡', 'Heading / H1'));
+  heading.appendChild(text('Description', '選一個專案，進入主要看板繼續推進。', 'Body / Medium', 'text/secondary'));
+  pageHeader.appendChild(heading);
+  pageHeader.appendChild(workspacePrimaryAction(184));
+  content.appendChild(pageHeader);
+
+  const recentSection = auto('Recent section', 'VERTICAL', { gap: 12 });
+  recentSection.appendChild(text('Section title', '最近開啟', 'Heading / H3'));
+  const recent = auto('Recent projects', 'HORIZONTAL', { gap: 16 });
+  recent.appendChild(workspaceProjectCard('TabletRecent', 'Columns', 'Flowboard 即時協作', '主要看板 · WebSocket 練習', '9 張卡片 · 剛剛'));
+  recent.appendChild(workspaceProjectCard('TabletRecent', 'Timeline', '發佈自動化', '主要看板 · CI/CD 與部署檢查', '14 張卡片 · 昨天'));
+  recentSection.appendChild(recent);
+  content.appendChild(recentSection);
+
+  const allSection = auto('All projects section', 'VERTICAL', { gap: 12 });
+  const allHeading = auto('All projects heading', 'VERTICAL', { gap: 2 });
+  allHeading.appendChild(text('Section title', '所有專案', 'Heading / H3'));
+  allHeading.appendChild(text('Sort label', '依最近更新排序', 'Body / Small', 'text/secondary'));
+  allSection.appendChild(allHeading);
+  const projectRows = auto('Project rows', 'VERTICAL', { gap: 16 });
+  const firstRow = auto('Project row 1', 'HORIZONTAL', { gap: 16 });
+  firstRow.appendChild(workspaceProjectCard('TabletGrid', 'Columns', 'Flowboard 即時協作', '主要看板 · WebSocket 練習', '更新於 5 分鐘前'));
+  firstRow.appendChild(workspaceProjectCard('TabletGrid', 'Timeline', '發佈自動化', '主要看板 · CI/CD 與部署檢查', '更新於昨天'));
+  const secondRow = auto('Project row 2', 'HORIZONTAL', { gap: 16 });
+  secondRow.appendChild(workspaceProjectCard('TabletGrid', 'Progress', '技術成長計畫', '主要看板 · .NET、AWS、系統設計', '更新於 8 月 18 日'));
+  secondRow.appendChild(workspaceCreateProjectTile());
+  projectRows.appendChild(firstRow);
+  projectRows.appendChild(secondRow);
+  allSection.appendChild(projectRows);
+  content.appendChild(allSection);
+  screen.appendChild(content);
+  return screen;
 }
 
 function workspaceMobileScreen(): FrameNode {
-  const screen = auto('Workspace / Mobile / 390×844', 'VERTICAL', { gap: 20, padding: [20, 16], fill: 'bg/canvas' }); fixed(screen, 390, 844);
-  const header = auto('Mobile header', 'HORIZONTAL', { gap: 12, padding: [12, 16], fill: 'bg/dark' }); fixed(header, 358, 56); header.primaryAxisAlignItems = 'SPACE_BETWEEN'; header.appendChild(text('Brand', 'Flowboard', 'Label / Medium', 'text/on-dark'));
-  const actions = auto('Header actions', 'HORIZONTAL', { gap: 8 }); actions.appendChild(instance(componentVariant('Notification Trigger', 'State=Unread'), 'Notification trigger')); actions.appendChild(instance(componentVariant('Avatar', 'Size=32'), 'Avatar')); header.appendChild(actions); screen.appendChild(header);
-  screen.appendChild(text('Eyebrow', '目前工作區', 'Label / Small', 'text/secondary')); screen.appendChild(text('Title', '選一個專案繼續', 'Heading / H2')); screen.appendChild(text('Description', '所有專案都集中在這個工作區。', 'Body / Medium', 'text/secondary'));
-  screen.appendChild(projectCard('Flowboard 即時協作', '主要看板 · WebSocket 練習', 'flow/ready')); screen.appendChild(projectCard('發佈自動化', '主要看板 · CI/CD 與部署檢查', 'flow/active')); return screen;
+  const screen = auto('Workspace / Mobile / 390×844', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 390, 844);
+  screen.clipsContent = true;
+  screen.appendChild(workspaceCompactHeader(390));
+  const content = auto('Workspace mobile content', 'VERTICAL', { gap: 16, padding: [24], fill: 'bg/canvas' });
+  fixed(content, 390, 780);
+  const context = auto('Workspace context', 'VERTICAL', { gap: 8 });
+  context.appendChild(text('Eyebrow', '目前工作區', 'Label / Small', 'text/secondary'));
+  context.appendChild(workspaceSelector(342));
+  content.appendChild(context);
+  const heading = auto('Page heading', 'VERTICAL', { gap: 4 });
+  heading.appendChild(text('Title', '選一個專案繼續', 'Heading / H1'));
+  heading.appendChild(text('Description', '所有專案都集中在這個工作區。', 'Body / Small', 'text/secondary'));
+  content.appendChild(heading);
+  content.appendChild(workspacePrimaryAction(342));
+
+  const recentSection = auto('Recent section', 'VERTICAL', { gap: 12 });
+  recentSection.appendChild(text('Section title', '最近開啟', 'Heading / H3'));
+  recentSection.appendChild(workspaceProjectCard('MobileRecent', 'Columns', 'Flowboard 即時協作', '主要看板 · WebSocket 練習', '9 張卡片 · 剛剛開啟'));
+  content.appendChild(recentSection);
+
+  const allSection = auto('All projects section', 'VERTICAL', { gap: 12 });
+  const allHeading = auto('All projects heading', 'HORIZONTAL');
+  fixed(allHeading, 342, 28);
+  allHeading.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  allHeading.appendChild(text('Section title', '所有專案', 'Heading / H3'));
+  allHeading.appendChild(text('Sort label', '最近更新', 'Body / Small', 'text/secondary'));
+  allSection.appendChild(allHeading);
+  allSection.appendChild(workspaceProjectCard('MobileGrid', 'Timeline', '發佈自動化', '主要看板 · CI/CD 與部署檢查', '14 張卡片'));
+  allSection.appendChild(workspaceProjectCard('MobileGrid', 'Progress', '技術成長計畫', '主要看板 · .NET、AWS、系統設計', '本週進度'));
+  content.appendChild(allSection);
+  screen.appendChild(content);
+  return screen;
+}
+
+function projectOverviewCard(viewport: ProjectCardViewport, state: ProjectCardState, status: ProjectStatus, titleValue: string, description: string, memberCount: string): InstanceNode | FrameNode {
+  const card = instance(componentVariant('Project Card', `Viewport=${viewport}, State=${state}, Status=${status}`), 'Project Card');
+  overrideText(card, 'Title', titleValue);
+  overrideText(card, 'Description', description);
+  overrideText(card, 'Member summary', `專案成員 · ${memberCount}`);
+  return card;
+}
+
+function projectOverviewSidebar(): FrameNode {
+  const sidebar = auto('Project overview sidebar', 'VERTICAL', { gap: 24, padding: [24, 16], fill: 'bg/auth' });
+  fixed(sidebar, 256, 844);
+
+  sidebar.appendChild(text('Workspace label', '你的工作區', 'Label / Small', 'text/secondary'));
+  const workspace = auto('Workspace context', 'HORIZONTAL', { gap: 12, padding: [12], fill: 'bg/dark', radius: 'radius/lg' });
+  fixed(workspace, 224, 56);
+  const workspaceAvatar = auto('Workspace avatar', 'HORIZONTAL', { padding: [8], fill: 'action/primary', radius: 'radius/md' });
+  fixed(workspaceAvatar, 32, 32);
+  workspaceAvatar.appendChild(text('Initial', 'J', 'Label / Medium', 'text/on-dark'));
+  workspace.appendChild(workspaceAvatar);
+  const workspaceCopy = auto('Workspace copy', 'VERTICAL', { gap: 2 });
+  workspaceCopy.appendChild(text('Workspace name', 'Jeffery 的工作區', 'Label / Medium', 'text/on-dark'));
+  workspaceCopy.appendChild(text('Workspace meta', '擁有者 · 3 個專案', 'Body / Small', 'text/on-dark-muted'));
+  workspace.appendChild(workspaceCopy);
+  sidebar.appendChild(workspace);
+
+  const createWorkspace = auto('Create workspace', 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: 'bg/surface', radius: 'radius/md' });
+  fixed(createWorkspace, 224, 44);
+  createWorkspace.appendChild(icon('Plus icon', '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 16));
+  createWorkspace.appendChild(text('Label', '新增工作區', 'Body / Medium'));
+  sidebar.appendChild(createWorkspace);
+
+  sidebar.appendChild(text('Workspace management', '工作區管理', 'Label / Small', 'text/secondary'));
+  const navigation = auto('Workspace navigation', 'VERTICAL', { gap: 4 });
+  const navItems: Array<[string, string, string]> = [
+    ['Projects icon', '專案', '3'],
+    ['Members icon', '工作區成員', '5'],
+    ['Archive icon', '已封存專案', '1'],
+  ];
+  navItems.forEach(([iconName, label, count], index) => {
+    const item = auto(`Navigation / ${label}`, 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: index === 0 ? 'bg/surface' : 'bg/auth', radius: 'radius/md' });
+    fixed(item, 224, 40);
+    const iconBody = iconName === 'Projects icon'
+      ? '<path d="M3 7h6l2 2h10v10H3z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>'
+      : iconName === 'Members icon'
+        ? '<circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-4 2.5-6 6-6s6 2 6 6M17 7c2 0 4 1.5 4 4M17 14c2.5 0 4 2 4 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+        : '<path d="M3 6h18v14H3zM2 3h20v4H2zM9 12h6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
+    item.appendChild(icon(iconName, iconBody, 16, index === 0 ? 'text/primary' : 'text/secondary'));
+    item.appendChild(text('Label', label, 'Body / Medium', index === 0 ? 'text/primary' : 'text/secondary'));
+    item.appendChild(text('Count', count, 'Body / Small', 'text/secondary'));
+    navigation.appendChild(item);
+  });
+  sidebar.appendChild(navigation);
+
+  const membersSection = auto('Workspace members', 'VERTICAL', { gap: 12 });
+  membersSection.appendChild(text('Members label', '工作區成員', 'Label / Small', 'text/secondary'));
+  membersSection.appendChild(projectMemberRail(['J', 'M', 'A', 'L', '+1'], 32));
+  membersSection.appendChild(text('Members hint', '5 位成員，可分配到不同專案', 'Body / Small', 'text/secondary'));
+  sidebar.appendChild(membersSection);
+  return sidebar;
+}
+
+function projectOverviewStatusTab(label: string, count: string, active: boolean, colorName?: string): FrameNode {
+  const tab = auto(`Status filter / ${label}`, 'HORIZONTAL', { gap: 8, padding: [10, 14], fill: active ? 'bg/dark' : 'bg/surface', radius: 'radius/full' });
+  fixed(tab, label === '全部' ? 80 : 92, 40);
+  if (!active && colorName) {
+    const dot = figma.createEllipse();
+    dot.name = 'Status dot';
+    dot.resize(8, 8);
+    applyFill(dot, colorName);
+    tab.appendChild(dot);
+  }
+  tab.appendChild(text('Label', `${label} ${count}`, 'Label / Small', active ? 'text/on-dark' : 'text/primary'));
+  return tab;
+}
+
+function projectOverviewToolbar(): FrameNode {
+  const toolbar = auto('Project toolbar', 'HORIZONTAL', { gap: 16, padding: [12, 16], fill: 'bg/subtle', stroke: 'border/default', radius: 'radius/lg' });
+  fixed(toolbar, 1104, 64);
+  toolbar.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  const search = auto('Search projects', 'HORIZONTAL', { gap: 12, padding: [10, 14], fill: 'bg/surface', stroke: 'border/default', radius: 'radius/md' });
+  fixed(search, 296, 40);
+  search.appendChild(icon('Search icon', '<circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2"/><path d="m15 15 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 16));
+  search.appendChild(text('Placeholder', '搜尋專案', 'Body / Medium', 'text/tertiary'));
+  const filters = auto('Status filters', 'HORIZONTAL', { gap: 8 });
+  filters.appendChild(projectOverviewStatusTab('全部', '3', true));
+  filters.appendChild(projectOverviewStatusTab('進行中', '1', false, 'flow/active-strong'));
+  filters.appendChild(projectOverviewStatusTab('暫停', '1', false, 'flow/review'));
+  filters.appendChild(projectOverviewStatusTab('完成', '1', false, 'flow/done'));
+  const sorting = auto('Project sorting', 'VERTICAL', { gap: 2 });
+  sorting.appendChild(text('Sort label', '依最近更新排序', 'Body / Small', 'text/secondary'));
+  sorting.appendChild(text('Visible count', '3 個可見專案', 'Label / Small', 'text/secondary'));
+  toolbar.appendChild(search);
+  toolbar.appendChild(filters);
+  toolbar.appendChild(sorting);
+  return toolbar;
+}
+
+function projectOverviewAction(style: 'Primary' | 'Outline', label: string, name: string, width: number): InstanceNode | FrameNode {
+  const button = instance(componentVariant('Button', style), name);
+  fixed(button, width, 44);
+  overrideText(button, 'Label', label);
+  return button;
+}
+
+function projectOverviewDesktopScreen(): FrameNode {
+  const screen = auto('Project Overview / Desktop / 1440×900', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  setRadius(screen, 'radius/xl');
+  screen.appendChild(appHeader());
+  const shell = auto('Project overview shell', 'HORIZONTAL');
+  fixed(shell, 1440, 844);
+  shell.appendChild(projectOverviewSidebar());
+
+  const main = auto('Project overview main', 'VERTICAL', { gap: 24, padding: [32, 40, 40, 40], fill: 'bg/canvas' });
+  fixed(main, 1184, 844);
+  const pageHeader = auto('Project overview header', 'HORIZONTAL');
+  fixed(pageHeader, 1104, 84);
+  pageHeader.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  const heading = auto('Page heading', 'VERTICAL', { gap: 8 });
+  heading.appendChild(text('Breadcrumb', 'JEFFERY 的工作區 / 專案', 'Label / Small', 'text/secondary'));
+  heading.appendChild(text('Title', '專案中心', 'Heading / H1'));
+  heading.appendChild(text('Description', '選擇專案進入主要看板，或查看各專案的協作成員。', 'Body / Medium', 'text/secondary'));
+  pageHeader.appendChild(heading);
+  const actions = auto('Project overview actions', 'HORIZONTAL', { gap: 12 });
+  actions.appendChild(projectOverviewAction('Outline', '邀請成員', 'Invite members', 156));
+  actions.appendChild(projectOverviewAction('Primary', '新增專案', 'Create project', 208));
+  pageHeader.appendChild(actions);
+  main.appendChild(pageHeader);
+  main.appendChild(projectOverviewToolbar());
+
+  const content = auto('Project overview content', 'HORIZONTAL', { gap: 24 });
+  const list = auto('Project list', 'VERTICAL', { gap: 16 });
+  fixed(list, 704, 548);
+  list.appendChild(text('List title', '所有專案', 'Heading / H3'));
+  list.appendChild(projectOverviewCard('Desktop', 'Selected', 'Active', 'Flowboard 即時協作', 'Socket.IO 即時通知與多人 Kanban 協作練習。', '4'));
+  list.appendChild(projectOverviewCard('Desktop', 'Default', 'OnHold', '發佈自動化', 'CI/CD、部署檢查與環境穩定性追蹤。', '3'));
+  list.appendChild(projectOverviewCard('Desktop', 'Default', 'Completed', '技術成長計畫', '.NET、AWS 與系統設計學習路線。', '5'));
+  content.appendChild(list);
+  content.appendChild(instance(localComponent('Selected Project Members'), 'Selected project members'));
+  main.appendChild(content);
+  shell.appendChild(main);
+  screen.appendChild(shell);
+  return screen;
+}
+
+function projectOverviewMobileHeader(): FrameNode {
+  const header = auto('Project overview mobile header', 'HORIZONTAL', { gap: 12, padding: [16, 20], fill: 'bg/dark' });
+  fixed(header, 390, 64);
+  header.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  const brand = auto('Mobile brand', 'HORIZONTAL', { gap: 12 });
+  brand.appendChild(icon('Menu icon', '<path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 20, 'text/on-dark'));
+  const mark = auto('Logo mark', 'HORIZONTAL', { gap: 4 });
+  const coral = figma.createRectangle(); coral.resize(14, 22); coral.cornerRadius = 4; applyFill(coral, 'action/primary');
+  const mint = figma.createRectangle(); mint.resize(14, 14); mint.cornerRadius = 4; applyFill(mint, 'flow/active');
+  mark.appendChild(coral); mark.appendChild(mint);
+  brand.appendChild(mark);
+  brand.appendChild(text('Wordmark', 'Flowboard', 'Heading / H3', 'text/on-dark'));
+  const actions = auto('Mobile header actions', 'HORIZONTAL', { gap: 12 });
+  actions.appendChild(instance(componentVariant('Notification Trigger', 'State=Unread'), 'Notification trigger'));
+  actions.appendChild(instance(componentVariant('Avatar', 'Size=32'), 'Avatar'));
+  header.appendChild(brand);
+  header.appendChild(actions);
+  return header;
+}
+
+function projectOverviewMobileScreen(): FrameNode {
+  const screen = auto('Project Overview / Mobile / 390×844', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 390, 844);
+  setRadius(screen, 'radius/xl');
+  screen.appendChild(projectOverviewMobileHeader());
+  const content = auto('Project overview mobile content', 'VERTICAL', { gap: 16, padding: [24] });
+  fixed(content, 390, 780);
+
+  const workspace = auto('Mobile workspace context', 'HORIZONTAL', { gap: 12, padding: [10], fill: 'bg/subtle', stroke: 'border/default', radius: 'radius/lg' });
+  fixed(workspace, 342, 52);
+  const avatar = auto('Workspace avatar', 'HORIZONTAL', { padding: [8], fill: 'action/primary', radius: 'radius/md' });
+  fixed(avatar, 32, 32);
+  avatar.appendChild(text('Initial', 'J', 'Label / Medium', 'text/on-dark'));
+  workspace.appendChild(avatar);
+  const copy = auto('Workspace copy', 'VERTICAL', { gap: 2 });
+  copy.appendChild(text('Workspace name', 'Jeffery 的工作區', 'Label / Medium'));
+  copy.appendChild(text('Workspace meta', '3 個專案 · 5 位成員', 'Label / Small', 'text/secondary'));
+  workspace.appendChild(copy);
+  workspace.appendChild(icon('Chevron down', '<path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 16));
+  content.appendChild(workspace);
+
+  const heading = auto('Mobile page heading', 'VERTICAL', { gap: 6 });
+  heading.appendChild(text('Title', '專案中心', 'Heading / H1'));
+  heading.appendChild(text('Description', '選擇專案進入主要看板。', 'Body / Small', 'text/secondary'));
+  content.appendChild(heading);
+  content.appendChild(projectOverviewAction('Primary', '新增專案', 'Create project', 342));
+  const search = auto('Mobile project search', 'HORIZONTAL', { gap: 12, padding: [12, 14], fill: 'bg/surface', stroke: 'border/default', radius: 'radius/md' });
+  fixed(search, 342, 44);
+  search.appendChild(icon('Search icon', '<circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2"/><path d="m15 15 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 16));
+  search.appendChild(text('Placeholder', '搜尋專案', 'Body / Medium', 'text/tertiary'));
+  content.appendChild(search);
+  const tabs = auto('Mobile status filters', 'HORIZONTAL', { gap: 8 });
+  tabs.appendChild(projectOverviewStatusTab('全部', '3', true));
+  tabs.appendChild(projectOverviewStatusTab('進行中', '', false, 'flow/active-strong'));
+  tabs.appendChild(projectOverviewStatusTab('暫停', '', false, 'flow/review'));
+  tabs.appendChild(projectOverviewStatusTab('完成', '', false, 'flow/done'));
+  content.appendChild(tabs);
+  const list = auto('Mobile project list', 'VERTICAL', { gap: 16 });
+  const listHeader = auto('Mobile list header', 'HORIZONTAL');
+  listHeader.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  listHeader.appendChild(text('List title', '所有專案', 'Heading / H3'));
+  listHeader.appendChild(text('Sort label', '最近更新', 'Body / Small', 'text/secondary'));
+  list.appendChild(listHeader);
+  list.appendChild(projectOverviewCard('Mobile', 'Selected', 'Active', 'Flowboard 即時協作', 'Socket.IO 通知與多人 Kanban 協作。', '4'));
+  list.appendChild(projectOverviewCard('Mobile', 'Default', 'OnHold', '發佈自動化', 'CI/CD、部署檢查與環境穩定性追蹤。', '3'));
+  content.appendChild(list);
+  screen.appendChild(content);
+  return screen;
 }
 
 function workspaceInviteDialogScreen(mobile = false): FrameNode {
@@ -1876,6 +2641,7 @@ async function buildScreens(): Promise<FrameNode> {
   const groups: Array<{ name: string; screens: Array<() => FrameNode> }> = [
     { name: 'Auth / Login', screens: [() => authScreen('Login'), () => mobileAuthScreen('Login')] },
     { name: 'Auth / Signup', screens: [() => authScreen('Signup'), () => mobileAuthScreen('Signup')] },
+    { name: 'Project Overview', screens: [projectOverviewDesktopScreen, projectOverviewMobileScreen] },
     { name: 'Workspace', screens: [workspaceScreen, workspaceTabletScreen, workspaceMobileScreen] },
     { name: 'Workspace Invite', screens: [() => workspaceInviteDialogScreen(false), () => workspaceInviteDialogScreen(true)] },
     { name: 'Notifications', screens: [() => notificationDropdownScreen(false), () => notificationDropdownScreen(true), notificationDropdownStatesScreen, notificationReadActionsStatesScreen, notificationItemInteractionsScreen] },
@@ -1915,7 +2681,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Workspace Project Preview'] || !componentSets['Project Card'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {

@@ -69,7 +69,6 @@
           <rect width="6" height="188" rx="3" fill="#DF6E51"/>
           <g transform="translate(20 18)">
             <rect width="68" height="24" rx="12" fill="#E3F1EC"/><circle cx="13" cy="12" r="4" fill="#6EA99E"/><text x="42" y="16" text-anchor="middle" class="status" fill="#31665D">進行中</text>
-            <rect x="76" width="74" height="24" rx="12" fill="#FCE5DF"/><text x="113" y="16" text-anchor="middle" class="status" fill="#9F3F2C">OWNER</text>
           </g>
           <text x="20" y="74" class="h2">Flowboard 即時協作</text>
           <text x="20" y="98" class="small">Socket.IO 通知與多人 Kanban 協作。</text>
@@ -92,7 +91,6 @@
           <rect width="6" height="156" rx="3" fill="#E6B960"/>
           <g transform="translate(20 18)">
             <rect width="68" height="24" rx="12" fill="#FFF1D8"/><circle cx="13" cy="12" r="4" fill="#E6B960"/><text x="42" y="16" text-anchor="middle" class="status" fill="#7A4D00">暫停中</text>
-            <rect x="76" width="74" height="24" rx="12" fill="#FFFFFF"/><text x="113" y="16" text-anchor="middle" class="status" fill="#465066">EDITOR</text>
           </g>
           <text x="20" y="74" class="h2">發佈自動化</text>
           <text x="20" y="98" class="small">CI/CD、部署檢查與環境穩定性追蹤。</text>
