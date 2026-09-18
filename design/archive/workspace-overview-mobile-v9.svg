@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="848 80 390 844">
+<defs>
+    <filter id="surface-shadow" x="-12%" y="-12%" width="124%" height="132%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#29324A" flood-opacity=".08"/>
+    </filter>
+    <clipPath id="tablet-frame"><rect x="40" y="80" width="768" height="1024" rx="20"/></clipPath>
+    <clipPath id="mobile-frame"><rect x="848" y="80" width="390" height="844" rx="20"/></clipPath>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec-label{font-size:18px;font-weight:700;letter-spacing:.08em;fill:#697287}.display{font-size:28px;font-weight:750;letter-spacing:-.03em}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:10px;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.soft{fill:#BFC7D7}.button{font-size:14px;font-weight:700;fill:#FFF9F4}.board-title{font-size:15px;font-weight:700}.metric{font-size:12px;font-weight:700;fill:#697287}
+    </style>
+    <g id="mark"><rect width="16" height="24" rx="4" fill="#DF6E51"/><rect x="22" y="8" width="16" height="16" rx="4" fill="#A9D2C8"/></g>
+    <g id="plus-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <g id="chevron-down" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 5 6 6 6-6"/></g>
+    <g id="menu-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 4h16M2 10h16M2 16h16"/></g>
+  </defs>
+<g id="mobile-workspace" clip-path="url(#mobile-frame)">
+    <rect x="848" y="80" width="390" height="844" rx="20" fill="#E9ECF1"/>
+    <rect x="848" y="80" width="390" height="56" fill="#29324A"/>
+    <g transform="translate(868 96)">
+      <rect x="-8" y="-8" width="40" height="40" rx="10" fill="#29324A"/>
+      <g transform="translate(0 2)" color="#F7F8FA"><use href="#menu-icon"/></g>
+      <use href="#mark" transform="translate(36 0) scale(.84)"/>
+      <text x="76" y="18" class="h2 inverse">Flowboard</text>
+      <rect x="270" y="-8" width="40" height="40" rx="10" fill="#44506A"/>
+      <g transform="translate(282 4)" color="#F7F8FA"><use href="#plus-icon"/></g>
+      <circle cx="334" cy="12" r="16" fill="#A9D2C8"/><text x="334" y="17" text-anchor="middle" class="body" font-weight="700">J</text>
+    </g>
+
+    <g transform="translate(872 160)">
+      <text class="tiny">目前工作區</text>
+      <g transform="translate(0 20)">
+        <rect width="342" height="56" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="12" y="12" width="32" height="32" rx="8" fill="#DF6E51"/>
+        <text x="28" y="33" text-anchor="middle" class="body inverse" font-weight="700">J</text>
+        <text x="56" y="24" class="body" font-weight="700">Jeffery 的工作區</text>
+        <text x="56" y="42" class="tiny">3 個專案 · 5 位成員</text>
+        <g transform="translate(308 20)" color="#697287"><use href="#chevron-down"/></g>
+      </g>
+
+      <text y="116" class="title">選一個專案繼續</text>
+      <text y="144" class="small">所有專案都集中在這個工作區。</text>
+      <g transform="translate(0 164)">
+        <rect width="342" height="48" rx="10" fill="#B94B36"/>
+        <g transform="translate(104 16)" color="#FFF9F4"><use href="#plus-icon"/></g>
+        <text x="188" y="30" text-anchor="middle" class="button" fill="#FFF9F4">新增專案</text>
+      </g>
+
+      <text y="252" class="h2">最近開啟</text>
+      <g transform="translate(0 272)" filter="url(#surface-shadow)">
+        <rect width="342" height="132" rx="12" fill="#F7F8FA"/><rect width="4" height="132" rx="2" fill="#DF6E51"/>
+        <text x="20" y="32" class="board-title">Flowboard 即時協作</text><text x="20" y="56" class="small">主要看板 · WebSocket 練習</text>
+        <text x="20" y="108" class="small">9 張卡片 · 剛剛開啟</text>
+        <g transform="translate(232 40)"><rect width="16" height="52" rx="4" fill="#FCE5DF"/><rect x="24" width="16" height="52" rx="4" fill="#E3F1EC"/><rect x="48" width="16" height="52" rx="4" fill="#FFF1D8"/><rect x="72" width="16" height="52" rx="4" fill="#E9E6F7"/></g>
+      </g>
+
+      <text y="448" class="h2">所有專案</text><text x="342" y="448" text-anchor="end" class="small">最近更新</text>
+
+      <g transform="translate(0 468)" filter="url(#surface-shadow)">
+        <rect width="342" height="136" rx="12" fill="#F7F8FA"/><rect width="4" height="136" rx="2" fill="#A9D2C8"/>
+        <text x="20" y="32" class="board-title">發佈自動化</text><text x="20" y="56" class="small">主要看板 · CI/CD 與部署檢查</text>
+        <g transform="translate(20 88)"><path d="M8 8h56m16 0h56m16 0h56" stroke="#CDD3DE" stroke-width="2"/><circle cy="8" r="8" fill="#DF6E51"/><circle cx="72" cy="8" r="8" fill="#A9D2C8"/><circle cx="144" cy="8" r="8" fill="#E6B960"/><circle cx="216" cy="8" r="8" fill="#907ECE"/></g>
+        <text x="316" y="112" text-anchor="end" class="small">14 張卡片</text>
+      </g>
+
+      <g transform="translate(0 620)" filter="url(#surface-shadow)">
+        <rect width="342" height="136" rx="12" fill="#F7F8FA"/><rect width="4" height="136" rx="2" fill="#907ECE"/>
+        <text x="20" y="32" class="board-title">技術成長計畫</text><text x="20" y="56" class="small">主要看板 · .NET、AWS、系統設計</text>
+        <text x="20" y="96" class="tiny">本週進度</text><rect x="20" y="108" width="296" height="8" rx="4" fill="#D9DEE7"/><rect x="20" y="108" width="192" height="8" rx="4" fill="#907ECE"/>
+      </g>
+    </g>
+  </g>
+</svg>

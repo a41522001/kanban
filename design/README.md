@@ -8,8 +8,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | --- | --- | --- | --- | --- |
 | Login | `auth-login.svg` | — | `auth-login-mobile.svg` | Current |
 | Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
-| Workspace | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
-| Project overview | `project-overview.svg` | — | `project-overview-mobile.svg` | Current |
+| Workspace project overview | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
 | Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
 | Workspace invitation response | `workspace-invitation-response.svg` | — | `workspace-invitation-response-mobile.svg` | Current |
 | Workspace invitation response states | `workspace-invitation-response-states.svg` | — | — | Current spec page |
@@ -25,7 +24,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 
 ## Legacy boundary
 
-所有合併多頁稿與舊 `*-rwd.svg` 都已移至 `design/archive/`，只作歷史追溯，不可再作為 Figma Generator 的輸入。`design` 根目錄中的每一個 SVG 都只代表一個畫面或一個規格頁。
+所有合併多頁稿、舊 `*-rwd.svg` 與整併前的 Workspace v9 稿都已移至 `design/archive/`，只作歷史追溯，不可再作為 Figma Generator 的輸入。獨立的 Project Overview 已整併進 Workspace；`design` 根目錄中的每一個 SVG 都只代表一個畫面或一個規格頁。
 
 ## Board v2 contract
 
@@ -37,12 +36,12 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 - `44 × 44` Card drag handle 與 `40 × 40` Column drag handle 是操作元件，不是裝飾文字。
 - Board 必須包含進度、完成、soft lock、Add card、Add column 等不同卡片／欄位語意。
 
-## Project overview contract
+## Workspace project overview contract
 
 - Desktop 使用「專案清單 + 已選取專案成員面板」的 master-detail 結構；選取專案不等同直接進入 Board，主要看板入口需保留為明確操作。
 - Project Card 顯示 `status`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。Project role 不在 overview 顯示，進入專案內部後再呈現。
 - 成員面板列出選取專案的所有成員，僅顯示 `displayName`、`avatarUrl` 與 `joinedAt`，不在 overview 暴露 Project role 或其他 User 欄位。
-- Mobile 不保留雙欄；Project Card 顯示成員 avatar rail 與成員數，再由明確操作進入成員管理或主要看板。
+- Tablet／Mobile 不保留雙欄；未展開的 Project Card 只顯示 list API 已提供的 status、名稱、描述與更新時間。點選卡片會展開手風琴，才以 projectId 載入並呈現該 Project 的完整成員資訊；主要看板仍由展開內容中的明確操作進入。
 - Workspace membership 只代表可進入工作區；列表是否顯示 Project 仍以 `ProjectMember` 權限為準。Repository 可載入 Projects 與 Members，但 Service 必須完成目前使用者的權限驗證。
 - Project 狀態包含 `ACTIVE`、`ON_HOLD`、`COMPLETED`；封存是另一個維度，不與 `COMPLETED` 混用。
 
@@ -115,5 +114,5 @@ Card
 - Notification Trigger、Notification Item 與 Notification Dropdown 皆有原生 Component Set／Variant 對應。
 - Notification Read Action 需建立 Single／All 與 Default／Processing／Complete／Error variants，並保留 focus、disabled 與 `aria-live` 行為註記。
 - Notification Item 的 content action 與 read action 必須是分離的互動區；Workspace Invitation Response 必須由獨立 Dialog Component Set 組成，不在 Dropdown Item 內放接受／婉拒按鈕。
-- Workspace Overview 必須對應 `workspace-overview.svg`、`workspace-overview-tablet.svg`、`workspace-overview-mobile.svg` 三個 Current SVG，並保留各裝置不同的資訊密度與導覽結構。
-- Workspace 專案摘要使用獨立的 `Workspace Project Preview` Component Set，不得直接沿用 Project Overview 的 `Project Card` variants。
+- Workspace Project Overview 必須對應 `workspace-overview.svg`、`workspace-overview-tablet.svg`、`workspace-overview-mobile.svg` 三個 Current SVG；Desktop 使用 Project master-detail，Tablet／Mobile 使用 accordion。
+- Workspace 與 Project Overview 不再生成兩套 Screen 或兩套卡片；統一使用 `Project Card` Component Set。
