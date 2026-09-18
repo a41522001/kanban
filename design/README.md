@@ -10,6 +10,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
 | Workspace project overview | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
 | Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
+| Project add member | `project-add-member-dialog.svg` | — | `project-add-member-dialog-mobile.svg` | Current |
 | Workspace invitation response | `workspace-invitation-response.svg` | — | `workspace-invitation-response-mobile.svg` | Current |
 | Workspace invitation response states | `workspace-invitation-response-states.svg` | — | — | Current spec page |
 | Notification dropdown | `notification-dropdown.svg` | — | `notification-dropdown-mobile.svg` | Current |
@@ -66,6 +67,15 @@ Card
 - 「傳送邀請」成功只建立 invitation 與 notification；受邀者接受前不會出現在正式成員列表。
 - Desktop 使用置中 `520px` Dialog；Mobile 保留 `16px` viewport gutter，使用 `358px` inset Dialog，而不是全螢幕頁面。
 - Loading 時停用關閉與送出以避免重複請求；欄位驗證顯示在 Email 下方，商業錯誤以 Toast 呈現並保留輸入值。
+
+## Project add member contract
+
+- 此流程是 Owner 直接新增 Project member，不是需要接受／拒絕的 invitation；UI 使用「新增專案成員」，不使用「邀請」。
+- 第一版一次選取一位 Workspace member，以可搜尋 listbox 呈現，不使用原生單選下拉。成員數增加時仍可掃描姓名、頭像與狀態，Mobile 也保留至少 `44px` 操作高度。
+- 已屬於 Project 的成員在候選清單中顯示目前角色與「已加入」，並停用選取；`P2002` conflict 只作為併發或 stale data 的 fallback，不作為正常 UX 判斷流程。
+- OWNER 不可由此流程指派；可選角色只有 `EDITOR` 與 `VIEWER`，預設 `EDITOR`。新增操作僅對目前 Project OWNER 顯示，Backend 仍作最終授權。
+- Candidate read model 必須提供同一個可比對的 identity 與 membership 狀態。建議 `GET /project/:projectId/memberCandidates` 回傳 `workspaceMemberId`、`displayName`、`avatarUrl`、`projectRole|null`，並讓新增 command 接受 `workspaceMemberId`；目前 Workspace／Project DTO 的 `memberId` 分別代表不同 membership，且 command 收 email，無法可靠支援這個 UI。
+- Desktop 使用置中 `600px` Dialog；Mobile 使用 `358px` inset Dialog。Loading 時鎖定關閉與送出；成功後關閉 Dialog、刷新 Project members，失敗時保留選取與角色。
 
 ## Notification dropdown contract
 

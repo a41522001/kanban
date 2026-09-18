@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="surface-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#111827" flood-opacity=".22"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec-label{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:24px;font-weight:700}.h2{font-size:18px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.button{font-size:14px;font-weight:700}.medium{font-weight:700}.disabled{fill:#9AA3B4}
+    </style>
+    <g id="logo"><rect width="18" height="24" rx="4" fill="#DF6E51"/><rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/><text x="56" y="20" class="h2 inverse">Flowboard</text></g>
+    <g id="plus" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <g id="close" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l12 12M15 3 3 15"/></g>
+    <g id="search" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="5"/><path d="m11 11 4 4"/></g>
+    <g id="check" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3 3 7-7"/></g>
+  </defs>
+
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="48" class="spec-label">PROJECT / ADD MEMBER / 1440 × 900</text>
+
+  <g id="project-add-member-desktop">
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
+    <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
+    <g transform="translate(72 100)"><use href="#logo"/><text x="180" y="20" class="body inverse medium">工作區</text><text x="256" y="20" class="body" fill="#BFC7D7">最近</text><rect x="1248" y="-8" width="40" height="40" rx="10" fill="#44506A"/><g transform="translate(1260 4)" color="#F7F8FA"><use href="#plus"/></g><circle cx="1328" cy="12" r="16" fill="#A9D2C8"/><text x="1328" y="17" text-anchor="middle" class="body medium">J</text></g>
+
+    <g transform="translate(72 176)">
+      <text class="tiny">你的工作區</text><rect y="28" width="224" height="56" rx="12" fill="#29324A"/><rect x="12" y="40" width="32" height="32" rx="8" fill="#DF6E51"/><text x="28" y="61" text-anchor="middle" class="body inverse medium">無</text><text x="56" y="52" class="body inverse medium">無限有限公司</text><text x="56" y="70" class="tiny" fill="#BFC7D7">擁有者 · 3 個專案</text>
+      <line x1="0" y1="116" x2="224" y2="116" stroke="#CDD3DE"/><text y="152" class="tiny">工作區管理</text><rect y="168" width="224" height="44" rx="10" fill="#F7F8FA"/><text x="16" y="195" class="body medium">成員</text><text x="208" y="195" text-anchor="end" class="small">5</text>
+    </g>
+    <g transform="translate(328 176)">
+      <text class="tiny">工作區 / 專案中心</text><text y="44" class="title">Flowboard 即時協作</text><text y="76" class="body" fill="#697287">Socket.IO 通知與多人 Kanban 協作。</text>
+      <rect y="118" width="704" height="116" rx="14" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/><rect y="118" width="6" height="116" rx="3" fill="#DF6E51"/><text x="24" y="154" class="h2">Flowboard 即時協作</text><text x="24" y="180" class="small">4 位專案成員 · 進行中</text><rect x="536" y="150" width="144" height="44" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/><text x="608" y="178" text-anchor="middle" class="button">管理成員</text>
+      <rect x="728" y="118" width="392" height="420" rx="16" fill="#FFFFFF"/><text x="752" y="156" class="tiny">已選取的專案</text><text x="752" y="190" class="h2">Flowboard 即時協作</text><line x1="752" y1="218" x2="1096" y2="218" stroke="#D7DCE5"/><text x="752" y="250" class="tiny">專案成員</text>
+      <circle cx="776" cy="290" r="20" fill="#A9D2C8"/><text x="776" y="295" text-anchor="middle" class="body medium">J</text><text x="812" y="286" class="body medium">Jeffery</text><text x="812" y="306" class="small">OWNER</text>
+      <circle cx="776" cy="350" r="20" fill="#907ECE"/><text x="776" y="355" text-anchor="middle" class="body inverse medium">L</text><text x="812" y="346" class="body medium">Lena</text><text x="812" y="366" class="small">EDITOR</text>
+    </g>
+
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#172033" opacity=".6"/>
+
+    <g id="dialog" transform="translate(460 162)" filter="url(#surface-shadow)">
+      <rect width="600" height="736" rx="18" fill="#FFFFFF"/>
+      <text x="32" y="50" class="title">新增專案成員</text>
+      <rect x="528" y="24" width="40" height="40" rx="9" fill="#F7F8FA"/><g transform="translate(539 35)" color="#697287"><use href="#close"/></g>
+      <text x="32" y="82" class="body" fill="#697287">從目前工作區選擇一位成員加入專案。</text>
+
+      <g transform="translate(32 106)">
+        <rect width="536" height="68" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="12" y="12" width="44" height="44" rx="11" fill="#DF6E51"/><text x="34" y="40" text-anchor="middle" class="body inverse medium">F</text>
+        <text x="72" y="29" class="body medium">Flowboard 即時協作</text><text x="72" y="49" class="small">無限有限公司 · 4 位專案成員</text>
+      </g>
+
+      <text x="32" y="210" class="body medium">選擇工作區成員 *</text>
+      <g transform="translate(32 224)" color="#697287"><rect width="536" height="48" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/><g transform="translate(16 16)"><use href="#search"/></g><text x="48" y="30" class="body" fill="#8B95A8">搜尋姓名</text></g>
+      <text x="32" y="298" class="tiny">工作區成員 · 5</text><text x="568" y="298" text-anchor="end" class="small">已加入者不可重複選取</text>
+
+      <g transform="translate(32 312)">
+        <rect width="536" height="52" rx="10" fill="#F7F8FA"/>
+        <circle cx="28" cy="26" r="18" fill="#A9D2C8"/><text x="28" y="31" text-anchor="middle" class="body medium">J</text><text x="60" y="23" class="body medium disabled">Jeffery</text><text x="60" y="40" class="small">工作區擁有者</text><rect x="444" y="12" width="76" height="28" rx="14" fill="#E9ECF1"/><text x="482" y="31" text-anchor="middle" class="small">已加入</text>
+      </g>
+      <g transform="translate(32 372)">
+        <rect width="536" height="52" rx="10" fill="#FFF9F4" stroke="#DF6E51" stroke-width="2"/>
+        <circle cx="28" cy="26" r="18" fill="#907ECE"/><text x="28" y="31" text-anchor="middle" class="body inverse medium">M</text><text x="60" y="31" class="body medium">Mina</text><circle cx="504" cy="26" r="10" fill="#DF6E51"/><g transform="translate(497 19)" color="#FFFFFF"><use href="#check"/></g>
+      </g>
+      <g transform="translate(32 432)">
+        <rect width="536" height="52" rx="10" fill="#FFFFFF" stroke="#D7DCE5"/>
+        <circle cx="28" cy="26" r="18" fill="#E6B960"/><text x="28" y="31" text-anchor="middle" class="body medium">A</text><text x="60" y="31" class="body medium">Alex</text><circle cx="504" cy="26" r="10" fill="#FFFFFF" stroke="#B7BFCE" stroke-width="2"/>
+      </g>
+      <g transform="translate(32 492)">
+        <rect width="536" height="52" rx="10" fill="#F7F8FA"/>
+        <circle cx="28" cy="26" r="18" fill="#DF6E51"/><text x="28" y="31" text-anchor="middle" class="body inverse medium">L</text><text x="60" y="23" class="body medium disabled">Lena</text><text x="60" y="40" class="small">目前為 EDITOR</text><rect x="444" y="12" width="76" height="28" rx="14" fill="#E9ECF1"/><text x="482" y="31" text-anchor="middle" class="small">已加入</text>
+      </g>
+
+      <text x="32" y="582" class="body medium">專案角色 *</text>
+      <g transform="translate(32 596)">
+        <rect width="260" height="54" rx="10" fill="#FFF9F4" stroke="#DF6E51" stroke-width="2"/><circle cx="22" cy="27" r="8" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/><circle cx="22" cy="27" r="4" fill="#DF6E51"/><text x="42" y="23" class="body medium">EDITOR</text><text x="42" y="41" class="small">可編輯專案內容</text>
+        <rect x="276" width="260" height="54" rx="10" fill="#FFFFFF" stroke="#D7DCE5"/><circle cx="298" cy="27" r="8" fill="#FFFFFF" stroke="#B7BFCE" stroke-width="2"/><text x="318" y="23" class="body medium">VIEWER</text><text x="318" y="41" class="small">僅能查看專案</text>
+      </g>
+
+      <line x1="32" y1="674" x2="568" y2="674" stroke="#D7DCE5"/>
+      <rect x="344" y="688" width="100" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/><text x="394" y="716" text-anchor="middle" class="button">取消</text>
+      <rect x="456" y="688" width="112" height="44" rx="9" fill="#DF6E51"/><text x="512" y="716" text-anchor="middle" class="button inverse">新增 Mina</text>
+    </g>
+  </g>
+</svg>

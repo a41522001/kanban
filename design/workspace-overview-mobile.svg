@@ -83,8 +83,10 @@
             <circle cx="16" cy="136" r="16" fill="#DF6E51"/><text x="16" y="141" text-anchor="middle" class="small inverse medium">L</text><text x="48" y="134" class="body medium">Lena</text><text x="48" y="150" class="tiny">加入於 9 月 14 日</text>
           </g>
           <g transform="translate(20 298)">
-            <rect width="302" height="40" rx="9" fill="#DF6E51"/>
-            <text x="142" y="25" text-anchor="middle" class="button inverse">進入主要看板</text>
+            <rect width="145" height="40" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/>
+            <text x="72.5" y="25" text-anchor="middle" class="button">管理成員</text>
+            <rect x="157" width="145" height="40" rx="9" fill="#DF6E51"/>
+            <text x="219" y="25" text-anchor="middle" class="button inverse">進入看板</text>
             <g transform="translate(270 12)" color="#FFF9F4"><use href="#arrow-icon"/></g>
           </g>
         </g>

@@ -53,7 +53,7 @@
           <circle cx="360" cy="16" r="16" fill="#E6B960"/><text x="360" y="21" text-anchor="middle" class="small medium">A</text><text x="392" y="14" class="body medium">Alex</text><text x="392" y="30" class="tiny">加入於 9 月 14 日</text>
           <circle cx="360" cy="60" r="16" fill="#DF6E51"/><text x="360" y="65" text-anchor="middle" class="small inverse medium">L</text><text x="392" y="58" class="body medium">Lena</text><text x="392" y="74" class="tiny">加入於 9 月 14 日</text>
         </g>
-        <g transform="translate(24 270)"><rect width="672" height="40" rx="9" fill="#DF6E51"/><text x="324" y="25" text-anchor="middle" class="button inverse">進入主要看板</text><g transform="translate(640 12)" color="#FFF9F4"><use href="#arrow-icon"/></g></g>
+        <g transform="translate(24 270)"><rect width="328" height="40" rx="9" fill="#F7F8FA" stroke="#D7DCE5"/><text x="164" y="25" text-anchor="middle" class="button">管理成員</text><rect x="340" width="332" height="40" rx="9" fill="#DF6E51"/><text x="494" y="25" text-anchor="middle" class="button inverse">進入看板</text><g transform="translate(640 12)" color="#FFF9F4"><use href="#arrow-icon"/></g></g>
       </g>
 
       <g id="tablet-project-collapsed" transform="translate(0 666)">
