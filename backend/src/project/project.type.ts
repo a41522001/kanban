@@ -1,4 +1,4 @@
-import { ProjectRole } from '@kanban/contracts/project';
+import type { ProjectRole } from '@kanban/contracts/project';
 
 export interface AddProjectMemberParams {
   projectId: string;
@@ -11,5 +11,6 @@ export interface FindMembershipResponse {
   role: ProjectRole;
   projectName: string;
   projectArchivedAt: Date | null;
+  workspaceArchivedAt: Date | null;
   workspaceId: string;
 }

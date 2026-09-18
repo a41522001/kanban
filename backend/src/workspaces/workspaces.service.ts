@@ -6,6 +6,7 @@ import type {
   WorkspaceMemberDto,
 } from '@kanban/contracts/workspaces';
 import type { FindMembershipResponse } from './workspaces.type';
+import type { FindMembershipByIdResponse } from './workspaces.type';
 import type {
   Prisma,
   Workspace,
@@ -101,6 +102,25 @@ export class WorkspacesService {
       memberName: result.user.displayName,
       role: result.role,
       workspaceName: result.workspace.name,
+      workspaceArchivedAt: result.workspace.archivedAt,
+    };
+  }
+
+  /** 依 membership ID 找出候選成員，供跨 domain 驗證 Workspace scope。 */
+  async findMembershipById(
+    workspaceMemberId: string,
+  ): Promise<FindMembershipByIdResponse | null> {
+    const result =
+      await this.workspacesRepository.findMembershipById(workspaceMemberId);
+
+    if (!result) {
+      return null;
+    }
+
+    return {
+      memberId: result.id,
+      userId: result.userId,
+      workspaceId: result.workspaceId,
       workspaceArchivedAt: result.workspace.archivedAt,
     };
   }

@@ -126,3 +126,4 @@ Card
 - Notification Item 的 content action 與 read action 必須是分離的互動區；Workspace Invitation Response 必須由獨立 Dialog Component Set 組成，不在 Dropdown Item 內放接受／婉拒按鈕。
 - Workspace Project Overview 必須對應 `workspace-overview.svg`、`workspace-overview-tablet.svg`、`workspace-overview-mobile.svg` 三個 Current SVG；Desktop 使用 Project master-detail，Tablet／Mobile 使用 accordion。
 - Workspace 與 Project Overview 不再生成兩套 Screen 或兩套卡片；統一使用 `Project Card` Component Set。
+- Project Add Member 必須建立 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` Component Sets；候選人需涵蓋 Available／Selected／Joined，Dialog 需涵蓋 Default／Loading／Empty／Error／Processing，且 `OWNER` 不得出現在可指派角色。

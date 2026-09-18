@@ -30,7 +30,8 @@
 | PATCH `/notifications/read` | 有效 Session，只能標記本人通知 | `{ notificationId }` | 200 / null；通知不存在或不屬於本人回 404 |
 | PATCH `/notifications/readAll` | 有效 Session，只能標記本人通知 | 無 | 200 / number；回傳本次實際標記的筆數，沒有未讀時為 0 |
 | POST `/project` | 有效 Session，且為未封存 Workspace 的成員 | `{ name, description?, workspaceId }` | 201 / null，message 為「創建成功」；建立 Project 與 OWNER ProjectMember |
-| POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標帳號必須是同 Workspace 的有效成員 | `{ projectId, memberEmail, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
+| GET `/project/:projectId/memberCandidates` | 有效 Session、未封存 Project 與 Workspace 的 Project OWNER | Path `projectId` | 200 / 同 Workspace 成員清單；`projectRole=null` 代表尚未加入 |
+| POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標 membership 必須屬於同一個有效 Workspace | `{ projectId, workspaceMemberId, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
 | GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID v4 path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
@@ -73,14 +74,16 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 `GET /project/:workspaceId` 會先驗證目前使用者是該 Workspace 的有效成員，再透過 `workspaceId + userId` 查詢其所屬且未封存的 Project。Project 的 `status` 不作額外過濾，因此 `ACTIVE`、`ON_HOLD`、`COMPLETED` 都可能回傳。
 
-`POST /project/addMember` 是 command-style endpoint，不採邀請接受／拒絕流程。memberEmail 會 trim／lowercase，目標必須是已註冊且仍屬於 Project 所在 Workspace 的使用者；只有未封存 Project 的 OWNER 可操作，且不能透過此 DTO 指派另一個 OWNER。ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立，commit 後才向目標使用者的 user room 推送 `notification:created`。`(projectId, userId)` unique constraint 是重複加入的最終併行保護，Prisma P2002 轉為 409。
+`GET /project/:projectId/memberCandidates` 提供新增成員 UI 的 read model，列出 Project 所屬 Workspace 的成員；`projectRole` 為 `null` 表示可加入，非 `null` 表示已加入並供前端停用。此清單只開放 Project OWNER，且封存的 Project／Workspace 不可存取。
+
+`POST /project/addMember` 是 command-style endpoint，不採邀請接受／拒絕流程。`workspaceMemberId` 必須指向 Project 所在 Workspace 的有效 membership；只有未封存 Project 的 OWNER 可操作，且 shared contract 與 runtime DTO 都只允許 `EDITOR`／`VIEWER`。ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立，commit 後才向目標使用者的 user room 推送 `notification:created`。`(projectId, userId)` unique constraint 是重複加入的最終併行保護，Prisma P2002 轉為 409。
 
 | 情況 | HTTP status / code |
 | --- | --- |
 | 建立者不是 WorkspaceMember | 404 / ResourceNotFound (3001) |
 | 建立 Project 時 Workspace 已封存 | 400 / RequestError (4000) |
 | addMember 操作者不是 Project OWNER、Project 不存在或已封存 | 403 / RequestError (4000) |
-| 目標帳號不存在或不是同 Workspace 的有效成員 | 404 / ResourceNotFound (3001) |
+| 目標 Workspace membership 不存在、已失效或屬於其他 Workspace | 404 / ResourceNotFound (3001) |
 | 目標已是 ProjectMember，包含併行 unique conflict | 409 / RequestError (4000) |
 
 Project list 的存取錯誤如下：
