@@ -1,0 +1,51 @@
+@reference '../../../styles/index.css';
+
+.project-members {
+  @apply rounded-surface border border-border bg-surface p-5 shadow-card;
+}
+.project-members__heading {
+  @apply flex items-start justify-between gap-4;
+}
+.project-members__eyebrow {
+  @apply text-xs font-bold tracking-[0.08em] text-content-secondary uppercase;
+}
+.project-members__heading h3 {
+  @apply mt-1 text-xl font-bold;
+}
+.project-members__status {
+  @apply shrink-0 rounded-full bg-surface-subtle px-2.5 py-1 text-xs font-bold text-content-secondary;
+}
+.project-members__status[data-status='ACTIVE'] {
+  @apply bg-flow-active/30 text-content-primary;
+}
+.project-members__status[data-status='COMPLETED'] {
+  @apply bg-flow-done/20 text-content-primary;
+}
+.project-members__description {
+  @apply mt-3 text-sm leading-6 text-content-secondary;
+}
+.project-members__section-heading {
+  @apply mt-6 flex items-center justify-between border-t border-border pt-5;
+}
+.project-members__section-heading h4 {
+  @apply text-sm font-bold;
+}
+.project-members__section-heading span {
+  @apply text-xs text-content-secondary;
+}
+.project-members__list {
+  @apply mt-3 grid gap-2;
+}
+.project-members__list li {
+  @apply flex items-center gap-3 rounded-control bg-surface-subtle px-3 py-2 text-sm font-semibold;
+}
+.project-members__list img,
+.project-members__avatar {
+  @apply grid size-8 shrink-0 place-items-center rounded-full bg-flow-active object-cover text-xs font-bold;
+}
+.project-members__empty {
+  @apply mt-3 rounded-control bg-surface-subtle p-4 text-sm text-content-secondary;
+}
+.project-members__board-button {
+  @apply mt-6 w-full;
+}

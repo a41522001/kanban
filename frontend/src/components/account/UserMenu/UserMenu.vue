@@ -45,6 +45,7 @@ import {
 import Avatar from '@/components/shared/Avatar/Avatar.vue';
 import { logoutApi } from '@/services/auth';
 import { useNotificationStore } from '@/stores/notification';
+import { useProjectStore } from '@/stores/project';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { disconnect } from '@/services/socket';
@@ -57,6 +58,7 @@ defineProps<Props>();
 const { t } = useI18n();
 const router = useRouter();
 const notificationStore = useNotificationStore();
+const projectStore = useProjectStore();
 const userStore = useUserStore();
 const workspaceStore = useWorkspaceStore();
 const isLoggingOut = ref(false);
@@ -75,6 +77,7 @@ const handleLogout = async () => {
   } finally {
     userStore.resetUser();
     workspaceStore.resetWorkspaces();
+    projectStore.resetProjects();
     await router.replace({ name: 'login' });
     isLoggingOut.value = false;
     notificationStore.stopRealtime();

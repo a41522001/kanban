@@ -2,12 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicNotification } from '@kanban/contracts/notification';
 import { handleNotificationEffect, syncNotificationResource } from '@/services/notificationEffects';
 
-const { refreshWorkspaces } = vi.hoisted(() => ({
+const { refreshWorkspaces, refreshProjects, loadProjectMembers } = vi.hoisted(() => ({
   refreshWorkspaces: vi.fn<() => Promise<void>>(),
+  refreshProjects: vi.fn<() => Promise<void>>(),
+  loadProjectMembers: vi.fn<(projectId: string, force?: boolean) => Promise<unknown>>(),
 }));
 
 vi.mock('@/stores/workspace', () => ({
   useWorkspaceStore: () => ({ refreshWorkspaces }),
+}));
+
+vi.mock('@/stores/project', () => ({
+  useProjectStore: () => ({ refreshProjects, loadProjectMembers }),
 }));
 
 const createNotification = (overrides: Partial<PublicNotification> = {}): PublicNotification =>
@@ -26,6 +32,10 @@ describe('notification effects', () => {
   beforeEach(() => {
     refreshWorkspaces.mockReset();
     refreshWorkspaces.mockResolvedValue();
+    refreshProjects.mockReset();
+    refreshProjects.mockResolvedValue();
+    loadProjectMembers.mockReset();
+    loadProjectMembers.mockResolvedValue([]);
   });
 
   it('同步 Workspace resource 時刷新 Workspace Store', async () => {
@@ -52,7 +62,7 @@ describe('notification effects', () => {
     expect(refreshWorkspaces).not.toHaveBeenCalled();
   });
 
-  it('尚未實作的 Project handler 保留為無副作用佔位', async () => {
+  it('收到 Project member added 時刷新 Project read model 與成員快取', async () => {
     await handleNotificationEffect(
       createNotification({
         type: 'PROJECT_MEMBER_ADDED',
@@ -62,5 +72,7 @@ describe('notification effects', () => {
     );
 
     expect(refreshWorkspaces).not.toHaveBeenCalled();
+    expect(refreshProjects).toHaveBeenCalledTimes(1);
+    expect(loadProjectMembers).toHaveBeenCalledWith('project-1', true);
   });
 });

@@ -173,7 +173,7 @@
 }
 
 .workspace__projects {
-  @apply mt-12;
+  @apply mt-10;
 }
 
 .workspace__section-heading {
@@ -202,6 +202,92 @@
 
 .workspace__projects-empty p {
   @apply mt-2 max-w-sm text-sm leading-6 text-content-secondary;
+}
+
+.workspace__projects-empty .inline-flex {
+  @apply mt-5;
+}
+
+.workspace__project-toolbar {
+  @apply mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between;
+}
+.workspace__project-search {
+  @apply flex h-11 min-w-0 items-center gap-2 rounded-control border border-border bg-surface px-3 text-content-secondary xl:w-80;
+}
+.workspace__project-search:focus-within {
+  @apply border-action-primary ring-3 ring-action-primary/20;
+}
+.workspace__project-search input {
+  @apply min-w-0 flex-1 bg-transparent text-sm text-content-primary outline-none placeholder:text-content-secondary;
+}
+.workspace__status-filters {
+  @apply flex gap-2 overflow-x-auto pb-1;
+}
+.workspace__status-filters button {
+  @apply inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-2 text-xs font-bold text-content-secondary transition-colors;
+}
+.workspace__status-filters button span {
+  @apply text-[0.68rem] opacity-70;
+}
+.workspace__status-filters .workspace__status-filter--active {
+  @apply border-content-primary bg-content-primary text-content-on-dark;
+}
+.workspace__project-overview-grid {
+  @apply mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)];
+}
+.workspace__project-list {
+  @apply mt-5 grid content-start gap-3;
+}
+.workspace__project-overview-grid > .workspace__project-list {
+  @apply mt-0;
+}
+.workspace__project-card {
+  @apply overflow-hidden rounded-surface border border-border bg-surface transition-shadow;
+}
+.workspace__project-card--selected {
+  @apply border-action-primary shadow-card;
+}
+.workspace__project-card-main {
+  @apply block w-full p-5 text-left outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-action-primary/30;
+}
+.workspace__project-card-heading {
+  @apply flex items-start justify-between gap-3;
+}
+.workspace__project-card-title {
+  @apply text-base font-bold;
+}
+.workspace__project-card-description {
+  @apply mt-2 block line-clamp-2 text-sm leading-6 text-content-secondary;
+}
+.workspace__project-card-meta {
+  @apply mt-4 flex items-center justify-between text-xs text-content-secondary;
+}
+.workspace__status {
+  @apply shrink-0 rounded-full bg-surface-subtle px-2.5 py-1 text-[0.68rem] font-bold;
+}
+.workspace__status[data-status='ACTIVE'] {
+  @apply bg-flow-active/30 text-content-primary;
+}
+.workspace__status[data-status='COMPLETED'] {
+  @apply bg-flow-done/20 text-content-primary;
+}
+.workspace__accordion-icon {
+  @apply transition-transform lg:hidden;
+}
+.workspace__project-card--selected .workspace__accordion-icon {
+  @apply rotate-180;
+}
+.workspace__mobile-project-detail {
+  @apply border-t border-border bg-surface-subtle p-3 lg:hidden;
+}
+.workspace__mobile-project-detail :deep(.project-members) {
+  @apply border-0 shadow-none;
+}
+.workspace__desktop-project-detail {
+  @apply hidden lg:block;
+}
+.workspace__desktop-project-detail :deep(.project-members) {
+  @apply sticky top-24;
 }
 
 .workspace__state {

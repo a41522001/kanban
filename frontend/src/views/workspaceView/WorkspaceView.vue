@@ -165,13 +165,10 @@
                 <UserPlus :size="18" aria-hidden="true" />
                 {{ t('workspace.actions.inviteMember') }}
               </Button>
-              <Button disabled :aria-describedby="'project-api-note'">
+              <Button @click="isCreateProjectDialogOpen = true">
                 <Plus :size="18" aria-hidden="true" />
                 {{ t('workspace.actions.createProject') }}
               </Button>
-              <p id="project-api-note" class="sr-only">
-                {{ t('workspace.states.projectApiPending') }}
-              </p>
             </div>
           </div>
 
@@ -183,10 +180,127 @@
               </div>
             </div>
 
-            <div class="workspace__projects-empty">
+            <div class="workspace__project-toolbar">
+              <label class="workspace__project-search">
+                <Search :size="17" aria-hidden="true" />
+                <span class="sr-only">{{ t('workspace.projects.search') }}</span>
+                <input v-model="projectSearch" :placeholder="t('workspace.projects.search')" />
+              </label>
+              <div
+                class="workspace__status-filters"
+                :aria-label="t('workspace.projects.statusFilter')"
+              >
+                <button
+                  v-for="filter in projectFilters"
+                  :key="filter.value"
+                  type="button"
+                  :class="{
+                    'workspace__status-filter--active': projectStatusFilter === filter.value,
+                  }"
+                  @click="projectStatusFilter = filter.value"
+                >
+                  {{ filter.label }} <span>{{ filter.count }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="projectsLoading" class="workspace__project-list" aria-busy="true">
+              <Skeleton v-for="index in 3" :key="index" class="h-36 w-full" />
+            </div>
+
+            <div v-else-if="projectsLoadError" class="workspace__projects-empty" role="alert">
+              <CircleAlert :size="28" aria-hidden="true" />
+              <h3>{{ t('workspace.states.projectLoadErrorTitle') }}</h3>
+              <p>{{ t('workspace.states.projectLoadErrorDescription') }}</p>
+              <Button variant="outline" @click="void retryProjects">{{
+                t('workspace.actions.retry')
+              }}</Button>
+            </div>
+
+            <div v-else-if="!filteredProjects.length" class="workspace__projects-empty">
               <PanelTop :size="28" aria-hidden="true" />
-              <h3>{{ t('workspace.states.noProjectsTitle') }}</h3>
-              <p>{{ t('workspace.states.projectApiPending') }}</p>
+              <h3>
+                {{
+                  projectSearch || projectStatusFilter !== 'ALL'
+                    ? t('workspace.states.noMatchingProjectsTitle')
+                    : t('workspace.states.noProjectsTitle')
+                }}
+              </h3>
+              <p>
+                {{
+                  projectSearch || projectStatusFilter !== 'ALL'
+                    ? t('workspace.states.noMatchingProjectsDescription')
+                    : t('workspace.states.noProjectsDescription')
+                }}
+              </p>
+              <Button
+                v-if="!projectSearch && projectStatusFilter === 'ALL'"
+                @click="isCreateProjectDialogOpen = true"
+              >
+                <Plus :size="18" aria-hidden="true" />
+                {{ t('workspace.actions.createProject') }}
+              </Button>
+            </div>
+
+            <div v-else class="workspace__project-overview-grid">
+              <div class="workspace__project-list">
+                <article
+                  v-for="project in filteredProjects"
+                  :key="project.id"
+                  class="workspace__project-card"
+                  :class="{ 'workspace__project-card--selected': project.id === selectedProjectId }"
+                >
+                  <button
+                    type="button"
+                    class="workspace__project-card-main"
+                    :aria-expanded="project.id === selectedProjectId"
+                    @click="void handleProjectSelect(project.id)"
+                  >
+                    <span class="workspace__project-card-heading">
+                      <span class="workspace__project-card-title">{{ project.name }}</span>
+                      <span class="workspace__status" :data-status="project.status">{{
+                        getProjectStatusLabel(project.status)
+                      }}</span>
+                    </span>
+                    <span class="workspace__project-card-description">{{
+                      project.description || t('workspace.projects.noDescription')
+                    }}</span>
+                    <span class="workspace__project-card-meta">
+                      {{
+                        t('workspace.projects.updatedAt', {
+                          date: formatUpdatedAt(project.updatedAt),
+                        })
+                      }}
+                      <ChevronDown
+                        class="workspace__accordion-icon"
+                        :size="18"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </button>
+
+                  <div
+                    v-if="project.id === selectedProjectId"
+                    class="workspace__mobile-project-detail"
+                  >
+                    <ProjectMembers
+                      :project="project"
+                      :members="membersByProjectId[project.id] ?? []"
+                      :loading="isProjectMembersLoading(project.id)"
+                      @enter-board="enterBoard(project.id)"
+                    />
+                  </div>
+                </article>
+              </div>
+
+              <aside v-if="selectedProject" class="workspace__desktop-project-detail">
+                <ProjectMembers
+                  :project="selectedProject"
+                  :members="membersByProjectId[selectedProject.id] ?? []"
+                  :loading="isProjectMembersLoading(selectedProject.id)"
+                  @enter-board="enterBoard(selectedProject.id)"
+                />
+              </aside>
             </div>
           </section>
         </template>
@@ -238,24 +352,38 @@
       v-model:open="isInviteDialogOpen"
       :workspace="selectedWorkspace"
     />
+    <CreateProjectDialog
+      v-if="selectedWorkspace"
+      v-model:open="isCreateProjectDialogOpen"
+      :workspace-id="selectedWorkspace.id"
+      :workspace-name="selectedWorkspace.name"
+      @created="handleProjectCreated"
+    />
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useMediaQuery } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 import {
   Archive,
   CircleAlert,
+  ChevronDown,
   Layers3,
   PanelTop,
   Plus,
+  Search,
   UserPlus,
   UsersRound,
 } from 'lucide-vue-next';
 import type { WorkspaceMemberDto, WorkspaceRole } from '@kanban/contracts/workspaces';
+import type { ProjectStatus } from '@kanban/contracts/project';
+import CreateProjectDialog from '@/components/project/CreateProjectDialog/CreateProjectDialog.vue';
+import ProjectMembers from '@/components/project/ProjectMembers/ProjectMembers.vue';
 import FormField from '@/components/shared/FormField/FormField.vue';
 import Input from '@/components/shared/Input/Input.vue';
 import Logo from '@/components/shared/Logo/Logo.vue';
@@ -276,6 +404,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getWorkspaceMembersApi } from '@/services/workspace';
 import { getApiErrorResponse } from '@/services/http';
 import { useUserStore } from '@/stores/user';
+import { useProjectStore } from '@/stores/project';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { validateWorkspaceName, workspaceNameMaxLength } from './workspace';
 import type { WorkspaceMemberChangedPayload } from '@kanban/contracts/socket';
@@ -288,20 +417,73 @@ import {
 } from '@/services/socket';
 
 const { t } = useI18n();
+const router = useRouter();
 const userStore = useUserStore();
 const workspaceStore = useWorkspaceStore();
+const projectStore = useProjectStore();
 const { hasLoadError, isLoading, selectedWorkspace, selectedWorkspaceId, workspaces } =
   storeToRefs(workspaceStore);
 const { createWorkspace, loadWorkspaces, selectWorkspace } = workspaceStore;
+const {
+  hasLoadError: projectsLoadError,
+  isLoading: projectsLoading,
+  membersByProjectId,
+  projects,
+  selectedProject,
+  selectedProjectId,
+} = storeToRefs(projectStore);
+const { isProjectMembersLoading, loadProjectMembers, loadProjects, selectProject } = projectStore;
 
 const isCreateDialogOpen = ref(false);
 const isInviteDialogOpen = ref(false);
+const isCreateProjectDialogOpen = ref(false);
 const isCreating = ref(false);
 const hasTriedCreate = ref(false);
 const workspaceName = ref('');
 const members = ref<WorkspaceMemberDto[]>([]);
 const isMembersLoading = ref(false);
 let memberRequestId = 0;
+const projectSearch = ref('');
+const projectStatusFilter = ref<'ALL' | ProjectStatus>('ALL');
+const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+const filteredProjects = computed(() => {
+  const query = projectSearch.value.trim().toLocaleLowerCase();
+  return projects.value.filter((project) => {
+    const matchesStatus =
+      projectStatusFilter.value === 'ALL' || project.status === projectStatusFilter.value;
+    const matchesQuery =
+      !query ||
+      project.name.toLocaleLowerCase().includes(query) ||
+      project.description?.toLocaleLowerCase().includes(query);
+    return matchesStatus && matchesQuery;
+  });
+});
+
+const projectFilters = computed(() => {
+  const count = (status?: ProjectStatus) =>
+    status
+      ? projects.value.filter((project) => project.status === status).length
+      : projects.value.length;
+  return [
+    { value: 'ALL' as const, label: t('workspace.projects.filters.all'), count: count() },
+    {
+      value: 'ACTIVE' as const,
+      label: t('workspace.projects.filters.active'),
+      count: count('ACTIVE'),
+    },
+    {
+      value: 'ON_HOLD' as const,
+      label: t('workspace.projects.filters.onHold'),
+      count: count('ON_HOLD'),
+    },
+    {
+      value: 'COMPLETED' as const,
+      label: t('workspace.projects.filters.completed'),
+      count: count('COMPLETED'),
+    },
+  ];
+});
 
 const workspaceNameError = computed(() => {
   if (!hasTriedCreate.value) {
@@ -330,6 +512,38 @@ const remainingMemberCount = computed(() =>
 
 const getRoleLabel = (role: WorkspaceRole) => {
   return role === 'OWNER' ? t('workspace.roles.owner') : t('workspace.roles.member');
+};
+
+const getProjectStatusLabel = (status: ProjectStatus) => t(`workspace.projects.status.${status}`);
+const formatUpdatedAt = (value: string) =>
+  new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(value));
+
+const handleProjectSelect = async (projectId: string) => {
+  const nextProjectId =
+    !isDesktop.value && selectedProjectId.value === projectId ? null : projectId;
+  selectProject(nextProjectId);
+  if (nextProjectId) {
+    try {
+      await loadProjectMembers(nextProjectId);
+    } catch {
+      /* detail 保留可重試的空狀態 */
+    }
+  }
+};
+
+const retryProjects = async () => {
+  if (selectedWorkspaceId.value) await loadProjects(selectedWorkspaceId.value);
+};
+
+const handleProjectCreated = () => {
+  if (selectedProjectId.value) void loadProjectMembers(selectedProjectId.value);
+};
+
+const enterBoard = (projectId: string) => {
+  void router.push({
+    name: 'board',
+    query: { workspaceId: selectedWorkspaceId.value ?? undefined, projectId },
+  });
 };
 
 const openCreateDialog = () => {
@@ -412,12 +626,30 @@ watch(
       emitWorkspaceInto(newWorkspaceId);
     }
     isInviteDialogOpen.value = false;
+    isCreateProjectDialogOpen.value = false;
+    projectSearch.value = '';
+    projectStatusFilter.value = 'ALL';
     void loadMembers(newWorkspaceId);
+    if (newWorkspaceId) {
+      void loadProjects(newWorkspaceId)
+        .then(() => {
+          if (isDesktop.value && projects.value[0]) void handleProjectSelect(projects.value[0].id);
+        })
+        .catch(() => undefined);
+    } else {
+      projectStore.resetProjects();
+    }
   },
   {
     immediate: true,
   },
 );
+
+watch([isDesktop, projects], ([desktop, currentProjects]) => {
+  if (desktop && !selectedProjectId.value && currentProjects[0]) {
+    void handleProjectSelect(currentProjects[0].id);
+  }
+});
 
 onMounted(() => {
   onWorkspaceMemberChanged(handleWorkspaceMemberChanged);
@@ -432,4 +664,4 @@ onUnmounted(() => {
 // #endregion
 </script>
 
-<style scoped src="./workspace-view.css"></style>
+<style scoped src="./workplace-view.css"></style>

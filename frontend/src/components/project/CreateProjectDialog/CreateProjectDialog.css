@@ -1,0 +1,14 @@
+@reference '../../../styles/index.css';
+
+.project-dialog {
+  @apply rounded-surface border-border bg-surface p-6 shadow-card;
+}
+.project-dialog__form {
+  @apply grid gap-6;
+}
+.project-dialog__textarea {
+  @apply min-h-28 w-full resize-y rounded-control border border-border bg-surface px-3 py-2 text-sm text-content-primary outline-none placeholder:text-content-secondary focus:border-action-primary focus:ring-3 focus:ring-action-primary/20;
+}
+.project-dialog__footer {
+  @apply mt-1 gap-3 sm:justify-end;
+}
