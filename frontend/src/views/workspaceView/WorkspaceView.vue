@@ -287,6 +287,8 @@
                       :project="project"
                       :members="membersByProjectId[project.id] ?? []"
                       :loading="isProjectMembersLoading(project.id)"
+                      :can-manage-members="canInviteMembers"
+                      @manage-members="openProjectMemberDialog(project.id)"
                       @enter-board="enterBoard(project.id)"
                     />
                   </div>
@@ -298,6 +300,8 @@
                   :project="selectedProject"
                   :members="membersByProjectId[selectedProject.id] ?? []"
                   :loading="isProjectMembersLoading(selectedProject.id)"
+                  :can-manage-members="canInviteMembers"
+                  @manage-members="openProjectMemberDialog(selectedProject.id)"
                   @enter-board="enterBoard(selectedProject.id)"
                 />
               </aside>
@@ -359,6 +363,14 @@
       :workspace-name="selectedWorkspace.name"
       @created="handleProjectCreated"
     />
+    <ProjectAddMemberDialog
+      v-if="selectedWorkspace && projectToManage"
+      v-model:open="isProjectMemberDialogOpen"
+      :project="projectToManage"
+      :workspace-name="selectedWorkspace.name"
+      :member-count="membersByProjectId[projectToManage.id]?.length ?? 0"
+      @added="handleProjectMemberAdded"
+    />
   </main>
 </template>
 
@@ -383,6 +395,7 @@ import {
 import type { WorkspaceMemberDto, WorkspaceRole } from '@kanban/contracts/workspaces';
 import type { ProjectStatus } from '@kanban/contracts/project';
 import CreateProjectDialog from '@/components/project/CreateProjectDialog/CreateProjectDialog.vue';
+import ProjectAddMemberDialog from '@/components/project/ProjectAddMemberDialog/ProjectAddMemberDialog.vue';
 import ProjectMembers from '@/components/project/ProjectMembers/ProjectMembers.vue';
 import FormField from '@/components/shared/FormField/FormField.vue';
 import Input from '@/components/shared/Input/Input.vue';
@@ -437,6 +450,8 @@ const { isProjectMembersLoading, loadProjectMembers, loadProjects, selectProject
 const isCreateDialogOpen = ref(false);
 const isInviteDialogOpen = ref(false);
 const isCreateProjectDialogOpen = ref(false);
+const isProjectMemberDialogOpen = ref(false);
+const projectToManageId = ref<string | null>(null);
 const isCreating = ref(false);
 const hasTriedCreate = ref(false);
 const workspaceName = ref('');
@@ -504,6 +519,9 @@ const workspaceNameError = computed(() => {
 });
 
 const canInviteMembers = computed(() => selectedWorkspace.value?.currentUserRole === 'OWNER');
+const projectToManage = computed(
+  () => projects.value.find((project) => project.id === projectToManageId.value) ?? null,
+);
 
 const visibleMembers = computed(() => members.value.slice(0, 3));
 const remainingMemberCount = computed(() =>
@@ -537,6 +555,16 @@ const retryProjects = async () => {
 
 const handleProjectCreated = () => {
   if (selectedProjectId.value) void loadProjectMembers(selectedProjectId.value);
+};
+
+const openProjectMemberDialog = (projectId: string) => {
+  if (!canInviteMembers.value) return;
+  projectToManageId.value = projectId;
+  isProjectMemberDialogOpen.value = true;
+};
+
+const handleProjectMemberAdded = () => {
+  if (projectToManageId.value) void loadProjectMembers(projectToManageId.value, true);
 };
 
 const enterBoard = (projectId: string) => {
@@ -627,6 +655,8 @@ watch(
     }
     isInviteDialogOpen.value = false;
     isCreateProjectDialogOpen.value = false;
+    isProjectMemberDialogOpen.value = false;
+    projectToManageId.value = null;
     projectSearch.value = '';
     projectStatusFilter.value = 'ALL';
     void loadMembers(newWorkspaceId);

@@ -64,6 +64,7 @@
 - 2026-09-18 完成 Frontend Project overview vertical slice後，以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite production build：10 個 test files／32 tests 全部通過，type-check／lint／build 亦通過。新增測試覆蓋 Workspace 快速切換時忽略舊 Project response、Project member request 去重與快取，以及 Project 通知的 read model／成員重新同步。Vite 仍只有 main chunk 超過 500 kB 的既有警告；Codex runtime 的 PATH 指到 pnpm 11.19，因此本次未用該 binary 執行 package scripts，使用者本機與專案仍固定 pnpm 11.25.0。
 - 2026-09-18 Project member candidate／addMember contract 改為 `workspaceMemberId` 後，Backend type-check、ESLint 與完整 unit tests 通過：18 suites passed、1 Controller scaffold suite skipped，89 tests passed、1 skipped；Frontend type-check 亦通過。新增 Service tests 覆蓋 OWNER 候選清單、封存 Workspace 與跨 Workspace membership 拒絕。
 - 2026-09-18 Figma Generator 升至 v12，新增 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` 原生 Component Sets，並建立 Desktop／Mobile 與 Loading／Empty／Error／Processing 畫面；Plugin TypeScript type-check、bundle 與 28 份 Current SVG audit 通過。Figma Desktop runtime／visual check 仍需執行 `Reload` → `Generate All` 後確認。
+- 2026-09-18 完成 Frontend 新增 Project member vertical slice：Workspace OWNER 可從 Project 詳情開啟 responsive Dialog，搜尋 Workspace member、辨識已加入者、選擇 EDITOR／VIEWER 並以 `workspaceMemberId` 送出；成功後強制刷新 Project member cache。Frontend type-check、production build、scoped ESLint 與 12 個 Vitest files／36 tests 通過。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
@@ -91,7 +92,7 @@
 - Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 已提供第一版 `notification:created` 推送，但重連後重新同步、事件遺失補償與跨分頁同步仍未完成。
 - Workspace View 已透過 `workspace:into`／`workspace:leave` 管理目前 Workspace room，後端加入前會驗證 membership 與 archivedAt；目前尚未處理 Socket reconnect 後 rejoin、快速切換造成的非同步 room 競速，以及成員被移除後既有 Socket 的 room 清理。`workspace:memberChanged` 只傳 Workspace ID，前端收到後重新呼叫成員清單 API。
 - Project create／list／member list／addMember 已有 HTTP route 並完成第一版 Workspace overview 串接；create 仍只回 `null`，因此前端建立後重新取得依更新時間排序的 list 並選取第一筆。addMember 採直接加入，不具接受／拒絕狀態；被加入者必須先是同一 Workspace 的有效成員。Board 頁仍使用假資料，從 Project 進入時目前只攜帶 `workspaceId`／`projectId` query。
-- Project member candidate read model 已改以 `workspaceMemberId` 銜接 addMember command，shared `AssignableProjectRole` 與 runtime DTO 都只允許 EDITOR／VIEWER；Service 行為測試已補，仍需補 Controller／隔離 E2E 與前端新增成員 Dialog 串接。
+- Project member candidate read model 與 Frontend Dialog 已改以 `workspaceMemberId` 銜接 addMember command，shared `AssignableProjectRole` 與 runtime DTO 都只允許 EDITOR／VIEWER；Service 行為與 Frontend component/service tests 已補，仍需補 Controller／隔離 E2E。
 - `20260915080141_add_project_member_id` 直接對 `project_members` 新增 required UUID `id`，沒有 SQL default／回填；全新資料庫可依序套用，但已有 ProjectMember 資料的既有環境會 migration 失敗，部署前必須修正 migration 策略。
 
 ## 更新方式

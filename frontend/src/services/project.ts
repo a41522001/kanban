@@ -1,6 +1,8 @@
 import type { ApiResponse } from '@kanban/contracts/api';
 import type {
+  AddProjectMemberRequest,
   CreateProjectRequest,
+  MemberCandidate,
   ProjectListItemDto,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
@@ -31,6 +33,29 @@ export const getProjectMembersApi = async (
 export const createProjectApi = async (data: CreateProjectRequest): Promise<ApiResponse<null>> => {
   const response = await api<ApiResponse<null>, CreateProjectRequest>({
     url: '/project',
+    method: 'post',
+    data,
+  });
+
+  return response.data;
+};
+
+export const getProjectMemberCandidatesApi = async (
+  projectId: string,
+): Promise<ApiResponse<MemberCandidate[]>> => {
+  const response = await api<ApiResponse<MemberCandidate[]>>({
+    url: `/project/${projectId}/memberCandidates`,
+    method: 'get',
+  });
+
+  return response.data;
+};
+
+export const addProjectMemberApi = async (
+  data: AddProjectMemberRequest,
+): Promise<ApiResponse<null>> => {
+  const response = await api<ApiResponse<null>, AddProjectMemberRequest>({
+    url: '/project/addMember',
     method: 'post',
     data,
   });

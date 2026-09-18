@@ -46,6 +46,9 @@
 .project-members__empty {
   @apply mt-3 rounded-control bg-surface-subtle p-4 text-sm text-content-secondary;
 }
-.project-members__board-button {
-  @apply mt-6 w-full;
+.project-members__actions {
+  @apply mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2;
+}
+.project-members__actions > * {
+  @apply w-full;
 }

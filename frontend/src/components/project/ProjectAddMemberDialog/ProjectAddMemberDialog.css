@@ -1,0 +1,146 @@
+@reference '../../../styles/index.css';
+
+.project-add-member-dialog {
+  @apply max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[600px] gap-0 overflow-y-auto rounded-frame border-border bg-surface p-6 shadow-card sm:p-8;
+}
+.project-add-member-dialog__header {
+  @apply relative pr-12 text-left;
+}
+.project-add-member-dialog__heading-copy {
+  @apply min-w-0;
+}
+.project-add-member-dialog__title {
+  @apply text-[1.375rem] leading-8 font-bold tracking-tight text-content-primary sm:text-2xl;
+}
+.project-add-member-dialog__description {
+  @apply mt-1 text-sm leading-6 text-content-secondary;
+}
+.project-add-member-dialog__close {
+  @apply absolute -top-1 -right-1 grid size-9 cursor-pointer place-items-center rounded-control bg-surface-subtle text-content-secondary transition-colors hover:bg-board-page hover:text-content-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 disabled:cursor-not-allowed disabled:opacity-50;
+}
+.project-add-member-dialog__context {
+  @apply mt-5 flex items-center gap-3 rounded-surface border border-border bg-surface-subtle px-3 py-2.5;
+}
+.project-add-member-dialog__project-mark {
+  @apply grid size-10 shrink-0 place-items-center rounded-control bg-action-primary text-sm font-bold text-content-on-dark;
+}
+.project-add-member-dialog__context-copy {
+  @apply flex min-w-0 flex-col gap-0.5;
+}
+.project-add-member-dialog__context-copy strong {
+  @apply truncate text-sm text-content-primary;
+}
+.project-add-member-dialog__context-copy span {
+  @apply text-xs text-content-secondary;
+}
+.project-add-member-dialog__search-section {
+  @apply mt-5 grid gap-1.5;
+}
+.project-add-member-dialog__search-section > label,
+.project-add-member-dialog__section-label,
+.project-add-member-dialog__roles legend {
+  @apply text-xs font-bold tracking-wide text-content-secondary;
+}
+.project-add-member-dialog__search {
+  @apply flex h-11 items-center gap-2.5 rounded-control border border-border bg-surface px-3.5 text-content-secondary focus-within:border-action-primary focus-within:ring-3 focus-within:ring-action-primary/20;
+}
+.project-add-member-dialog__search input {
+  @apply min-w-0 flex-1 bg-transparent text-sm text-content-primary outline-none placeholder:text-content-tertiary disabled:cursor-not-allowed;
+}
+.project-add-member-dialog__body {
+  @apply mt-4 min-h-[22.875rem];
+}
+.project-add-member-dialog__candidate-list {
+  @apply mt-2 grid max-h-[15.5rem] gap-2 overflow-y-auto pr-1;
+}
+.project-add-member-dialog__candidate {
+  @apply flex min-h-13 w-full cursor-pointer items-center gap-3 rounded-control border border-border bg-surface px-3 py-1.5 text-left transition-colors hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 disabled:cursor-not-allowed;
+}
+.project-add-member-dialog__candidate--selected {
+  @apply border-2 border-action-primary bg-action-primary-soft;
+}
+.project-add-member-dialog__candidate--joined {
+  @apply bg-surface-subtle opacity-70;
+}
+.project-add-member-dialog__candidate img,
+.project-add-member-dialog__avatar {
+  @apply grid size-9 shrink-0 place-items-center rounded-full bg-flow-active object-cover text-xs font-bold text-content-primary sm:size-10;
+}
+.project-add-member-dialog__candidate-copy {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+.project-add-member-dialog__candidate-copy strong {
+  @apply truncate text-sm text-content-primary;
+}
+.project-add-member-dialog__candidate-copy small {
+  @apply truncate text-xs text-content-secondary;
+}
+.project-add-member-dialog__joined-badge {
+  @apply shrink-0 rounded-full bg-board-page px-2 py-1 text-[0.6875rem] font-bold text-content-secondary;
+}
+.project-add-member-dialog__selection {
+  @apply grid size-6 shrink-0 place-items-center rounded-full border border-border-strong text-content-on-dark;
+}
+.project-add-member-dialog__candidate--selected .project-add-member-dialog__selection {
+  @apply border-action-primary bg-action-primary;
+}
+.project-add-member-dialog__roles {
+  @apply mt-4 grid grid-cols-2 gap-3;
+}
+.project-add-member-dialog__roles legend {
+  @apply col-span-2 mb-2;
+}
+.project-add-member-dialog__role {
+  @apply flex min-w-0 cursor-pointer items-center justify-between gap-2 rounded-control border border-border bg-surface px-3 py-2.5 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-action-primary/20;
+}
+.project-add-member-dialog__role--selected {
+  @apply border-2 border-action-primary bg-action-primary-soft;
+}
+.project-add-member-dialog__role > span {
+  @apply flex min-w-0 flex-col;
+}
+.project-add-member-dialog__role strong {
+  @apply text-sm text-content-primary;
+}
+.project-add-member-dialog__role small {
+  @apply text-xs text-content-secondary;
+}
+.project-add-member-dialog__role input {
+  @apply size-5 shrink-0 accent-action-primary;
+}
+.project-add-member-dialog__skeleton-row {
+  @apply flex h-13 items-center gap-3 rounded-control bg-surface-subtle px-3;
+}
+.project-add-member-dialog__status {
+  @apply mt-3 text-xs text-content-secondary;
+}
+.project-add-member-dialog__state {
+  @apply flex min-h-56 flex-col items-center justify-center gap-2 rounded-surface bg-surface-subtle p-6 text-center text-content-secondary;
+}
+.project-add-member-dialog__state strong {
+  @apply text-base text-content-primary;
+}
+.project-add-member-dialog__state p {
+  @apply max-w-sm text-sm leading-6;
+}
+.project-add-member-dialog__submit-error {
+  @apply mt-3 flex items-start gap-2 rounded-control border border-feedback-danger/25 bg-feedback-danger-soft px-3 py-2 text-sm text-feedback-danger;
+}
+.project-add-member-dialog__footer {
+  @apply mt-5 grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:justify-end;
+}
+.project-add-member-dialog__footer > * {
+  @apply w-full sm:w-auto;
+}
+
+@media (max-width: 639px) {
+  .project-add-member-dialog {
+    @apply h-[calc(100dvh-2rem)] max-h-[776px];
+  }
+  .project-add-member-dialog__body {
+    @apply min-h-0 flex-1;
+  }
+  .project-add-member-dialog__candidate-list {
+    @apply max-h-[13.75rem];
+  }
+}

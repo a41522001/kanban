@@ -37,22 +37,37 @@
       </li>
     </ul>
 
-    <Button class="project-members__board-button" @click="$emit('enter-board')">
-      {{ t('workspace.actions.enterBoard') }}
-      <ArrowRight :size="17" aria-hidden="true" />
-    </Button>
+    <div class="project-members__actions">
+      <Button
+        v-if="canManageMembers"
+        variant="outline"
+        @click="$emit('manage-members')"
+      >
+        <UserPlus :size="17" aria-hidden="true" />
+        {{ t('workspace.actions.manageMembers') }}
+      </Button>
+      <Button @click="$emit('enter-board')">
+        {{ t('workspace.actions.enterBoard') }}
+        <ArrowRight :size="17" aria-hidden="true" />
+      </Button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { ArrowRight } from 'lucide-vue-next';
+import { ArrowRight, UserPlus } from 'lucide-vue-next';
 import type { ProjectListItemDto, ProjectMemberDto } from '@kanban/contracts/project';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-defineProps<{ project: ProjectListItemDto; members: ProjectMemberDto[]; loading: boolean }>();
-defineEmits<{ 'enter-board': [] }>();
+defineProps<{
+  project: ProjectListItemDto;
+  members: ProjectMemberDto[];
+  loading: boolean;
+  canManageMembers?: boolean;
+}>();
+defineEmits<{ 'enter-board': []; 'manage-members': [] }>();
 const { t } = useI18n();
 </script>
 
