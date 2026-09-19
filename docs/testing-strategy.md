@@ -126,13 +126,13 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 
 ### Project
 
-- [ ] 將 `ProjectService` 與 `ProjectController` 的 scaffold specs 從 `describe.skip` 改為有效測試。
+- [x] `ProjectService` 已有 member candidate、封存 Workspace 與跨 Workspace membership 拒絕測試；`ProjectController` scaffold spec 仍為 `describe.skip`。
 - [ ] 建立 Project 時驗證 Workspace membership、封存 workspace、transaction rollback、Project 與 OWNER membership 同時建立。
 - [ ] Project Controller 的 Session userId、create／addMember DTO validation、成功 status／response mapping 與錯誤 envelope。
-- [ ] addMember：僅 Project OWNER 可操作，Project／Workspace 封存、帳號不存在、目標不是 WorkspaceMember、角色 whitelist 與成功通知推播。
+- [ ] addMember service 已實作 Project OWNER、封存 Project／Workspace、Workspace membership、角色 whitelist 與成功通知推播；目前僅有部分邊界分支測試，仍需補完整成功與 rollback assertion。
 - [ ] addMember transaction：ProjectMember 與 Notification 一起成功或 rollback，Socket 只在 commit 後 emit。
 - [ ] addMember 併行重複請求：`(projectId, userId)` unique constraint 只允許一筆，Prisma P2002 映射為 409 且不產生第二筆通知。
-- [ ] Project list 只回目前使用者實際具有 ProjectMember 的未封存 Projects。
+- [ ] Project list／members／memberCandidates read models 已實作並由 Frontend Project overview 使用；仍需補 service／controller 的完整 behavior tests。
 - [ ] 隔離 PostgreSQL E2E：建立、addMember、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
 - [ ] Migration upgrade test：既有 `project_members` 有資料時，新增獨立 required UUID `id` 可安全回填並完成 primary key 變更。
 
@@ -268,7 +268,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 11. 目前最優先的測試順序
 
-1. Project create／addMember／list Service、Controller 與隔離 E2E；先移除目前兩個 skipped scaffold suites，覆蓋 P2002 併行衝突與 transaction 後 Socket emit。
+1. Board／Column／Card schema、snapshot read model 與 Board room authorization；Project Controller／隔離 E2E、P2002 併行衝突與 transaction 後 Socket emit 同步補齊。
 2. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
 3. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 4. SessionService unit tests：驗證分支與 Lua reply mapping。

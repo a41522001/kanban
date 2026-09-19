@@ -14,7 +14,7 @@
 
 ## 目前實作邊界
 
-2026-09-16 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過既有 E2E。Project 已有 shared contracts、Repository、runtime DTO validation、create／addMember Service transaction 與 HTTP command；回傳 mapping、Project list、有效測試與前端尚未完成。Board 起的資料模型／commands 仍是目標設計。現行端點以[目前 HTTP API](http-api.md)為準。
+2026-09-19 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過既有 E2E。Project 已有 shared contracts、Repository、runtime DTO validation、create／list／members／memberCandidates／addMember Service 與 HTTP endpoints，並已完成第一版 Frontend overview／member Dialog；Project Controller／隔離 E2E、migration upgrade 與更完整併行測試仍待補。Board 起的資料模型／commands 仍是目標設計。現行端點以[目前 HTTP API](http-api.md)為準。
 
 ## 2. 第一版 Domain
 
@@ -331,7 +331,7 @@ Board room domain events 只描述已 commit 的事實：
 - [x] Workspace／WorkspaceMember schema、migration、repository。
 - [x] 建立／讀取 Workspace 與成員查詢 authorization（靜態核對）。
 - [x] Project／ProjectMember schema 與 migration。
-- [x] Project repository、create／addMember Service 與 command HTTP API（靜態核對；有效 Project tests 待補）。
+- [x] Project repository、create／list／members／memberCandidates／addMember Service 與 command HTTP API（目前已有部分有效 Service tests；Controller／E2E 待補）。
 - [ ] 完整建立 Project transaction：目前已建立 Project 與 OWNER ProjectMember；主要 Board、四個預設 Columns 尚未實作。
 - [ ] WorkspaceMember 與 ProjectMember 完整權限：create／addMember 已有檢查，list、detail、角色調整、移除成員與 Board commands 尚未實作。
 

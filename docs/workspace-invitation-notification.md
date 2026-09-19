@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-16（依原始碼、完整 build、Backend unit tests、Frontend type-check／unit tests 核對；Backend coverage 與隔離 Node 24.13 E2E 沿用 2026-09-15 紀錄）。此文件區分已實作行為與後續目標。
+最後核對：2026-09-19（依原始碼、Frontend／Backend 目前 unit baseline 核對；Backend coverage 與隔離 Node 24.13 E2E 沿用 2026-09-15 紀錄）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -85,6 +85,8 @@ Workspace View 會依目前選取的 Workspace emit `workspace:into`，後端先
 2026-09-15 完整 build 內的 frontend `vue-tsc --build` 與 Vite production build 通過，Vitest 為 8 個 test files、26 tests 通過。2026-09-12 的 ESLint 與 Playwright CLI 攔截 API 驗收仍是最近紀錄；尚未加入連真實 Backend 的 frontend E2E。
 
 2026-09-16 重新執行 Backend unit tests：17 suites／86 tests 通過，Project 2 suites／2 tests skipped；Frontend `vue-tsc --build` 通過，Vitest 為 9 個 test files／30 tests 通過。Workspace room 的實際 Socket.IO client、重連、快速切換與 listener lifecycle 尚未有自動化測試。
+
+2026-09-19 目前驗證：Frontend Vitest 為 12 個 test files／36 tests 通過；Backend 排除 sandbox 無法 bind HTTP listener 的 integration spec 後，17 suites／88 tests 通過，另有 1 個 Project Controller scaffold suite skipped。邀請與通知功能本身的待辦仍是 expiration job／真實資料庫批次更新、取消、唯一性、rollback、並行回覆，以及 Socket reconnect／漏收同步。
 
 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 

@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-17。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；測試紀錄見[進度](progress.md)。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-19。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；測試紀錄見[進度](progress.md)。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 

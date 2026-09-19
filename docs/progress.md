@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-18（依目前原始碼、Frontend type-check、unit tests、ESLint 與 production build 核對；Backend unit、coverage 與隔離 PostgreSQL／Redis E2E 沿用先前紀錄）。
+最後檢視：2026-09-19（依目前原始碼、Frontend unit tests、Backend unit baseline 與 Git working tree 核對；既有 build、coverage 與隔離 PostgreSQL／Redis E2E 沿用先前紀錄）。
 
 ## Native WebSocket
 
@@ -65,16 +65,17 @@
 - 2026-09-18 Project member candidate／addMember contract 改為 `workspaceMemberId` 後，Backend type-check、ESLint 與完整 unit tests 通過：18 suites passed、1 Controller scaffold suite skipped，89 tests passed、1 skipped；Frontend type-check 亦通過。新增 Service tests 覆蓋 OWNER 候選清單、封存 Workspace 與跨 Workspace membership 拒絕。
 - 2026-09-18 Figma Generator 升至 v12，新增 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` 原生 Component Sets，並建立 Desktop／Mobile 與 Loading／Empty／Error／Processing 畫面；Plugin TypeScript type-check、bundle 與 28 份 Current SVG audit 通過。Figma Desktop runtime／visual check 仍需執行 `Reload` → `Generate All` 後確認。
 - 2026-09-18 完成 Frontend 新增 Project member vertical slice：Workspace OWNER 可從 Project 詳情開啟 responsive Dialog，搜尋 Workspace member、辨識已加入者、選擇 EDITOR／VIEWER 並以 `workspaceMemberId` 送出；成功後強制刷新 Project member cache。Frontend type-check、production build、scoped ESLint 與 12 個 Vitest files／36 tests 通過。
+- 2026-09-19 以目前專案本機執行檔重新驗證 Frontend Vitest：12 個 test files／36 tests 通過。Backend 排除 sandbox 無法 bind HTTP listener 的 `validationException.integration.spec.ts` 後，17 suites／88 tests 通過，另有 1 個 Project Controller scaffold suite skipped；完整 Backend test 的唯一失敗是環境 `listen EPERM`，不應當作業務 assertion 失敗。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
-- 上述較早的 2026-09-04／09-08／09-11／09-12 結果是歷史紀錄；目前 HEAD 的自動驗證基準以 2026-09-16 的 Backend unit／Frontend type-check／Frontend unit 與 2026-09-15 的 coverage／隔離 E2E 紀錄為準。
+- 上述較早的 2026-09-04／09-08／09-11／09-12 結果是歷史紀錄；目前 HEAD 的自動驗證基準以 2026-09-19 的 Frontend／Backend unit baseline、2026-09-16 的完整 build，以及 2026-09-15 的 coverage／隔離 E2E 紀錄為準。
 - 進度只在實際跑過對應指令後標記完成，不以「已有 spec 檔」代替通過結果。
 
 ## 下一步
 
-1. 補 Project Controller、重複加入併行測試與隔離 E2E，並處理既有資料下 ProjectMember `id` migration；Frontend 下一階段串接新增 Project member Dialog 與 Board read model。
+1. 建立 Board／Column／Card schema、migration 與 snapshot read model；同時補 Project Controller／隔離 E2E、重複加入併行測試與既有資料下 ProjectMember `id` migration。
 2. 補 expiration job unit test 與真實資料庫過期批次更新測試。
 3. 完成邀請取消；補 PENDING 邀請的資料庫唯一性、錯誤授權 E2E 與併發衝突處理。
 4. 補 Notification 列表 query filters，以及通知收件匣隔離／transaction rollback E2E；已讀 E2E 已完成。
