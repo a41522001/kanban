@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateProjectDto } from './dto/createProject.dto';
 import type { Prisma, Project, ProjectMember } from '@/generated/prisma/client';
 import type { AddProjectMemberParams } from './project.type';
+import type { MemberCandidate } from '@kanban/contracts/project';
 type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
   select: {
     id: true;
@@ -15,9 +16,38 @@ type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
     };
   };
 }>;
+
 @Injectable()
 export class ProjectRepository {
   constructor(private readonly prismaService: PrismaService) {}
+
+  /** 取得新增成員的候選 */
+  async getMemberCandidates(projectId: string): Promise<MemberCandidate[]> {
+    return this.prismaService.$queryRaw<MemberCandidate[]>`
+      SELECT
+        wm.id AS "workspaceMemberId",
+        u.id AS "userId",
+        u.display_name AS "displayName",
+        u.avatar_url AS "avatarUrl",
+        pm.role AS "projectRole"
+      FROM projects AS p
+      JOIN workspaces AS w
+        ON w.id = p.workspace_id
+        AND w.archived_at IS NULL
+      JOIN workspace_members AS wm
+        ON wm.workspace_id = p.workspace_id
+      JOIN users AS u
+        ON u.id = wm.user_id
+      LEFT JOIN project_members AS pm
+        ON pm.project_id = p.id
+        AND pm.user_id = wm.user_id
+      WHERE p.id = ${projectId}::uuid
+        AND p.archived_at IS NULL
+      ORDER BY
+        CASE WHEN pm.id IS NULL THEN 0 ELSE 1 END,
+        u.display_name ASC
+    `;
+  }
   /** 創建專案 */
   async createProject(
     createProjectDto: CreateProjectDto,
@@ -128,6 +158,11 @@ export class ProjectRepository {
             name: true,
             archivedAt: true,
             workspaceId: true,
+            workspace: {
+              select: {
+                archivedAt: true,
+              },
+            },
           },
         },
         user: {

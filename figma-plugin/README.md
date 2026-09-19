@@ -28,21 +28,23 @@ npm run watch
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
 5. 按 `Generate All`；也可以單獨重建 Foundations、Components 或 Screens。
 
-目前 UI 版本標記為 `v9`。此版本將 Workspace Overview 的 Desktop／Tablet／Mobile Screen 重新對齊 Current SVG，並新增獨立的 `Workspace Project Preview` variants，避免 Workspace 卡片誤用 Project Overview 的 `Project Card`。Project role 仍不在 overview 顯示，進入專案內部後再呈現。Notification inbox 與 Workspace Invitation domain action 的分離亦維持不變。
+目前 UI 版本標記為 `v12`。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入看板」。
+
+v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` 原生 Component Sets，以及 Desktop／Mobile 與 Loading／Empty／Error／Processing 畫面。候選人以 `workspaceMemberId` 送出，已加入專案者顯示 disabled，可指派角色僅有 `EDITOR`／`VIEWER`。
 
 2026-09-12 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次修正後的 v7 `Generate All`：兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。已確認 Dialog Component Set 有 12 個分開排列的 variants，Screen 使用 Instances，並完成 Dialog states 與 Notification Item interaction contract 的 runtime／visual check。
 
 2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。Workspace Overview 的 Desktop／Tablet／Mobile 畫面亦已完成 runtime／visual check。
 
-## v9 source-to-output manifest
+## v12 source-to-output manifest
 
 | Source | Viewport／state | Figma output |
 | --- | --- | --- |
-| `../design/workspace-overview.svg` | Desktop `1440 × 900` | `02 · Components` → `Workspace Project Preview`; `03 · Screens` → `Workspace Overview` → Desktop |
-| `../design/workspace-overview-tablet.svg` | Tablet `768 × 1024` | 同上 → Tablet |
-| `../design/workspace-overview-mobile.svg` | Mobile `390 × 844` | 同上 → Mobile |
-| `../design/project-overview.svg` | Desktop `1440 × 900` | `02 · Components` → `Project Card`／`Selected Project Members`; `03 · Screens` → `Project Overview` → Desktop |
-| `../design/project-overview-mobile.svg` | Mobile `390 × 844` | `02 · Components` → `Project Card`; `03 · Screens` → `Project Overview` → Mobile |
+| `../design/workspace-overview.svg` | Desktop `1440 × 900` | `02 · Components` → `Project Card`／`Selected Project Members`; `03 · Screens` → `Workspace Project Overview` → Desktop |
+| `../design/workspace-overview-tablet.svg` | Tablet `768 × 1024` | `02 · Components` → `Project Card`; 同上 → Tablet |
+| `../design/workspace-overview-mobile.svg` | Mobile `390 × 844` | `02 · Components` → `Project Card`; 同上 → Mobile |
+| `../design/project-add-member-dialog.svg` | Desktop `1440 × 900`，Default／Loading／Empty／Error／Processing | `02 · Components` → `Project Member Candidate`／`Project Role Option`／`Project Add Member Dialog`; `03 · Screens` → `Project Add Member` → Desktop／Runtime States |
+| `../design/project-add-member-dialog-mobile.svg` | Mobile `390 × 844`，Default | 同上 → Mobile |
 | `../design/notification-dropdown.svg` | Desktop `1440 × 900` | `02 · Components` → `Notification Item`／`Notification Dropdown`; `03 · Screens` → `Notifications` → Desktop |
 | `../design/notification-dropdown-mobile.svg` | Mobile `390 × 844` | 同上 → Mobile |
 | `../design/notification-dropdown-states.svg` | Loading／Empty／Error | `02 · Components` → `Notification Dropdown`; `03 · Screens` → Runtime States |

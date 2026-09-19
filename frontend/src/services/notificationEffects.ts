@@ -4,6 +4,7 @@ import type {
   PublicNotification,
 } from '@kanban/contracts/notification';
 import { useWorkspaceStore } from '@/stores/workspace';
+import { useProjectStore } from '@/stores/project';
 
 type ResourceSyncHandler = (resourceId: string | null) => Promise<void>;
 type NotificationEffectHandler = (notification: PublicNotification) => Promise<void>;
@@ -13,7 +14,7 @@ const skipResourceSync: ResourceSyncHandler = () => Promise.resolve();
 /**
  * 集中管理 domain resource 的重新同步策略。
  *
- * Project／Board／Card Store 與 read API 完成後，在對應 handler 接上即可，
+ * Board／Card Store 與 read API 完成後，在對應 handler 接上即可，
  * 不需要讓 Notification Store 或 UI 元件知道各 domain 的載入細節。
  */
 const resourceSyncHandlers: Record<NotificationResourceType, ResourceSyncHandler> = {
@@ -21,7 +22,11 @@ const resourceSyncHandlers: Record<NotificationResourceType, ResourceSyncHandler
   WORKSPACE: async () => {
     await useWorkspaceStore().refreshWorkspaces();
   },
-  PROJECT: skipResourceSync,
+  PROJECT: async (projectId) => {
+    const projectStore = useProjectStore();
+    await projectStore.refreshProjects();
+    if (projectId) await projectStore.loadProjectMembers(projectId, true);
+  },
   BOARD: skipResourceSync,
   CARD: skipResourceSync,
 };

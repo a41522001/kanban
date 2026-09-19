@@ -6,12 +6,12 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/prisma/prisma.service';
 import { AddProjectMemberDto } from './dto/addProjectMember.dto';
-import { UserService } from '@/user/user.service';
 import { FindMembershipResponse } from './project.type';
 import { NotificationService } from '@/notification/notification.service';
 import { SocketService } from '@/socket/socket.service';
 import { Prisma, type Notification } from '@/generated/prisma/client';
 import type {
+  MemberCandidate,
   ProjectListItemDto,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
@@ -19,7 +19,6 @@ import type {
 export class ProjectService {
   constructor(
     private readonly workspaceService: WorkspacesService,
-    private readonly userService: UserService,
     private readonly notificationService: NotificationService,
     private readonly prismaService: PrismaService,
     private readonly socketService: SocketService,
@@ -75,6 +74,7 @@ export class ProjectService {
       };
     });
   }
+
   /** 找尋成員 */
   async findMembership(
     userId: string,
@@ -94,8 +94,48 @@ export class ProjectService {
       role: result.role,
       projectName: result.project.name,
       projectArchivedAt: result.project.archivedAt,
+      workspaceArchivedAt: result.project.workspace.archivedAt,
       workspaceId: result.project.workspaceId,
     };
+  }
+
+  /** 取得同 Workspace 中可加入目前 Project 的成員候選。 */
+  async getMemberCandidates(
+    userId: string,
+    projectId: string,
+  ): Promise<MemberCandidate[]> {
+    const projectMembership = await this.findMembership(userId, projectId);
+
+    if (
+      !projectMembership ||
+      projectMembership.role !== 'OWNER' ||
+      projectMembership.projectArchivedAt !== null ||
+      projectMembership.workspaceArchivedAt !== null
+    ) {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        message: '你沒有管理此專案成員的權限',
+        code: ApiCode.RequestError,
+      });
+    }
+
+    const workspaceMembership = await this.workspaceService.findMembership(
+      userId,
+      projectMembership.workspaceId,
+    );
+
+    if (
+      !workspaceMembership ||
+      workspaceMembership.workspaceArchivedAt !== null
+    ) {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        message: '你已不是此工作區的有效成員',
+        code: ApiCode.RequestError,
+      });
+    }
+
+    return this.projectRepository.getMemberCandidates(projectId);
   }
 
   /** 新增專案成員 */
@@ -103,14 +143,13 @@ export class ProjectService {
     addProjectMemberDto: AddProjectMemberDto,
     inviterId: string,
   ) {
-    const { projectId, memberEmail, role } = addProjectMemberDto;
-    const [inviter, invitee] = await Promise.all([
-      this.findMembership(inviterId, projectId),
-      this.userService.getByEmail(memberEmail),
-    ]);
+    const { projectId, workspaceMemberId, role } = addProjectMemberDto;
+    const inviter = await this.findMembership(inviterId, projectId);
+
     if (
       inviter === null ||
       inviter.projectArchivedAt !== null ||
+      inviter.workspaceArchivedAt !== null ||
       inviter.role !== 'OWNER'
     ) {
       throw new AppException({
@@ -119,28 +158,21 @@ export class ProjectService {
         code: ApiCode.RequestError,
       });
     }
-    // 只允許邀請已註冊使用者
-    if (!invitee) {
-      throw new AppException({
-        status: HttpStatus.NOT_FOUND,
-        message: '此帳號不存在',
-        code: ApiCode.ResourceNotFound,
-      });
-    }
-    // 判斷邀請人與被邀請人是否存在於正確的工作區
+    // 操作者與目標 membership 都必須仍屬於 Project 所在的有效 Workspace。
     const [workspaceInviterMember, workspaceInviteeMember] = await Promise.all([
       this.workspaceService.findMembership(inviterId, inviter.workspaceId),
-      this.workspaceService.findMembership(invitee.id, inviter.workspaceId),
+      this.workspaceService.findMembershipById(workspaceMemberId),
     ]);
     if (
       !workspaceInviterMember ||
       !workspaceInviteeMember ||
+      workspaceInviteeMember.workspaceId !== inviter.workspaceId ||
       workspaceInviterMember.workspaceArchivedAt !== null ||
       workspaceInviteeMember.workspaceArchivedAt !== null
     ) {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
-        message: '此工作區不存在',
+        message: '找不到此工作區成員',
         code: ApiCode.ResourceNotFound,
       });
     }
@@ -152,14 +184,14 @@ export class ProjectService {
           {
             projectId,
             role,
-            userId: invitee.id,
+            userId: workspaceInviteeMember.userId,
           },
           tx,
         );
 
         return this.notificationService.createNotification(
           {
-            recipientUserId: invitee.id,
+            recipientUserId: workspaceInviteeMember.userId,
             actorUserId: inviterId,
             type: 'PROJECT_MEMBER_ADDED',
             resourceType: 'PROJECT',
@@ -187,7 +219,7 @@ export class ProjectService {
 
     // 推播socket
     this.socketService.emitNotificationCreated(
-      invitee.id,
+      workspaceInviteeMember.userId,
       this.notificationService.toPublicNotification(newNotification),
     );
   }

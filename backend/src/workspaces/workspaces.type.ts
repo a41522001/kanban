@@ -7,3 +7,10 @@ export interface FindMembershipResponse {
   workspaceName: string;
   workspaceArchivedAt: Date | null;
 }
+
+export interface FindMembershipByIdResponse {
+  memberId: string;
+  userId: string;
+  workspaceId: string;
+  workspaceArchivedAt: Date | null;
+}

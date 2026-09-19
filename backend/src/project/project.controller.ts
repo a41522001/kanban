@@ -31,6 +31,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type {
+  MemberCandidate,
   ProjectListItemDto,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
@@ -63,12 +64,39 @@ export class ProjectController {
     };
   }
 
+  /** 取得可加入專案的 Workspace 成員候選 */
+  @ApiOperation({ summary: '取得新增專案成員的候選清單' })
+  @ApiParam({
+    name: 'projectId',
+    description: '專案 UUID v4',
+    format: 'uuid',
+  })
+  @ApiOkResponse({
+    description: '回傳同 Workspace 成員及其目前 Project role',
+  })
+  @ApiForbiddenResponse({
+    description: '不是專案 OWNER、專案或工作區已封存',
+  })
+  @Get(':projectId/memberCandidates')
+  async getMemberCandidates(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Req() req: Request,
+  ): Promise<ApiResult<MemberCandidate[]>> {
+    const result = await this.projectService.getMemberCandidates(
+      req.userId!,
+      projectId,
+    );
+    return { data: result };
+  }
+
   /** 新增專案成員 */
   @ApiOperation({ summary: '將工作區成員加入專案' })
   @ApiCreatedResponse({ description: '專案成員新增成功並送出通知' })
   @ApiBadRequestResponse({ description: '請求欄位驗證失敗' })
   @ApiForbiddenResponse({ description: '不是專案 OWNER 或專案已封存' })
-  @ApiNotFoundResponse({ description: '帳號不存在或不是該工作區的有效成員' })
+  @ApiNotFoundResponse({
+    description: 'Workspace membership 不存在或不屬於該工作區',
+  })
   @ApiConflictResponse({ description: '該使用者已是專案成員' })
   @Post('addMember')
   @HttpCode(HttpStatus.CREATED)

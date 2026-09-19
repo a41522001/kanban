@@ -97,19 +97,15 @@ npm run build
 - 畫面與 Current SVG 在層級、間距、文案和 responsive 結構上相符。
 - 第二次執行 `Generate All` 不會建立重複 generated roots。
 
-## 8. Current v9 基準
+## 8. Current v11 基準
 
-目前 Generator 的可見版本為 `v9`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 將 Workspace Overview 的 Desktop／Tablet／Mobile 畫面重新對齊 Current SVG：
+目前 Generator 的可見版本為 `v11`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 對齊 Workspace responsive screens；v10 將 Mobile Project Card 改為手風琴；v11 將 Workspace 與 Project Overview 整併為唯一的 Workspace Project Overview，Desktop 採 master-detail，Tablet／Mobile 採 accordion。
 
-- `Workspace Project Preview` → 依 Desktop／Tablet／Mobile 與 Recent／Grid 情境提供 Columns／Timeline／Progress variants
-- `03 · Screens` → `Workspace Overview` Desktop／Tablet／Mobile
-- Workspace Overview 與 Project Overview 使用不同卡片元件，避免 Workspace 被 `Project Card` 的 selected／status 視覺污染
-
-v8 的 Project Overview 基準仍包含：
-
-- `Project Card` → Desktop／Mobile × Default／Selected × Active／OnHold／Completed variants
+- `Project Card` → Desktop 使用 Default／Selected；Tablet／Mobile 使用 Default／Expanded；三種 viewport 皆保留 Active／OnHold／Completed
 - `Selected Project Members` → Desktop master-detail 成員面板，只呈現 displayName、avatarUrl 與 joinedAt
-- `03 · Screens` → `Project Overview` Desktop／Mobile
+- `03 · Screens` → 唯一的 `Workspace Project Overview` Desktop／Tablet／Mobile
+- 未展開卡片只使用 Project list read model；Tablet／Mobile 展開後才以 projectId 取得完整成員
+- `Workspace Project Preview` 與獨立 `Project Overview` Screen 不再生成
 
 Project role 不在 Project Overview 顯示，進入專案內部後再呈現。
 
@@ -130,7 +126,7 @@ v7 的通知基準仍包含：
 
 Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`shared/Input` 與 `shared/FormField`。Notification Dropdown 對應 `notifications/NotificationMenu`，底層使用 `shadcn-vue/DropdownMenu`、`Badge`、`ScrollArea` 與 `Skeleton`。
 
-2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。Workspace Overview 的 Desktop／Tablet／Mobile 與 `Workspace Project Preview` variants 已完成 runtime／visual check；既有 Project Overview、通知與邀請畫面仍保留。
+2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。這是整併前的歷史驗證紀錄；v11 需重新執行 runtime／visual check。
 
 ## 9. 前端落地與手動驗收
 
@@ -141,7 +137,7 @@ Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`
 - 點擊 WORKSPACE_INVITED 的 content action 時，前端先標記該通知為已讀，再呼叫 detail API 開啟 Dialog；回覆狀態與已讀狀態仍分開管理。
 - 2026-09-13 已完成前端 v7 Dialog 與 detail API 串接；單筆已讀、全部已讀、接受邀請、婉拒邀請及點擊後先已讀再開啟詳細 Dialog 的流程已完成。
 
-## 10. v9 Figma design status
+## 10. v11 Figma design status
 
 2026-09-12 已更新 SVG visual references 並寫入既有 Figma 檔，2026-09-13 前端已完成對應：
 
@@ -149,6 +145,6 @@ Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`
 - 新增 `notification-item-interactions.svg`，定義 Desktop／Mobile hit targets、focus return 與 Type routing。
 - WORKSPACE_INVITED 由列表內容區開啟獨立 Workspace Invitation Detail Dialog，不再把接受／婉拒按鈕放在 Dropdown Item。
 - Workspace Invitation Dialog 包含 Loading、Pending、Responding、Accepted、Declined 與 Unavailable／Expired states。
-- Project Overview 已由既有 Development Plugin 生成 Desktop／Mobile 原生 Screen；Project role 保留在專案內部，不在 overview 顯示。
-- Workspace Overview 已依 Current SVG 生成 Desktop／Tablet／Mobile 原生 Screen，並使用獨立的 `Workspace Project Preview` variants。
-- 既有 Generator 已更新為 v9，Figma Desktop `Generate All` 已連續通過兩次；Workspace 與 Project Overview 的卡片元件、各裝置 Screen 與既有 Component Set variants 均已確認不重疊。
+- Workspace 與 Project Overview 已在 v11 source／Generator 整併為單一 `Workspace Project Overview`；Project role 保留在專案內部，不在 overview 顯示。
+- Desktop 使用 Project master-detail；Tablet／Mobile 使用 accordion，且「進入主要看板」維持獨立操作。
+- v11 已完成靜態 SVG／Plugin build gate；Figma Desktop `Generate All` 與 visual check 尚待重新執行。

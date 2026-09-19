@@ -22,11 +22,13 @@ import Loading from '@/components/app/Loading/Loading.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { sessionExpiredEvent } from '@/services/http';
 import { useNotificationStore } from '@/stores/notification';
+import { useProjectStore } from '@/stores/project';
 import { useUserStore } from '@/stores/user';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { disconnect } from '@/services/socket';
 const router = useRouter();
 const notificationStore = useNotificationStore();
+const projectStore = useProjectStore();
 const userStore = useUserStore();
 const workspaceStore = useWorkspaceStore();
 
@@ -36,6 +38,7 @@ const handleSessionExpired = () => {
   disconnect();
   userStore.resetUser();
   workspaceStore.resetWorkspaces();
+  projectStore.resetProjects();
 
   if (router.currentRoute.value.name !== 'login') {
     void router.replace({ name: 'login' });
