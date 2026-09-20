@@ -17,6 +17,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 | Notification states | `notification-dropdown-states.svg` | — | — | Current spec page |
 | Notification read actions | `notification-read-actions-states.svg` | — | — | Current spec page |
 | Notification item interactions | `notification-item-interactions.svg` | — | — | Current spec page |
+| Project member added notification detail | `project-member-added-notification-detail.svg` | — | `project-member-added-notification-detail-mobile.svg` | Current |
 | Board | `board-overview.svg` | `board-overview-tablet.svg` | `board-overview-mobile.svg` | Current |
 | Create card | `create-card-dialog.svg` | — | `create-card-dialog-mobile.svg` | Current |
 | Card detail | `card-detail.svg` | — | `card-detail-mobile.svg` | Current |
@@ -85,11 +86,21 @@ Card
 - 每則未讀通知提供明確的單筆已讀按鈕；Desktop 以 tooltip 補充名稱，Mobile 保留至少 `44 × 44` 的觸控區，不讓整張通知卡隱含執行已讀。
 - 「全部設為已讀」位於 Dropdown header。處理中停用全部已讀操作但保持列表與 Dropdown 開啟；成功後原地更新 unread 樣式、未讀數與 Bell badge。
 - `WORKSPACE_INVITED` 列表項目只依 notification type 與 resource pointer 導流；`workspaceName`、`inviterDisplayName` 與 `role` 由 Workspace Invitation detail API 提供，不存入 notification payload。
+- `PROJECT_MEMBER_ADDED` 列表項目只依 notification type 導流；Project、Workspace、邀請者、role 與 joinedAt 由 `GET /project/notificationDetail/:notificationId` 提供，不存入 notification payload。
 - Unread 與 Read 使用背景、border、文字層級及 unread dot 同時區分，不只依賴顏色。
 - Notification Item 的內容區與已讀按鈕是兩個獨立操作目標；內容區依 Type 開啟對應的 domain UI，已讀按鈕只更新 readAt，不得觸發導頁或資源動作。
 - 通知列表不呈現 invitation 的 PENDING／ACCEPTED／DECLINED 等資源狀態；列表只負責通知摘要與已讀／未讀。
 - Runtime variants 至少包含 Default、Loading、Empty、Error；載入錯誤提供「重新載入」。
 - Socket.IO 日後只觸發列表／未讀數同步，PostgreSQL 與 HTTP read model 仍是通知真相。
+
+## Project member added notification detail contract
+
+- Project OWNER 直接將同一 Workspace 的既有成員加入 Project 後，ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立；commit 後才向收件者的 user room 推送 `notification:created`。
+- Notification 使用 `resourceType=PROJECT` 與 `resourceId=projectId`；前端點擊內容後先標記已讀，再以 `notificationId` 呼叫 `GET /project/notificationDetail/:notificationId`，由後端重新驗證收件者、通知 type／resource 與 ProjectMember membership。
+- Dialog 顯示邀請者、Project 名稱、Workspace 名稱、Project role 與 joinedAt。成功狀態提供「前往專案」與「關閉」；前往專案攜帶 `workspaceId`／`projectId` 進入 Board route。
+- Desktop 使用 `520 × 544px` 置中 Dialog；Mobile 使用 `358 × 648px` inset Dialog 並保留 `16px` viewport gutter。Mobile 會縮短副標題，避免窄螢幕文字截斷。
+- Dialog 至少涵蓋 Loading、Loaded、Error／Retry 三種 runtime state；API 失敗時保留 Dialog，不直接顯示後端錯誤訊息。
+- detail response 對應 `ProjectMemberAddedNotificationDetail`：`role`、`projectName`、`projectId`、`workspaceName`、`workspaceId`、`inviterName`、`joinedAt`。
 
 ## Workspace invitation response contract
 

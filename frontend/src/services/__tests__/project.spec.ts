@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiCode } from '@kanban/contracts/api';
 import api from '@/services/http';
-import { addProjectMemberApi, getProjectMemberCandidatesApi } from '@/services/project';
+import {
+  addProjectMemberApi,
+  getProjectMemberAddedNotificationDetailApi,
+  getProjectMemberCandidatesApi,
+} from '@/services/project';
 
 vi.mock('@/services/http', () => ({
   default: vi.fn<typeof api>(),
@@ -47,6 +51,15 @@ describe('project member service', () => {
         workspaceMemberId: 'workspace-member-1',
         role: 'EDITOR',
       },
+    });
+  });
+
+  it('以 notificationId 取得新增專案成員通知詳情', async () => {
+    await getProjectMemberAddedNotificationDetailApi('notification-1');
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/project/notificationDetail/notification-1',
+      method: 'get',
     });
   });
 });

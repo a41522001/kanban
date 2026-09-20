@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-16。最新 Backend build／unit tests、Frontend type-check／unit tests，以及 2026-09-15 的 coverage 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋通知單筆／全部已讀，但尚未覆蓋 Project 或 Workspace room；Frontend ESLint 與瀏覽器手動驗收仍以 2026-09-12 紀錄為準。
+最後檢視：2026-09-20。最新 Backend build／unit tests、Frontend type-check／unit tests，以及 2026-09-15 的 coverage 與 Node 24.13 隔離 E2E 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋通知單筆／全部已讀，但尚未覆蓋 Project 或 Workspace room；Project member added detail 的 Frontend unit、type-check、lint、build 與瀏覽器驗收已於 2026-09-20 完成。
 
 ## 1. 目標
 
@@ -101,7 +101,7 @@
 - [ ] Socket.IO：有效 Session handshake 才能連線，邀請 transaction commit 後只向受邀者推送 `notification:created`，且 client 可用 notification id 去重。
 - [ ] Workspace room：只有有效 WorkspaceMember 可加入 `workspace:{workspaceId}`；接受邀請 transaction commit 後推送 `workspace:memberChanged`，目前尚缺真實 Socket.IO client authorization／lifecycle test。
 
-Notification 已開放列表、未讀數與單筆／全部已讀 API，邀請流程會在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。`markReadInvitation.e2e.spec.ts` 已於 2026-09-15 在隔離 PostgreSQL／Redis 執行通過，覆蓋受邀者單筆已讀、全部已讀與未讀數變化；跨使用者收件匣隔離、Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
+Notification 已開放列表、未讀數、單筆／全部已讀、Workspace invitation detail 與 Project member added detail API；邀請與 Project member added flow 都在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。Frontend 已補 Project member added detail service／component tests，驗證 notification id 傳遞、detail 顯示、role 翻譯、retry 與前往 Project event。`markReadInvitation.e2e.spec.ts` 已於 2026-09-15 在隔離 PostgreSQL／Redis 執行通過，覆蓋受邀者單筆已讀、全部已讀與未讀數變化；Project addMember／notification detail 的 Backend integration／E2E、跨使用者收件匣隔離、Socket.IO handshake、推播去重與 reconnect resync 的真實 integration tests 尚未完成。
 
 ### Workspace Invitation
 
@@ -132,6 +132,8 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 - [ ] addMember service 已實作 Project OWNER、封存 Project／Workspace、Workspace membership、角色 whitelist 與成功通知推播；目前僅有部分邊界分支測試，仍需補完整成功與 rollback assertion。
 - [ ] addMember transaction：ProjectMember 與 Notification 一起成功或 rollback，Socket 只在 commit 後 emit。
 - [ ] addMember 併行重複請求：`(projectId, userId)` unique constraint 只允許一筆，Prisma P2002 映射為 409 且不產生第二筆通知。
+- [x] Frontend `PROJECT_MEMBER_ADDED` notification detail：依 notification id 呼叫 detail API，顯示 Project／Workspace／角色／加入時間，並驗證 Loading、Error retry、Loaded 與前往 Project 行為。
+- [ ] Backend `getProjectMemberAddedNotificationDetail` service／controller：補通知 recipient isolation、type／resource mismatch、ProjectMember 不存在與 Project／Workspace archived 的 unit／integration assertions。
 - [ ] Project list／members／memberCandidates read models 已實作並由 Frontend Project overview 使用；仍需補 service／controller 的完整 behavior tests。
 - [ ] 隔離 PostgreSQL E2E：建立、addMember、讀取、未授權／封存邊界，以及 migration 從空資料庫可套用。
 - [ ] Migration upgrade test：既有 `project_members` 有資料時，新增獨立 required UUID `id` 可安全回填並完成 primary key 變更。

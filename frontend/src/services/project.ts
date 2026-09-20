@@ -3,6 +3,7 @@ import type {
   AddProjectMemberRequest,
   CreateProjectRequest,
   MemberCandidate,
+  ProjectMemberAddedNotificationDetail,
   ProjectListItemDto,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
@@ -58,6 +59,17 @@ export const addProjectMemberApi = async (
     url: '/project/addMember',
     method: 'post',
     data,
+  });
+
+  return response.data;
+};
+
+export const getProjectMemberAddedNotificationDetailApi = async (
+  notificationId: string,
+): Promise<ApiResponse<ProjectMemberAddedNotificationDetail>> => {
+  const response = await api<ApiResponse<ProjectMemberAddedNotificationDetail>>({
+    url: `/project/notificationDetail/${notificationId}`,
+    method: 'get',
   });
 
   return response.data;

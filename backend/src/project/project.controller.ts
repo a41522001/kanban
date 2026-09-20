@@ -33,6 +33,7 @@ import {
 import type {
   MemberCandidate,
   ProjectListItemDto,
+  ProjectMemberAddedNotificationDetail,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
 
@@ -152,6 +153,19 @@ export class ProjectController {
       workspaceId,
       req.userId!,
     );
+    return { data: result };
+  }
+
+  @Get('notificationDetail/:notificationId')
+  async getAddedProjectMemberDetailNotification(
+    @Param('notificationId', ParseUUIDPipe) notificationId: string,
+    @Req() req: Request,
+  ): Promise<ApiResult<ProjectMemberAddedNotificationDetail>> {
+    const result =
+      await this.projectService.getProjectMemberAddedNotificationDetail(
+        notificationId,
+        req.userId!,
+      );
     return { data: result };
   }
 }

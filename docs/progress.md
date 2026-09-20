@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-19（依目前原始碼、Frontend unit tests、Backend unit baseline 與 Git working tree 核對；既有 build、coverage 與隔離 PostgreSQL／Redis E2E 沿用先前紀錄）。
+最後檢視：2026-09-20（依目前原始碼、Frontend unit tests、Backend unit baseline 與 Git working tree 核對；既有 build、coverage 與隔離 PostgreSQL／Redis E2E 沿用先前紀錄）。
 
 ## Native WebSocket
 
@@ -37,8 +37,8 @@
 | Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；Workspace `workspace:into` 會驗證 membership／archivedAt 後加入 `workspace:{workspaceId}`，`workspace:leave` 負責離開；接受邀請 transaction commit 後推送 `workspace:memberChanged`，邀請通知則推送 `notification:created`；重連、快速切換競速與更完整 lifecycle 測試尚待補 |
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
-| Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀與工作區邀請詳細資訊 API 已完成；邀請流程在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端以 id 去重並同步列表與未讀狀態 |
-| Project domain | 建置中，read／create 已形成前端 vertical slice | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 建立 Project 與 OWNER membership，list／members／memberCandidates 提供 read models，`POST /project/addMember` 以 `workspaceMemberId` 由 Project OWNER 直接加入同 Workspace 成員並在 commit 後推送通知。Create 仍回傳 `null`，Controller scaffold spec 尚未補 |
+| Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀、Workspace invitation detail 與 Project member added detail API 已完成；兩種 domain flow 都在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端依 notification type 導向對應 Dialog |
+| Project domain | 建置中，read／create／member notification 已形成前端 vertical slice | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 建立 Project 與 OWNER membership，list／members／memberCandidates 提供 read models，`POST /project/addMember` 以 `workspaceMemberId` 由 Project OWNER 直接加入同 Workspace 成員，並在 commit 後推送 `PROJECT_MEMBER_ADDED` 通知；`GET /project/notificationDetail/:notificationId` 與前端詳細 Dialog 已串接。Create 仍回傳 `null`，Controller scaffold spec 尚未補 |
 | Board／Column／Card domain | 尚未開始持久化 | 目前只有目標規格、設計稿與前端假資料；尚無 Prisma models、REST API、Socket commands 或有效測試 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
@@ -66,6 +66,7 @@
 - 2026-09-18 Figma Generator 升至 v12，新增 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` 原生 Component Sets，並建立 Desktop／Mobile 與 Loading／Empty／Error／Processing 畫面；Plugin TypeScript type-check、bundle 與 28 份 Current SVG audit 通過。Figma Desktop runtime／visual check 仍需執行 `Reload` → `Generate All` 後確認。
 - 2026-09-18 完成 Frontend 新增 Project member vertical slice：Workspace OWNER 可從 Project 詳情開啟 responsive Dialog，搜尋 Workspace member、辨識已加入者、選擇 EDITOR／VIEWER 並以 `workspaceMemberId` 送出；成功後強制刷新 Project member cache。Frontend type-check、production build、scoped ESLint 與 12 個 Vitest files／36 tests 通過。
 - 2026-09-19 以目前專案本機執行檔重新驗證 Frontend Vitest：12 個 test files／36 tests 通過。Backend 排除 sandbox 無法 bind HTTP listener 的 `validationException.integration.spec.ts` 後，17 suites／88 tests 通過，另有 1 個 Project Controller scaffold suite skipped；完整 Backend test 的唯一失敗是環境 `listen EPERM`，不應當作業務 assertion 失敗。
+- 2026-09-20 完成 Project member added notification detail vertical slice：Backend 提供以 notification id 與 recipient 驗證的 `GET /project/notificationDetail/:notificationId`；Frontend 通知選單依 `PROJECT_MEMBER_ADDED` 開啟詳細 Dialog，支援 Loading／Error retry／Loaded、角色與加入時間顯示，以及前往 Project。Frontend 13 個 test files／39 tests 通過，type-check、production build、ESLint、Oxlint 與 `git diff --check` 亦通過；瀏覽器驗證確認 Desktop `520 × 544px`、Mobile `358 × 648px` 與 Board query navigation。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。

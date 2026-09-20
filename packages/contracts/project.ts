@@ -19,6 +19,7 @@ export interface AddProjectMemberRequest {
   workspaceMemberId: string;
   role: AssignableProjectRole;
 }
+
 /** 專案成員列表中的成員資料。 */
 export interface ProjectMemberDto {
   memberId: string;

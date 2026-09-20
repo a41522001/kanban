@@ -1477,6 +1477,205 @@ function workspaceInvitationDetailDialogVariant(
   return response;
 }
 
+function projectMemberAddedDetailRow(label: string, value: string, width: number): FrameNode {
+  const row = auto(`Member detail / ${label}`, 'HORIZONTAL');
+  fixed(row, width, 32);
+  row.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  row.counterAxisAlignItems = 'CENTER';
+  row.appendChild(text('Detail label', label, 'Body / Small', 'text/secondary'));
+  row.appendChild(text('Detail value', value, 'Label / Medium'));
+  return row;
+}
+
+function projectMemberAddedNotificationDetailVariant(viewport: NotificationViewport): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const width = mobile ? 358 : 520;
+  const height = mobile ? 648 : 544;
+  const contentWidth = width - (mobile ? 32 : 48);
+  const response = figma.createComponent();
+  response.name = `Viewport=${viewport}`;
+  response.description = 'Project Member Added Notification Detail Dialog · loaded by notificationId · read-only membership result with project navigation';
+  response.layoutMode = 'VERTICAL';
+  response.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  response.itemSpacing = mobile ? 12 : 10;
+  fixed(response, width, height);
+  setPadding(response, mobile ? 16 : 24);
+  applyFill(response, 'bg/surface');
+  applyStroke(response, 'border/default');
+  setRadius(response, 'radius/xl');
+  response.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#29324A'), a: 0.2 }, offset: { x: 0, y: 16 }, radius: 32, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const accent = figma.createRectangle();
+  accent.name = 'Dialog accent';
+  accent.resize(width, 6);
+  applyFill(accent, 'flow/active');
+  response.appendChild(accent);
+  accent.layoutPositioning = 'ABSOLUTE';
+  accent.x = 0;
+  accent.y = 0;
+
+  const header = auto('Membership result header', 'HORIZONTAL', { gap: 12 });
+  fixed(header, contentWidth, 48);
+  header.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  header.counterAxisAlignItems = 'CENTER';
+
+  const identity = auto('Membership result identity', 'HORIZONTAL', { gap: mobile ? 8 : 12 });
+  identity.counterAxisAlignItems = 'CENTER';
+  const statusIcon = auto('Joined project status', 'HORIZONTAL', { fill: 'flow/active-soft', radius: 'radius/full' });
+  fixed(statusIcon, mobile ? 42 : 44, mobile ? 42 : 44);
+  statusIcon.primaryAxisAlignItems = 'CENTER';
+  statusIcon.counterAxisAlignItems = 'CENTER';
+  statusIcon.appendChild(icon(
+    'Members icon',
+    '<circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M1.5 15c.7-3 2.5-4.5 5.5-4.5S11.8 12 12.5 15M13 3.5a3 3 0 0 1 0 5.7M14 11c2 .4 3.2 1.7 3.6 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    20,
+    'category/mint',
+    '0 0 18 18',
+  ));
+  const statusBadge = auto('Joined check badge', 'HORIZONTAL', { fill: 'category/mint', radius: 'radius/full' });
+  fixed(statusBadge, 18, 18);
+  statusBadge.primaryAxisAlignItems = 'CENTER';
+  statusBadge.counterAxisAlignItems = 'CENTER';
+  statusBadge.appendChild(icon('Joined check', '<path d="m3 8 3.2 3.2L13 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>', 12, 'text/on-dark', '0 0 16 16'));
+  statusIcon.appendChild(statusBadge);
+  statusBadge.layoutPositioning = 'ABSOLUTE';
+  statusBadge.x = mobile ? 27 : 29;
+  statusBadge.y = mobile ? 27 : 29;
+  identity.appendChild(statusIcon);
+
+  const heading = auto('Dialog heading', 'VERTICAL', { gap: 2 });
+  heading.appendChild(text('Dialog title', '你已加入專案', 'Heading / H3'));
+  heading.appendChild(text('Dialog subtitle', mobile ? '現在可以開始參與協作' : '專案已出現在你的工作區，可以開始協作', 'Body / Small', 'text/secondary'));
+  identity.appendChild(heading);
+  header.appendChild(identity);
+
+  const close = auto('Close dialog action', 'HORIZONTAL', { fill: 'bg/subtle', radius: 'radius/md' });
+  fixed(close, 36, 36);
+  close.primaryAxisAlignItems = 'CENTER';
+  close.counterAxisAlignItems = 'CENTER';
+  close.appendChild(icon('Close icon', '<path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 20, 'text/secondary'));
+  header.appendChild(close);
+  response.appendChild(header);
+
+  const projectCard = auto('Joined project summary', 'VERTICAL', {
+    gap: mobile ? 10 : 8,
+    padding: [mobile ? 16 : 18],
+    fill: 'bg/subtle',
+    stroke: 'flow/active',
+    radius: 'radius/lg',
+  });
+  fixed(projectCard, contentWidth, mobile ? 170 : 142);
+  projectCard.primaryAxisAlignItems = 'SPACE_BETWEEN';
+
+  const projectTop = auto('Project and inviter', 'HORIZONTAL', { gap: mobile ? 12 : 16 });
+  fixed(projectTop, contentWidth - (mobile ? 32 : 36), mobile ? 76 : 72);
+  projectTop.counterAxisAlignItems = 'CENTER';
+  const projectVisual = figma.createFrame();
+  projectVisual.name = 'Project mark and inviter avatar';
+  projectVisual.resize(mobile ? 56 : 60, mobile ? 56 : 60);
+  projectVisual.fills = [];
+  const projectMark = auto('Project mark', 'HORIZONTAL', { fill: 'action/primary', radius: 'radius/lg' });
+  fixed(projectMark, mobile ? 52 : 56, mobile ? 52 : 56);
+  projectMark.primaryAxisAlignItems = 'CENTER';
+  projectMark.counterAxisAlignItems = 'CENTER';
+  projectMark.appendChild(text('Project initial', 'F', 'Heading / H3', 'text/on-dark'));
+  projectVisual.appendChild(projectMark);
+  projectMark.x = 0;
+  projectMark.y = 0;
+  const inviterAvatar = auto('Inviter avatar', 'HORIZONTAL', { fill: 'flow/done', radius: 'radius/full' });
+  fixed(inviterAvatar, mobile ? 28 : 30, mobile ? 28 : 30);
+  inviterAvatar.primaryAxisAlignItems = 'CENTER';
+  inviterAvatar.counterAxisAlignItems = 'CENTER';
+  inviterAvatar.appendChild(text('Inviter initial', 'M', 'Label / Small', 'text/on-dark'));
+  applyStroke(inviterAvatar, 'bg/subtle', 4);
+  projectVisual.appendChild(inviterAvatar);
+  inviterAvatar.x = mobile ? 38 : 42;
+  inviterAvatar.y = mobile ? 38 : 42;
+  projectTop.appendChild(projectVisual);
+
+  const projectCopy = auto('Joined project copy', 'VERTICAL', { gap: 2 });
+  projectCopy.appendChild(text('Inviter message', 'Mina 已將你加入', 'Body / Small', 'text/secondary'));
+  projectCopy.appendChild(text('Project name', 'Flowboard 即時協作', mobile ? 'Label / Medium' : 'Heading / H3'));
+  projectCopy.appendChild(text('Workspace name', '無限有限公司', 'Body / Small', 'text/secondary'));
+  projectTop.appendChild(projectCopy);
+  projectCard.appendChild(projectTop);
+
+  if (mobile) {
+    const cardDivider = figma.createRectangle();
+    cardDivider.name = 'Project summary divider';
+    cardDivider.resize(contentWidth - 32, 1);
+    applyFill(cardDivider, 'border/default');
+    projectCard.appendChild(cardDivider);
+  }
+
+  const badges = auto('Membership badges', 'HORIZONTAL');
+  fixed(badges, contentWidth - (mobile ? 32 : 36), mobile ? 26 : 24);
+  badges.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  badges.counterAxisAlignItems = 'CENTER';
+  const joined = auto('Joined badge', 'HORIZONTAL', { gap: 6, padding: [4, 10], fill: 'category/mint-soft', radius: 'radius/full' });
+  joined.counterAxisAlignItems = 'CENTER';
+  joined.appendChild(icon('Joined badge check', '<path d="m3 8 3.2 3.2L13 4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>', 12, 'category/mint', '0 0 16 16'));
+  joined.appendChild(text('Joined label', '已加入', 'Label / Small', 'category/mint'));
+  badges.appendChild(joined);
+  const role = auto('Project role badge', 'HORIZONTAL', { padding: [4, 12], fill: 'category/lavender-soft', radius: 'radius/full' });
+  role.appendChild(text('Project role', 'EDITOR', 'Label / Small', 'category/lavender'));
+  badges.appendChild(role);
+  projectCard.appendChild(badges);
+  response.appendChild(projectCard);
+
+  const details = auto('Member information', 'VERTICAL', { gap: 6 });
+  fixed(details, contentWidth, 138);
+  details.appendChild(text('Section title', '成員資訊', 'Label / Small', 'text/secondary'));
+  const detailValues: Array<[string, string]> = [
+    ['工作區', '無限有限公司'],
+    ['專案角色', '編輯者'],
+    ['加入時間', mobile ? '9 月 20 日 13:42' : '2026 年 9 月 20 日 13:42'],
+  ];
+  detailValues.forEach(([label, value], index) => {
+    details.appendChild(projectMemberAddedDetailRow(label, value, contentWidth));
+    if (index < detailValues.length - 1) {
+      const divider = figma.createRectangle();
+      divider.name = `Member detail divider ${index + 1}`;
+      divider.resize(contentWidth, 1);
+      applyFill(divider, 'border/default');
+      details.appendChild(divider);
+    }
+  });
+  response.appendChild(details);
+
+  const divider = figma.createRectangle();
+  divider.name = 'Action divider';
+  divider.resize(contentWidth, 1);
+  applyFill(divider, 'border/default');
+  response.appendChild(divider);
+
+  const actionHeight = 48;
+  const actions = auto('Dialog actions', mobile ? 'VERTICAL' : 'HORIZONTAL', { gap: mobile ? 12 : 12 });
+  fixed(actions, contentWidth, mobile ? 108 : actionHeight);
+  const closeAction = responseAction('Outline', '關閉', mobile ? contentWidth : 148, actionHeight);
+  const projectAction = responseAction('Primary', '前往專案', mobile ? contentWidth : contentWidth - 160, actionHeight);
+  if (mobile) {
+    actions.appendChild(projectAction);
+    actions.appendChild(closeAction);
+  } else {
+    actions.appendChild(closeAction);
+    actions.appendChild(projectAction);
+  }
+  response.appendChild(actions);
+
+  const availability = text(
+    'Project availability note',
+    mobile ? '稍後仍可從「無限有限公司」再次開啟' : '你可以隨時從「無限有限公司」再次開啟這個專案',
+    'Label / Small',
+    'text/tertiary',
+  );
+  availability.textAlignHorizontal = 'CENTER';
+  availability.textAutoResize = 'HEIGHT';
+  availability.resize(contentWidth, 16);
+  response.appendChild(availability);
+  return response;
+}
+
 function notificationSkeletonRow(width: number, index: number): FrameNode {
   const row = auto(`Notification skeleton ${index + 1}`, 'HORIZONTAL', { gap: 12, padding: [14], fill: 'bg/subtle', radius: 'radius/lg' });
   fixed(row, width, 76);
@@ -1724,6 +1923,16 @@ async function buildComponents(replace = true): Promise<FrameNode> {
     invitationDetailRow,
   );
 
+  const projectMemberAddedDetailRow = auto('Project Member Added Notification Detail Dialog', 'HORIZONTAL', { gap: 24 });
+  root.appendChild(projectMemberAddedDetailRow);
+  componentSets['Project Member Added Notification Detail Dialog'] = componentSet(
+    'Project Member Added Notification Detail Dialog',
+    (['Desktop', 'Mobile'] as const).map((viewport) =>
+      projectMemberAddedNotificationDetailVariant(viewport),
+    ),
+    projectMemberAddedDetailRow,
+  );
+
   const notificationDropdownRow = auto('Notification Dropdown', 'HORIZONTAL', { gap: 24 });
   root.appendChild(notificationDropdownRow);
   componentSets['Notification Dropdown'] = componentSet(
@@ -1789,7 +1998,7 @@ function localComponent(name: string): ComponentNode | undefined {
 }
 
 async function hydrateComponentCache(): Promise<void> {
-  if (componentSets.Button && componentSets['Task Card'] && componentSets['Project Card'] && componentSets['Project Member Candidate'] && componentSets['Project Role Option'] && componentSets['Project Add Member Dialog'] && componentSets['Notification Read Action'] && componentSets['Notification Dropdown'] && componentSets['Workspace Invitation Detail Dialog'] && standaloneComponents['Selected Project Members']) return;
+  if (componentSets.Button && componentSets['Task Card'] && componentSets['Project Card'] && componentSets['Project Member Candidate'] && componentSets['Project Role Option'] && componentSets['Project Add Member Dialog'] && componentSets['Notification Read Action'] && componentSets['Notification Dropdown'] && componentSets['Workspace Invitation Detail Dialog'] && componentSets['Project Member Added Notification Detail Dialog'] && standaloneComponents['Selected Project Members']) return;
   const page = figma.root.children.find((candidate) => candidate.name === '02 · Components');
   if (!page) return;
   await figma.setCurrentPageAsync(page);
@@ -2745,6 +2954,46 @@ function workspaceInvitationDetailDialogStatesScreen(): FrameNode {
   return screen;
 }
 
+function projectMemberAddedNotificationDetailScreen(mobile = false): FrameNode {
+  const width = mobile ? 390 : 1440;
+  const height = mobile ? 844 : 900;
+  const viewport: NotificationViewport = mobile ? 'Mobile' : 'Desktop';
+  const screen = auto(
+    `Project Member Added Notification Detail / ${mobile ? 'Mobile / 390×844' : 'Desktop / 1440×900'}`,
+    'VERTICAL',
+    { fill: 'bg/canvas' },
+  );
+  fixed(screen, width, height);
+  screen.clipsContent = true;
+
+  const background = mobile
+    ? workspaceProjectOverviewMobileScreen()
+    : workspaceProjectOverviewDesktopScreen();
+  background.name = 'Workspace project overview backdrop';
+  screen.appendChild(background);
+  background.layoutPositioning = 'ABSOLUTE';
+  background.x = 0;
+  background.y = 0;
+
+  const scrim = auto('Dialog scrim', 'VERTICAL', { fill: 'bg/dark' });
+  fixed(scrim, width, height);
+  scrim.opacity = mobile ? 0.52 : 0.5;
+  screen.appendChild(scrim);
+  scrim.layoutPositioning = 'ABSOLUTE';
+  scrim.x = 0;
+  scrim.y = 0;
+
+  const dialog = instance(
+    componentVariant('Project Member Added Notification Detail Dialog', `Viewport=${viewport}`),
+    'Project member added notification detail dialog',
+  );
+  screen.appendChild(dialog);
+  dialog.layoutPositioning = 'ABSOLUTE';
+  dialog.x = mobile ? 16 : 460;
+  dialog.y = mobile ? 96 : 148;
+  return screen;
+}
+
 function notificationItemInteractionsScreen(): FrameNode {
   const screen = auto('Notification Item / Interaction Contract / 1440×900', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
   fixed(screen, 1440, 900);
@@ -2763,6 +3012,7 @@ function notificationItemInteractionsScreen(): FrameNode {
   routing.appendChild(text('Routing title', 'Type routing', 'Heading / H3', 'text/on-dark'));
   [
     'WORKSPACE_INVITED → Workspace Invitation Dialog',
+    'PROJECT_MEMBER_ADDED → Project Member Added Detail Dialog',
     'CARD_ASSIGNED → Card Detail',
     'CARD_MENTIONED → Card comment anchor',
     'CARD_REMINDER → Card Detail',
@@ -2956,7 +3206,7 @@ function cardDetailScreen(mobile = false): FrameNode {
   main.appendChild(text('Labels', '標籤　API　Auth　Backend', 'Body / Medium'));
   main.appendChild(text('Activity', '活動紀錄\nJeffery 建立卡片 · 剛剛\nMia 將卡片移至「準備開始」 · 3 分鐘前', 'Body / Medium', 'text/secondary'));
   content.appendChild(main);
-  if (!mobile) { const meta = auto('Card metadata', 'VERTICAL', { gap: 16, padding: [24], fill: 'bg/subtle', radius: 'radius/lg' }); fixed(meta, 360, 360); meta.appendChild(text('Title', '卡片資訊', 'Heading / H3')); meta.appendChild(text('Category', '類別　後端（薄荷綠）', 'Body / Medium')); meta.appendChild(text('Column', '欄位　準備開始', 'Body / Medium')); meta.appendChild(text('Version', '版本　v12', 'Body / Small', 'text/secondary')); content.appendChild(meta); }
+  if (!mobile) { const meta = auto('Card metadata', 'VERTICAL', { gap: 16, padding: [24], fill: 'bg/subtle', radius: 'radius/lg' }); fixed(meta, 360, 360); meta.appendChild(text('Title', '卡片資訊', 'Heading / H3')); meta.appendChild(text('Category', '類別　後端（薄荷綠）', 'Body / Medium')); meta.appendChild(text('Column', '欄位　準備開始', 'Body / Medium')); meta.appendChild(text('Version', '版本　v13', 'Body / Small', 'text/secondary')); content.appendChild(meta); }
   screen.appendChild(content); return screen;
 }
 
@@ -3023,6 +3273,7 @@ async function buildScreens(): Promise<FrameNode> {
     { name: 'Project Add Member', screens: [() => projectAddMemberDialogScreen(false), () => projectAddMemberDialogScreen(true), projectAddMemberStatesScreen] },
     { name: 'Notifications', screens: [() => notificationDropdownScreen(false), () => notificationDropdownScreen(true), notificationDropdownStatesScreen, notificationReadActionsStatesScreen, notificationItemInteractionsScreen] },
     { name: 'Workspace Invitation Detail Dialog', screens: [() => workspaceInvitationDetailDialogScreen(false), () => workspaceInvitationDetailDialogScreen(true), workspaceInvitationDetailDialogStatesScreen] },
+    { name: 'Project Member Added Notification Detail', screens: [() => projectMemberAddedNotificationDetailScreen(false), () => projectMemberAddedNotificationDetailScreen(true)] },
     { name: 'Board', screens: [boardScreen, boardTabletScreen, mobileBoardScreen] },
     { name: 'Create Card', screens: [fullCreateCardDialog, responsiveDialogScreen] },
     { name: 'Card Detail', screens: [() => cardDetailScreen(false), () => cardDetailScreen(true)] },
@@ -3058,7 +3309,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {

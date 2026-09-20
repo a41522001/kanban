@@ -1,0 +1,253 @@
+@reference '../../../styles/index.css';
+
+:global(.project-member-added-detail-dialog) {
+  @apply flex min-h-[544px] w-[calc(100%-2rem)] max-w-[520px] flex-col gap-0 overflow-y-auto rounded-frame border-border bg-surface p-6 shadow-[0_16px_32px_rgba(41,50,74,0.2)];
+  display: flex !important;
+  gap: 0 !important;
+  max-width: 520px !important;
+  overflow-y: auto !important;
+  border-radius: var(--radius-frame) !important;
+  box-shadow: 0 16px 32px rgb(41 50 74 / 20%) !important;
+}
+
+.project-member-added-detail-dialog__header {
+  @apply flex h-12 shrink-0 items-center justify-between gap-3;
+}
+
+.project-member-added-detail-dialog__identity {
+  @apply flex min-w-0 items-center gap-3;
+}
+
+.project-member-added-detail-dialog__status-icon {
+  @apply relative grid size-11 shrink-0 place-items-center rounded-full bg-flow-active-soft text-category-mint;
+}
+
+.project-member-added-detail-dialog__status-badge {
+  @apply absolute -right-1 -bottom-1 grid size-[18px] place-items-center rounded-full border-[3px] border-surface bg-category-mint text-content-on-dark;
+}
+
+.project-member-added-detail-dialog__heading {
+  @apply min-w-0;
+}
+
+.project-member-added-detail-dialog__heading :deep([data-slot='dialog-title']) {
+  @apply text-left text-lg leading-7 font-bold text-content-primary;
+}
+
+.project-member-added-detail-dialog__heading :deep([data-slot='dialog-description']) {
+  @apply truncate text-left text-xs leading-[18px] text-content-secondary;
+}
+
+.project-member-added-detail-dialog__close {
+  @apply grid size-9 shrink-0 place-items-center rounded-control bg-surface-subtle text-content-secondary transition-colors hover:text-content-primary focus-visible:ring-3 focus-visible:ring-action-primary/20 focus-visible:outline-none;
+}
+
+.project-member-added-detail-dialog__summary {
+  @apply mt-6 flex h-[142px] shrink-0 flex-col justify-between rounded-surface border border-flow-active bg-surface-subtle p-[18px];
+}
+
+.project-member-added-detail-dialog__summary-top {
+  @apply flex min-w-0 items-center gap-4;
+}
+
+.project-member-added-detail-dialog__project-visual {
+  @apply relative size-[60px] shrink-0;
+}
+
+.project-member-added-detail-dialog__project-mark {
+  @apply grid size-14 place-items-center rounded-surface bg-action-primary text-lg leading-7 font-bold text-content-on-dark;
+}
+
+.project-member-added-detail-dialog__inviter-avatar {
+  @apply absolute right-[-10px] bottom-[-10px] grid size-[30px] place-items-center rounded-full border-4 border-surface-subtle bg-flow-done text-[11px] font-bold text-content-on-dark;
+}
+
+.project-member-added-detail-dialog__project-copy {
+  @apply min-w-0;
+}
+
+.project-member-added-detail-dialog__project-copy p,
+.project-member-added-detail-dialog__project-copy span {
+  @apply block truncate text-xs leading-[18px] text-content-secondary;
+}
+
+.project-member-added-detail-dialog__project-copy h3 {
+  @apply truncate text-lg leading-7 font-bold text-content-primary;
+}
+
+.project-member-added-detail-dialog__summary-divider {
+  @apply hidden h-px w-full bg-border;
+}
+
+.project-member-added-detail-dialog__badges {
+  @apply flex items-center justify-between;
+}
+
+.project-member-added-detail-dialog__joined-badge,
+.project-member-added-detail-dialog__role-badge {
+  @apply inline-flex h-6 items-center justify-center rounded-full px-2.5 text-[11px] leading-4 font-medium;
+}
+
+.project-member-added-detail-dialog__joined-badge {
+  @apply gap-1 bg-category-mint-soft text-category-mint;
+}
+
+.project-member-added-detail-dialog__role-badge {
+  @apply bg-category-lavender-soft px-3 text-category-lavender;
+}
+
+.project-member-added-detail-dialog__member-info {
+  @apply mt-3 shrink-0;
+}
+
+.project-member-added-detail-dialog__member-info > h3 {
+  @apply mb-1 text-[11px] leading-4 font-medium tracking-[0.04em] text-content-secondary;
+}
+
+.project-member-added-detail-dialog__detail-row {
+  @apply flex min-h-11 items-center justify-between gap-4 border-b border-border py-2 last:border-b-0;
+}
+
+.project-member-added-detail-dialog__detail-row dt {
+  @apply shrink-0 text-xs leading-[18px] text-content-secondary;
+}
+
+.project-member-added-detail-dialog__detail-row dd {
+  @apply min-w-0 text-right text-sm leading-5 font-bold text-content-primary;
+}
+
+.project-member-added-detail-dialog__divider {
+  @apply mt-4 h-px w-full shrink-0 bg-border;
+}
+
+.project-member-added-detail-dialog__actions {
+  @apply mt-5 grid w-full shrink-0 grid-cols-[148px_1fr] gap-3;
+}
+
+.project-member-added-detail-dialog__actions > * {
+  @apply h-12;
+}
+
+.project-member-added-detail-dialog__availability-note {
+  @apply mt-3 text-center text-[11px] leading-4 text-content-tertiary;
+}
+
+.project-member-added-detail-dialog__loading {
+  @apply flex flex-1 flex-col;
+}
+
+.project-member-added-detail-dialog__skeleton-mark {
+  @apply size-14 shrink-0 rounded-surface bg-border;
+}
+
+.project-member-added-detail-dialog__skeleton-copy {
+  @apply flex flex-1 flex-col gap-2;
+}
+
+.project-member-added-detail-dialog__skeleton-line {
+  @apply h-3 w-2/5 bg-border;
+}
+
+.project-member-added-detail-dialog__skeleton-title {
+  @apply h-5 w-4/5 bg-border;
+}
+
+.project-member-added-detail-dialog__skeleton-short {
+  @apply h-3 w-1/2 bg-border;
+}
+
+.project-member-added-detail-dialog__skeleton-badges {
+  @apply h-6 w-full bg-border;
+}
+
+.project-member-added-detail-dialog__details-skeleton {
+  @apply mt-6 flex flex-col gap-5;
+}
+
+.project-member-added-detail-dialog__details-skeleton > * {
+  @apply bg-border;
+}
+
+.project-member-added-detail-dialog__error {
+  @apply my-6 flex flex-1 flex-col items-center justify-center rounded-surface border border-flow-review bg-flow-review-soft px-6 text-center;
+}
+
+.project-member-added-detail-dialog__error-icon {
+  @apply mb-3 grid size-11 place-items-center rounded-full bg-surface text-flow-review;
+}
+
+.project-member-added-detail-dialog__error h3 {
+  @apply text-base leading-6 font-bold text-content-primary;
+}
+
+.project-member-added-detail-dialog__error p {
+  @apply mt-1 mb-4 max-w-80 text-xs leading-5 text-content-secondary;
+}
+
+@media (max-width: 640px) {
+  :global(.project-member-added-detail-dialog) {
+    min-height: min(648px, calc(100dvh - 2rem));
+    @apply max-h-[calc(100dvh-2rem)] max-w-[358px] p-4;
+    max-width: 358px !important;
+  }
+
+  .project-member-added-detail-dialog__identity {
+    @apply gap-2;
+  }
+
+  .project-member-added-detail-dialog__status-icon {
+    @apply size-[42px];
+  }
+
+  .project-member-added-detail-dialog__heading :deep([data-slot='dialog-description']) {
+    @apply max-w-[190px];
+  }
+
+  .project-member-added-detail-dialog__summary {
+    @apply h-[170px] p-4;
+  }
+
+  .project-member-added-detail-dialog__summary-top {
+    @apply gap-3;
+  }
+
+  .project-member-added-detail-dialog__project-visual {
+    @apply size-14;
+  }
+
+  .project-member-added-detail-dialog__project-mark {
+    @apply size-[52px];
+  }
+
+  .project-member-added-detail-dialog__inviter-avatar {
+    @apply right-[-10px] bottom-[-10px] size-7;
+  }
+
+  .project-member-added-detail-dialog__project-copy h3 {
+    @apply text-sm leading-5;
+  }
+
+  .project-member-added-detail-dialog__summary-divider {
+    @apply block;
+  }
+
+  .project-member-added-detail-dialog__detail-row {
+    @apply min-h-11;
+  }
+
+  .project-member-added-detail-dialog__detail-row dd {
+    @apply text-xs leading-[18px];
+  }
+
+  .project-member-added-detail-dialog__actions {
+    @apply mt-5 flex flex-col gap-3;
+  }
+
+  .project-member-added-detail-dialog__project-action {
+    @apply order-first;
+  }
+
+  .project-member-added-detail-dialog__availability-note {
+    @apply mt-6;
+  }
+}

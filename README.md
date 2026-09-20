@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-19（依目前原始碼、Project 前後端 vertical slice、Frontend unit tests、Backend unit baseline 與 Git working tree 核對；build、coverage 與隔離 Backend E2E 沿用先前驗收紀錄）。
+最後檢視：2026-09-20（依目前原始碼、Project 前後端 vertical slice、Frontend unit tests、Backend unit baseline 與 Git working tree 核對；build、coverage 與隔離 Backend E2E 沿用先前驗收紀錄）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace、邀請通知、user room 通知推播、Workspace room 成員同步，以及 Project 的前後端第一版 vertical slice；Board 持久化與即時協作仍待實作。
 
@@ -23,10 +23,10 @@
 - Workspace Owner 可邀請已註冊使用者；邀請與通知在同一 PostgreSQL transaction 建立。
 - Workspace Invitation 已提供發送、接受與拒絕 Backend API；接受流程只在條件式轉為 ACCEPTED 成功後，才於同一 transaction 建立 WorkspaceMember，拒絕流程則條件式轉為 DECLINED。
 - Nest 排程每分鐘批次將 `expiresAt <= now` 的 PENDING invitation 改為 EXPIRED；操作端仍保留 `expiresAt` 條件，避免等待下一輪排程期間接受或拒絕過期邀請。
-- 通知列表、未讀數、單筆／全部已讀 API 與前端通知選單；新通知會在 transaction commit 後推送至受邀者 user room。
+- 通知列表、未讀數、單筆／全部已讀 API 與前端通知選單；新通知會在 transaction commit 後推送至收件者 user room。Workspace invitation 與 Project member added 都可由通知內容開啟各自的 domain detail UI。
 - 統一 API response、validation、exception filter、HTTP log redact 與 Swagger；現有 Controller 已補上 tags、operation、Cookie auth、成功／錯誤狀態描述，request DTO 亦有欄位說明與範例。
 - Socket.IO 已有 typed echo、Session Cookie handshake、`socket.data.userId`、server-managed user room，以及經 membership／archivedAt 驗證的 Workspace room `workspace:into`／`workspace:leave` 與 `workspace:memberChanged` 廣播。
-- Project／ProjectMember 已有 Prisma schema、migration、shared contracts、Repository 與 runtime DTO validation；`POST /project`、`GET /project/:workspaceId`、`GET /project/:projectId/members`、`GET /project/:projectId/memberCandidates` 與 `POST /project/addMember` 已提供第一版 API。建立 Project 會在同一 transaction 建立 OWNER membership；addMember 允許 Project OWNER 將同一 Workspace 的既有成員直接加入 Project，並在 transaction commit 後推送通知。
+- Project／ProjectMember 已有 Prisma schema、migration、shared contracts、Repository 與 runtime DTO validation；`POST /project`、`GET /project/:workspaceId`、`GET /project/:projectId/members`、`GET /project/:projectId/memberCandidates`、`POST /project/addMember` 與 `GET /project/notificationDetail/:notificationId` 已提供第一版 API。建立 Project 會在同一 transaction 建立 OWNER membership；addMember 允許 Project OWNER 將同一 Workspace 的既有成員直接加入 Project，並在 transaction commit 後推送 `PROJECT_MEMBER_ADDED` 通知。收件者點擊通知後可取得最新 Project／Workspace／角色／加入時間並前往專案。
 
 尚未完成：邀請取消、通知 query 分頁、Project detail／角色調整／移除成員 API、Project Controller／隔離 E2E／migration upgrade tests、Board／Column／Card 資料模型與 API、Board room authorization、ack／retry／idempotency／recovery。Socket 尚缺 handshake rotation 安全策略、Workspace room 重連後 rejoin、快速切換 room 的競速處理、membership 被移除後的 room 清理、前端 `connect_error` 與真實 lifecycle tests；Board 畫面目前使用本機假資料。
 
