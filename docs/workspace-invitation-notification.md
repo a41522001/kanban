@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-16（依原始碼、完整 build、Backend unit tests、Frontend type-check／unit tests 核對；Backend coverage 與隔離 Node 24.13 E2E 沿用 2026-09-15 紀錄）。此文件區分已實作行為與後續目標。
+最後核對：2026-09-20（依原始碼、Frontend／Backend 目前 unit baseline 核對；Backend coverage 與隔離 Node 24.13 E2E 沿用 2026-09-15 紀錄）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -43,11 +43,36 @@ Notification 的 resourceType 為 WORKSPACE_INVITATION，resourceId 指向 invit
 
 邀請回覆狀態以 WorkspaceInvitation 為準；通知選單開啟邀請 UI 時，使用 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId` 取得詳細資訊，因此通知只負責 unread/read 與導流。使用者點擊 WORKSPACE_INVITED 的內容區時，前端會先呼叫單筆已讀 API，成功後才開啟邀請詳細 Dialog；已讀通知不重複發送請求，已讀 API 失敗則不開啟 Dialog 並保留重試機會。通知已提供單筆／全部已讀 HTTP API 與 `notification:created` 即時推送，但尚未提供 query 分頁；過期通知仍會出現在列表與未讀計數。
 
+### Project member added notification
+
+Project 新增成員不是需要接受／拒絕的 invitation，而是由 Project OWNER 將同一 Workspace 的既有成員直接加入 Project。`POST /project/addMember` 成功時，ProjectMember 與通知會一起寫入同一個 Prisma transaction：
+
+1. 驗證操作者是未封存 Project 的 OWNER。
+2. 驗證目標 `workspaceMemberId` 是同一 Workspace 的有效 WorkspaceMember。
+3. 以 `role=EDITOR` 或 `role=VIEWER` 建立 ProjectMember；一般成員不能被指派 OWNER。
+4. 建立 `PROJECT_MEMBER_ADDED` Notification：`resourceType=PROJECT`、`resourceId=projectId`、`dedupeKey=projectMemberAdded:<projectMember.id>`、`expiresAt=null`。
+5. transaction commit 後，才向目標使用者的 `user:{recipientUserId}` room 推送 `notification:created`。
+
+這個通知不把 Project 名稱、Workspace 名稱、邀請者、角色或加入時間複製到 payload。Notification 列表只顯示摘要；完整資料由收件者點擊通知時重新讀取。
+
+前端點擊 `PROJECT_MEMBER_ADDED` 通知內容後，執行以下流程：
+
+1. 呼叫 `PATCH /notifications/read` 將通知標記已讀。
+2. 關閉 Notification Dropdown，使用 notification id 呼叫 `GET /project/notificationDetail/:notificationId`。
+3. Backend 以 `notificationId + recipientUserId` 驗證收件者，確認 notification type／resource，並確認收件者仍是該 Project 的成員。
+4. 回傳 `ProjectMemberAddedNotificationDetail`：`role`、`projectName`、`projectId`、`workspaceName`、`workspaceId`、`inviterName`、`joinedAt`。
+5. 開啟 Project Member Added Notification Detail Dialog，顯示載入、錯誤重試或成功內容。
+6. 使用者點擊「前往專案」後，以 `workspaceId`／`projectId` 導向 Board；點擊「關閉」則只關閉 Dialog。
+
+若通知不存在、不屬於目前使用者、type／resource 不符、ProjectMember 不存在，或 Project／Workspace 已封存，detail API 回 404 / `ResourceNotFound`。因此前端不能只使用通知列表中的 `resourceId` 自行組裝詳細畫面或直接當作授權依據。
+
+Dialog 設計規格為 Desktop `520 × 544px`、Mobile `358 × 648px`；Mobile 保留 `16px` viewport gutter 並使用較短副標題。畫面包含 Project／邀請者摘要、加入狀態、角色 badge、Workspace／角色／加入時間資料列，以及「前往專案」與「關閉」操作。對應 SVG 與 Figma 元件見 [design README](../design/README.md)。
+
 ### 通知 Socket.IO 推播（第一版已實作）
 
 Socket.IO 只負責把新通知即時送到目前在線的收件者，不取代 Notification 資料表或 HTTP API。工作區邀請與通知先在同一個 PostgreSQL transaction 建立，commit 成功後才向伺服器內部的 `user:{recipientUserId}` room emit；room 名稱由 server 依已驗證的 `socket.data.userId` 建立，client 不可傳入或選擇 userId。transaction rollback 或建立失敗時不得推播。
 
-事件只傳通知摘要與 resource pointer，不傳邀請詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數，再交由集中式 handler 以 `notification.type` 決定 side effect、以 `resourceType + resourceId` 定位 domain resource。Workspace resource sync 已接上 Workspace Store；Project／Board／Card 目前為明確佔位。`WORKSPACE_INVITED` 不會提前刷新 Workspace，只有接受 API 成功後才透過相同 resource sync 重新取得 Workspace 列表。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
+事件只傳通知摘要與 resource pointer，不傳邀請或 Project member 詳細資料或 payload。事件名稱為 `notification:created`，資料沿用 `PublicNotification`（`id、type、resourceType、resourceId、readAt、expiresAt、createdAt`）。前端收到事件後以 notification id 去重、更新 Pinia 列表與未讀數，再交由集中式 handler 以 `notification.type` 決定 side effect、以 `resourceType + resourceId` 定位 domain resource。Workspace resource sync 與 Project resource sync 已接上對應 Store；Board／Card 仍為明確佔位。`WORKSPACE_INVITED` 不會提前刷新 Workspace，只有接受 API 成功後才透過相同 resource sync 重新取得 Workspace 列表；`PROJECT_MEMBER_ADDED` 收到後會刷新 Project list，並重新取得該 Project members。Socket service 目前提供全域 singleton、connect／disconnect 與具名 handler 的 on／off 封裝；protected route 在 userInfo 恢復成功後確保連線，登出或 Session 過期時停止監聽並中斷連線。
 
 這項推播已完成 Session Cookie handshake 與 user room 的第一版。Socket.IO 預設可自動重連，但目前尚未在 reconnect 後主動以 HTTP 重新同步列表／未讀數，也尚未完成事件漏收補償、跨分頁同步與真實多 client integration tests。
 
@@ -85,6 +110,8 @@ Workspace View 會依目前選取的 Workspace emit `workspace:into`，後端先
 2026-09-15 完整 build 內的 frontend `vue-tsc --build` 與 Vite production build 通過，Vitest 為 8 個 test files、26 tests 通過。2026-09-12 的 ESLint 與 Playwright CLI 攔截 API 驗收仍是最近紀錄；尚未加入連真實 Backend 的 frontend E2E。
 
 2026-09-16 重新執行 Backend unit tests：17 suites／86 tests 通過，Project 2 suites／2 tests skipped；Frontend `vue-tsc --build` 通過，Vitest 為 9 個 test files／30 tests 通過。Workspace room 的實際 Socket.IO client、重連、快速切換與 listener lifecycle 尚未有自動化測試。
+
+2026-09-19 目前驗證：Frontend Vitest 為 12 個 test files／36 tests 通過；Backend 排除 sandbox 無法 bind HTTP listener 的 integration spec 後，17 suites／88 tests 通過，另有 1 個 Project Controller scaffold suite skipped。邀請與通知功能本身的待辦仍是 expiration job／真實資料庫批次更新、取消、唯一性、rollback、並行回覆，以及 Socket reconnect／漏收同步。
 
 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 

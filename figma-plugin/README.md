@@ -28,7 +28,9 @@ npm run watch
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
 5. 按 `Generate All`；也可以單獨重建 Foundations、Components 或 Screens。
 
-目前 UI 版本標記為 `v12`。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入看板」。
+目前 UI 版本標記為 `v13`。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入看板」。
+
+v13 新增 `Project Member Added Notification Detail Dialog` 原生 Component Set，以及 Desktop／Mobile 通知詳情畫面。畫面以 `notificationId` 載入專案、Workspace、邀請者、角色與加入時間，並提供關閉及前往專案操作。
 
 v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` 原生 Component Sets，以及 Desktop／Mobile 與 Loading／Empty／Error／Processing 畫面。候選人以 `workspaceMemberId` 送出，已加入專案者顯示 disabled，可指派角色僅有 `EDITOR`／`VIEWER`。
 
@@ -36,7 +38,9 @@ v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Mem
 
 2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。Workspace Overview 的 Desktop／Tablet／Mobile 畫面亦已完成 runtime／visual check。
 
-## v12 source-to-output manifest
+2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。已確認 `Project Member Added Notification Detail Dialog` 有 Desktop／Mobile 兩個 variants，兩個 Screen 均使用 Instances，並完成 runtime／visual check。
+
+## v13 source-to-output manifest
 
 | Source | Viewport／state | Figma output |
 | --- | --- | --- |
@@ -52,6 +56,8 @@ v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Mem
 | `../design/workspace-invitation-response.svg` | Desktop `1440 × 900`，Dialog `520 × 456` | `03 · Screens` → `Workspace Invitation Detail Dialog` → Desktop |
 | `../design/workspace-invitation-response-mobile.svg` | Mobile `390 × 844`，Dialog `358 × 570` | 同上 → Mobile |
 | `../design/workspace-invitation-response-states.svg` | Loading／Pending／Responding／Accepted／Declined／Unavailable | `02 · Components` → `Workspace Invitation Detail Dialog`; `03 · Screens` → States |
+| `../design/project-member-added-notification-detail.svg` | Desktop `1440 × 900`，Dialog `520 × 544` | `02 · Components` → `Project Member Added Notification Detail Dialog`; `03 · Screens` → `Project Member Added Notification Detail` → Desktop |
+| `../design/project-member-added-notification-detail-mobile.svg` | Mobile `390 × 844`，Dialog `358 × 648` | 同上 → Mobile |
 | `../design/notification-read-actions-states.svg` | Single／All × Default／Processing／Complete／Error | `02 · Components` → `Notification Read Action`; `03 · Screens` → `Notifications` → Read Actions / States |
 
 共用 Button、Notification Item、Notification Dropdown、Avatar、色彩、圓角與字型均沿用既有 Components／Variables。SVG 只作視覺依據，不會匯入 Canvas。

@@ -100,11 +100,11 @@
                   :created-at="item.createdAt"
                   :created-at-label="item.createdAtLabel"
                   :is-unread="item.isUnread"
-                  :interactive="item.kind === 'invitation'"
-                  :open-label="t('notification.workspaceInvited.openDetails')"
+                  :interactive="item.kind !== 'generic'"
+                  :open-label="item.openLabel"
                   :read-state="getNotificationReadState(item.id)"
                   @mark-read="markNotification(item.id)"
-                  @open="openInvitationDetail(item.id)"
+                  @open="openNotificationDetail(item.id)"
                 />
               </li>
             </ul>
@@ -124,16 +124,25 @@
     @accepted="handleWorkspaceInvitationAccepted"
     @declined="refreshNotifications"
   />
+
+  <ProjectMemberAddedNotificationDetailDialog
+    v-model:open="isProjectMemberAddedDetailOpen"
+    :notification-id="selectedProjectMemberAddedNotificationId"
+    @open-project="handleOpenProject"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
 import { Bell, CircleAlert } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import type { PublicNotification } from '@kanban/contracts/notification';
+import type { ProjectMemberAddedNotificationDetail } from '@kanban/contracts/project';
 import NotificationItem from '@/components/notifications/NotificationItem/NotificationItem.vue';
+import ProjectMemberAddedNotificationDetailDialog from '@/components/notifications/ProjectMemberAddedNotificationDetailDialog/ProjectMemberAddedNotificationDetailDialog.vue';
 import WorkspaceInvitationDetailDialog from '@/components/notifications/WorkspaceInvitationDetailDialog/WorkspaceInvitationDetailDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -154,6 +163,8 @@ interface NotificationPresentation {
   eyebrow: string;
   title: string;
   body?: string;
+  kind: 'generic' | 'invitation' | 'project-member-added';
+  openLabel?: string;
 }
 
 interface NotificationItemBase {
@@ -163,13 +174,10 @@ interface NotificationItemBase {
   createdAtLabel: string;
 }
 
-interface GenericNotificationItem extends NotificationItemBase, NotificationPresentation {
-  kind: 'generic' | 'invitation';
-}
-
-type NotificationItemView = GenericNotificationItem;
+type NotificationItemView = NotificationItemBase & NotificationPresentation;
 
 const { locale, t } = useI18n();
+const router = useRouter();
 const notificationStore = useNotificationStore();
 const {
   hasLoadError,
@@ -183,8 +191,10 @@ const { loadUnreadCount, markAllNotificationsRead, markNotificationRead, refresh
   notificationStore;
 const isOpen = ref(false);
 const isInvitationDetailOpen = ref(false);
+const isProjectMemberAddedDetailOpen = ref(false);
 const selectedInvitationId = ref<string | null>(null);
-const openingInvitationNotificationId = ref<string | null>(null);
+const selectedProjectMemberAddedNotificationId = ref<string | null>(null);
+const openingNotificationId = ref<string | null>(null);
 const titleId = 'notification-menu-title';
 
 const visibleUnreadCount = computed(() => (unreadCount.value > 99 ? '99+' : unreadCount.value));
@@ -196,6 +206,19 @@ const getPresentation = (notification: PublicNotification): NotificationPresenta
       eyebrow: t('notification.types.workspaceInvited'),
       title: t('notification.workspaceInvited.summaryTitle'),
       body: t('notification.workspaceInvited.summaryBody'),
+      kind: 'invitation',
+      openLabel: t('notification.workspaceInvited.openDetails'),
+    };
+  }
+
+  if (notification.type === 'PROJECT_MEMBER_ADDED') {
+    return {
+      actorInitial: 'P',
+      eyebrow: t('notification.types.projectMemberAdded'),
+      title: t('notification.projectMemberAdded.summaryTitle'),
+      body: t('notification.projectMemberAdded.summaryBody'),
+      kind: 'project-member-added',
+      openLabel: t('notification.projectMemberAdded.openDetails'),
     };
   }
 
@@ -203,6 +226,7 @@ const getPresentation = (notification: PublicNotification): NotificationPresenta
     actorInitial: 'F',
     eyebrow: t('notification.types.activity'),
     title: t('notification.genericTitle'),
+    kind: 'generic',
   };
 };
 
@@ -251,41 +275,48 @@ const notificationItems = computed<NotificationItemView[]>(() => {
 
     return {
       ...base,
-      kind:
-        notification.type === 'WORKSPACE_INVITED' ? ('invitation' as const) : ('generic' as const),
-      actorInitial: presentation.actorInitial,
-      eyebrow: presentation.eyebrow,
-      title: presentation.title,
-      body: presentation.body,
+      ...presentation,
     };
   });
 });
 
-const openInvitationDetail = async (notificationId: string) => {
-  if (openingInvitationNotificationId.value !== null) {
+const openNotificationDetail = async (notificationId: string) => {
+  if (openingNotificationId.value !== null) {
     return;
   }
 
   const notification = notifications.value.find((item) => item.id === notificationId);
-  if (!notification || notification.type !== 'WORKSPACE_INVITED' || !notification.resourceId) {
+  const isWorkspaceInvitation = notification?.type === 'WORKSPACE_INVITED';
+  const isProjectMemberAdded = notification?.type === 'PROJECT_MEMBER_ADDED';
+  if (
+    !notification ||
+    (!isWorkspaceInvitation && !isProjectMemberAdded) ||
+    (isWorkspaceInvitation && !notification.resourceId)
+  ) {
     return;
   }
 
-  openingInvitationNotificationId.value = notificationId;
+  openingNotificationId.value = notificationId;
 
   try {
-    // The invitation dialog is a separate domain UI. Persist the notification
-    // read state before handing control to it so a refresh cannot show it as unread.
+    // Domain dialogs own their resource state. Persist readAt before opening one
+    // so reloading the notification list cannot show the same item as unread.
     await markNotificationRead(notificationId);
-    selectedInvitationId.value = notification.resourceId;
     isOpen.value = false;
-    isInvitationDetailOpen.value = true;
+
+    if (isWorkspaceInvitation) {
+      selectedInvitationId.value = notification.resourceId;
+      isInvitationDetailOpen.value = true;
+    } else {
+      selectedProjectMemberAddedNotificationId.value = notification.id;
+      isProjectMemberAddedDetailOpen.value = true;
+    }
   } catch (error: unknown) {
     toast.error(
       getApiErrorResponse(error)?.message ?? t('notification.readActions.errorDescription'),
     );
   } finally {
-    openingInvitationNotificationId.value = null;
+    openingNotificationId.value = null;
   }
 };
 
@@ -324,6 +355,13 @@ const markAllRead = async () => {
 
 const handleWorkspaceInvitationAccepted = async (workspaceId: string) => {
   await Promise.all([refreshNotifications(), syncNotificationResource('WORKSPACE', workspaceId)]);
+};
+
+const handleOpenProject = (detail: ProjectMemberAddedNotificationDetail) => {
+  void router.push({
+    name: 'board',
+    query: { workspaceId: detail.workspaceId, projectId: detail.projectId },
+  });
 };
 
 watch(isOpen, (open) => {

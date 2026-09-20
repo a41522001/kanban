@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-16（依 Prisma schema、9 個 migrations、Project Repository／Service／Controller 與完整 build 核對；隔離 E2E migration deploy 沿用 2026-09-15 紀錄）。
+最後檢視：2026-09-20（依 Prisma schema、9 個 migrations、Project Repository／Service／Controller 與目前測試結果核對；隔離 E2E migration deploy 沿用 2026-09-15 紀錄）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -35,7 +35,7 @@ users ──< workspace_members >── workspaces ──< projects
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／addMember command API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Project list、前端資料流及有效 Project tests 尚未完成。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Frontend Project overview 與新增成員 Dialog 已串接。Project Controller／隔離 E2E、migration upgrade 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
 
 ## 2. Enum
 
@@ -166,7 +166,7 @@ users ──< workspace_members >── workspaces ──< projects
 
 ### 6.1 Notification routing 原則
 
-Notification 不保存 payload。前端先依 `type` 判斷顯示文案與互動，再依 `resourceType + resourceId` 呼叫對應的 domain detail API；例如 `WORKSPACE_INVITED` 的 `resourceId` 就是 `WorkspaceInvitation.id`。工作區名稱、邀請者名稱、角色與邀請狀態都以邀請資料為準，不在 Notification 重複保存。
+Notification 不保存 payload。前端先依 `type` 判斷顯示文案與互動，再依 `resourceType + resourceId` 呼叫對應的 domain detail API；`WORKSPACE_INVITED` 的 `resourceId` 指向 `WorkspaceInvitation.id`，`PROJECT_MEMBER_ADDED` 的 `resourceId` 指向 `Project.id`。Project member added 的 detail API 另外要求 notification id 與目前收件者，從 Notification 取得 actor display name，再以收件者的 ProjectMember membership 讀取專案名稱、Workspace 名稱、角色與 joinedAt，避免未授權使用 resource pointer 讀取資料。工作區名稱、邀請者名稱、角色與加入時間都以 domain read model 為準，不在 Notification 重複保存。
 
 通知過期不會自動標記已讀，目前未讀查詢沒有排除 expiresAt。
 

@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-17。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；測試紀錄見[進度](progress.md)。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-20。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；測試紀錄見[進度](progress.md)。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
 
 ## 基本約定
 
@@ -32,6 +32,7 @@
 | POST `/project` | 有效 Session，且為未封存 Workspace 的成員 | `{ name, description?, workspaceId }` | 201 / null，message 為「創建成功」；建立 Project 與 OWNER ProjectMember |
 | GET `/project/:projectId/memberCandidates` | 有效 Session、未封存 Project 與 Workspace 的 Project OWNER | Path `projectId` | 200 / 同 Workspace 成員清單；`projectRole=null` 代表尚未加入 |
 | POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標 membership 必須屬於同一個有效 Workspace | `{ projectId, workspaceMemberId, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
+| GET `/project/notificationDetail/:notificationId` | 有效 Session，只能查本人收到且類型正確的 Project member added 通知 | UUID v4 path param | 200 / `ProjectMemberAddedNotificationDetail`；回傳 Project、Workspace、邀請者、角色與加入時間 |
 | GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID v4 path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
@@ -44,6 +45,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 - WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
 - ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。
+- ProjectMemberAddedNotificationDetail：`role, projectName, projectId, workspaceName, workspaceId, inviterName, joinedAt`；只由通知收件者取得，詳細型別見 `packages/contracts/project.ts`。
 - PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
 
@@ -64,9 +66,9 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 ## Notification 邊界
 
-目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。通知列表只回傳 type 與 resource pointer；WORKSPACE_INVITED 再以 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId` 取得詳細資訊。
+目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。通知列表只回傳 type 與 resource pointer；前端依 `type` 選擇 domain detail API：`WORKSPACE_INVITED` 使用 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId`，`PROJECT_MEMBER_ADDED` 使用 notification id 呼叫 `GET /project/notificationDetail/:notificationId`。
 
-未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。通知以 HTTP 載入為持久化真相；邀請建立 transaction commit 後，Socket.IO 會以 `notification:created` 推送 `PublicNotification` 摘要給受邀者目前在線的 user room。接受邀請建立 WorkspaceMember 的 transaction commit 後，另以 `workspace:memberChanged` `{ workspaceId }` 推送給該 Workspace room 的目前訂閱者；前端再呼叫成員清單 API，不把事件 payload 當作完整資料。前端透過集中式 notification effect／resource sync handler 更新 domain Store：Workspace 已接上，Project／Board／Card 尚為佔位。Socket 斷線或漏收時仍需由前端重新呼叫通知列表、未讀數或對應 domain API，因目前尚未完成 reconnect resync。
+未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。通知以 HTTP 載入為持久化真相；邀請與 Project member added 都在 transaction commit 後由 Socket.IO 以 `notification:created` 推送 `PublicNotification` 摘要給收件者目前在線的 user room。接受邀請建立 WorkspaceMember 的 transaction commit 後，另以 `workspace:memberChanged` `{ workspaceId }` 推送給該 Workspace room 的目前訂閱者；前端再呼叫成員清單 API，不把事件 payload 當作完整資料。前端透過集中式 notification effect／resource sync handler 更新 domain Store：Workspace 與 Project 已接上，Board／Card 尚為佔位。Socket 斷線或漏收時仍需由前端重新呼叫通知列表、未讀數或對應 domain API，因目前尚未完成 reconnect resync。
 
 ## Project 邊界
 
@@ -76,7 +78,11 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 `GET /project/:projectId/memberCandidates` 提供新增成員 UI 的 read model，列出 Project 所屬 Workspace 的成員；`projectRole` 為 `null` 表示可加入，非 `null` 表示已加入並供前端停用。此清單只開放 Project OWNER，且封存的 Project／Workspace 不可存取。
 
-`POST /project/addMember` 是 command-style endpoint，不採邀請接受／拒絕流程。`workspaceMemberId` 必須指向 Project 所在 Workspace 的有效 membership；只有未封存 Project 的 OWNER 可操作，且 shared contract 與 runtime DTO 都只允許 `EDITOR`／`VIEWER`。ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立，commit 後才向目標使用者的 user room 推送 `notification:created`。`(projectId, userId)` unique constraint 是重複加入的最終併行保護，Prisma P2002 轉為 409。
+`POST /project/addMember` 是 command-style endpoint，不採邀請接受／拒絕流程。`workspaceMemberId` 必須指向 Project 所在 Workspace 的有效 membership；只有未封存 Project 的 OWNER 可操作，且 shared contract 與 runtime DTO 都只允許 `EDITOR`／`VIEWER`。ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立，通知使用 `resourceType=PROJECT`、`resourceId=projectId`，commit 後才向目標使用者的 user room 推送 `notification:created`。`(projectId, userId)` unique constraint 是重複加入的最終併行保護，Prisma P2002 轉為 409。
+
+`GET /project/notificationDetail/:notificationId` 會先以 `notificationId + recipientUserId` 查詢收件者自己的通知，再確認 `type=PROJECT_MEMBER_ADDED`、`resourceType=PROJECT` 與 `resourceId` 存在；接著用收件者的 ProjectMember membership 讀取 Project、Workspace 與 joinedAt。通知不存在、不是本人通知、類型／資源不符、成員不存在，或 Project／Workspace 已封存時，皆回 404 / `ResourceNotFound`。因此前端不會直接信任通知列表的 resource pointer 作為完整授權依據。
+
+前端點擊 `PROJECT_MEMBER_ADDED` 通知內容時，流程為「標記單筆已讀 → 關閉 Notification Dropdown → 呼叫 detail API → 開啟 Project Member Added Notification Detail Dialog」。Dialog 顯示邀請者、專案、工作區、Project role 與加入時間；載入中使用 skeleton，API 失敗提供 retry；成功後的「前往專案」以 `workspaceId` 與 `projectId` 導向 Board route。
 
 | 情況 | HTTP status / code |
 | --- | --- |
