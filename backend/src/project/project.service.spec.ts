@@ -15,7 +15,6 @@ describe('ProjectService member management', () => {
 
   const candidate = {
     workspaceMemberId: 'workspace-member-2',
-    userId: 'user-2',
     displayName: 'Mina',
     avatarUrl: null,
     projectRole: null,
@@ -63,6 +62,22 @@ describe('ProjectService member management', () => {
     expect(projectRepository.getMemberCandidates).toHaveBeenCalledWith(
       'project-1',
     );
+  });
+
+  it('候選清單不公開內部 userId', async () => {
+    const { service, workspaceService, projectRepository } = createService();
+    projectRepository.findMembership.mockResolvedValue(ownerMembership);
+    workspaceService.findMembership.mockResolvedValue({
+      workspaceArchivedAt: null,
+    });
+    projectRepository.getMemberCandidates.mockResolvedValue([
+      { ...candidate, userId: 'internal-user-2' },
+    ]);
+
+    const result = await service.getMemberCandidates('owner-user', 'project-1');
+
+    expect(result).toEqual([candidate]);
+    expect(result[0]).not.toHaveProperty('userId');
   });
 
   it('Workspace 已封存時不可取得候選清單', async () => {

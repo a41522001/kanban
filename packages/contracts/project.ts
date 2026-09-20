@@ -41,7 +41,6 @@ export interface ProjectListItemDto {
 /** 可被加入目前專案的 Workspace 成員候選資料。 */
 export interface MemberCandidate {
   workspaceMemberId: string;
-  userId: string;
   displayName: string;
   avatarUrl: string | null;
   projectRole: ProjectRole | null;
