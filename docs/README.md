@@ -19,7 +19,7 @@
 - [Workspace 邀請與通知](workspace-invitation-notification.md)
 - [Frontend Auth vertical slice](frontend-auth-plan.md)
 
-最後核對：2026-09-19。Project 前後端第一版已串接；Board 持久化與即時協作仍未開始。build／tests 的執行紀錄以 progress 為準。
+最後核對：2026-09-20。Project 前後端第一版、Controller／Service tests 與隔離 E2E 已串接；Board 持久化與即時協作仍未開始。build／tests 的執行紀錄以 progress 為準。
 
 ## 既有路線
 

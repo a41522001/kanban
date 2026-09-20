@@ -48,7 +48,7 @@ Vue 3 browser WebSocket
 
 ## Phase 2：Socket.IO 協作 Kanban
 
-目前進度（2026-09-19）：步驟 1、2 已完成第一版，並已補上 Workspace room 的 membership authorization、into／leave lifecycle 與成員變更 invalidation；Project create、list、members、member candidates、addMember 與前端 overview／Dialog 已串接。下一個可交付點是 Board／Column／Card read model 與 Board room authorization，再進入 Socket command、ack、idempotency 與 concurrency。Project Controller／E2E、migration upgrade、Session handshake rotation Cookie、Workspace room reconnect 與真實 lifecycle tests 仍需補完。
+目前進度（2026-09-20）：步驟 1、2 已完成第一版，並已補上 Workspace room 的 membership authorization、into／leave lifecycle 與成員變更 invalidation；Project create、list、members、member candidates、addMember、notification detail 與前端 overview／Dialog 已串接，Service／Controller tests 及第一版隔離 E2E 已通過。下一個可交付點是 Board／Column／Card read model 與 Board room authorization，再進入 Socket command、ack、idempotency 與 concurrency。Project 負向授權／rollback／真實併行與 migration upgrade、Session handshake rotation Cookie、Workspace room reconnect 與真實 lifecycle tests 仍需補完。
 
 題材：多人協作 Kanban。
 

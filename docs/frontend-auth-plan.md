@@ -1,6 +1,6 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-16（依 router、Axios interceptor、App lifecycle、stores、Workspace View 與最新 type-check／unit tests 核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 最後檢視：2026-09-20（依 router、Axios interceptor、App lifecycle、stores、Workspace View 與本輪 type-check／13 files／39 unit tests 核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
 
 ## 1. 目標
 
@@ -126,11 +126,11 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
 ## 9. 測試與 UI 實作
 
-以下測試項目保留既有紀錄，本次未重新執行。標示已實作 UI 不等於已有 component test。
+以下項目依 2026-09-20 的 Vitest 結果與 spec 內容核對；標示已實作 UI 不等於已有 component test。
 
 - [x] Login／Signup pure form validation。
 - [x] User Store session restore 成功、失敗快取、並行 request 去重與 reset。
-- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；尚未有 component test。
+- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；目前 spec 只測 pure validation，尚未有 submit／loading／error component test。
 - [x] Logout 即使 API 失敗仍會清空本地 User Store 並導向 Login。
 - [ ] Route guard redirect target 與已登入 public route redirect。
 - [ ] Playwright refresh 後仍維持登入，以及完整登入／登出 flow。

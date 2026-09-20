@@ -47,4 +47,4 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 
 更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 
-文件最後核對：2026-09-19。Frontend Vitest 為 12 個 test files／36 tests 通過；Project overview、member cache、notification effect 與 add-member Dialog 均有測試。Vite production chunk 仍超過 500 kB；Playwright 仍尚未覆蓋完整 Auth flow 與真實 Backend E2E。
+文件最後核對：2026-09-20。Frontend Vitest 為 13 個 test files／39 tests 通過；Project overview、member cache、notification effect、add-member Dialog 與 member-added notification detail Dialog 均有測試，type-check、production build 與 ESLint 通過。Vite main chunk 為 576.34 kB；read-only Oxlint 尚有 12 個錯誤（9 個 mock 缺明確型別、3 個未使用 type import），因此完整 lint pipeline 尚未全綠，且尚未配置 frontend coverage。Playwright 仍是 Vue starter scaffold，未覆蓋 Auth 或真實 Backend flow。
