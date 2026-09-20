@@ -1,6 +1,6 @@
 # Security Checklist
 
-最後靜態核對：2026-09-16。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
+最後靜態核對：2026-09-20。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
 
 ## 1. 使用方式
 
@@ -50,6 +50,7 @@
 - [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
 - [x] `POST /project` 只允許有效且未封存的 WorkspaceMember 建立 Project，建立者身分由 Session 取得，Project 與 OWNER membership 同 transaction。
 - [x] `POST /project/addMember` 只允許未封存 Project 的 OWNER 操作；目標必須是同 Workspace 的有效成員，角色 DTO 只允許 EDITOR／VIEWER，重複 membership 由資料庫 unique constraint 保護。
+- [x] 公開 HTTP／Socket contract 不回傳內部 `User.id`／`userId`；Project member candidate 只公開 `workspaceMemberId`，Service 再明確投影 public DTO 欄位。
 - [ ] 補 Project create／addMember 的授權、transaction rollback、P2002 併行衝突與跨使用者 E2E；目前兩個 Project scaffold test suites 仍 skipped。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
 - [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。

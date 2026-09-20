@@ -136,7 +136,18 @@ export class ProjectService {
       });
     }
 
-    return this.projectRepository.getMemberCandidates(projectId);
+    const candidates =
+      await this.projectRepository.getMemberCandidates(projectId);
+
+    // API 只公開 membership id；內部 User.id 不得傳到前端。
+    return candidates.map(
+      ({ workspaceMemberId, displayName, avatarUrl, projectRole }) => ({
+        workspaceMemberId,
+        displayName,
+        avatarUrl,
+        projectRole,
+      }),
+    );
   }
 
   /** 新增專案成員 */

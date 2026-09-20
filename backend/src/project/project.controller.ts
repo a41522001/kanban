@@ -45,7 +45,7 @@ import type {
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
-  /** 建立專案 */
+  // #region 建立專案
   @ApiOperation({ summary: '在指定工作區建立專案' })
   @ApiCreatedResponse({ description: '專案建立成功，建立者成為專案 OWNER' })
   @ApiBadRequestResponse({ description: '請求欄位驗證失敗或工作區已封存' })
@@ -65,7 +65,9 @@ export class ProjectController {
     };
   }
 
-  /** 取得可加入專案的 Workspace 成員候選 */
+  // #endregion
+
+  // #region 取得可加入專案的 Workspace 成員候選
   @ApiOperation({ summary: '取得新增專案成員的候選清單' })
   @ApiParam({
     name: 'projectId',
@@ -89,8 +91,9 @@ export class ProjectController {
     );
     return { data: result };
   }
+  // #endregion
 
-  /** 新增專案成員 */
+  // #region 新增專案成員
   @ApiOperation({ summary: '將工作區成員加入專案' })
   @ApiCreatedResponse({ description: '專案成員新增成功並送出通知' })
   @ApiBadRequestResponse({ description: '請求欄位驗證失敗' })
@@ -114,8 +117,9 @@ export class ProjectController {
       message: '新增專案成員成功',
     };
   }
+  // #endregion
 
-  /** 取得單一專案的所有成員 */
+  // #region 取得單一專案的所有成員
   @Get(':projectId/members')
   async getListProjectMembers(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -127,8 +131,9 @@ export class ProjectController {
     );
     return { data: result };
   }
+  // #endregion
 
-  /** 取得使用者所屬的專案by workspaceId & userId */
+  // #region 取得使用者所屬的專案by workspaceId & userId
   @ApiOperation({ summary: '取得使用者在指定工作區所屬的專案' })
   @ApiParam({
     name: 'workspaceId',
@@ -155,7 +160,9 @@ export class ProjectController {
     );
     return { data: result };
   }
+  // #endregion
 
+  // #region 取得專案加入成員通知的詳細資訊
   @Get('notificationDetail/:notificationId')
   async getAddedProjectMemberDetailNotification(
     @Param('notificationId', ParseUUIDPipe) notificationId: string,
@@ -168,4 +175,5 @@ export class ProjectController {
       );
     return { data: result };
   }
+  // #endregion
 }

@@ -1,6 +1,6 @@
 # API Contract 與錯誤處理規格
 
-最後靜態核對：2026-09-16。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；所有現有 Controller 已有 Swagger operation／auth／主要 response 描述與 request DTO metadata，共用 response envelope decorator 仍待實作。
+最後靜態核對：2026-09-20。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；所有現有 Controller 已有 Swagger operation／auth／主要 response 描述與 request DTO metadata，共用 response envelope decorator 仍待實作。
 
 ## 1. 目標
 
@@ -68,6 +68,13 @@ Validation response：
   }
 }
 ~~~
+
+### 2.1 公開識別碼邊界
+
+- API response、WebSocket event payload 與 `packages/contracts` 的前端公開型別不得包含內部 `User.id`／`userId`。
+- 前端執行 Workspace 或 Project 成員操作時，使用對應的 membership identifier，例如 `workspaceMemberId` 或 `projectMemberId`；Backend 再由 membership 查出內部 userId。
+- `userId` 只允許存在於 Backend 的 Session identity、資料庫關聯、授權查詢與 server-managed Socket room 等內部流程，不可作為瀏覽器可取得或提交的使用者身分欄位。
+- Repository 資料若包含內部 userId，Service 在形成 public DTO 時必須明確投影允許欄位，不能直接把資料庫結果原樣回傳。
 
 ## 3. Application Code 規範
 

@@ -26,7 +26,6 @@ export class ProjectRepository {
     return this.prismaService.$queryRaw<MemberCandidate[]>`
       SELECT
         wm.id AS "workspaceMemberId",
-        u.id AS "userId",
         u.display_name AS "displayName",
         u.avatar_url AS "avatarUrl",
         pm.role AS "projectRole"

@@ -45,9 +45,12 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 - WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
 - ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。
+- MemberCandidate：`workspaceMemberId, displayName, avatarUrl, projectRole`；前端新增 Project member 時只提交 membership id，不取得內部 userId。
 - ProjectMemberAddedNotificationDetail：`role, projectName, projectId, workspaceName, workspaceId, inviterName, joinedAt`；只由通知收件者取得，詳細型別見 `packages/contracts/project.ts`。
 - PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
+
+公開 HTTP response 與前端 shared contract 不得包含內部 `User.id`／`userId`。成員相關 UI 必須使用 `workspaceMemberId` 或 `projectMemberId` 等 membership identifier；Backend 由 membership 在 server 內部解析 userId。SessionGuard 寫入 request 的 userId、資料庫關聯與 `user:{userId}` Socket room 都屬於 Backend 內部實作，不是公開 API contract。
 
 ## Workspace 邊界
 

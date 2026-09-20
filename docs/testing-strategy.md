@@ -132,6 +132,7 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 - [ ] addMember service 已實作 Project OWNER、封存 Project／Workspace、Workspace membership、角色 whitelist 與成功通知推播；目前僅有部分邊界分支測試，仍需補完整成功與 rollback assertion。
 - [ ] addMember transaction：ProjectMember 與 Notification 一起成功或 rollback，Socket 只在 commit 後 emit。
 - [ ] addMember 併行重複請求：`(projectId, userId)` unique constraint 只允許一筆，Prisma P2002 映射為 409 且不產生第二筆通知。
+- [x] Member candidate public contract、Repository query 與 Service projection 只回傳 `workspaceMemberId`，測試確認即使 Repository row 含額外 userId 也不會傳到 Controller response。
 - [x] Frontend `PROJECT_MEMBER_ADDED` notification detail：依 notification id 呼叫 detail API，顯示 Project／Workspace／角色／加入時間，並驗證 Loading、Error retry、Loaded 與前往 Project 行為。
 - [ ] Backend `getProjectMemberAddedNotificationDetail` service／controller：補通知 recipient isolation、type／resource mismatch、ProjectMember 不存在與 Project／Workspace archived 的 unit／integration assertions。
 - [ ] Project list／members／memberCandidates read models 已實作並由 Frontend Project overview 使用；仍需補 service／controller 的完整 behavior tests。

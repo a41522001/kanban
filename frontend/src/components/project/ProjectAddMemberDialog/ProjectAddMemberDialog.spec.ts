@@ -40,14 +40,12 @@ const project: ProjectListItemDto = {
 const candidates: MemberCandidate[] = [
   {
     workspaceMemberId: 'workspace-member-owner',
-    userId: 'user-owner',
     displayName: 'Jeffery',
     avatarUrl: null,
     projectRole: 'OWNER',
   },
   {
     workspaceMemberId: 'workspace-member-mina',
-    userId: 'user-mina',
     displayName: 'Mina',
     avatarUrl: null,
     projectRole: null,
