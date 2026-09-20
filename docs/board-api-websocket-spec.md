@@ -7,7 +7,7 @@
 - 目標：先完成單節點下可靠的多人 Kanban，再考慮 Redis adapter、多節點與 RabbitMQ。
 - 已存在的 Auth API、HTTP response envelope 與 Session Cookie 機制維持不變。
 
-2026-09-19 靜態核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀、Socket user-room 通知與 Workspace room 成員同步第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository、runtime DTO、create／list／members／memberCandidates／addMember endpoints，且前端 Project overview／member Dialog 已串接；Project Controller／隔離 E2E、migration upgrade 與更完整併行測試仍待補。Board 與下列 Socket commands 仍是目標規格，現行 command 路徑不必與本草案的 REST-style 路徑相同；實際端點以[目前 HTTP API](http-api.md)為準。
+2026-09-20 靜態與測試核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀、Socket user-room 通知與 Workspace room 成員同步第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository、runtime DTO、create／list／members／memberCandidates／addMember／notification detail endpoints，且前端 Project overview／member Dialog 已串接；Service／Controller tests 與第一版隔離 E2E 已通過，migration upgrade、負向授權、rollback 與更完整併行測試仍待補。Board 與下列 Socket commands 仍是目標規格，現行 command 路徑不必與本草案的 REST-style 路徑相同；實際端點以[目前 HTTP API](http-api.md)為準。
 
 這份文件描述預期契約，不代表所有功能必須一次完成。建議依照「實作階段」逐步交付，每一階段都應可獨立驗收。
 
@@ -1508,7 +1508,7 @@ board:leave
 
 ### Phase 1：Workspace、Project 與 Board read model
 
-2026-09-19 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository、create／list／members／memberCandidates／addMember Service、command endpoints 與 Frontend overview／member Dialog 第一版已完成。Project Controller／隔離 E2E、migration upgrade 與完整併行測試仍待補。Board schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。下列 REST-style 路徑是目標設計；目前實作採現行 HTTP API 文件中的 `/project` endpoints。
+2026-09-20 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository、create／list／members／memberCandidates／addMember／notification detail Service、HTTP endpoints 與 Frontend overview／member Dialog 第一版已完成，Service／Controller tests 與第一版隔離 E2E 已通過。Migration upgrade、負向授權、rollback 與完整併行測試仍待補。Board schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。下列 REST-style 路徑是目標設計；目前實作採現行 HTTP API 文件中的 `/project` endpoints。
 
 - Prisma：Workspace、WorkspaceMember、Project、ProjectMember、Board、BoardColumn、CardCategory、CardLabel、Card、CardLabelAssignment。
 - `POST /workspaces`、`GET /workspaces`。

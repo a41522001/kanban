@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-20（依 Prisma schema、9 個 migrations、Project Repository／Service／Controller 與目前測試結果核對；隔離 E2E migration deploy 沿用 2026-09-15 紀錄）。
+最後檢視：2026-09-20（依 Prisma schema、10 個 migrations、Project Repository／Service／Controller 與本輪 Node 24.13 隔離 E2E migration deploy 結果核對）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -35,7 +35,7 @@ users ──< workspace_members >── workspaces ──< projects
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Frontend Project overview 與新增成員 Dialog 已串接。Project Controller／隔離 E2E、migration upgrade 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember／notification detail API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Frontend Project overview 與新增成員 Dialog 已串接。Service／Controller tests 與從空資料庫套用 10 個 migrations 的第一版隔離 E2E 已通過；既有資料 migration upgrade、負向授權、rollback 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
 
 ## 2. Enum
 
