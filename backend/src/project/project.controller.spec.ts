@@ -179,8 +179,8 @@ describe('ProjectController', () => {
   });
 
   /** 取得專案加入成員通知的詳細資訊 */
-  describe('', () => {
-    it('', async () => {
+  describe('getAddedProjectMemberDetailNotification', () => {
+    it('取得成功', async () => {
       const notificationId = 'notificationId';
       const userId = 'testId';
       const request = createRequest(userId);
