@@ -174,6 +174,39 @@ export class ProjectRepository {
     });
   }
 
+  async getProjectMemberAddedNotificationDetail(
+    projectId: string,
+    userId: string,
+  ) {
+    return this.prismaService.projectMember.findUnique({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId,
+        },
+      },
+      select: {
+        role: true,
+        joinedAt: true,
+        project: {
+          select: {
+            id: true,
+            name: true,
+            archivedAt: true,
+            workspaceId: true,
+            workspace: {
+              select: {
+                id: true,
+                name: true,
+                archivedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   /** 取得單一專案的所有成員 */
   async getSingleProjectMember(
     projectId: string,

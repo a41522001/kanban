@@ -62,10 +62,7 @@ export class NotificationService {
 
   /** 標記已讀 */
   async markReadIfUnread(id: string, userId: string): Promise<void> {
-    const notification = await this.notificationRepository.findByIdAndRecipient(
-      id,
-      userId,
-    );
+    const notification = await this.getNotificationByIdForRecipient(id, userId);
     if (notification === null) {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
@@ -88,5 +85,42 @@ export class NotificationService {
       now.toJSDate(),
     );
     return result.count;
+  }
+
+  /** 取得單一通知 */
+  async getNotificationByIdForRecipient(
+    notificationId: string,
+    recipientId: string,
+  ): Promise<Notification | null> {
+    return this.notificationRepository.findByIdAndRecipient(
+      notificationId,
+      recipientId,
+    );
+  }
+
+  /** 取得單一詳細通知(包含發送人詳細資訊) */
+  async getNotificationDetailByIdForRecipient(
+    notificationId: string,
+    recipientUserId: string,
+  ) {
+    const notification =
+      await this.notificationRepository.findDetailByIdAndRecipient(
+        notificationId,
+        recipientUserId,
+      );
+
+    if (!notification) {
+      return null;
+    }
+
+    return {
+      id: notification.id,
+      type: notification.type,
+      resourceType: notification.resourceType,
+      resourceId: notification.resourceId,
+      createdAt: notification.createdAt,
+      actorUserDisplayName: notification.actor?.displayName ?? null,
+      actorUserAvatarUrl: notification.actor?.avatarUrl ?? null,
+    };
   }
 }

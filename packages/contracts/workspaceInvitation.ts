@@ -1,5 +1,6 @@
 import type { WorkspaceRole } from './workspaces.js';
 
+/** Workspace 邀請目前的處理狀態。 */
 export type WorkspaceInvitationStatus =
   /// 等待受邀者回覆。
   | 'PENDING'
@@ -12,11 +13,13 @@ export type WorkspaceInvitationStatus =
   /// 超過 expiresAt 後失效。
   | 'EXPIRED';
 
+/** 邀請 Workspace 成員時送出的請求資料。 */
 export interface InviteWorkspaceMemberRequest {
   workspaceId: string;
   email: string;
 }
 
+/** 接受或拒絕 Workspace 邀請時送出的請求資料。 */
 export interface AcceptOrDeclineInvitationRequest {
   invitationId: string;
 }

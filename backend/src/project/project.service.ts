@@ -13,6 +13,7 @@ import { Prisma, type Notification } from '@/generated/prisma/client';
 import type {
   MemberCandidate,
   ProjectListItemDto,
+  ProjectMemberAddedNotificationDetail,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
 @Injectable()
@@ -283,5 +284,60 @@ export class ProjectService {
         avatarUrl: user.avatarUrl,
       };
     });
+  }
+
+  /** 取得新增專案成員通知詳細資訊 */
+  async getProjectMemberAddedNotificationDetail(
+    notificationId: string,
+    recipientUserId: string,
+  ): Promise<ProjectMemberAddedNotificationDetail> {
+    const notification =
+      await this.notificationService.getNotificationDetailByIdForRecipient(
+        notificationId,
+        recipientUserId,
+      );
+
+    const projectId = notification?.resourceId;
+
+    if (
+      !notification ||
+      notification.type !== 'PROJECT_MEMBER_ADDED' ||
+      notification.resourceType !== 'PROJECT' ||
+      !projectId
+    ) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此專案成員通知',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+
+    const projectMember =
+      await this.projectRepository.getProjectMemberAddedNotificationDetail(
+        projectId,
+        recipientUserId,
+      );
+
+    if (
+      !projectMember ||
+      projectMember.project.archivedAt !== null ||
+      projectMember.project.workspace.archivedAt !== null
+    ) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到此專案成員通知',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+
+    return {
+      role: projectMember.role,
+      projectName: projectMember.project.name,
+      projectId: projectMember.project.id,
+      workspaceName: projectMember.project.workspace.name,
+      workspaceId: projectMember.project.workspace.id,
+      inviterName: notification.actorUserDisplayName,
+      joinedAt: projectMember.joinedAt.toISOString(),
+    };
   }
 }

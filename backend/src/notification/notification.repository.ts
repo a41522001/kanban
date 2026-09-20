@@ -102,7 +102,33 @@ export class NotificationRepository {
       },
     });
   }
-
+  /** 取得單一詳細通知(包含發送人詳細資訊) */
+  async findDetailByIdAndRecipient(
+    notificationId: string,
+    recipientUserId: string,
+  ) {
+    return this.prismaService.notification.findFirst({
+      where: {
+        id: notificationId,
+        recipientUserId,
+      },
+      select: {
+        id: true,
+        type: true,
+        resourceType: true,
+        resourceId: true,
+        readAt: true,
+        expiresAt: true,
+        createdAt: true,
+        actor: {
+          select: {
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  }
   /** 創建通知 */
   async createNotification(
     data: CreateNotificationParams,
