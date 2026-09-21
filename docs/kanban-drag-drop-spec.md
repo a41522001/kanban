@@ -197,6 +197,8 @@ const cardDragOptions = {
 Phase 0／1 可使用接近正式資料的 mock 形狀，避免 UI 完成後大幅重寫：
 
 ```ts
+import type { BoardColumnColorKey } from "@kanban/contracts/board";
+
 type MockCard = {
   id: string;
   columnId: string;
@@ -210,7 +212,7 @@ type MockBoardColumn = {
   projectId: string;
   title: string;
   position: number;
-  colorKey: "ready" | "active" | "review" | "done";
+  colorKey: BoardColumnColorKey;
   cards: MockCard[];
   version: number;
 };

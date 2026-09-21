@@ -17,7 +17,7 @@ User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Projec
 
 `BoardColumn` migration 已建立；建立 Project 時，Project Repository 以 nested write 同時建立四個預設 Columns，Project Service 的既有 transaction 再建立 OWNER ProjectMember，因此 Project、預設 Columns 與 OWNER membership 共用同一 transaction。`Project.boardRevision` 初始為 0，因為預設 Columns 屬於初始 snapshot，不是建立後的協作 mutation。
 
-尚未完成：Board snapshot API、Column commands、Card／Category／Label schema、Project room、Socket commands、idempotency、recovery，以及直接驗證預設四欄持久化的 integration／E2E。既有 11 個 migrations 的隔離 E2E 已通過；最新第 12 個 BoardColumn migration 尚未重跑完整隔離 E2E。
+尚未完成：Board snapshot API、Column commands、Card／Category／Label schema、Project room、Socket commands、idempotency、recovery，以及直接驗證預設四欄內容／順序的 integration／E2E。13 個 migrations 的隔離 E2E 4 suites／9 tests 已通過。
 
 ## 3. 第一版 Domain
 
@@ -59,12 +59,12 @@ User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Projec
 
 | title | colorKey | position |
 | --- | --- | ---: |
-| 準備開始 | `ready` | 1024 |
-| 正在進行 | `active` | 2048 |
-| 等待檢視 | `review` | 3072 |
-| 已完成 | `done` | 4096 |
+| 準備開始 | `coral` | 1024 |
+| 正在進行 | `mint` | 2048 |
+| 等待檢視 | `amber` | 3072 |
+| 已完成 | `violet` | 4096 |
 
-索引使用 `projectId + archivedAt + position + id`。`position` 不設 unique；`id` 是穩定 tie-break。
+索引使用 `projectId + archivedAt + position + id`。`position` 不設 unique；`id` 是穩定 tie-break。`colorKey` 是可持久化的 UI token，由 shared contract whitelist 驗證，不建立 colors table，也不因拖曳而改變。
 
 ### Card（目標設計，尚未建立）
 
@@ -142,7 +142,7 @@ version update 應把 entity id 與 expectedVersion 都放在條件中；受影�
 ## 9. 測試順序
 
 1. CreateProject transaction：Project、OWNER membership、四個預設 Columns 同時成功／rollback。
-2. 從空資料庫套用包含 BoardColumn 在內的 12 個 migrations。
+2. 從空資料庫套用包含 BoardColumn 與 colorKey data migration 在內的 13 個 migrations（已通過）。
 3. Board snapshot authorization 與排序 integration tests。
 4. Column／Card scope、move、重排與 version conflict tests。
 5. duplicate commandId integration tests。
@@ -155,7 +155,7 @@ version update 應把 entity id 與 expectedVersion 都放在條件中；受影�
 - [x] Project／ProjectMember schema、Repository、核心 HTTP API 與 pin。
 - [x] Project `version`／`boardRevision` 與 BoardColumn schema／migration。
 - [x] 建立 Project 時 nested-create 四個預設 Columns。
-- [ ] 補 migration deploy 與預設 Columns transaction integration／E2E。
+- [ ] 補預設 Columns 內容／順序與 transaction rollback integration／E2E；13 migrations deploy 已通過。
 - [ ] Project detail、角色調整與移除成員。
 
 ### M2：Board read model 與 Card metadata

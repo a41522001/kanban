@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-21（依 Prisma schema、12 個 migration 檔案、Project／BoardColumn 實作與 scoped 驗證結果核對；最新 BoardColumn migration 尚未納入隔離 E2E deploy）。
+最後檢視：2026-09-21（依 Prisma schema、13 個 migrations、Project／BoardColumn 實作與隔離 E2E migration deploy 結果核對）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -36,7 +36,7 @@ users ──< workspace_members >── workspaces ──< projects ──< boar
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 是 Kanban Board 的 aggregate root，不另外建立 `boards` 資料表。`Project` 與 `ProjectMember` 已有 create／list／members／memberCandidates／addMember／notification detail／pin API；`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好。`BoardColumn` schema 與 migration 已建立，建立 Project 時會在同一個 transaction 內由 nested write 建立四個預設 Columns，並另建立建立者的 OWNER membership。`Card` 與 Board snapshot API 尚未建立。既有 11 個 migrations 的隔離 E2E 已通過；第 12 個 BoardColumn migration、預設四欄持久化、pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。
+`Project` 是 Kanban Board 的 aggregate root，不另外建立 `boards` 資料表。`Project` 與 `ProjectMember` 已有 create／list／members／memberCandidates／addMember／notification detail／pin API；`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好。`BoardColumn` schema 與 migration 已建立，建立 Project 時會在同一個 transaction 內由 nested write 建立四個預設 Columns，並另建立建立者的 OWNER membership。`Card` 與 Board snapshot API 尚未建立。13 個 migrations 的隔離 E2E 已通過；預設四欄內容／順序的直接 assertion、pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。
 
 ## 2. Enum
 
@@ -251,7 +251,7 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 
 Project／ProjectMember 初始 migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名。獨立 member ID 由 `backend/prisma/migrations/20260915080141_add_project_member_id/migration.sql` 加入；nullable `pinned_at` 由 `backend/prisma/migrations/20260921024927_add_project_pinned_feature/migration.sql` 加入。
 
-`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填，因此只適合當時沒有 ProjectMember rows 的建置流程。本專案已確認沒有需要保留的舊版資料，環境已清除並重新 deploy，且 2026-09-21 隔離 E2E 已從空資料庫成功套用全部 11 個 migrations；因此不再把 legacy upgrade test 列為目前 blocker。若未來真的出現需要保留舊資料的部署來源，仍必須新增 forward-only 修正 migration，不能修改已套用的歷史 migration。
+`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填，因此只適合當時沒有 ProjectMember rows 的建置流程。本專案已確認沒有需要保留的舊版資料，環境已清除並重新 deploy，且 2026-09-21 隔離 E2E 已從空資料庫成功套用全部 13 個 migrations；因此不再把 legacy upgrade test 列為目前 blocker。若未來真的出現需要保留舊資料的部署來源，仍必須新增 forward-only 修正 migration，不能修改已套用的歷史 migration。
 
 `20260921024927_add_project_pinned_feature` 只新增 nullable `TIMESTAMP(3)`，既有 membership 會自然得到 null，代表未置頂；這個 migration 不需要資料回填。
 
@@ -271,9 +271,11 @@ Project 看板中的欄位。Board 是 UI／read-model 概念，不是資料表�
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
 
-預設 Columns 為「準備開始／ready／1024」、「正在進行／active／2048」、「等待檢視／review／3072」、「已完成／done／4096」。`position` 保留間距以便插入；排序時使用 `position, id` 作穩定 tie-break，不建立 unique constraint。Project hard delete 時使用 `ON DELETE CASCADE`；正常產品流程仍應優先採 Project／Column soft archive。
+預設 Columns 為「準備開始／coral／1024」、「正在進行／mint／2048」、「等待檢視／amber／3072」、「已完成／violet／4096」。`color_key` 是固定色票的 design token，不代表工作流程狀態；合法值由 `@kanban/contracts/board` 的 runtime whitelist 管理。`position` 保留間距以便插入；排序時使用 `position, id` 作穩定 tie-break，不建立 unique constraint。Project hard delete 時使用 `ON DELETE CASCADE`；正常產品流程仍應優先採 Project／Column soft archive。
 
 索引：`project_id, archived_at, position, id`。Migration：`backend/prisma/migrations/20260921083115_add_project_board_structure/migration.sql`，同時在 `projects` 加入 `version`／`board_revision`，建立 `board_columns`，並從 `NotificationResourceType` 移除 `BOARD`。
+
+`backend/prisma/migrations/20260921120000_rename_board_column_color_keys/migration.sql` 將舊的 `ready／active／review／done` data tokens 轉為中性的 `coral／mint／amber／violet`，避免自訂或拖曳 Column 後把顏色誤解為固定狀態。
 
 ## 11. 後續資料模型
 

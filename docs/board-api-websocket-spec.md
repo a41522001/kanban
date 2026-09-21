@@ -20,7 +20,7 @@
 - 建立 Project 時，Repository nested-create 四個預設 Columns；外層既有 transaction 同時建立 OWNER ProjectMember。
 - `BoardModule` 已註冊為後續實作骨架，目前沒有 snapshot／command endpoints。
 
-目前 scoped 驗證已通過 contracts build、Backend build、Project Service／Controller 2 suites／36 tests，以及 Frontend type-check。既有隔離 E2E 只驗證到前 11 個 migrations；最新 BoardColumn migration與預設四欄持久化仍需補 integration／E2E。
+目前 scoped 驗證已通過 contracts build、Backend build、Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests，以及 Frontend type-check。隔離 E2E 4 suites／9 tests 已由空資料庫成功套用 13 個 migrations；Project create flow 通過，但仍需補四個預設 Columns 內容／順序與 rollback 的直接 assertion。
 
 ## 3. 資料模型
 
@@ -42,7 +42,7 @@
 | `id` | Column UUID |
 | `projectId` | 直接指向 aggregate root |
 | `title` | 最長 80 字元 |
-| `colorKey` | 最長 30 字元的穩定視覺 key |
+| `colorKey` | shared contract 限定的 `coral／mint／amber／violet` 視覺 key；不代表流程狀態 |
 | `position` | 邏輯排序值，不是 px |
 | `version` | Column optimistic concurrency |
 | `archivedAt` | Column 軟封存 |
@@ -72,6 +72,8 @@ Card 直接屬於 BoardColumn，透過 Column 取得 Project scope。至少包�
 授權：有效 ProjectMember，Project 與 Workspace 都未封存。
 
 ```ts
+import type { BoardColumnColorKey } from '@kanban/contracts/board';
+
 interface ProjectBoardSnapshot {
   project: {
     id: string;
@@ -90,7 +92,7 @@ interface BoardColumnSnapshot {
   id: string;
   projectId: string;
   title: string;
-  colorKey: string;
+  colorKey: BoardColumnColorKey;
   position: number;
   version: number;
   cards: CardSnapshot[];
@@ -236,7 +238,7 @@ CommandReceipt 以 `commandId` 建立 unique constraint，至少保存 userId、
 
 ### 下一步最低驗收
 
-- [ ] 全新資料庫成功套用 12 個 migrations。
+- [x] 全新資料庫成功套用 13 個 migrations。
 - [ ] 建立 Project 後恰有四個預設 Columns，內容與順序正確。
 - [ ] OWNER membership 或 Column 建立失敗時整個 create flow rollback。
 - [ ] 非 WorkspaceMember 不能建立 Project。
@@ -253,7 +255,7 @@ CommandReceipt 以 `commandId` 建立 unique constraint，至少保存 userId、
 
 ## 15. 實作順序
 
-1. 補最新 migration deploy 與 Project 建立預設 Columns integration／E2E。
+1. 補 Project 建立預設 Columns 內容／順序與 rollback integration／E2E；13 migrations deploy 已通過。
 2. 定義 Board snapshot shared contracts 與 `GET /project/:projectId/board`。
 3. 建立 Card／Category／Label schema 與 migration。
 4. 實作 Column／Card service commands、position 與 version。

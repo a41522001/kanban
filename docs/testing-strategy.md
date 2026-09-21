@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-21。2026-09-20 完整 Backend build／19 suites／114 tests／coverage 與 Frontend 13 files／39 tests／build baseline 見 [progress](progress.md)；2026-09-21 另驗證 Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check，以及前 11 個 migrations 的隔離 E2E 4 suites／9 tests。新增 BoardColumn 後 contracts／Backend build、既有 36 tests 與 Frontend type-check 通過；第 12 個 migration與預設四欄 persistence 尚未納入 E2E。
+最後檢視：2026-09-21。2026-09-20 完整 Backend build／19 suites／114 tests／coverage 與 Frontend 13 files／39 tests／build baseline 見 [progress](progress.md)；2026-09-21 另驗證 Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check，以及套用 13 個 migrations 的隔離 E2E 4 suites／9 tests。Project create flow 通過，但尚未直接斷言四個預設 Columns 的內容／順序或 rollback。
 
 ## 1. 目標
 
@@ -139,8 +139,8 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 - [x] Project list／members／memberCandidates read models 已實作，並有 Service／Controller tests；尚缺 HTTP 層未授權／封存負向 E2E。
 - [x] `switchPinnedStatus` Service unit tests：置頂會寫入固定 UTC 時間，取消置頂寫入 null；非成員、Project／Workspace 封存時不更新；Repository count 為 0 時映射為 400。
 - [x] `switchProjectPinnedStatus` Controller unit tests：`pinned=true/false` 都會正確轉交 projectId、Session userId 與 body，並回傳成功 envelope。
-- [x] 隔離 PostgreSQL E2E：11 個 migrations 可從空資料庫套用，並驗證建立 Project、候選人、addMember、通知 detail 與重複加入 409。
-- [ ] BoardColumn migration／CreateProject integration：12 個 migrations 可從空資料庫套用；建立後恰有四個預設 Columns，內容／順序正確，OWNER membership 或 Column 失敗時全部 rollback。
+- [x] 隔離 PostgreSQL E2E：13 個 migrations 可從空資料庫套用，並驗證建立 Project、候選人、addMember、通知 detail 與重複加入 409。
+- [ ] CreateProject BoardColumn integration：直接查詢建立後恰有四個預設 Columns，內容／順序正確，OWNER membership 或 Column 失敗時全部 rollback。
 - [ ] Project pin HTTP E2E：pin → list 的 `pinnedAt` 與排序、unpin、非成員、封存 Project／Workspace、非 boolean validation。
 - [ ] Project 負向 E2E：未登入、非 OWNER、跨 Workspace membership、他人 notification id、封存 Workspace／Project。
 
@@ -185,7 +185,7 @@ REDIS_URL=redis://localhost:6379/1
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
-目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts`、`markReadInvitation.e2e.spec.ts` 與 `project.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受；已讀 suite 覆蓋單筆與全部已讀。Project suite 使用四個 agent 串起 Workspace 邀請、建立 Project、候選人、addMember、通知 detail 與重複加入 409。2026-09-21 四個 suites／九個 tests 在隔離 PostgreSQL／Redis 通過，11 個 migrations 可從空資料庫套用；`afterAll` 關閉 Nest application，runner 最後清除 containers、network 與 volumes。Project suite 的四個 `it` 目前共享前面案例建立的 `projectId`／candidate，後續應重構為不依賴測試順序；pin route 尚未加入此 suite。
+目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts`、`markReadInvitation.e2e.spec.ts` 與 `project.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent 驗證接受／拒絕；已讀 suite 覆蓋單筆與全部已讀。Project suite 使用四個 agent 串起 Workspace 邀請、建立 Project、候選人、addMember、通知 detail 與重複加入 409。2026-09-21 四個 suites／九個 tests 在隔離 PostgreSQL／Redis 通過，13 個 migrations 可從空資料庫套用；runner 最後清除 containers、network 與 volumes。Project suite 尚未直接查詢預設 BoardColumns，四個 `it` 也仍共享前面案例建立的 `projectId`／candidate；pin route 尚未加入此 suite。
 
 ## 5. Test Data Factory
 
@@ -287,7 +287,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 ## 11. 目前最優先的測試順序
 
 1. 補 Project pin HTTP E2E 與 Swagger contract，再補 Project 負向授權、P2002 真實併行衝突與 transaction rollback。
-2. 補 BoardColumn migration deploy、預設四欄 persistence／rollback E2E，再建立 snapshot read model與 Card schema。
+2. 補預設四欄內容／順序與 rollback E2E，再建立 snapshot read model 與 Card schema；BoardColumn migration deploy 已通過。
 3. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
 4. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 5. SessionService unit tests：驗證分支與 Lua reply mapping。

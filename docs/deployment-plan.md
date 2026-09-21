@@ -79,7 +79,7 @@ Production 部署使用 prisma migrate deploy，不使用 prisma db push。
 
 破壞性 schema 變更採 expand-and-contract：先新增可相容欄位、發布新程式、搬移資料，最後一個版本才移除舊欄位。
 
-2026-09-21 隔離 E2E 已確認前 11 個 migrations 可從空 PostgreSQL 依序套用；最新第 12 個 `add_project_board_structure` migration 尚未納入隔離 E2E。它加入有 default 的 `projects.version`／`board_revision`、建立 `board_columns`，並移除 `NotificationResourceType.BOARD`；目前環境已清除重建且沒有需保留的舊 enum rows。未來若開始保留 production data，移除 enum value 或新增 required 欄位前仍須驗證現存資料並採 forward-only migration／expand-and-contract，不能以清庫取代 migration 設計。
+2026-09-21 隔離 E2E 已確認包含 `add_project_board_structure` 與 `rename_board_column_color_keys` 在內的 13 個 migrations 可從空 PostgreSQL 依序套用。前者加入 `projects.version`／`board_revision`、建立 `board_columns` 並移除 `NotificationResourceType.BOARD`；後者將舊 colorKey data tokens 安全轉為中性色票名稱。未來若開始保留 production data，移除 enum value 或新增 required 欄位前仍須驗證現存資料並採 forward-only migration／expand-and-contract，不能以清庫取代 migration 設計。
 
 ## 5. Health Check
 

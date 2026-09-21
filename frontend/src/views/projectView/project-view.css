@@ -32,19 +32,19 @@
   @apply h-6 w-2 rounded-2xl;
 }
 
-.board__column-accent--ready {
+.board__column-accent--coral {
   @apply bg-flow-ready;
 }
 
-.board__column-accent--active {
+.board__column-accent--mint {
   @apply bg-flow-active;
 }
 
-.board__column-accent--review {
+.board__column-accent--amber {
   @apply bg-flow-review;
 }
 
-.board__column-accent--done {
+.board__column-accent--violet {
   @apply bg-flow-done;
 }
 

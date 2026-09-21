@@ -5,7 +5,7 @@
 ## 目前優先順序
 
 1. [目前 HTTP API](http-api.md)與[測試策略](testing-strategy.md)：補 Project pin 的 HTTP E2E 與 endpoint-specific Swagger metadata。
-2. [Kanban domain 與一致性](kanban-domain-plan.md)：Project 已確立為 Board aggregate root，BoardColumn schema／migration 與預設四欄已完成；下一步補最新 migration E2E、snapshot 與 Card schema。
+2. [Kanban domain 與一致性](kanban-domain-plan.md)：Project 已確立為 Board aggregate root，BoardColumn schema／migration、shared colorKey whitelist、預設四欄與 13 migrations E2E 已完成；下一步補四欄直接 assertion、snapshot 與 Card schema。
 3. [Board API 與 WebSocket](board-api-websocket-spec.md)：以 `project:{projectId}` room 實作 authorization，再導入 command、ack、idempotency、concurrency 與 recovery。
 4. [Workspace 邀請與通知](workspace-invitation-notification.md)：補取消、query 分頁、expiration job／rollback／併發測試、room reconnect 與漏收同步。
 5. [Session 架構與輪轉](session-architecture.md)：補 SessionService、Lua 與真實 Redis integration tests，並收斂 handshake rotation／完整 revoke 策略。
@@ -19,7 +19,7 @@
 - [Workspace 邀請與通知](workspace-invitation-notification.md)
 - [Frontend Auth vertical slice](frontend-auth-plan.md)
 
-最後核對：2026-09-21。Project 前後端第一版已加入每位 ProjectMember 的置頂偏好；前端 Project 頁已統一為 `ProjectView` 與 `/projects/:projectId`。Project 是 Board aggregate root，不建立 Board table；BoardColumn migration、預設四欄 nested create 與 shared contract 已加入。contracts／Backend build、Project 36 tests 與 Frontend type-check 通過；最新第 12 個 migration 尚未納入隔離 E2E。完整執行紀錄以 progress 為準。
+最後核對：2026-09-21。Project 前後端第一版已加入每位 ProjectMember 的置頂偏好；前端 Project 頁已統一為 `ProjectView` 與 `/projects/:projectId`。Project 是 Board aggregate root，不建立 Board table；BoardColumn migration、預設四欄 nested create 與 shared colorKey contract 已加入。contracts／Backend build、Project 36 tests、BoardColumn DTO 6 tests、Frontend type-check 與套用 13 個 migrations 的隔離 E2E 4 suites／9 tests通過。完整執行紀錄以 progress 為準。
 
 ## 既有路線
 

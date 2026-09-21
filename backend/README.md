@@ -44,4 +44,4 @@ Build／start／test 的 pre scripts 會先建置共用 contracts。Production e
 - [Session 架構](../docs/session-architecture.md)
 - [測試範圍與未完成項目](../docs/testing-strategy.md)
 
-文件最後核對：2026-09-21。2026-09-20 的完整 Backend baseline 為 19 suites／114 tests 與既有 coverage；2026-09-21 Project Service／Controller 2 suites／36 tests 通過，隔離 E2E 4 suites／9 tests 通過，且前 11 個 migrations 可從空資料庫套用。其後新增的第 12 個 migration 建立 Project `version`／`boardRevision` 與 `BoardColumn`；contracts／Backend build 與既有 36 tests 已通過，但最新 migration deploy、預設四欄 persistence／rollback E2E 尚待補。Pin endpoint 亦尚缺 HTTP E2E 與 endpoint-specific Swagger response metadata。
+文件最後核對：2026-09-21。2026-09-20 的完整 Backend baseline 為 19 suites／114 tests 與既有 coverage；2026-09-21 Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests、contracts／Backend build 與隔離 E2E 4 suites／9 tests 通過，13 個 migrations 可從空資料庫套用。Project create E2E 已經過含 BoardColumn 的 nested write，但仍需補預設四欄內容／順序的直接 assertion 與 rollback test。Pin endpoint 亦尚缺 HTTP E2E 與 endpoint-specific Swagger response metadata。

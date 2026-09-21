@@ -1,4 +1,5 @@
-export type ColumnColorKey = 'ready' | 'active' | 'review' | 'done';
+import type { BoardColumnColorKey } from '@kanban/contracts/board';
+
 export type CardCategoryColorKey =
   | 'coral'
   | 'rose'
@@ -35,7 +36,7 @@ export interface BoardColumnData {
   boardId: string;
   title: string;
   position: number;
-  colorKey: ColumnColorKey;
+  colorKey: BoardColumnColorKey;
   cards: BoardCardData[];
   version: number;
 }

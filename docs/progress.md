@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-21（依目前原始碼、Project／BoardColumn scoped build 與 tests、Frontend type-check，以及先前套用 11 個 migrations 的隔離 PostgreSQL／Redis E2E 核對；第 12 個 migration 尚待 E2E deploy）。
+最後檢視：2026-09-21（依目前原始碼、Project／BoardColumn scoped build 與 tests、Frontend type-check，以及套用 13 個 migrations 的隔離 PostgreSQL／Redis E2E 核對）。
 
 ## Native WebSocket
 
@@ -38,8 +38,8 @@
 | Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
 | Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀、Workspace invitation detail 與 Project member added detail API 已完成；兩種 domain flow 都在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端依 notification type 導向對應 Dialog |
-| Project domain | 建置中，read／create／member notification／pin 已形成前端 vertical slice | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 在既有 transaction 建立 Project、四個預設 Columns 與 OWNER membership。pin 與 member flows 已串接；負向授權、rollback、真實併行與最新 migration E2E 仍待補 |
-| BoardColumn／Card domain | BoardColumn persistence 已起步 | Project 是 Board aggregate root，沒有 Board table。Project `version`／`boardRevision`、BoardColumn schema／migration、預設四欄 shared contract 與 nested create 已完成；snapshot API、Card models、Socket commands 與直接 persistence tests 尚未完成 |
+| Project domain | 建置中，read／create／member notification／pin 已形成前端 vertical slice | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 在既有 transaction 建立 Project、四個預設 Columns 與 OWNER membership。pin 與 member flows 已串接；13 migrations E2E 已通過，負向授權、四欄直接 assertion、rollback 與真實併行仍待補 |
+| BoardColumn／Card domain | BoardColumn persistence 已起步 | Project 是 Board aggregate root，沒有 Board table。Project `version`／`boardRevision`、BoardColumn schema／migration、預設四欄 shared contract、`coral／mint／amber／violet` runtime whitelist 與 nested create 已完成；snapshot API、Card models、Socket commands 與直接 persistence tests 尚未完成 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
 
@@ -73,18 +73,18 @@
 - 2026-09-21 完成 Project pin vertical slice：`ProjectMember.pinnedAt`、第 11 個 migration、shared request／list contract、Repository／Service／Controller、Frontend service／Store／Workspace UI 均已串接。Backend Project Service／Controller 2 suites／36 tests 通過；Frontend Project service／store 2 files／8 tests 通過，涵蓋 pin request、optimistic `pinnedAt` 更新與排序。Pin endpoint 的 HTTP E2E 尚未補。
 - 2026-09-21 將前端頁面由 `boardView/BoardView.vue` 更名為 `projectView/ProjectView.vue`，route 由 `/board` 改為 `/projects/:projectId`；Workspace overview 與 Project member added notification 導頁均改用 route param。`vue-tsc --build` 通過；Board components 與本機假資料未改。
 - 2026-09-21 重新執行隔離 Backend E2E：4 suites／9 tests 全部通過，並確認包含 `20260921024927_add_project_pinned_feature` 在內的 11 個 migrations 可從空資料庫套用；runner 最後已移除 containers、network 與 volumes。
-- 2026-09-21 確立 Project 為 Board aggregate root，不建立 Board table；新增 Project `version`／`boardRevision`、BoardColumn schema、第 12 個 migration 與四個預設 Columns shared contract。建立 Project 會 nested-create 預設 Columns，Notification resource 移除 `BOARD`。contracts build、Backend build、Project Service／Controller 2 suites／36 tests 與 Frontend type-check 通過；第 12 個 migration deploy 與預設四欄 persistence／rollback E2E 尚未執行。
+- 2026-09-21 確立 Project 為 Board aggregate root，不建立 Board table；新增 Project `version`／`boardRevision`、BoardColumn schema 與四個預設 Columns。其後將 colorKey 統一為 `coral／mint／amber／violet` shared runtime whitelist，新增 data migration、DTO validation／Swagger 與 6 個 AAA tests。contracts build、Backend build、Frontend type-check，以及套用 13 個 migrations 的隔離 E2E 4 suites／9 tests 通過；預設四欄內容／順序的直接 assertion 與 rollback E2E 尚未補。
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
 - CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
-- 上述較早的 2026-09-04／09-08／09-11／09-12／09-15／09-16／09-19 結果是歷史紀錄；完整 build／unit／coverage baseline 仍以 2026-09-20 為準，11 migrations 的隔離 E2E、Project pin scoped tests 與 Frontend type-check 則以 2026-09-21 紀錄為準。
+- 上述較早的 2026-09-04／09-08／09-11／09-12／09-15／09-16／09-19 結果是歷史紀錄；完整 build／unit／coverage baseline 仍以 2026-09-20 為準，13 migrations 的隔離 E2E、Project／BoardColumn scoped tests 與 Frontend type-check 則以 2026-09-21 紀錄為準。
 - 進度只在實際跑過對應指令後標記完成，不以「已有 spec 檔」代替通過結果。
 
 ## 下一步
 
 1. 補 Project pin endpoint-specific Swagger metadata 與 HTTP E2E，驗證 pin → list 排序、unpin、validation、非成員與封存狀態。
-2. 補第 12 個 migration deploy 與 CreateProject 預設四欄 persistence／rollback E2E，再實作 `GET /project/:projectId/board` snapshot；ProjectView 目前仍使用本機假資料。
+2. 補 CreateProject 預設四欄內容／順序與 rollback E2E，再實作 Board snapshot；13 migrations deploy 已通過，ProjectView 目前仍使用本機假資料。
 3. 建立 Card／Category／Label schema 與 Column／Card commands，改用 `projectId` contract 與 `project:{projectId}` room。
 4. 補 Project 未登入／非 OWNER／跨 Workspace／他人通知存取 E2E、transaction rollback 與重複加入真實併行測試。
 5. 補 expiration job unit test 與真實資料庫過期批次更新測試。
@@ -103,9 +103,9 @@
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
 - Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 已提供第一版 `notification:created` 推送，但重連後重新同步、事件遺失補償與跨分頁同步仍未完成。
 - Workspace View 已透過 `workspace:into`／`workspace:leave` 管理目前 Workspace room，後端加入前會驗證 membership 與 archivedAt；目前尚未處理 Socket reconnect 後 rejoin、快速切換造成的非同步 room 競速，以及成員被移除後既有 Socket 的 room 清理。`workspace:memberChanged` 只傳 Workspace ID，前端收到後重新呼叫成員清單 API。
-- Project create／list／member list／addMember／pin 已有 HTTP route並完成第一版 Workspace overview 串接；create 仍只回 `null`，因此前端建立後重新取得 list 並選取第一筆。建立時後端已寫入四個 BoardColumns，但前端尚無 snapshot API，頁內仍使用假資料且 mock 的 `boardId` 尚待改為 `projectId`。置頂成功後前端以本機時間 optimistic 更新，重新載入時才以 Server 時間校正。
+- Project create／list／member list／addMember／pin 已有 HTTP route 並完成第一版 Workspace overview 串接；create 仍只回 `null`，因此前端建立後重新取得 list 並選取第一筆。建立時後端已寫入四個 BoardColumns，但前端尚無 snapshot API，頁內仍使用假資料且 mock 的 `boardId` 尚待改為 `projectId`。置頂成功後前端以本機時間 optimistic 更新，重新載入時才以 Server 時間校正。
 - Project member candidate read model 與 Frontend Dialog 已改以 `workspaceMemberId` 銜接 addMember command，shared `AssignableProjectRole` 與 runtime DTO 都只允許 EDITOR／VIEWER；Service／Controller／Frontend component／service tests 與第一版隔離 E2E 已補。Project E2E 的四個案例會沿用前一個案例建立的 `projectId`／candidate，仍應重構為自給自足的情境，並補負向授權、rollback 與真實併行驗收。
-- `20260915080141_add_project_member_id` 只適用當時沒有 ProjectMember rows 的建置流程。本專案沒有需保留的舊版資料，環境已清除重建，且目前 11 個 migrations 已由隔離 E2E 從空資料庫驗證；因此不再把 legacy upgrade 視為 blocker。若未來新增保留舊資料的部署來源，必須另建 forward-only migration。
+- `20260915080141_add_project_member_id` 只適用當時沒有 ProjectMember rows 的建置流程。本專案沒有需保留的舊版資料，環境已清除重建，且目前 13 個 migrations 已由隔離 E2E 從空資料庫驗證；因此不再把 legacy upgrade 視為 blocker。若未來新增保留舊資料的部署來源，必須另建 forward-only migration。
 
 ## 更新方式
 

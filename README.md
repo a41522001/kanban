@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-21（依目前原始碼、Project／BoardColumn scoped build 與 tests、Frontend type-check，以及前 11 個 migrations 的隔離 PostgreSQL／Redis E2E 核對；第 12 個 migration 尚待 E2E deploy）。
+最後檢視：2026-09-21（依目前原始碼、Project／BoardColumn scoped build 與 tests、Frontend type-check，以及套用 13 個 migrations 的隔離 PostgreSQL／Redis E2E 核對）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace、邀請通知、user room 通知推播、Workspace room 成員同步，以及 Project 的前後端第一版 vertical slice；Project 作為 Board aggregate root，BoardColumn 持久化第一步已完成，snapshot、Card 與即時協作仍待實作。
 
@@ -89,7 +89,7 @@ runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth、Wor
 
 2026-09-21 scoped 驗證：Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests 與 Frontend type-check 通過；隔離 E2E 4 suites／9 tests 通過，並確認包含 `20260921024927_add_project_pinned_feature` 在內的 11 個 migrations 可從空資料庫依序套用。現有 E2E 尚未直接呼叫 pin endpoint。
 
-2026-09-21 BoardColumn scoped 驗證：contracts build、Backend build、Project Service／Controller 2 suites／36 tests與 Frontend type-check 通過。第 12 個 `20260921083115_add_project_board_structure` migration 已建立，但尚未重新執行完整隔離 E2E；目前測試也尚未直接斷言建立 Project 會寫入四個預設 Columns。
+2026-09-21 BoardColumn scoped 驗證：contracts build、Backend build、Project Service／Controller 2 suites／36 tests、新增 DTO 6 tests 與 Frontend type-check 通過；隔離 E2E 4 suites／9 tests 通過，13 個 migrations 可由空資料庫套用。BoardColumn 色票已統一為 shared contract 的 `coral／mint／amber／violet` runtime whitelist；Project E2E 目前尚未直接斷言四個預設 Columns 的內容與順序。
 
 ## 文件入口
 

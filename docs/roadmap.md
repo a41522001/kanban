@@ -48,7 +48,7 @@ Vue 3 browser WebSocket
 
 ## Phase 2：Socket.IO 協作 Kanban
 
-目前進度（2026-09-21）：步驟 1、2 已完成第一版，Workspace room 與 Project create／list／members／addMember／notification detail／pin 已串接。Project 頁使用 `ProjectView` 與 `/projects/:projectId`。Project 已確立為 Board aggregate root，不建立 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration 與建立時的四個預設 Columns 已完成。前 11 個 migrations 的隔離 E2E、Project scoped tests 與 Frontend type-check 已通過；第 12 個 migration E2E、預設四欄 persistence test、pin HTTP E2E 尚待補。下一個 domain 可交付點是 snapshot 與 Card schema，再進入 `project:{projectId}` room、Socket command、ack、idempotency 與 concurrency。
+目前進度（2026-09-21）：步驟 1、2 已完成第一版，Workspace room 與 Project create／list／members／addMember／notification detail／pin 已串接。Project 頁使用 `ProjectView` 與 `/projects/:projectId`。Project 已確立為 Board aggregate root，不建立 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration、shared colorKey whitelist 與建立時的四個預設 Columns 已完成。13 個 migrations 的隔離 E2E、Project／BoardColumn scoped tests 與 Frontend type-check 已通過；預設四欄直接 assertion 與 pin HTTP E2E 尚待補。下一個 domain 可交付點是 BoardColumn commands 與拖曳排序，再進入 Card schema、Socket command、ack、idempotency 與 concurrency。
 
 題材：多人協作 Kanban。
 

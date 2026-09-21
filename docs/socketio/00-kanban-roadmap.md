@@ -35,12 +35,12 @@
 - Frontend Auth vertical slice：signup、login、userInfo session restore、protected route、logout、表單驗證與共用 UI 基礎。
 - Notification 持久化與推播基礎：PostgreSQL schema、shared contract、`GET /notifications`、`GET /notifications/unreadCount`、`PATCH /notifications/read`、`PATCH /notifications/readAll`、`GET /workspaceInvitation/:invitationId` 與 `GET /project/notificationDetail/:notificationId`；資料庫是通知真相，Workspace invitation 與 Project member added 都在 transaction commit 後以 `notification:created` 推送摘要。
 - Workspace 列表／建立／成員授權查詢與前端 overview；Owner 邀請 Dialog 及通知選單已串接。
-- Project／ProjectMember schema、migration、shared contracts、Repository、runtime DTO 與 create／list／members／memberCandidates／addMember／notification detail／pin HTTP endpoints；addMember 的 membership／notification 同 transaction，commit 後推送 `notification:created`。Project overview、新增成員 Dialog、Project member added notification detail Dialog 與 pin UI 已完成第一版；前端 Project 頁使用 `/projects/:projectId` 的 `ProjectView`。Project scoped unit tests 與套用 11 個 migrations 的隔離 E2E 已通過，pin HTTP E2E、負向授權、rollback 與更完整的併行測試仍待補。
-- Project 是 Board aggregate root，沒有 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration與建立 Project 時的四個預設 Columns 已加入。snapshot、Card 與 Project room 尚未實作。
+- Project／ProjectMember schema、migration、shared contracts、Repository、runtime DTO 與 create／list／members／memberCandidates／addMember／notification detail／pin HTTP endpoints；addMember 的 membership／notification 同 transaction，commit 後推送 `notification:created`。Project overview、新增成員 Dialog、Project member added notification detail Dialog 與 pin UI 已完成第一版；前端 Project 頁使用 `/projects/:projectId` 的 `ProjectView`。Project scoped unit tests 與套用 13 個 migrations 的隔離 E2E 已通過，pin HTTP E2E、負向授權、rollback 與更完整的併行測試仍待補。
+- Project 是 Board aggregate root，沒有 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration 與建立 Project 時的四個預設 Columns 已加入。snapshot、Card 與 Project room 尚未實作。
 
 尚未完成的 Session 收尾：logout／revoke 僅刪除本次 Cookie 對應的 Session 與 ZSET member，尚未處理 Current／Previous Grace family 的完整撤銷；Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
 
-2026-09-21 核對：前 11 個 migrations 的隔離 E2E、Project Service／Controller 36 tests、Frontend scoped tests／type-check 已通過。其後新增第 12 個 BoardColumn migration；contracts／Backend build、既有 36 tests 與 Frontend type-check 通過，但 migration deploy／預設四欄 E2E 尚待補。下一步先完成 snapshot 與 Card schema，再建立 `project:{projectId}` room；Socket.IO 不作為持久化真相。
+2026-09-21 核對：13 個 migrations 的隔離 E2E 4 suites／9 tests、Project Service／Controller 36 tests、BoardColumn DTO 6 tests、contracts／Backend build 與 Frontend scoped tests／type-check 已通過。預設四欄內容／順序的直接 assertion 與 rollback 尚待補。下一步先完成 BoardColumn commands／拖曳與 snapshot，再建立 Card schema及 `project:{projectId}` room；Socket.IO 不作為持久化真相。
 
 ## 小章順序
 
