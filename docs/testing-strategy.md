@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-21。2026-09-20 完整 Backend build／19 suites／114 tests／coverage 與 Frontend 13 files／39 tests／build baseline 見 [progress](progress.md)；2026-09-21 另驗證 Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check，以及可套用 11 個 migrations 的隔離 E2E 4 suites／9 tests。Pin endpoint、Workspace room、Socket lifecycle 與前端產品 Playwright E2E 仍未覆蓋。
+最後檢視：2026-09-21。2026-09-20 完整 Backend build／19 suites／114 tests／coverage 與 Frontend 13 files／39 tests／build baseline 見 [progress](progress.md)；2026-09-21 另驗證 Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check，以及前 11 個 migrations 的隔離 E2E 4 suites／9 tests。新增 BoardColumn 後 contracts／Backend build、既有 36 tests 與 Frontend type-check 通過；第 12 個 migration與預設四欄 persistence 尚未納入 E2E。
 
 ## 1. 目標
 
@@ -140,6 +140,7 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 - [x] `switchPinnedStatus` Service unit tests：置頂會寫入固定 UTC 時間，取消置頂寫入 null；非成員、Project／Workspace 封存時不更新；Repository count 為 0 時映射為 400。
 - [x] `switchProjectPinnedStatus` Controller unit tests：`pinned=true/false` 都會正確轉交 projectId、Session userId 與 body，並回傳成功 envelope。
 - [x] 隔離 PostgreSQL E2E：11 個 migrations 可從空資料庫套用，並驗證建立 Project、候選人、addMember、通知 detail 與重複加入 409。
+- [ ] BoardColumn migration／CreateProject integration：12 個 migrations 可從空資料庫套用；建立後恰有四個預設 Columns，內容／順序正確，OWNER membership 或 Column 失敗時全部 rollback。
 - [ ] Project pin HTTP E2E：pin → list 的 `pinnedAt` 與排序、unpin、非成員、封存 Project／Workspace、非 boolean validation。
 - [ ] Project 負向 E2E：未登入、非 OWNER、跨 Workspace membership、他人 notification id、封存 Workspace／Project。
 
@@ -286,7 +287,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 ## 11. 目前最優先的測試順序
 
 1. 補 Project pin HTTP E2E 與 Swagger contract，再補 Project 負向授權、P2002 真實併行衝突與 transaction rollback。
-2. 後續建立 Board／Column／Card schema、snapshot read model 與 Board room authorization。
+2. 補 BoardColumn migration deploy、預設四欄 persistence／rollback E2E，再建立 snapshot read model與 Card schema。
 3. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
 4. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 5. SessionService unit tests：驗證分支與 Lua reply mapping。

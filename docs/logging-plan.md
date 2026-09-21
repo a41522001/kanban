@@ -62,7 +62,7 @@ type CommonLogFields = {
   context?: string;
   userId?: string;
   socketId?: string;
-  boardId?: string;
+  projectId?: string;
   commandId?: string;
   statusCode?: number;
   durationMs?: number;
@@ -400,7 +400,7 @@ logger.error({ event: 'redis.client_error', err: error }, 'Redis client error');
 {
   socketId,
   userId,
-  boardId,
+  projectId,
   commandId,
   eventName,
   disconnectReason,

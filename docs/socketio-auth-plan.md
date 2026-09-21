@@ -69,10 +69,10 @@ type SocketAck<T> =
 - 通知使用 `user:{userId}` room；room 名稱只在 server 端由已驗證的 `socket.data.userId` 組成。
 - Workspace 使用 `workspace:{workspaceId}` room。Client 只能提出 `workspace:into`／`workspace:leave`，Server 在加入前透過 `WorkspacesService.findMembership()` 驗證 userId 對應的有效 WorkspaceMember 與 archivedAt；client 不可自行選擇 user room。
 - `workspace:memberChanged` 只傳 `{ workspaceId }` 作為 invalidation signal；目前 Workspace View 收到後重新呼叫成員清單 API。
-- Board room 命名統一，例如 board:{boardId}。
+- Project Board room 命名統一為 `project:{projectId}`；Project 是 Board aggregate root，沒有 Board ID。
 - joinBoard 前由 Board 找到 Project，再確認使用者具有有效的 ProjectMember。
 - 每一個 mutation event 都再次確認資源權限，不能只依賴已加入 room。
-- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Board room；disconnect 時由 Socket.IO 自動清除連線 room。Board schema／room 尚未實作，此項仍是目標行為。
+- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Project room；disconnect 時由 Socket.IO 自動清除連線 room。BoardColumn schema 已建立，但 room 尚未實作，此項仍是目標行為。
 - 成功寫入 DB 並 commit 後，才向 room broadcast domain event。
 
 ## 6. 重連與資料恢復
@@ -82,7 +82,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 建議流程：
 
 1. reconnect 後重新驗證 Session。
-2. 重新加入目前 Board room。
+2. 重新授權並加入目前 `project:{projectId}` room。
 3. 傳送 client 已知的 board version 或 lastEventId。
 4. 若 server 無法補齊事件，要求 client 重新抓 snapshot。
 
@@ -110,7 +110,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 應記錄：
 
 - socket connected、disconnected、join room、leave room
-- event name、requestId 或 commandId、boardId、duration、result code
+- event name、requestId 或 commandId、projectId、duration、result code
 - authentication 或 authorization failure
 
 不得記錄：
@@ -129,7 +129,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 ### Room 與權限
 
-- Project member 可加入其 Project 下的 Board room。
+- Project member 可加入該 Project 的 `project:{projectId}` room。
 - 非 Project member 無法加入 room。
 - Workspace member 可加入未封存 Workspace room；非成員或已封存 Workspace 不可加入。
 - Viewer 無法修改卡片。

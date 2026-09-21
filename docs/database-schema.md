@@ -1,12 +1,12 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-21（依 Prisma schema、11 個 migrations、Project pin Repository／Service／Controller 與隔離 E2E migration deploy 結果核對）。
+最後檢視：2026-09-21（依 Prisma schema、12 個 migration 檔案、Project／BoardColumn 實作與 scoped 驗證結果核對；最新 BoardColumn migration 尚未納入隔離 E2E deploy）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
 ## 1. 目前範圍
 
-目前已定義七張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember。
+目前已定義八張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember、BoardColumn。
 
 ```text
 User
@@ -24,18 +24,19 @@ Workspace
 └── Project
 
 Project
-└── ProjectMember
+├── ProjectMember
+└── BoardColumn
 ```
 
 ```text
-users ──< workspace_members >── workspaces ──< projects
+users ──< workspace_members >── workspaces ──< projects ──< board_columns
   │                                  │              │
   ├────< notifications (recipient)   └─< workspace_invitations
   ├────< notifications (actor)
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember／notification detail／pin API。`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好，不是 Project 全域欄位；Frontend Project overview 已串接置頂、取消置頂與相同排序規則。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知。Project scoped unit tests 與從空資料庫套用 11 個 migrations 的隔離 E2E 已通過；pin endpoint 的 HTTP E2E、負向授權、rollback 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 是 Kanban Board 的 aggregate root，不另外建立 `boards` 資料表。`Project` 與 `ProjectMember` 已有 create／list／members／memberCandidates／addMember／notification detail／pin API；`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好。`BoardColumn` schema 與 migration 已建立，建立 Project 時會在同一個 transaction 內由 nested write 建立四個預設 Columns，並另建立建立者的 OWNER membership。`Card` 與 Board snapshot API 尚未建立。既有 11 個 migrations 的隔離 E2E 已通過；第 12 個 BoardColumn migration、預設四欄持久化、pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。
 
 ## 2. Enum
 
@@ -84,8 +85,9 @@ users ──< workspace_members >── workspaces ──< projects
 | `WORKSPACE_INVITATION` | `workspace_invitations.id`（應用層引用，無外鍵）。 |
 | `WORKSPACE` | `workspaces.id`。 |
 | `PROJECT` | `projects.id`（Notification 仍使用 application-level resource pointer，沒有外鍵）。 |
-| `BOARD` | 未來的 `boards.id`。 |
 | `CARD` | 未來的 `cards.id`。 |
+
+Board 沒有獨立 resource type；看板層級操作以 `PROJECT` 指向 `projects.id`，卡片通知仍以 `CARD` 指向未來的 `cards.id`。
 
 ## 3. `users`
 
@@ -198,7 +200,7 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 ## 8. `projects`
 
-Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list、members、member candidates、addMember、notification detail 與 per-member pin 已形成第一版前後端資料流；獨立 Project detail、角色調整、移除成員與 Board persistence 尚未完成。
+Workspace 之下的專案邊界，也是 Kanban Board 的 aggregate root。ProjectService 的 create flow 會先確認 Workspace membership 與封存狀態，再於同一 Prisma transaction 建立 Project、四個預設 BoardColumns 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list、members、member candidates、addMember、notification detail 與 per-member pin 已形成第一版前後端資料流；獨立 Project detail、角色調整、移除成員、Board snapshot 與 Card persistence 尚未完成。
 
 | 欄位 | 型別 | Null | 說明 |
 | --- | --- | --- | --- |
@@ -211,6 +213,8 @@ Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 Wo
 | `archived_at` | TIMESTAMP(3) | 是 | 軟封存時間；null 代表未封存。 |
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+| `version` | INTEGER | 否 | Project metadata 的 optimistic concurrency version；預設 1。 |
+| `board_revision` | BIGINT | 否 | Column／Card domain mutation 的單調遞增序號；預設 0，對 JavaScript client 應序列化為字串。 |
 
 約束與索引：
 
@@ -220,6 +224,7 @@ Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 Wo
 - index：`created_by_id`，支援依建立者查詢。
 - 目前沒有 `workspace_id + name` unique constraint，因此同一 Workspace 可以有同名 Project；API 與前端必須以 UUID 識別。
 - `COMPLETED` 不會自動寫入 `archived_at`；完成與封存必須分別處理。
+- 建立 Project 時預設 Columns 屬於初始 snapshot，因此 `board_revision` 保持 0；後續成功的 Column／Card mutation 才遞增。
 
 ## 9. `project_members`
 
@@ -250,15 +255,35 @@ Project／ProjectMember 初始 migration：`backend/prisma/migrations/2026091313
 
 `20260921024927_add_project_pinned_feature` 只新增 nullable `TIMESTAMP(3)`，既有 membership 會自然得到 null，代表未置頂；這個 migration 不需要資料回填。
 
-## 10. 後續資料模型
+## 10. `board_columns`
+
+Project 看板中的欄位。Board 是 UI／read-model 概念，不是資料表；每個 Column 直接屬於一個 Project。
+
+| 欄位 | 型別 | Null | 說明 |
+| --- | --- | --- | --- |
+| `id` | UUID | 否 | Column 主鍵。 |
+| `project_id` | UUID | 否 | 所屬 Project，參照 `projects.id`。 |
+| `title` | VARCHAR(80) | 否 | 欄位顯示名稱。 |
+| `color_key` | VARCHAR(30) | 否 | 穩定的視覺語意 key，不保存 CSS class 或色碼。 |
+| `position` | INTEGER | 否 | 邏輯排序值，不是 pixel；預設欄位使用 1024 的間隔。 |
+| `version` | INTEGER | 否 | Column optimistic concurrency version；預設 1。 |
+| `archived_at` | TIMESTAMP(3) | 是 | 軟封存時間。 |
+| `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
+| `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+
+預設 Columns 為「準備開始／ready／1024」、「正在進行／active／2048」、「等待檢視／review／3072」、「已完成／done／4096」。`position` 保留間距以便插入；排序時使用 `position, id` 作穩定 tie-break，不建立 unique constraint。Project hard delete 時使用 `ON DELETE CASCADE`；正常產品流程仍應優先採 Project／Column soft archive。
+
+索引：`project_id, archived_at, position, id`。Migration：`backend/prisma/migrations/20260921083115_add_project_board_structure/migration.sql`，同時在 `projects` 加入 `version`／`board_revision`，建立 `board_columns`，並從 `NotificationResourceType` 移除 `BOARD`。
+
+## 11. 後續資料模型
 
 下列是已規劃、但尚未建立的資料表；新增時需同步更新本文件、Prisma schema、contracts、migration 與測試：
 
-- `boards`、`board_columns`、`cards`：Kanban read model 與協作指令的持久化資料。
+- `cards`：Kanban 卡片與協作指令的持久化資料；直接透過 `column_id` 歸屬 Project。
 - `reminders`：負責未來排程時間；到期時才建立 `CARD_REMINDER` Notification。
 - `outbox_messages`：需要可靠背景投遞與 message queue 時才加入。
 
-## 11. Migration 規則
+## 12. Migration 規則
 
 1. 先修改 `backend/prisma/schema.prisma`。
 2. 產生可審閱的 Prisma migration，確認 SQL 的 enum、index、FK 與 delete behavior。

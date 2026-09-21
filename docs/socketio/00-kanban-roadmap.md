@@ -36,10 +36,11 @@
 - Notification 持久化與推播基礎：PostgreSQL schema、shared contract、`GET /notifications`、`GET /notifications/unreadCount`、`PATCH /notifications/read`、`PATCH /notifications/readAll`、`GET /workspaceInvitation/:invitationId` 與 `GET /project/notificationDetail/:notificationId`；資料庫是通知真相，Workspace invitation 與 Project member added 都在 transaction commit 後以 `notification:created` 推送摘要。
 - Workspace 列表／建立／成員授權查詢與前端 overview；Owner 邀請 Dialog 及通知選單已串接。
 - Project／ProjectMember schema、migration、shared contracts、Repository、runtime DTO 與 create／list／members／memberCandidates／addMember／notification detail／pin HTTP endpoints；addMember 的 membership／notification 同 transaction，commit 後推送 `notification:created`。Project overview、新增成員 Dialog、Project member added notification detail Dialog 與 pin UI 已完成第一版；前端 Project 頁使用 `/projects/:projectId` 的 `ProjectView`。Project scoped unit tests 與套用 11 個 migrations 的隔離 E2E 已通過，pin HTTP E2E、負向授權、rollback 與更完整的併行測試仍待補。
+- Project 是 Board aggregate root，沒有 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration與建立 Project 時的四個預設 Columns 已加入。snapshot、Card 與 Project room 尚未實作。
 
 尚未完成的 Session 收尾：logout／revoke 僅刪除本次 Cookie 對應的 Session 與 ZSET member，尚未處理 Current／Previous Grace family 的完整撤銷；Session Lua 也尚缺真實 Redis 的並行整合測試。這些完成前，不把 Session lifecycle 標記為可上線。
 
-2026-09-21 核對：2026-09-20 完整 unit／coverage baseline 保留；本輪 Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check 與隔離 PostgreSQL／Redis E2E 4 suites／9 tests 通過，11 個 migrations 可從空資料庫套用。Socket.IO Session handshake、user room、Workspace room membership authorization，以及 transaction commit 後的 `notification:created`／`workspace:memberChanged` 推播第一版已完成。Handshake 仍直接呼叫可能觸發 rotation 的 Session 方法且不回寫新 Cookie。Project pin HTTP E2E 補齊後，下一個 domain 階段才建立 Board schema／snapshot／room authorization；Socket.IO 不作為通知真相，也不需要先導入 message queue。
+2026-09-21 核對：前 11 個 migrations 的隔離 E2E、Project Service／Controller 36 tests、Frontend scoped tests／type-check 已通過。其後新增第 12 個 BoardColumn migration；contracts／Backend build、既有 36 tests 與 Frontend type-check 通過，但 migration deploy／預設四欄 E2E 尚待補。下一步先完成 snapshot 與 Card schema，再建立 `project:{projectId}` room；Socket.IO 不作為持久化真相。
 
 ## 小章順序
 
@@ -76,11 +77,11 @@
 - [x] 前端只在事件 Workspace ID 等於目前選取值時，重新取得 Workspace members API。
 - [ ] reconnect 後自動 rejoin、快速切換 room 的競速、成員移除後清理既有 room，以及 Socket.IO client lifecycle tests。
 
-### 03 Board room 與 authorization
+### 03 Project Board room 與 authorization
 
-- 每個 board 對應 room。
-- Join 前透過 `Board → Project → ProjectMember` 檢查權限；不建立 BoardMember。
-- Event 中的 board/card 資源重新驗證權限。
+- 每個 Project 對應 `project:{projectId}` room。
+- Join 前透過 `Project → ProjectMember` 檢查權限；不建立 BoardMember。
+- Event 中的 Project／Column／Card 資源重新驗證 scope 與權限。
 - Disconnect 後 presence 正確更新。
 
 ### 04 Kanban commands 與 ack

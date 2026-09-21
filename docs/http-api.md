@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-21。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；已納入 Project pin API 與 ProjectView route，Board schema／API 仍是後續目標。測試紀錄見[進度](progress.md)。
+最後核對：2026-09-21。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；已納入 Project pin API 與 ProjectView route。Project 是 Board aggregate root，BoardColumn schema 已建立，但 Board snapshot／Column／Card API 尚未實作。測試紀錄見[進度](progress.md)。
 
 ## 基本約定
 
@@ -112,4 +112,4 @@ Project list 的存取錯誤如下：
 
 Swagger 位於 `/api/docs`。Controller class 已標示 domain tag 與 Cookie auth，大多數既有 handlers 有 operation／主要成功與錯誤狀態；`PinnedProjectDto.pinned` 已有欄位說明與 boolean validation，但新 pin handler 尚未補 endpoint-specific `ApiOperation` 與 response decorators。Auth 的手寫 envelope schema 仍把 error 描述為 array，與實際 FieldError object 不一致；可重用 success/error envelope decorators 也尚未完成，因此 Swagger 仍不是完整 response contract 的唯一真相。
 
-尚待補上 pin endpoint Swagger metadata 與 HTTP E2E、Project detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。Board／Column／Card API 尚未建立。
+尚待補上 pin endpoint Swagger metadata 與 HTTP E2E、Project detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。BoardColumn 目前只有 schema 與建立 Project 時的預設資料；`GET /project/:projectId/board` snapshot、Column commands 與 Card API 尚未建立。

@@ -48,7 +48,7 @@ Vue 3 browser WebSocket
 
 ## Phase 2：Socket.IO 協作 Kanban
 
-目前進度（2026-09-21）：步驟 1、2 已完成第一版，並已補上 Workspace room 的 membership authorization、into／leave lifecycle 與成員變更 invalidation；Project create、list、members、member candidates、addMember、notification detail 與每位成員自己的 pin／unpin 已串接前後端。Project 頁統一使用 `ProjectView` 與 `/projects/:projectId`，其中 Board 仍是本機假資料。Project scoped unit tests、Frontend type-check 與可從空資料庫套用 11 個 migrations 的隔離 E2E 已通過；pin endpoint 尚缺 HTTP E2E。下一個 domain 可交付點才是 Board／Column／Card read model 與 Board room authorization，再進入 Socket command、ack、idempotency 與 concurrency。Project 負向授權／rollback／真實併行、Session handshake rotation Cookie、Workspace room reconnect 與真實 lifecycle tests 仍需補完。
+目前進度（2026-09-21）：步驟 1、2 已完成第一版，Workspace room 與 Project create／list／members／addMember／notification detail／pin 已串接。Project 頁使用 `ProjectView` 與 `/projects/:projectId`。Project 已確立為 Board aggregate root，不建立 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration 與建立時的四個預設 Columns 已完成。前 11 個 migrations 的隔離 E2E、Project scoped tests 與 Frontend type-check 已通過；第 12 個 migration E2E、預設四欄 persistence test、pin HTTP E2E 尚待補。下一個 domain 可交付點是 snapshot 與 Card schema，再進入 `project:{projectId}` room、Socket command、ack、idempotency 與 concurrency。
 
 題材：多人協作 Kanban。
 
@@ -56,7 +56,7 @@ Vue 3 browser WebSocket
 
 1. 用 Socket.IO 重建最小連線與 typed events。
 2. HttpOnly Session Cookie handshake authentication；HTTP 與 Socket.IO 共用 Redis Session。
-3. Board room 與 server-side authorization。
+3. Project Board room `project:{projectId}` 與 server-side authorization。
 4. Card create / move / edit 的 acknowledgement。
 5. Timeout、retry、command ID 與 idempotency。
 6. PostgreSQL transaction 與 optimistic concurrency。

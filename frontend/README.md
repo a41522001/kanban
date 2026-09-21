@@ -27,7 +27,7 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 | `/signup` | 註冊帳號；成功後透過提示確認導向登入 |
 | `/login` | 登入成功提示確認後重設 User Store，導向 `/workspace` |
 | `/workspace` | 真實 Workspace 列表／建立／成員摘要、邀請 Dialog、通知選單；Project 列表、置頂／取消置頂、建立、搜尋／狀態篩選、成員清單與新增成員 Dialog 已串接 API |
-| `/projects/:projectId` | `ProjectView`；目前顯示 Board UI 與本機假資料，尚未建立 Board schema 或持久化 API |
+| `/projects/:projectId` | `ProjectView`；Project 即 Board aggregate root。目前顯示本機假資料；BoardColumn 後端 schema 已建立，但 snapshot／Card API 尚未串接 |
 
 只有 login／signup 是公開路徑；其餘導航會透過 User Store 恢復 Session。尚未配置根路由 redirect 或 catch-all。
 
@@ -47,4 +47,4 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 
 更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 
-文件最後核對：2026-09-21。2026-09-20 的完整 Frontend baseline 為 13 個 test files／39 tests、type-check、production build 與 ESLint 通過；2026-09-21 另驗證 Project service／store 2 files／8 tests 與 `vue-tsc --build` 通過，涵蓋 pin request、`pinnedAt` optimistic update 與排序。Project 頁已由 `BoardView` 更名為 `ProjectView`，route 改為 `/projects/:projectId`；Board API 仍未實作。Vite main chunk 與 Oxlint 等完整 baseline 缺口沿用 [progress](../docs/progress.md) 紀錄。
+文件最後核對：2026-09-21。2026-09-20 的完整 Frontend baseline 為 13 個 test files／39 tests、type-check、production build 與 ESLint 通過；2026-09-21 另驗證 Project service／store 2 files／8 tests 與 `vue-tsc --build` 通過，涵蓋 pin request、`pinnedAt` optimistic update 與排序。Project 頁已由 `BoardView` 更名為 `ProjectView`，route 改為 `/projects/:projectId`。後端 BoardColumn 已建模，但 Board snapshot API 仍未實作；現有 mock type 中的 `boardId` 只是待串接時改成 `projectId` 的暫時欄位。Vite main chunk 與 Oxlint 等完整 baseline 缺口沿用 [progress](../docs/progress.md) 紀錄。

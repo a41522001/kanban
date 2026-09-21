@@ -27,8 +27,6 @@ enum NotificationResourceType {
   WORKSPACE
   // 指向 Project。
   PROJECT
-  // 指向 Board。
-  BOARD
   // 指向 Card。
   CARD
 }
@@ -227,19 +225,24 @@ model WorkspaceInvitation {
 }
 
 model Project {
-  id          String        @id @default(uuid()) @db.Uuid
-  workspaceId String        @map("workspace_id") @db.Uuid
-  name        String        @db.VarChar(100)
-  description String?       @db.VarChar(500)
-  status      ProjectStatus @default(ACTIVE)
-  createdById String        @map("created_by_id") @db.Uuid
-  archivedAt  DateTime?     @map("archived_at")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id            String        @id @default(uuid()) @db.Uuid
+  workspaceId   String        @map("workspace_id") @db.Uuid
+  name          String        @db.VarChar(100)
+  description   String?       @db.VarChar(500)
+  status        ProjectStatus @default(ACTIVE)
+  createdById   String        @map("created_by_id") @db.Uuid
+  archivedAt    DateTime?     @map("archived_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  // Project 名稱、描述、狀態的 optimistic concurrency。
+  version       Int           @default(1)
+  // Column／Card domain mutation 的連續序號。
+  boardRevision BigInt        @default(0) @map("board_revision")
 
-  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  createdBy User            @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  members   ProjectMember[]
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  createdBy    User            @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  members      ProjectMember[]
+  boardColumns BoardColumn[]
 
   @@index([workspaceId, archivedAt, updatedAt(sort: Desc)])
   @@index([workspaceId, status, archivedAt])
@@ -263,4 +266,21 @@ model ProjectMember {
   @@unique([projectId, userId])
   @@index([userId])
   @@map("project_members")
+}
+
+model BoardColumn {
+  id         String    @id @default(uuid()) @db.Uuid
+  projectId  String    @map("project_id") @db.Uuid
+  title      String    @db.VarChar(80)
+  colorKey   String    @map("color_key") @db.VarChar(30)
+  position   Int
+  version    Int       @default(1)
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, archivedAt, position, id])
+  @@map("board_columns")
 }

@@ -55,11 +55,11 @@
 - [x] 公開 HTTP／Socket contract 不回傳內部 `User.id`／`userId`；Project member candidate 只公開 `workspaceMemberId`，Service 再明確投影 public DTO 欄位。
 - [ ] 補 Project create／addMember／pin 的未登入、非 OWNER 或非成員、跨 Workspace、他人通知存取、transaction rollback 與真實 P2002 併行 E2E；目前 Service／Controller unit tests 與第一版 happy-path／重複加入 409 E2E 已通過。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
-- [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
+- [ ] 查詢 Board snapshot、Column、Card 時透過 `Project → ProjectMember` 驗證權限，並驗證 Column／Card 的 Project scope，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
 - [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
 - [ ] 修改、刪除與邀請成員等敏感操作有 audit log。
-- [ ] 被移除的 ProjectMember 必須離開該 Project 的所有 Board rooms，既有 Socket 不能繼續修改資料。
+- [ ] 被移除的 ProjectMember 必須離開 `project:{projectId}` room，既有 Socket 不能繼續修改資料。
 
 ## 6. API 與錯誤處理
 

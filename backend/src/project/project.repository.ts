@@ -7,6 +7,7 @@ import type {
   ProjectListItemRecord,
 } from './project.type';
 import type { MemberCandidate } from '@kanban/contracts/project';
+import { DEFAULT_BOARD_COLUMNS } from '@kanban/contracts/board';
 type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
   select: {
     id: true;
@@ -58,12 +59,18 @@ export class ProjectRepository {
   ): Promise<Project> {
     const db = tx ?? this.prismaService;
     const { name, description, workspaceId } = createProjectDto;
+    const boardColumnsData = [...DEFAULT_BOARD_COLUMNS];
     const result = await db.project.create({
       data: {
         name,
         description,
         workspaceId,
         createdById: userId,
+        boardColumns: {
+          createMany: {
+            data: boardColumnsData,
+          },
+        },
       },
     });
     return result;
