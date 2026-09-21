@@ -5,6 +5,7 @@ import {
   addProjectMemberApi,
   getProjectMemberAddedNotificationDetailApi,
   getProjectMemberCandidatesApi,
+  setProjectPinnedApi,
 } from '@/services/project';
 
 vi.mock('@/services/http', () => ({
@@ -33,6 +34,16 @@ describe('project member service', () => {
     expect(mockedApi).toHaveBeenCalledWith({
       url: '/project/project-1/memberCandidates',
       method: 'get',
+    });
+  });
+
+  it('設定目前使用者的專案置頂狀態', async () => {
+    await setProjectPinnedApi('project-1', true);
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/project/project-1/pin',
+      method: 'patch',
+      data: { pinned: true },
     });
   });
 

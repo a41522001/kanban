@@ -16,6 +16,7 @@ import type {
   ProjectMemberAddedNotificationDetail,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
+import { DateTime } from 'luxon';
 @Injectable()
 export class ProjectService {
   constructor(
@@ -63,6 +64,7 @@ export class ProjectService {
         status,
         createdAt,
         updatedAt,
+        pinnedAt,
       } = item;
       return {
         name,
@@ -72,6 +74,7 @@ export class ProjectService {
         status,
         createdAt: createdAt.toISOString(),
         updatedAt: updatedAt.toISOString(),
+        pinnedAt: pinnedAt?.toISOString() ?? null,
       };
     });
   }
@@ -350,5 +353,35 @@ export class ProjectService {
       inviterName: notification.actorUserDisplayName,
       joinedAt: projectMember.joinedAt.toISOString(),
     };
+  }
+
+  /** 切換置頂狀態 */
+  async switchPinnedStatus(projectId: string, userId: string, pinned: boolean) {
+    const projectMembership = await this.findMembership(userId, projectId);
+
+    if (
+      !projectMembership ||
+      projectMembership.projectArchivedAt !== null ||
+      projectMembership.workspaceArchivedAt !== null
+    ) {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        message: '你沒有管理此專案成員的權限',
+        code: ApiCode.RequestError,
+      });
+    }
+    const pinnedAt: Date | null = pinned ? DateTime.utc().toJSDate() : null;
+    const result = await this.projectRepository.switchPinnedStatus(
+      projectId,
+      userId,
+      pinnedAt,
+    );
+    if (result === 0) {
+      throw new AppException({
+        status: HttpStatus.BAD_REQUEST,
+        message: '更新失敗請重試',
+        code: ApiCode.RequestError,
+      });
+    }
   }
 }

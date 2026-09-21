@@ -1,3 +1,4 @@
+import type { Project } from '@/generated/prisma/client';
 import type { ProjectRole } from '@kanban/contracts/project';
 
 export interface AddProjectMemberParams {
@@ -14,3 +15,6 @@ export interface FindMembershipResponse {
   workspaceArchivedAt: Date | null;
   workspaceId: string;
 }
+export type ProjectListItemRecord = Project & {
+  pinnedAt: Date | null;
+};

@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -36,6 +37,7 @@ import type {
   ProjectMemberAddedNotificationDetail,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
+import { PinnedProjectDto } from './dto/pinnedProject.dto';
 
 @ApiTags('Projects')
 @ApiCookieAuth()
@@ -176,4 +178,19 @@ export class ProjectController {
     return { data: result };
   }
   // #endregion
+
+  // #region 切換專案置頂狀態
+  @Patch(':projectId/pin')
+  async switchProjectPinnedStatus(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Body() pinnedProjectDto: PinnedProjectDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<null>> {
+    await this.projectService.switchPinnedStatus(
+      projectId,
+      req.userId!,
+      pinnedProjectDto.pinned,
+    );
+    return { data: null, message: '更新成功' };
+  }
 }

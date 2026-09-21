@@ -7,6 +7,7 @@ import { NotificationService } from '@/notification/notification.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { SocketService } from '@/socket/socket.service';
 import { Prisma } from '@/generated/prisma/client';
+import type { ProjectListItemRecord } from './project.type';
 describe('ProjectService', () => {
   let projectService: ProjectService;
   let projectRepository: ProjectRepository;
@@ -28,6 +29,7 @@ describe('ProjectService', () => {
             createProject: jest.fn(),
             getSingleProjectMember: jest.fn(),
             getProjectMemberAddedNotificationDetail: jest.fn(),
+            switchPinnedStatus: jest.fn(),
           },
         },
         {
@@ -91,7 +93,7 @@ describe('ProjectService', () => {
       });
 
       const now = new Date();
-      const mockRawProjects = [
+      const mockRawProjects: ProjectListItemRecord[] = [
         {
           id: 'project-1',
           workspaceId,
@@ -100,6 +102,9 @@ describe('ProjectService', () => {
           status: 'ACTIVE' as const,
           createdAt: now,
           updatedAt: now,
+          pinnedAt: null,
+          createdById: '1',
+          archivedAt: null,
         },
         {
           id: 'project-2',
@@ -109,12 +114,15 @@ describe('ProjectService', () => {
           status: 'COMPLETED' as const,
           createdAt: now,
           updatedAt: now,
+          pinnedAt: null,
+          createdById: '2',
+          archivedAt: null,
         },
       ];
 
       const getProjectsSpy = jest
         .spyOn(projectRepository, 'getProjectsByWorkspaceIdAndUserId')
-        .mockResolvedValue(mockRawProjects as never);
+        .mockResolvedValue(mockRawProjects);
 
       const result = await projectService.getProjectsByWorkspaceIdAndUserId(
         workspaceId,
@@ -131,6 +139,7 @@ describe('ProjectService', () => {
           status: 'ACTIVE',
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
+          pinnedAt: null,
         },
         {
           id: 'project-2',
@@ -140,6 +149,7 @@ describe('ProjectService', () => {
           status: 'COMPLETED',
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
+          pinnedAt: null,
         },
       ]);
     });
@@ -422,6 +432,7 @@ describe('ProjectService', () => {
         userId: 'user-2',
         role: 'EDITOR' as const,
         joinedAt: new Date(),
+        pinnedAt: null,
       };
       const addProjectMemberSpy = jest
         .spyOn(projectRepository, 'addProjectMember')
@@ -598,6 +609,7 @@ describe('ProjectService', () => {
           userId,
           role: 'OWNER',
           joinedAt: new Date(),
+          pinnedAt: null,
         });
 
       await expect(
@@ -878,4 +890,7 @@ describe('ProjectService', () => {
       ).rejects.toMatchObject({ message: '找不到此專案成員通知' });
     });
   });
+
+  /** 切換專案置頂狀態 */
+  describe('switchPinnedStatus', () => {});
 });

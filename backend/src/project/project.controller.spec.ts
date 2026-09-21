@@ -160,6 +160,7 @@ describe('ProjectController', () => {
           status: 'ACTIVE',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          pinnedAt: null,
         },
       ];
       const getProjectsByWorkspaceIdAndUserIdSpy = jest

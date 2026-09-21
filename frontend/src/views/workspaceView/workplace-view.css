@@ -247,8 +247,20 @@
 .workspace__project-card--selected {
   @apply border-action-primary shadow-card;
 }
+.workspace__project-card-summary {
+  @apply relative;
+}
 .workspace__project-card-main {
-  @apply block w-full p-5 text-left outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-action-primary/30;
+  @apply block w-full py-5 pr-16 pl-5 text-left outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-action-primary/30;
+}
+.workspace__project-pin {
+  @apply absolute top-1/2 right-3 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full text-content-secondary transition-colors hover:bg-surface-subtle hover:text-content-primary focus-visible:ring-3 focus-visible:ring-action-primary/30 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50;
+}
+.workspace__project-pin--active {
+  @apply bg-action-primary/10 text-action-primary;
+}
+.workspace__project-pin--active svg {
+  fill: currentColor;
 }
 .workspace__project-card-heading {
   @apply flex items-start justify-between gap-3;

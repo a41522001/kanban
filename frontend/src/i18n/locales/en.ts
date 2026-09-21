@@ -164,7 +164,7 @@ export const en = {
     description: 'See every project in one place, then choose one to enter its main board.',
     projects: {
       title: 'All projects',
-      sortHint: 'Sorted by most recently updated',
+      sortHint: 'Pinned first, then sorted by most recently updated',
       search: 'Search project name or description',
       statusFilter: 'Filter by project status',
       filters: { all: 'All', active: 'Active', onHold: 'On hold', completed: 'Completed' },
@@ -175,6 +175,9 @@ export const en = {
       members: 'Project members',
       memberCount: '{count} members',
       noMembers: 'No project members to show.',
+      pinProject: 'Pin “{project}”',
+      unpinProject: 'Unpin “{project}”',
+      pinError: 'Unable to update the pin. Please try again.',
     },
     actions: {
       createWorkspace: 'New workspace',
