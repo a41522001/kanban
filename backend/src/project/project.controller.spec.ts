@@ -4,6 +4,7 @@ import { ProjectService } from './project.service';
 import type { Request } from 'express';
 import { SessionGuard } from '@/session/session.guard';
 import { AddProjectMemberDto } from './dto/addProjectMember.dto';
+import type { PinnedProjectDto } from './dto/pinnedProject.dto';
 import {
   ProjectListItemDto,
   ProjectMemberAddedNotificationDetail,
@@ -29,6 +30,7 @@ describe('ProjectController', () => {
             getSingleProjectMember: jest.fn(),
             getProjectsByWorkspaceIdAndUserId: jest.fn(),
             getProjectMemberAddedNotificationDetail: jest.fn(),
+            switchPinnedStatus: jest.fn(),
           },
         },
       ],
@@ -210,6 +212,39 @@ describe('ProjectController', () => {
         notificationId,
         userId,
       );
+    });
+  });
+
+  /** 切換專案置頂狀態 */
+  describe('switchProjectPinnedStatus', () => {
+    it.each([
+      { pinned: true, description: '置頂' },
+      { pinned: false, description: '取消置頂' },
+    ])('$description 成功', async ({ pinned }) => {
+      // Arrange
+      const projectId = 'projectId';
+      const userId = 'testId';
+      const request = createRequest(userId);
+      const pinnedProjectDto: PinnedProjectDto = { pinned };
+      const switchPinnedStatusSpy = jest
+        .spyOn(projectService, 'switchPinnedStatus')
+        .mockResolvedValueOnce();
+
+      // Act
+      const result = await controller.switchProjectPinnedStatus(
+        projectId,
+        pinnedProjectDto,
+        request,
+      );
+
+      // Assert
+      expect(switchPinnedStatusSpy).toHaveBeenCalledTimes(1);
+      expect(switchPinnedStatusSpy).toHaveBeenCalledWith(
+        projectId,
+        userId,
+        pinned,
+      );
+      expect(result).toEqual({ data: null, message: '更新成功' });
     });
   });
 });

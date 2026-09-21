@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { HttpStatus, NotFoundException } from '@nestjs/common';
 import { WorkspacesService } from '@/workspaces/workspaces.service';
 import { ProjectRepository } from './project.repository';
 import { ProjectService } from './project.service';
@@ -8,6 +8,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { SocketService } from '@/socket/socket.service';
 import { Prisma } from '@/generated/prisma/client';
 import type { ProjectListItemRecord } from './project.type';
+import { ApiCode } from '@kanban/contracts/api';
 describe('ProjectService', () => {
   let projectService: ProjectService;
   let projectRepository: ProjectRepository;
@@ -892,5 +893,158 @@ describe('ProjectService', () => {
   });
 
   /** 切換專案置頂狀態 */
-  describe('switchPinnedStatus', () => {});
+  describe('switchPinnedStatus', () => {
+    const projectId = 'project-1';
+    const userId = 'user-1';
+    const activeMembership = {
+      id: 'project-member-1',
+      role: 'EDITOR' as const,
+      project: {
+        name: 'Flowboard Kanban',
+        archivedAt: null,
+        workspaceId: 'workspace-1',
+        workspace: { archivedAt: null },
+      },
+      user: { displayName: 'User 1' },
+    };
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('置頂有效專案時以目前 UTC 時間更新成員的 pinnedAt', async () => {
+      // Arrange
+      const now = new Date('2026-09-21T08:00:00.000Z');
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+      jest
+        .spyOn(projectRepository, 'findMembership')
+        .mockResolvedValue(activeMembership);
+      const switchPinnedStatusSpy = jest
+        .spyOn(projectRepository, 'switchPinnedStatus')
+        .mockResolvedValue(1);
+
+      // Act
+      await projectService.switchPinnedStatus(projectId, userId, true);
+
+      // Assert
+      expect(switchPinnedStatusSpy).toHaveBeenCalledWith(
+        projectId,
+        userId,
+        now,
+      );
+    });
+
+    it('取消置頂有效專案時以 null 更新成員的 pinnedAt', async () => {
+      // Arrange
+      jest
+        .spyOn(projectRepository, 'findMembership')
+        .mockResolvedValue(activeMembership);
+      const switchPinnedStatusSpy = jest
+        .spyOn(projectRepository, 'switchPinnedStatus')
+        .mockResolvedValue(1);
+
+      // Act
+      await projectService.switchPinnedStatus(projectId, userId, false);
+
+      // Assert
+      expect(switchPinnedStatusSpy).toHaveBeenCalledWith(
+        projectId,
+        userId,
+        null,
+      );
+    });
+
+    it('使用者不是專案成員時拋出 FORBIDDEN 且不更新置頂狀態', async () => {
+      // Arrange
+      jest.spyOn(projectRepository, 'findMembership').mockResolvedValue(null);
+      const switchPinnedStatusSpy = jest.spyOn(
+        projectRepository,
+        'switchPinnedStatus',
+      );
+
+      // Act
+      const action = projectService.switchPinnedStatus(projectId, userId, true);
+
+      // Assert
+      await expect(action).rejects.toMatchObject({
+        status: HttpStatus.FORBIDDEN,
+        code: ApiCode.RequestError,
+        message: '你沒有管理此專案成員的權限',
+      });
+      expect(switchPinnedStatusSpy).not.toHaveBeenCalled();
+    });
+
+    it('專案已封存時拋出 FORBIDDEN 且不更新置頂狀態', async () => {
+      // Arrange
+      jest.spyOn(projectRepository, 'findMembership').mockResolvedValue({
+        ...activeMembership,
+        project: {
+          ...activeMembership.project,
+          archivedAt: new Date('2026-09-20T08:00:00.000Z'),
+        },
+      });
+      const switchPinnedStatusSpy = jest.spyOn(
+        projectRepository,
+        'switchPinnedStatus',
+      );
+
+      // Act
+      const action = projectService.switchPinnedStatus(projectId, userId, true);
+
+      // Assert
+      await expect(action).rejects.toMatchObject({
+        status: HttpStatus.FORBIDDEN,
+        code: ApiCode.RequestError,
+        message: '你沒有管理此專案成員的權限',
+      });
+      expect(switchPinnedStatusSpy).not.toHaveBeenCalled();
+    });
+
+    it('工作區已封存時拋出 FORBIDDEN 且不更新置頂狀態', async () => {
+      // Arrange
+      jest.spyOn(projectRepository, 'findMembership').mockResolvedValue({
+        ...activeMembership,
+        project: {
+          ...activeMembership.project,
+          workspace: {
+            archivedAt: new Date('2026-09-20T08:00:00.000Z'),
+          },
+        },
+      });
+      const switchPinnedStatusSpy = jest.spyOn(
+        projectRepository,
+        'switchPinnedStatus',
+      );
+
+      // Act
+      const action = projectService.switchPinnedStatus(projectId, userId, true);
+
+      // Assert
+      await expect(action).rejects.toMatchObject({
+        status: HttpStatus.FORBIDDEN,
+        code: ApiCode.RequestError,
+        message: '你沒有管理此專案成員的權限',
+      });
+      expect(switchPinnedStatusSpy).not.toHaveBeenCalled();
+    });
+
+    it('repository 未更新任何成員時拋出 BAD_REQUEST', async () => {
+      // Arrange
+      jest
+        .spyOn(projectRepository, 'findMembership')
+        .mockResolvedValue(activeMembership);
+      jest.spyOn(projectRepository, 'switchPinnedStatus').mockResolvedValue(0);
+
+      // Act
+      const action = projectService.switchPinnedStatus(projectId, userId, true);
+
+      // Assert
+      await expect(action).rejects.toMatchObject({
+        status: HttpStatus.BAD_REQUEST,
+        code: ApiCode.RequestError,
+        message: '更新失敗請重試',
+      });
+    });
+  });
 });
