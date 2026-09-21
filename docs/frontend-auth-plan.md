@@ -1,6 +1,6 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-20（依 router、Axios interceptor、App lifecycle、stores、Workspace View 與本輪 type-check／13 files／39 unit tests 核對）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 最後檢視：2026-09-21（Auth 行為未變；已依目前 router 與 Frontend type-check 更新 ProjectView route）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
 
 ## 1. 目標
 
@@ -102,6 +102,7 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
 - `/login`、`/signup` 是白名單。
 - 其他路徑先透過 `initializeUser()` 驗證；沒有 user 導向 Login。
+- Project 頁使用 protected route `/projects/:projectId`；目前 `ProjectView` 內的 Board 尚未串接持久化 API。
 - Route guard 只透過 Store 取得 session，Store 負責 request 去重。
 - 尚未保存原始 redirect target，也尚未讓已登入使用者從 login/signup 自動導向 home。
 

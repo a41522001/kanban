@@ -85,7 +85,7 @@ Board canvas 必須是一條不換行的欄位列，每個 Column 使用固定�
 - `min-w-max`：讓內層列的寬度可隨所有欄位延伸，避免 flex 容器意外收縮。
 - `overscroll-x-contain`：可選增強。到達左右邊界時，盡量不將水平手勢傳給外層或觸發瀏覽器的歷史導覽；它不是捲動功能本身，且應接受部分瀏覽器支援度差異。
 
-目前的 `BoardView.vue` 已具備 `overflow-x-auto`、`overscroll-x-contain`、`w-72`、`shrink-0` 的核心方向。後續實作 `v-for` 時必須補上 `:key="column.id"`，並確保 mock 的每一個 `id` 都唯一；為了測試捲動而複製欄位時，也不可複用 `done` 之類的 ID。
+目前的 `frontend/src/views/projectView/ProjectView.vue` 以 Board 作為 Project 的主要操作區，已具備 `overflow-x-auto`、`overscroll-x-contain`、`w-72`、`shrink-0` 的核心方向。前端 route 是 `/projects/:projectId`；Board schema 與 API 尚未建立，因此目前仍使用本機假資料。後續串接 snapshot 時必須保留 `:key="column.id"`，並確保每一個 `id` 都唯一；為了測試捲動而複製欄位時，也不可複用 `done` 之類的 ID。
 
 ### 4.2 各裝置行為
 

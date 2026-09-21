@@ -42,6 +42,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 
 - Desktop 使用「專案清單 + 已選取專案成員面板」的 master-detail 結構；選取專案不等同直接進入 Board，主要看板入口需保留為明確操作。
 - Project Card 顯示 `status`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。Project role 不在 overview 顯示，進入專案內部後再呈現。
+- Project Card 的 pin 是目前使用者自己的快捷偏好，不改變 Project 本身狀態或其他成員的排序。置頂與取消置頂必須有可存取名稱、active state 與至少 `40 × 40` 的操作區，且不能與「選取 Project」或「進入 Project」共用同一個隱含 click target。
 - 成員面板列出選取專案的所有成員，僅顯示 `displayName`、`avatarUrl` 與 `joinedAt`，不在 overview 暴露 Project role 或其他 User 欄位。
 - Tablet／Mobile 不保留雙欄；未展開的 Project Card 只顯示 list API 已提供的 status、名稱、描述與更新時間。點選卡片會展開手風琴，才以 projectId 載入並呈現該 Project 的完整成員資訊；主要看板仍由展開內容中的明確操作進入。
 - Workspace membership 只代表可進入工作區；列表是否顯示 Project 仍以 `ProjectMember` 權限為準。Repository 可載入 Projects 與 Members，但 Service 必須完成目前使用者的權限驗證。
@@ -97,7 +98,7 @@ Card
 
 - Project OWNER 直接將同一 Workspace 的既有成員加入 Project 後，ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立；commit 後才向收件者的 user room 推送 `notification:created`。
 - Notification 使用 `resourceType=PROJECT` 與 `resourceId=projectId`；前端點擊內容後先標記已讀，再以 `notificationId` 呼叫 `GET /project/notificationDetail/:notificationId`，由後端重新驗證收件者、通知 type／resource 與 ProjectMember membership。
-- Dialog 顯示邀請者、Project 名稱、Workspace 名稱、Project role 與 joinedAt。成功狀態提供「前往專案」與「關閉」；前往專案攜帶 `workspaceId`／`projectId` 進入 Board route。
+- Dialog 顯示邀請者、Project 名稱、Workspace 名稱、Project role 與 joinedAt。成功狀態提供「前往專案」與「關閉」；前往專案使用 `/projects/:projectId` 進入 `ProjectView`，並保留 `workspaceId` query 作為返回 Workspace 的 context。
 - Desktop 使用 `520 × 544px` 置中 Dialog；Mobile 使用 `358 × 648px` inset Dialog 並保留 `16px` viewport gutter。Mobile 會縮短副標題，避免窄螢幕文字截斷。
 - Dialog 至少涵蓋 Loading、Loaded、Error／Retry 三種 runtime state；API 失敗時保留 Dialog，不直接顯示後端錯誤訊息。
 - detail response 對應 `ProjectMemberAddedNotificationDetail`：`role`、`projectName`、`projectId`、`workspaceName`、`workspaceId`、`inviterName`、`joinedAt`。

@@ -79,6 +79,8 @@ Production 部署使用 prisma migrate deploy，不使用 prisma db push。
 
 破壞性 schema 變更採 expand-and-contract：先新增可相容欄位、發布新程式、搬移資料，最後一個版本才移除舊欄位。
 
+2026-09-21 隔離 E2E 已確認 11 個 migrations 可從空 PostgreSQL 依序套用；最新 Project pin migration 只新增 nullable `project_members.pinned_at`，不需要回填。本專案目前沒有保留舊版資料的 upgrade 路徑；若未來開始保留 production data，新增 required 欄位或 constraint 時仍必須遵守 expand-and-contract，不能以清庫取代 migration 設計。
+
 ## 5. Health Check
 
 建議提供：

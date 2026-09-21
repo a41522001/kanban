@@ -72,7 +72,7 @@ type SocketAck<T> =
 - Board room 命名統一，例如 board:{boardId}。
 - joinBoard 前由 Board 找到 Project，再確認使用者具有有效的 ProjectMember。
 - 每一個 mutation event 都再次確認資源權限，不能只依賴已加入 room。
-- 離開 Board 頁面時主動 leave room，disconnect 時由 Socket.IO 自動清除連線 room。
+- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Board room；disconnect 時由 Socket.IO 自動清除連線 room。Board schema／room 尚未實作，此項仍是目標行為。
 - 成功寫入 DB 並 commit 後，才向 room broadcast domain event。
 
 ## 6. 重連與資料恢復

@@ -316,7 +316,7 @@
                       :loading="isProjectMembersLoading(project.id)"
                       :can-manage-members="canInviteMembers"
                       @manage-members="openProjectMemberDialog(project.id)"
-                      @enter-board="enterBoard(project.id)"
+                      @enter-board="enterProject(project.id)"
                     />
                   </div>
                 </article>
@@ -329,7 +329,7 @@
                   :loading="isProjectMembersLoading(selectedProject.id)"
                   :can-manage-members="canInviteMembers"
                   @manage-members="openProjectMemberDialog(selectedProject.id)"
-                  @enter-board="enterBoard(selectedProject.id)"
+                  @enter-board="enterProject(selectedProject.id)"
                 />
               </aside>
             </div>
@@ -618,10 +618,11 @@ const handleProjectMemberAdded = () => {
   if (projectToManageId.value) void loadProjectMembers(projectToManageId.value, true);
 };
 
-const enterBoard = (projectId: string) => {
+const enterProject = (projectId: string) => {
   void router.push({
-    name: 'board',
-    query: { workspaceId: selectedWorkspaceId.value ?? undefined, projectId },
+    name: 'project',
+    params: { projectId },
+    query: { workspaceId: selectedWorkspaceId.value ?? undefined },
   });
 };
 

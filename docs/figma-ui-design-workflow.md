@@ -97,9 +97,9 @@ npm run build
 - 畫面與 Current SVG 在層級、間距、文案和 responsive 結構上相符。
 - 第二次執行 `Generate All` 不會建立重複 generated roots。
 
-## 8. Current v11 基準
+## 8. Current v13 基準
 
-目前 Generator 的可見版本為 `v11`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 對齊 Workspace responsive screens；v10 將 Mobile Project Card 改為手風琴；v11 將 Workspace 與 Project Overview 整併為唯一的 Workspace Project Overview，Desktop 採 master-detail，Tablet／Mobile 採 accordion。
+目前 Generator 的可見版本為 `v13`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 對齊 Workspace responsive screens；v10 將 Mobile Project Card 改為手風琴；v11 將 Workspace 與 Project Overview 整併為唯一的 Workspace Project Overview；v12 新增 Project member candidate、role option 與 add-member Dialog 的原生 component sets／states；v13 新增 Project member added notification detail Dialog 與 Desktop／Mobile screens。
 
 - `Project Card` → Desktop 使用 Default／Selected；Tablet／Mobile 使用 Default／Expanded；三種 viewport 皆保留 Active／OnHold／Completed
 - `Selected Project Members` → Desktop master-detail 成員面板，只呈現 displayName、avatarUrl 與 joinedAt
@@ -126,7 +126,7 @@ v7 的通知基準仍包含：
 
 Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`shared/Input` 與 `shared/FormField`。Notification Dropdown 對應 `notifications/NotificationMenu`，底層使用 `shadcn-vue/DropdownMenu`、`Badge`、`ScrollArea` 與 `Skeleton`。
 
-2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。這是整併前的歷史驗證紀錄；v11 需重新執行 runtime／visual check。
+2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。`Project Member Added Notification Detail Dialog` 的 Desktop／Mobile variants 與對應 Screen Instances 已完成 runtime／visual check。
 
 ## 9. 前端落地與手動驗收
 
@@ -137,7 +137,7 @@ Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`
 - 點擊 WORKSPACE_INVITED 的 content action 時，前端先標記該通知為已讀，再呼叫 detail API 開啟 Dialog；回覆狀態與已讀狀態仍分開管理。
 - 2026-09-13 已完成前端 v7 Dialog 與 detail API 串接；單筆已讀、全部已讀、接受邀請、婉拒邀請及點擊後先已讀再開啟詳細 Dialog 的流程已完成。
 
-## 10. v11 Figma design status
+## 10. v13 Figma design status
 
 2026-09-12 已更新 SVG visual references 並寫入既有 Figma 檔，2026-09-13 前端已完成對應：
 
@@ -145,6 +145,7 @@ Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`
 - 新增 `notification-item-interactions.svg`，定義 Desktop／Mobile hit targets、focus return 與 Type routing。
 - WORKSPACE_INVITED 由列表內容區開啟獨立 Workspace Invitation Detail Dialog，不再把接受／婉拒按鈕放在 Dropdown Item。
 - Workspace Invitation Dialog 包含 Loading、Pending、Responding、Accepted、Declined 與 Unavailable／Expired states。
-- Workspace 與 Project Overview 已在 v11 source／Generator 整併為單一 `Workspace Project Overview`；Project role 保留在專案內部，不在 overview 顯示。
-- Desktop 使用 Project master-detail；Tablet／Mobile 使用 accordion，且「進入主要看板」維持獨立操作。
-- v11 已完成靜態 SVG／Plugin build gate；Figma Desktop `Generate All` 與 visual check 尚待重新執行。
+- Workspace 與 Project Overview 已在 v11 source／Generator 整併為單一 `Workspace Project Overview`；v12 加入 Project add-member components，v13 加入 Project member added notification detail。Project role 保留在專案內部，不在 overview 顯示。
+- Project pin 是 2026-09-21 已落地的輕量 Workspace overview 操作，目前尚未重新產生對應 Current SVG／Figma variants；現行程式碼是行為真相，下一次更新 overview 設計稿時再補 Default／Pinned states。
+- Desktop 使用 Project master-detail；Tablet／Mobile 使用 accordion，且「進入專案」維持獨立操作，前端對應 `/projects/:projectId`。
+- v13 已完成靜態 SVG／Plugin build gate，並完成 Figma Desktop `Generate All` 與 visual check；2026-09-21 新增的 Project pin 尚未納入這次 Figma 輸出。

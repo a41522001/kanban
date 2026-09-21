@@ -1,6 +1,6 @@
 # Workspace 邀請與通知
 
-最後核對：2026-09-20（依原始碼、Frontend／Backend 目前 unit baseline、Backend coverage 與本輪 Node 24.13 隔離 E2E 核對）。此文件區分已實作行為與後續目標。
+最後核對：2026-09-21（邀請與通知行為未變；更新目前 11 migrations 的隔離 E2E baseline 與 ProjectView 導頁 context）。此文件區分已實作行為與後續目標。
 
 ## 已實作流程
 
@@ -113,7 +113,7 @@ Workspace View 會依目前選取的 Workspace emit `workspace:into`，後端先
 
 2026-09-19 目前驗證：Frontend Vitest 為 12 個 test files／36 tests 通過；Backend 排除 sandbox 無法 bind HTTP listener 的 integration spec 後，17 suites／88 tests 通過，另有 1 個 Project Controller scaffold suite skipped。邀請與通知功能本身的待辦仍是 expiration job／真實資料庫批次更新、取消、唯一性、rollback、並行回覆，以及 Socket reconnect／漏收同步。
 
-2026-09-20 最新驗證：Backend 19 suites／114 tests 與隔離 PostgreSQL／Redis E2E 4 suites／9 tests 全部通過，10 個 migrations 可從空資料庫套用；coverage 為 statements 53.55%、branches 60.03%、functions 37.01%、lines 52.75%。Project E2E 已加入 member-added notification detail flow；邀請與通知本身仍缺 expiration job／真實批次更新、取消、PENDING 唯一性、rollback、跨收件匣隔離、並行回覆與 Socket reconnect／漏收同步測試。
+2026-09-21 最新驗證：隔離 PostgreSQL／Redis E2E 4 suites／9 tests 全部通過，11 個 migrations 可從空資料庫套用；完整 Backend 19 suites／114 tests 與 coverage 仍沿用 2026-09-20 baseline。Project E2E 已涵蓋 member-added notification detail flow；前往專案現在導向 `/projects/:projectId` 的 `ProjectView`。邀請與通知本身仍缺 expiration job／真實批次更新、取消、PENDING 唯一性、rollback、跨收件匣隔離、並行回覆與 Socket reconnect／漏收同步測試。
 
 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；接受／婉拒成功後通知會同步進入已讀狀態，未讀數與 Bell badge 即時更新。
 

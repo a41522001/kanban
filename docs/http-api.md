@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-20。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；測試紀錄見[進度](progress.md)。Project／Board 目標規格見 [Board API 與 WebSocket](board-api-websocket-spec.md)。
+最後核對：2026-09-21。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；已納入 Project pin API 與 ProjectView route，Board schema／API 仍是後續目標。測試紀錄見[進度](progress.md)。
 
 ## 基本約定
 
@@ -34,6 +34,7 @@
 | POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標 membership 必須屬於同一個有效 Workspace | `{ projectId, workspaceMemberId, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
 | GET `/project/notificationDetail/:notificationId` | 有效 Session，只能查本人收到且類型正確的 Project member added 通知 | UUID v4 path param | 200 / `ProjectMemberAddedNotificationDetail`；回傳 Project、Workspace、邀請者、角色與加入時間 |
 | GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID v4 path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
+| PATCH `/project/:projectId/pin` | 有效 Session，且為未封存 Project／Workspace 的 ProjectMember | Path `projectId`；body `{ pinned: boolean }` | 200 / null，message 為「更新成功」；只修改目前使用者自己的 `ProjectMember.pinnedAt` |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
 
@@ -44,7 +45,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
 - WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
-- ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。
+- ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt, pinnedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。`pinnedAt` 為 ISO 8601 字串或 null，來自目前使用者自己的 ProjectMember。
 - MemberCandidate：`workspaceMemberId, displayName, avatarUrl, projectRole`；前端新增 Project member 時只提交 membership id，不取得內部 userId。
 - ProjectMemberAddedNotificationDetail：`role, projectName, projectId, workspaceName, workspaceId, inviterName, joinedAt`；只由通知收件者取得，詳細型別見 `packages/contracts/project.ts`。
 - PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
@@ -77,7 +78,9 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 建立 Project 時，name 會 trim 且限制 100 字元，description 會 trim、空字串轉為未提供並限制 500 字元，workspaceId 必須是 UUID v4。任一未封存 WorkspaceMember 都可建立 Project；Service 在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。目前成功回應不回傳新 Project。
 
-`GET /project/:workspaceId` 會先驗證目前使用者是該 Workspace 的有效成員，再透過 `workspaceId + userId` 查詢其所屬且未封存的 Project。Project 的 `status` 不作額外過濾，因此 `ACTIVE`、`ON_HOLD`、`COMPLETED` 都可能回傳。
+`GET /project/:workspaceId` 會先驗證目前使用者是該 Workspace 的有效成員，再透過 `workspaceId + userId` 查詢其所屬且未封存的 Project。Project 的 `status` 不作額外過濾，因此 `ACTIVE`、`ON_HOLD`、`COMPLETED` 都可能回傳。排序固定為目前 membership 的 `pinnedAt DESC NULLS LAST`，再依 Project `updatedAt DESC, id DESC`；不同使用者可以對同一個 Project 有不同排序。
+
+`PATCH /project/:projectId/pin` 接受 `{ pinned: true }` 或 `{ pinned: false }`。`true` 會把目前成員的 `pinnedAt` 寫成 Server UTC 現在時間，`false` 會寫回 null。這是 membership preference，不修改 Project、其他成員或 `Project.updatedAt`；任何仍有效的 ProjectMember 都能管理自己的置頂狀態，不要求 OWNER。前端成功後以本機時間 optimistic 更新並用相同規則重排，重新載入列表時以 Server 回傳的 `pinnedAt` 為準。
 
 `GET /project/:projectId/memberCandidates` 提供新增成員 UI 的 read model，列出 Project 所屬 Workspace 的成員；`projectRole` 為 `null` 表示可加入，非 `null` 表示已加入並供前端停用。此清單只開放 Project OWNER，且封存的 Project／Workspace 不可存取。
 
@@ -85,7 +88,7 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 
 `GET /project/notificationDetail/:notificationId` 會先以 `notificationId + recipientUserId` 查詢收件者自己的通知，再確認 `type=PROJECT_MEMBER_ADDED`、`resourceType=PROJECT` 與 `resourceId` 存在；接著用收件者的 ProjectMember membership 讀取 Project、Workspace 與 joinedAt。通知不存在、不是本人通知、類型／資源不符、成員不存在，或 Project／Workspace 已封存時，皆回 404 / `ResourceNotFound`。因此前端不會直接信任通知列表的 resource pointer 作為完整授權依據。
 
-前端點擊 `PROJECT_MEMBER_ADDED` 通知內容時，流程為「標記單筆已讀 → 關閉 Notification Dropdown → 呼叫 detail API → 開啟 Project Member Added Notification Detail Dialog」。Dialog 顯示邀請者、專案、工作區、Project role 與加入時間；載入中使用 skeleton，API 失敗提供 retry；成功後的「前往專案」以 `workspaceId` 與 `projectId` 導向 Board route。
+前端點擊 `PROJECT_MEMBER_ADDED` 通知內容時，流程為「標記單筆已讀 → 關閉 Notification Dropdown → 呼叫 detail API → 開啟 Project Member Added Notification Detail Dialog」。Dialog 顯示邀請者、專案、工作區、Project role 與加入時間；載入中使用 skeleton，API 失敗提供 retry；成功後的「前往專案」導向 `/projects/:projectId` 的 `ProjectView`，並以 `workspaceId` query 保留 Workspace context。
 
 | 情況 | HTTP status / code |
 | --- | --- |
@@ -94,6 +97,9 @@ Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Fi
 | addMember 操作者不是 Project OWNER、Project 不存在或已封存 | 403 / RequestError (4000) |
 | 目標 Workspace membership 不存在、已失效或屬於其他 Workspace | 404 / ResourceNotFound (3001) |
 | 目標已是 ProjectMember，包含併行 unique conflict | 409 / RequestError (4000) |
+| pin 操作者不是有效 ProjectMember，或 Project／Workspace 已封存 | 403 / RequestError (4000) |
+| pin body 不是 boolean 或含額外欄位 | 400 / ValidationError (1000) |
+| pin 通過 membership 檢查但更新筆數為 0 | 400 / RequestError (4000) |
 
 Project list 的存取錯誤如下：
 
@@ -104,6 +110,6 @@ Project list 的存取錯誤如下：
 
 ## Swagger 與待辦
 
-Swagger 位於 `/api/docs`。現有 Controller 均已標示 domain tag、operation summary、Cookie auth 與主要成功／錯誤狀態，request DTO 也提供欄位描述、格式、enum 與 example。Auth 的手寫 envelope schema 仍把 error 描述為 array，與實際 FieldError object 不一致；可重用 success/error envelope decorators 也尚未完成，因此 Swagger 仍不是完整 response contract 的唯一真相。
+Swagger 位於 `/api/docs`。Controller class 已標示 domain tag 與 Cookie auth，大多數既有 handlers 有 operation／主要成功與錯誤狀態；`PinnedProjectDto.pinned` 已有欄位說明與 boolean validation，但新 pin handler 尚未補 endpoint-specific `ApiOperation` 與 response decorators。Auth 的手寫 envelope schema 仍把 error 描述為 array，與實際 FieldError object 不一致；可重用 success/error envelope decorators 也尚未完成，因此 Swagger 仍不是完整 response contract 的唯一真相。
 
-尚待補上 Project detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。
+尚待補上 pin endpoint Swagger metadata 與 HTTP E2E、Project detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。Board／Column／Card API 尚未建立。

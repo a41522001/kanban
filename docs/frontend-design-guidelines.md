@@ -17,6 +17,7 @@
 1. 優先使用已安裝的 `shadcn-vue` 元件，例如 Button、Dialog、AlertDialog、DropdownMenu、Badge、Skeleton、ScrollArea 與 Tooltip。
 2. `frontend/src/components/ui` 保存 shadcn-vue 基礎元件；除非要統一全站 token 或修正共同行為，否則不在頁面需求中直接改寫它們。
 3. `frontend/src/components/shared` 保存跨功能共用的組合元件，例如 FormField、Avatar、Input、Logo；`components/account`、`workspace`、`notifications` 與 `board` 保存對應領域元件。組合元件應以 `components/ui` 為基礎，不重做已有的 Dialog、Button 或 DropdownMenu。
+   `views/projectView/ProjectView.vue` 是 `/projects/:projectId` 的頁面容器；即使目前主要內容是 Board，也不改回 `BoardView`。BoardCard、DialogAddCard 與後續 Column 等 domain components 繼續放在 `components/board/`。
 4. 僅在 shadcn-vue 沒有對應能力，或 Flowboard 有明確產品語意時建立自訂元件。建立前須先確認不是單一頁面的區塊。
 5. 現有 `shared/Input/Input.vue` 可繼續作為 Flowboard 的輸入介面；若改採 shadcn-vue Input，應一次規劃遷移，不讓兩套 API 長期並存。
 

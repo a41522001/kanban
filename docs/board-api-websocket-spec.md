@@ -7,7 +7,7 @@
 - 目標：先完成單節點下可靠的多人 Kanban，再考慮 Redis adapter、多節點與 RabbitMQ。
 - 已存在的 Auth API、HTTP response envelope 與 Session Cookie 機制維持不變。
 
-2026-09-20 靜態與測試核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀、Socket user-room 通知與 Workspace room 成員同步第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository、runtime DTO、create／list／members／memberCandidates／addMember／notification detail endpoints，且前端 Project overview／member Dialog 已串接；Service／Controller tests 與第一版隔離 E2E 已通過，migration upgrade、負向授權、rollback 與更完整併行測試仍待補。Board 與下列 Socket commands 仍是目標規格，現行 command 路徑不必與本草案的 REST-style 路徑相同；實際端點以[目前 HTTP API](http-api.md)為準。
+2026-09-21 靜態與測試核對：Workspace 建立／列表／成員查詢、邀請回覆、通知已讀、Socket user-room 通知與 Workspace room 成員同步第一版已實作。Project／ProjectMember 已有 schema、migration、contracts、Repository、runtime DTO、create／list／members／memberCandidates／addMember／notification detail／pin endpoints，且前端 Project overview／member Dialog／pin UI 已串接；Project scoped unit tests 與套用 11 個 migrations 的隔離 E2E 已通過，pin HTTP E2E、負向授權、rollback 與更完整併行測試仍待補。前端入口已統一為 `/projects/:projectId` 的 `ProjectView`；Board schema、snapshot 與下列 Socket commands 仍是目標規格，實際已完成端點以[目前 HTTP API](http-api.md)為準。
 
 這份文件描述預期契約，不代表所有功能必須一次完成。建議依照「實作階段」逐步交付，每一階段都應可獨立驗收。
 
@@ -132,6 +132,7 @@ Project status 與 archivedAt 是不同概念；完成 Project 不會自動移�
 | `userId`    | UUID      | User ID                     |
 | `role`      | enum      | `OWNER`、`EDITOR`、`VIEWER` |
 | `joinedAt`  | timestamp | 加入時間                    |
+| `pinnedAt`  | timestamp, nullable | 此成員自己的 Project 置頂時間；null 代表未置頂 |
 
 Primary key 使用獨立 UUID `id`，`(projectId, userId)` 使用 unique constraint。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember。Board 不建立獨立 membership；所有 Boards 透過 ProjectMember 繼承權限。
 
@@ -349,6 +350,7 @@ export interface ProjectDto {
 
 export interface ProjectSummaryDto extends ProjectDto {
   currentUserRole: ProjectRole;
+  pinnedAt: string | null;
   primaryBoard: Pick<BoardSummaryDto, "id" | "name"> | null;
   memberCount: number;
 }
@@ -512,8 +514,11 @@ Query 可沿用 cursor pagination，`items` 為 `ProjectSummaryDto[]`。每個 P
 
 - `id`、`name`、`description`、`status`。
 - 目前使用者的 `ProjectRole`。
+- 目前使用者 membership 的 `pinnedAt`；null 代表未置頂。
 - primary Board 的 `id` 與名稱，供前端直接導頁。
 - Project member 數與 `updatedAt`。
+
+目前已實作的 `/project/:workspaceId` 尚未回傳 `currentUserRole`、primary Board 或 member count，但已回傳 `pinnedAt`，並依 `pinnedAt DESC NULLS LAST, updatedAt DESC, id DESC` 排序。上方其餘欄位仍是 Board vertical slice 的目標 contract。
 
 ### 6.4 `POST /workspaces/:workspaceId/projects`
 
@@ -1440,12 +1445,12 @@ resultCode
 
 ## 23. Frontend 建議流程
 
-### 23.1 進入 Board 頁
+### 23.1 進入 ProjectView
 
 ```text
-router 進入 /boards/:boardId
+router 進入 /projects/:projectId
   → 開啟全域 Loading
-  → GET Board snapshot
+  → 由 Project 取得 primary Board snapshot（Board API 尚未實作）
   → boardStore.replaceSnapshot(snapshot)
   → socket.connect（若尚未連線）
   → board:join(lastKnownRevision)
@@ -1453,7 +1458,7 @@ router 進入 /boards/:boardId
   → 關閉 Loading
 ```
 
-### 23.2 離開 Board 頁
+### 23.2 離開 ProjectView
 
 ```text
 board:leave
@@ -1508,14 +1513,14 @@ board:leave
 
 ### Phase 1：Workspace、Project 與 Board read model
 
-2026-09-20 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository、create／list／members／memberCandidates／addMember／notification detail Service、HTTP endpoints 與 Frontend overview／member Dialog 第一版已完成，Service／Controller tests 與第一版隔離 E2E 已通過。Migration upgrade、負向授權、rollback 與完整併行測試仍待補。Board schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。下列 REST-style 路徑是目標設計；目前實作採現行 HTTP API 文件中的 `/project` endpoints。
+2026-09-21 進度：Workspace API 已完成；Project／ProjectMember schema、migration、contracts、Repository、create／list／members／memberCandidates／addMember／notification detail／pin Service、HTTP endpoints 與 Frontend overview／member Dialog／pin UI 第一版已完成。Project scoped unit tests 與套用 11 個 migrations 的隔離 E2E 已通過；pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。Frontend route 已改為 `/projects/:projectId` 的 `ProjectView`，但 Board schema 與 snapshot 尚未開始，因此 Phase 1 整體仍未完成。下列 REST-style Board 路徑仍是目標設計；目前實作採[現行 HTTP API](http-api.md)中的 `/project` endpoints。
 
 - Prisma：Workspace、WorkspaceMember、Project、ProjectMember、Board、BoardColumn、CardCategory、CardLabel、Card、CardLabelAssignment。
 - `POST /workspaces`、`GET /workspaces`。
 - `POST /workspaces/:workspaceId/projects`、`GET /workspaces/:workspaceId/projects`。
 - `GET /projects/:projectId`。
 - `GET /boards/:boardId` snapshot。
-- Frontend 使用 Workspace/Project 清單導頁，再以 snapshot render Board。
+- Frontend 使用 Workspace/Project 清單導向 `/projects/:projectId`，由 `ProjectView` 取得 primary Board snapshot 後 render Board。
 
 驗收：登入使用者可建立 Workspace 與 Project；Project 自動包含 primary Board、四個預設 Columns，重新整理後資料仍一致。
 

@@ -1,6 +1,6 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-20。最新 Backend build／19 suites／114 tests／coverage、Frontend type-check／13 files／39 tests／build，以及 Node 24.13 隔離 E2E 4 suites／9 tests 紀錄見 [progress](progress.md)。隔離 E2E 已覆蓋 Auth、Workspace Invitation、通知單筆／全部已讀與 Project member happy path；Workspace room、Socket lifecycle 與前端產品 Playwright E2E 仍未覆蓋。
+最後檢視：2026-09-21。2026-09-20 完整 Backend build／19 suites／114 tests／coverage 與 Frontend 13 files／39 tests／build baseline 見 [progress](progress.md)；2026-09-21 另驗證 Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check，以及可套用 11 個 migrations 的隔離 E2E 4 suites／9 tests。Pin endpoint、Workspace room、Socket lifecycle 與前端產品 Playwright E2E 仍未覆蓋。
 
 ## 1. 目標
 
@@ -137,9 +137,13 @@ WorkspacesService／Controller specs 已移除邀請相關 dependency 與 cases�
 - [x] Backend `getProjectMemberAddedNotificationDetail` service／controller：service 以 recipient 查通知，已有 happy path、查無通知與 Project／Workspace archived 的 unit assertions，第一版 E2E 已驗證收件者 happy path。
 - [ ] Notification type／resourceType／resourceId mismatch 的獨立 fixtures，以及其他使用者拿 notification id 查詢時回 404 的 E2E。
 - [x] Project list／members／memberCandidates read models 已實作，並有 Service／Controller tests；尚缺 HTTP 層未授權／封存負向 E2E。
-- [x] 隔離 PostgreSQL E2E：10 個 migrations 可從空資料庫套用，並驗證建立 Project、候選人、addMember、通知 detail 與重複加入 409。
+- [x] `switchPinnedStatus` Service unit tests：置頂會寫入固定 UTC 時間，取消置頂寫入 null；非成員、Project／Workspace 封存時不更新；Repository count 為 0 時映射為 400。
+- [x] `switchProjectPinnedStatus` Controller unit tests：`pinned=true/false` 都會正確轉交 projectId、Session userId 與 body，並回傳成功 envelope。
+- [x] 隔離 PostgreSQL E2E：11 個 migrations 可從空資料庫套用，並驗證建立 Project、候選人、addMember、通知 detail 與重複加入 409。
+- [ ] Project pin HTTP E2E：pin → list 的 `pinnedAt` 與排序、unpin、非成員、封存 Project／Workspace、非 boolean validation。
 - [ ] Project 負向 E2E：未登入、非 OWNER、跨 Workspace membership、他人 notification id、封存 Workspace／Project。
-- [ ] Migration upgrade test：既有 `project_members` 有資料時，新增獨立 required UUID `id` 可安全回填並完成 primary key 變更。
+
+ProjectMember `id` migration 當時只支援空表；本專案沒有需要保留的舊版資料，環境已重新 deploy，因此不再把 legacy upgrade test 列為目前驗收項目。若未來新增保留舊資料的部署來源，需另開 forward-only migration 與 upgrade test。
 
 ### Common
 
@@ -180,7 +184,7 @@ REDIS_URL=redis://localhost:6379/1
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
-目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts`、`markReadInvitation.e2e.spec.ts` 與 `project.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受；已讀 suite 覆蓋單筆與全部已讀。Project suite 使用四個 agent 串起 Workspace 邀請、建立 Project、候選人、addMember、通知 detail 與重複加入 409。2026-09-20 四個 suites／九個 tests 在 Node 24.13 與隔離 PostgreSQL／Redis 通過，10 個 migrations 可從空資料庫套用；`afterAll` 關閉 Nest application，runner 最後清除 containers、network 與 volumes。Project suite 的四個 `it` 目前共享前面案例建立的 `projectId`／candidate，後續應重構為不依賴測試順序。
+目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts`、`markReadInvitation.e2e.spec.ts` 與 `project.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent，驗證通知中的 `resourceId` 可用於接受或拒絕、接受後 Workspace role 為 MEMBER、拒絕後不加入且不能再接受；已讀 suite 覆蓋單筆與全部已讀。Project suite 使用四個 agent 串起 Workspace 邀請、建立 Project、候選人、addMember、通知 detail 與重複加入 409。2026-09-21 四個 suites／九個 tests 在隔離 PostgreSQL／Redis 通過，11 個 migrations 可從空資料庫套用；`afterAll` 關閉 Nest application，runner 最後清除 containers、network 與 volumes。Project suite 的四個 `it` 目前共享前面案例建立的 `projectId`／candidate，後續應重構為不依賴測試順序；pin route 尚未加入此 suite。
 
 ## 5. Test Data Factory
 
@@ -228,7 +232,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - [x] Auth／User Store session restore、request 去重與 reset。
 - [x] Login／Signup form validation pure functions。
 - [x] Project Store 的 Workspace 切換競態、member request 去重與快取。
-- [x] Project／WorkspaceInvitation service request mapping、notification effect handler。
+- [x] Project／WorkspaceInvitation service request mapping、notification effect handler；Project pin request 及 Store 的 `pinnedAt` optimistic update／排序已有 unit tests。
 - [ ] API error mapping 共用層的 unit test：實作已完成，`getApiErrorResponse()` 驗證 Axios API envelope，`Unauthenticated` interceptor 以 app event 統一清空 session state。
 - Socket ack state machine。
 
@@ -281,10 +285,11 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 ## 11. 目前最優先的測試順序
 
-1. Board／Column／Card schema、snapshot read model 與 Board room authorization；同步補 Project 負向授權 E2E、P2002 真實併行衝突與 transaction rollback。
-2. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
-3. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
-4. SessionService unit tests：驗證分支與 Lua reply mapping。
-5. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
-6. Workspace room authorization／lifecycle integration tests，包含 reconnect rejoin 與快速切換競速。
-7. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。
+1. 補 Project pin HTTP E2E 與 Swagger contract，再補 Project 負向授權、P2002 真實併行衝突與 transaction rollback。
+2. 後續建立 Board／Column／Card schema、snapshot read model 與 Board room authorization。
+3. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
+4. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
+5. SessionService unit tests：驗證分支與 Lua reply mapping。
+6. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
+7. Workspace room authorization／lifecycle integration tests，包含 reconnect rejoin 與快速切換競速。
+8. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。

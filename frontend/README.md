@@ -26,8 +26,8 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 | --- | --- |
 | `/signup` | 註冊帳號；成功後透過提示確認導向登入 |
 | `/login` | 登入成功提示確認後重設 User Store，導向 `/workspace` |
-| `/workspace` | 真實 Workspace 列表／建立／成員摘要、邀請 Dialog、通知選單；Project 列表、建立、搜尋／狀態篩選、成員清單與新增成員 Dialog 已串接 API |
-| `/board` | 看板 UI 與本機假資料，尚未持久化 |
+| `/workspace` | 真實 Workspace 列表／建立／成員摘要、邀請 Dialog、通知選單；Project 列表、置頂／取消置頂、建立、搜尋／狀態篩選、成員清單與新增成員 Dialog 已串接 API |
+| `/projects/:projectId` | `ProjectView`；目前顯示 Board UI 與本機假資料，尚未建立 Board schema 或持久化 API |
 
 只有 login／signup 是公開路徑；其餘導航會透過 User Store 恢復 Session。尚未配置根路由 redirect 或 catch-all。
 
@@ -37,7 +37,7 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 - User Store 快取 userInfo 結果並合併並行 request；失敗也會快取為未登入。
 - Workspace Store 保存工作區與目前選取 ID。
 - Notification Store 保存通知、未讀數、單筆／全部已讀的處理狀態與本次登入期間的邀請回覆狀態；選單 mount 載入未讀數，開啟時重新讀取列表與未讀數。工作區邀請可直接接受或婉拒，成功後會同步標記通知已讀，接受再重新載入工作區清單。
-- Project Store 保存目前 Workspace 的 Project list、目前選取 Project、Project members 與 member candidate cache；切換 Workspace 時會忽略過期的 Project response，Project member request 具備去重與快取，新增成員成功後會強制刷新 member cache。
+- Project Store 保存目前 Workspace 的 Project list、目前選取 Project、Project members 與 member candidate cache；切換 Workspace 時會忽略過期的 Project response，Project member request 具備去重與快取，新增成員成功後會強制刷新 member cache。置頂成功後會在本地更新 `pinnedAt` 並依「置頂時間、updatedAt、id」重新排序；重新載入時仍以 Server list 為真相。
 - Logout 不論 HTTP 成敗皆清空 User／Workspace／Notification Store 並導向登入；網路失敗不保證伺服器 Session 已撤銷。
 - Store reset 尚未阻止舊的 in-flight response 回寫；一般 API 收到 `Unauthenticated` 已由 Axios interceptor 發出 app event，統一清空 User／Workspace／Notification state 並導向 Login。
 - Session ID 不放在 localStorage；protected route 恢復 Session 後會連接 Socket.IO 並啟動通知監聽，登出或 HTTP Session 失效時會停止監聽並斷線。Socket `connect_error`、rotation 與 reconnect resync 尚未完成。
@@ -47,4 +47,4 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 
 更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
 
-文件最後核對：2026-09-20。Frontend Vitest 為 13 個 test files／39 tests 通過；Project overview、member cache、notification effect、add-member Dialog 與 member-added notification detail Dialog 均有測試，type-check、production build 與 ESLint 通過。Vite main chunk 為 576.34 kB；read-only Oxlint 尚有 12 個錯誤（9 個 mock 缺明確型別、3 個未使用 type import），因此完整 lint pipeline 尚未全綠，且尚未配置 frontend coverage。Playwright 仍是 Vue starter scaffold，未覆蓋 Auth 或真實 Backend flow。
+文件最後核對：2026-09-21。2026-09-20 的完整 Frontend baseline 為 13 個 test files／39 tests、type-check、production build 與 ESLint 通過；2026-09-21 另驗證 Project service／store 2 files／8 tests 與 `vue-tsc --build` 通過，涵蓋 pin request、`pinnedAt` optimistic update 與排序。Project 頁已由 `BoardView` 更名為 `ProjectView`，route 改為 `/projects/:projectId`；Board API 仍未實作。Vite main chunk 與 Oxlint 等完整 baseline 缺口沿用 [progress](../docs/progress.md) 紀錄。

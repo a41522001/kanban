@@ -14,7 +14,7 @@
 
 ## 目前實作邊界
 
-2026-09-20 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過既有 E2E。Project 已有 shared contracts、Repository、runtime DTO validation、create／list／members／memberCandidates／addMember／notification detail Service 與 HTTP endpoints，並已完成第一版 Frontend overview／member Dialog；Service／Controller tests 與第一版隔離 E2E 已通過，負向授權、rollback、真實併行與 migration upgrade 仍待補。Board 起的資料模型／commands 仍是目標設計。現行端點以[目前 HTTP API](http-api.md)為準。
+2026-09-21 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過既有 E2E。Project 已有 shared contracts、Repository、runtime DTO validation、create／list／members／memberCandidates／addMember／notification detail／pin Service 與 HTTP endpoints，並已完成第一版 Frontend overview／member Dialog／pin UI；Project scoped unit tests 與套用 11 個 migrations 的隔離 E2E 已通過，pin HTTP E2E、負向授權、rollback 與真實併行仍待補。前端使用 `/projects/:projectId` 的 `ProjectView` 承載 Board UI；Board 起的資料模型／commands 尚未建立。現行端點以[目前 HTTP API](http-api.md)為準。
 
 ## 2. 第一版 Domain
 
@@ -77,8 +77,9 @@
 - userId
 - role：`OWNER`、`EDITOR`、`VIEWER`
 - joinedAt
+- pinnedAt：nullable，代表目前成員自己的 Project 置頂時間
 
-目前 Prisma schema 使用獨立 UUID `id` 作為 primary key，並以 `@@unique([projectId, userId])` 防止重複 membership。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember；這個跨 table 條件由 application service 驗證。現行 `POST /project/addMember` 是由 Project OWNER 直接加入同 Workspace 的既有成員，不建立 ProjectInvitation，也沒有接受／拒絕狀態。
+目前 Prisma schema 使用獨立 UUID `id` 作為 primary key，並以 `@@unique([projectId, userId])` 防止重複 membership。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember；這個跨 table 條件由 application service 驗證。`pinnedAt` 屬於 membership preference，同一 Project 可被不同使用者分別置頂或取消置頂；list 以 `pinnedAt DESC NULLS LAST` 後接 Project `updatedAt DESC, id DESC` 排序。現行 `POST /project/addMember` 是由 Project OWNER 直接加入同 Workspace 的既有成員，不建立 ProjectInvitation，也沒有接受／拒絕狀態。
 
 Board room join、Board snapshot、Column/Card command 都透過 `Board → Project → ProjectMember` 取得權限，不建立重複的 BoardMember。
 
@@ -331,7 +332,7 @@ Board room domain events 只描述已 commit 的事實：
 - [x] Workspace／WorkspaceMember schema、migration、repository。
 - [x] 建立／讀取 Workspace 與成員查詢 authorization（靜態核對）。
 - [x] Project／ProjectMember schema 與 migration。
-- [x] Project repository、create／list／members／memberCandidates／addMember／notification detail Service 與 HTTP API；Service／Controller tests 與第一版隔離 E2E 已通過。
+- [x] Project repository、create／list／members／memberCandidates／addMember／notification detail／pin Service 與 HTTP API；pin 的 Service／Controller unit tests 與可套用 11 個 migrations 的隔離 E2E 已通過，pin route HTTP E2E 尚待補。
 - [ ] 完整建立 Project transaction：目前已建立 Project 與 OWNER ProjectMember；主要 Board、四個預設 Columns 尚未實作。
 - [ ] WorkspaceMember 與 ProjectMember 完整權限：create／addMember 已有檢查，list、detail、角色調整、移除成員與 Board commands 尚未實作。
 

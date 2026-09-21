@@ -10,7 +10,7 @@ NestJS + Prisma／PostgreSQL + Redis + Socket.IO。以下指令都從 monorepo �
 - `workspaceInvitation`：發送、接受與拒絕邀請，查詢 PENDING、條件式狀態更新與邀請 HTTP Controller；Owner 取消邀請尚未實作。
 - `notification`：public read model、未讀數與內部建立通知。
 - `socket`：掛在 HTTP server 的 Socket.IO service；以 HttpOnly Session Cookie 驗證 handshake、將 userId 寫入 `socket.data`，管理 user room 與 Workspace room，並提供 transaction commit 後的 `notification:created`／`workspace:memberChanged` 推播。
-- `project`：已註冊於 AppModule；提供建立 Project、Project list、Project members、member candidates、addMember 與 member-added notification detail endpoints。建立 Project 與 OWNER membership、加入成員與通知都使用 transaction；Service／Controller unit tests 與第一版隔離 E2E 已補上。
+- `project`：已註冊於 AppModule；提供建立 Project、Project list、Project members、member candidates、addMember、member-added notification detail 與目前使用者的 Project 置頂／取消置頂 endpoints。建立 Project 與 OWNER membership、加入成員與通知都使用 transaction；`pinnedAt` 儲存在 ProjectMember，屬於每位使用者自己的列表偏好。
 - `common`：ValidationPipe、AppException、Filter、response interceptor 與 Cookie 工具。
 
 主要分層為 Controller → Service → Repository。邀請流程由 `WorkspaceInvitationController → WorkspaceInvitationService` 協調；Invitation Service 單向依賴 WorkspacesService 取得 membership 資訊，並使用同一 Prisma TransactionClient 寫入 Invitation 與 Notification。WorkspacesService 不再依賴 WorkspaceInvitationService。
@@ -41,4 +41,4 @@ Build／start／test 的 pre scripts 會先建置共用 contracts。Production e
 - [Session 架構](../docs/session-architecture.md)
 - [測試範圍與未完成項目](../docs/testing-strategy.md)
 
-文件最後核對：2026-09-20。Project HTTP vertical slice 已完成第一版；Node 24.13 下 Backend 19 suites／114 tests、隔離 E2E 4 suites／9 tests 全部通過，coverage 為 statements 53.55%、branches 60.03%、functions 37.01%、lines 52.75%。Project 後續仍需補未登入／非 OWNER／跨 Workspace／他人通知存取、真實 rollback／併行、migration upgrade，以及 Socket.IO reconnect／resync 與 Board events。Board／Column／Card 尚未建立持久化模型。
+文件最後核對：2026-09-21。2026-09-20 的完整 Backend baseline 為 19 suites／114 tests 與既有 coverage；2026-09-21 Project Service／Controller 2 suites／36 tests 通過，隔離 E2E 4 suites／9 tests 通過，且 11 個 migrations 可從空資料庫套用。Pin endpoint 尚缺 HTTP E2E 與 endpoint-specific Swagger response metadata；Project 仍需補未登入／非 OWNER／跨 Workspace／他人通知存取、真實 rollback／併行，以及 Socket.IO reconnect／resync。Board／Column／Card 尚未建立持久化模型。

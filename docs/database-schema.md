@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-20（依 Prisma schema、10 個 migrations、Project Repository／Service／Controller 與本輪 Node 24.13 隔離 E2E migration deploy 結果核對）。
+最後檢視：2026-09-21（依 Prisma schema、11 個 migrations、Project pin Repository／Service／Controller 與隔離 E2E migration deploy 結果核對）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -35,7 +35,7 @@ users ──< workspace_members >── workspaces ──< projects
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember／notification detail API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Frontend Project overview 與新增成員 Dialog 已串接。Service／Controller tests 與從空資料庫套用 10 個 migrations 的第一版隔離 E2E 已通過；既有資料 migration upgrade、負向授權、rollback 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember／notification detail／pin API。`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好，不是 Project 全域欄位；Frontend Project overview 已串接置頂、取消置頂與相同排序規則。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知。Project scoped unit tests 與從空資料庫套用 11 個 migrations 的隔離 E2E 已通過；pin endpoint 的 HTTP E2E、負向授權、rollback 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
 
 ## 2. Enum
 
@@ -198,7 +198,7 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 ## 8. `projects`
 
-Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list／detail、前端資料流及有效自動測試尚未完成。
+Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list、members、member candidates、addMember、notification detail 與 per-member pin 已形成第一版前後端資料流；獨立 Project detail、角色調整、移除成員與 Board persistence 尚未完成。
 
 | 欄位 | 型別 | Null | 說明 |
 | --- | --- | --- | --- |
@@ -232,6 +232,7 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 | `user_id` | UUID | 否 | 成員使用者，參照 `users.id`。 |
 | `role` | `ProjectRole` | 否 | Project 角色；沒有資料庫預設值。 |
 | `joined_at` | TIMESTAMP(3) | 否 | 實際加入 Project 的時間。 |
+| `pinned_at` | TIMESTAMP(3) | 是 | 目前成員置頂此 Project 的 UTC 時間；null 代表未置頂。 |
 
 約束與索引：
 
@@ -241,10 +242,13 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 - ProjectMember 必須同時是該 Project 所屬 Workspace 的 WorkspaceMember；目前 schema 沒有跨資料表約束，必須由 application service 在 transaction 內驗證。
 - 建立 Project 時，Service 會在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。
 - `POST /project/addMember` 會先驗證操作者是未封存 Project 的 OWNER，並確認目標使用者是同一 Workspace 的有效成員；ProjectMember 與 Notification 同 transaction 寫入，`(project_id, user_id)` unique conflict 由 application service 轉為 409。
+- `PATCH /project/:projectId/pin` 只更新目前 Session user 對應 membership 的 `pinned_at`；置頂列表依 `pinned_at DESC NULLS LAST`，再依 Project `updated_at DESC, id DESC` 排序。此偏好不改變其他成員的排序。
 
-Project／ProjectMember 初始 migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名。獨立 member ID 由 `backend/prisma/migrations/20260915080141_add_project_member_id/migration.sql` 加入。
+Project／ProjectMember 初始 migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名。獨立 member ID 由 `backend/prisma/migrations/20260915080141_add_project_member_id/migration.sql` 加入；nullable `pinned_at` 由 `backend/prisma/migrations/20260921024927_add_project_pinned_feature/migration.sql` 加入。
 
-`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填。全新資料庫在前一個 migration 建立空表後可套用；已經存在 ProjectMember 資料的環境會失敗。部署到保留既有資料的環境前，必須改成「nullable/default → 回填 → NOT NULL／primary key」的安全 migration，並以真實 PostgreSQL 驗證。
+`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填，因此只適合當時沒有 ProjectMember rows 的建置流程。本專案已確認沒有需要保留的舊版資料，環境已清除並重新 deploy，且 2026-09-21 隔離 E2E 已從空資料庫成功套用全部 11 個 migrations；因此不再把 legacy upgrade test 列為目前 blocker。若未來真的出現需要保留舊資料的部署來源，仍必須新增 forward-only 修正 migration，不能修改已套用的歷史 migration。
+
+`20260921024927_add_project_pinned_feature` 只新增 nullable `TIMESTAMP(3)`，既有 membership 會自然得到 null，代表未置頂；這個 migration 不需要資料回填。
 
 ## 10. 後續資料模型
 

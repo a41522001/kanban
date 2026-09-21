@@ -199,4 +199,4 @@ const boardColumns = ref<BoardColumnData[]>([
 ]);
 </script>
 
-<style scoped src="./board-view.css"></style>
+<style scoped src="./project-view.css"></style>

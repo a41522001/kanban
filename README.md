@@ -1,6 +1,6 @@
 # Flowboard Kanban
 
-最後檢視：2026-09-20（依目前原始碼與實際執行的 contracts build、Backend build／unit／coverage／隔離 E2E、Frontend type-check／unit／production build，以及 read-only lint 結果核對）。
+最後檢視：2026-09-21（依目前原始碼、Project 置頂 scoped unit tests、Frontend type-check，以及套用 11 個 migrations 的隔離 PostgreSQL／Redis E2E 核對；完整 build／coverage baseline 仍見 2026-09-20 紀錄）。
 
 多人協作 Kanban 練習專案，主線是 Redis Session、權限、Socket.IO、ack、冪等、併發與重連恢復。目前已有 Auth、Workspace、邀請通知、user room 通知推播、Workspace room 成員同步，以及 Project 的前後端第一版 vertical slice；Board 持久化與即時協作仍待實作。
 
@@ -26,9 +26,10 @@
 - 通知列表、未讀數、單筆／全部已讀 API 與前端通知選單；新通知會在 transaction commit 後推送至收件者 user room。Workspace invitation 與 Project member added 都可由通知內容開啟各自的 domain detail UI。
 - 統一 API response、validation、exception filter、HTTP log redact 與 Swagger；現有 Controller 已補上 tags、operation、Cookie auth、成功／錯誤狀態描述，request DTO 亦有欄位說明與範例。
 - Socket.IO 已有 typed echo、Session Cookie handshake、`socket.data.userId`、server-managed user room，以及經 membership／archivedAt 驗證的 Workspace room `workspace:into`／`workspace:leave` 與 `workspace:memberChanged` 廣播。
-- Project／ProjectMember 已有 Prisma schema、migration、shared contracts、Repository 與 runtime DTO validation；`POST /project`、`GET /project/:workspaceId`、`GET /project/:projectId/members`、`GET /project/:projectId/memberCandidates`、`POST /project/addMember` 與 `GET /project/notificationDetail/:notificationId` 已提供第一版 API。建立 Project 會在同一 transaction 建立 OWNER membership；addMember 允許 Project OWNER 將同一 Workspace 的既有成員直接加入 Project，並在 transaction commit 後推送 `PROJECT_MEMBER_ADDED` 通知。收件者點擊通知後可取得最新 Project／Workspace／角色／加入時間並前往專案。
+- Project／ProjectMember 已有 Prisma schema、migration、shared contracts、Repository 與 runtime DTO validation；`POST /project`、`GET /project/:workspaceId`、`GET /project/:projectId/members`、`GET /project/:projectId/memberCandidates`、`POST /project/addMember`、`GET /project/notificationDetail/:notificationId` 與 `PATCH /project/:projectId/pin` 已提供第一版 API。`pinnedAt` 是每位 ProjectMember 自己的列表偏好，Project list 會將置頂項目排在前面；前端已支援置頂／取消置頂與重新排序。建立 Project 會在同一 transaction 建立 OWNER membership；addMember 允許 Project OWNER 將同一 Workspace 的既有成員直接加入 Project，並在 transaction commit 後推送 `PROJECT_MEMBER_ADDED` 通知。收件者點擊通知後可取得最新 Project／Workspace／角色／加入時間並前往專案。
+- 前端 Project 頁使用 `/projects/:projectId` 與 `ProjectView.vue`；目前只呈現 Board UI 假資料，Board／Column／Card schema 與 API 尚未建立。
 
-尚未完成：邀請取消、通知 query 分頁、Project detail／角色調整／移除成員 API、Project 的負向授權／rollback／真實併行與 migration upgrade tests、Board／Column／Card 資料模型與 API、Board room authorization、ack／retry／idempotency／recovery。Socket 尚缺 handshake rotation 安全策略、Workspace room 重連後 rejoin、快速切換 room 的競速處理、membership 被移除後的 room 清理、前端 `connect_error` 與真實 lifecycle tests；Board 畫面目前使用本機假資料。
+尚未完成：邀請取消、通知 query 分頁、Project detail／角色調整／移除成員 API、Project 與置頂功能的負向 HTTP E2E／rollback／真實併行測試、Board／Column／Card 資料模型與 API、Board room authorization、ack／retry／idempotency／recovery。Socket 尚缺 handshake rotation 安全策略、Workspace room 重連後 rejoin、快速切換 room 的競速處理、membership 被移除後的 room 清理、前端 `connect_error` 與真實 lifecycle tests；ProjectView 內的 Board 畫面目前使用本機假資料。
 
 ## 本機啟動
 
@@ -84,6 +85,8 @@ pnpm test:backend:e2e
 runner 會建立隔離 PostgreSQL／Redis、套用 migration、執行 Auth、Workspace Invitation、Notification read-action 與 Project member flow E2E，最後移除測試 containers 與 volumes。`pnpm lint` 帶有自動修正，會修改原始碼。前端 Playwright 目前只有仍檢查 Vue starter 文案的 scaffold，尚未覆蓋產品流程。
 
 2026-09-20 以 Node 24.13 完整驗證：Backend 19 suites／114 tests、隔離 PostgreSQL／Redis E2E 4 suites／9 tests 全部通過，10 個 migrations 可從空資料庫依序套用；coverage 為 statements 53.55%、branches 60.03%、functions 37.01%、lines 52.75%。Frontend Vitest 13 files／39 tests、type-check、兩端 production build 與 ESLint 通過；Vite main chunk 為 576.34 kB，仍超過 500 kB。Read-only Oxlint 目前有 12 個錯誤，集中在測試 mock 缺明確函式型別與未使用 type imports，因此 frontend 的完整 lint pipeline 尚未全綠；前端也尚未配置 coverage，Playwright 仍是 scaffold。詳細缺口見[進度](docs/progress.md)與[測試策略](docs/testing-strategy.md)。
+
+2026-09-21 scoped 驗證：Project Service／Controller 2 suites／36 tests、Frontend Project service／store 2 files／8 tests 與 Frontend type-check 通過；隔離 E2E 4 suites／9 tests 通過，並確認包含 `20260921024927_add_project_pinned_feature` 在內的 11 個 migrations 可從空資料庫依序套用。現有 E2E 尚未直接呼叫 pin endpoint。
 
 ## 文件入口
 
