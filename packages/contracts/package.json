@@ -48,6 +48,11 @@
       "types": "./dist/esm/project.d.ts",
       "import": "./dist/esm/project.js",
       "require": "./dist/cjs/project.cjs"
+    },
+    "./board": {
+      "types": "./dist/esm/board.d.ts",
+      "import": "./dist/esm/board.js",
+      "require": "./dist/cjs/board.cjs"
     }
   },
   "devDependencies": {

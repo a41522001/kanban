@@ -18,5 +18,6 @@ import { SocketModule } from '@/socket/socket.module';
   ],
   controllers: [ProjectController],
   providers: [ProjectService, ProjectRepository],
+  exports: [ProjectService],
 })
 export class ProjectModule {}

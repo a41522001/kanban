@@ -50,14 +50,16 @@
 - [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
 - [x] `POST /project` 只允許有效且未封存的 WorkspaceMember 建立 Project，建立者身分由 Session 取得，Project 與 OWNER membership 同 transaction。
 - [x] `POST /project/addMember` 只允許未封存 Project 的 OWNER 操作；目標必須是同 Workspace 的有效成員，角色 DTO 只允許 EDITOR／VIEWER，重複 membership 由資料庫 unique constraint 保護。
+- [x] `PATCH /project/:projectId/pin` 不接受 client userId，只以 Session userId 與 projectId 更新呼叫者自己的 ProjectMember；Service 會拒絕不存在或已封存 Project／Workspace 的 membership。
+- [ ] 補 pin route 的未登入／非成員／封存狀態 HTTP E2E，並驗證使用者不能修改其他成員的 `pinnedAt`。
 - [x] 公開 HTTP／Socket contract 不回傳內部 `User.id`／`userId`；Project member candidate 只公開 `workspaceMemberId`，Service 再明確投影 public DTO 欄位。
-- [ ] 補 Project create／addMember 的未登入、非 OWNER、跨 Workspace、他人通知存取、transaction rollback 與真實 P2002 併行 E2E；目前 Service／Controller unit tests 與第一版 happy-path／重複加入 409 E2E 已通過。
+- [ ] 補 Project create／addMember／pin 的未登入、非 OWNER 或非成員、跨 Workspace、他人通知存取、transaction rollback 與真實 P2002 併行 E2E；目前 Service／Controller unit tests 與第一版 happy-path／重複加入 409 E2E 已通過。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
-- [ ] 查詢 Board、Column、Card 時透過 `Board → Project → ProjectMember` 驗證權限，避免 BOLA/IDOR。
+- [ ] 查詢 Board snapshot、Column、Card 時透過 `Project → ProjectMember` 驗證權限，並驗證 Column／Card 的 Project scope，避免 BOLA/IDOR。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
 - [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
 - [ ] 修改、刪除與邀請成員等敏感操作有 audit log。
-- [ ] 被移除的 ProjectMember 必須離開該 Project 的所有 Board rooms，既有 Socket 不能繼續修改資料。
+- [ ] 被移除的 ProjectMember 必須離開 `project:{projectId}` room，既有 Socket 不能繼續修改資料。
 
 ## 6. API 與錯誤處理
 

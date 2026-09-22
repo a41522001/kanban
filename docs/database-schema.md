@@ -1,12 +1,12 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-20（依 Prisma schema、10 個 migrations、Project Repository／Service／Controller 與本輪 Node 24.13 隔離 E2E migration deploy 結果核對）。
+最後檢視：2026-09-21（依 Prisma schema、13 個 migrations、Project／BoardColumn 實作與隔離 E2E migration deploy 結果核對）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
 ## 1. 目前範圍
 
-目前已定義七張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember。
+目前已定義八張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember、BoardColumn。
 
 ```text
 User
@@ -24,18 +24,19 @@ Workspace
 └── Project
 
 Project
-└── ProjectMember
+├── ProjectMember
+└── BoardColumn
 ```
 
 ```text
-users ──< workspace_members >── workspaces ──< projects
+users ──< workspace_members >── workspaces ──< projects ──< board_columns
   │                                  │              │
   ├────< notifications (recipient)   └─< workspace_invitations
   ├────< notifications (actor)
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 與 `ProjectMember` 已建立 schema、migration、shared contracts、Repository 與 create／list／members／memberCandidates／addMember／notification detail API。ProjectService 能在同一 transaction 建立 Project 與建立者的 OWNER membership，也能直接加入同 Workspace 的既有成員並建立通知；Frontend Project overview 與新增成員 Dialog 已串接。Service／Controller tests 與從空資料庫套用 10 個 migrations 的第一版隔離 E2E 已通過；既有資料 migration upgrade、負向授權、rollback 與完整併行測試仍待補。`Board`、`BoardColumn` 與 `Card` 仍未建立資料表；Notification enum 已預留這些資源類型，但不代表它們已可使用。
+`Project` 是 Kanban Board 的 aggregate root，不另外建立 `boards` 資料表。`Project` 與 `ProjectMember` 已有 create／list／members／memberCandidates／addMember／notification detail／pin API；`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好。`BoardColumn` schema 與 migration 已建立，建立 Project 時會在同一個 transaction 內由 nested write 建立四個預設 Columns，並另建立建立者的 OWNER membership。`Card` 與 Board snapshot API 尚未建立。13 個 migrations 的隔離 E2E 已通過；預設四欄內容／順序的直接 assertion、pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。
 
 ## 2. Enum
 
@@ -84,8 +85,9 @@ users ──< workspace_members >── workspaces ──< projects
 | `WORKSPACE_INVITATION` | `workspace_invitations.id`（應用層引用，無外鍵）。 |
 | `WORKSPACE` | `workspaces.id`。 |
 | `PROJECT` | `projects.id`（Notification 仍使用 application-level resource pointer，沒有外鍵）。 |
-| `BOARD` | 未來的 `boards.id`。 |
 | `CARD` | 未來的 `cards.id`。 |
+
+Board 沒有獨立 resource type；看板層級操作以 `PROJECT` 指向 `projects.id`，卡片通知仍以 `CARD` 指向未來的 `cards.id`。
 
 ## 3. `users`
 
@@ -198,7 +200,7 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 ## 8. `projects`
 
-Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 WorkspacesService 確認 membership 與封存狀態，再於同一 Prisma transaction 建立 Project 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list／detail、前端資料流及有效自動測試尚未完成。
+Workspace 之下的專案邊界，也是 Kanban Board 的 aggregate root。ProjectService 的 create flow 會先確認 Workspace membership 與封存狀態，再於同一 Prisma transaction 建立 Project、四個預設 BoardColumns 與 OWNER ProjectMember；`POST /project` 已對外提供此 command。Project list、members、member candidates、addMember、notification detail 與 per-member pin 已形成第一版前後端資料流；獨立 Project detail、角色調整、移除成員、Board snapshot 與 Card persistence 尚未完成。
 
 | 欄位 | 型別 | Null | 說明 |
 | --- | --- | --- | --- |
@@ -211,6 +213,8 @@ Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 Wo
 | `archived_at` | TIMESTAMP(3) | 是 | 軟封存時間；null 代表未封存。 |
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+| `version` | INTEGER | 否 | Project metadata 的 optimistic concurrency version；預設 1。 |
+| `board_revision` | BIGINT | 否 | Column／Card domain mutation 的單調遞增序號；預設 0，對 JavaScript client 應序列化為字串。 |
 
 約束與索引：
 
@@ -220,6 +224,7 @@ Workspace 之下的專案邊界。ProjectService 的 create flow 會先透過 Wo
 - index：`created_by_id`，支援依建立者查詢。
 - 目前沒有 `workspace_id + name` unique constraint，因此同一 Workspace 可以有同名 Project；API 與前端必須以 UUID 識別。
 - `COMPLETED` 不會自動寫入 `archived_at`；完成與封存必須分別處理。
+- 建立 Project 時預設 Columns 屬於初始 snapshot，因此 `board_revision` 保持 0；後續成功的 Column／Card mutation 才遞增。
 
 ## 9. `project_members`
 
@@ -232,6 +237,7 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 | `user_id` | UUID | 否 | 成員使用者，參照 `users.id`。 |
 | `role` | `ProjectRole` | 否 | Project 角色；沒有資料庫預設值。 |
 | `joined_at` | TIMESTAMP(3) | 否 | 實際加入 Project 的時間。 |
+| `pinned_at` | TIMESTAMP(3) | 是 | 目前成員置頂此 Project 的 UTC 時間；null 代表未置頂。 |
 
 約束與索引：
 
@@ -241,20 +247,45 @@ Project 的最小權限邊界。同一 Project 的所有 Board 共用 ProjectMem
 - ProjectMember 必須同時是該 Project 所屬 Workspace 的 WorkspaceMember；目前 schema 沒有跨資料表約束，必須由 application service 在 transaction 內驗證。
 - 建立 Project 時，Service 會在同一 transaction 建立 Project 與建立者的 `ProjectMember(role=OWNER)`。
 - `POST /project/addMember` 會先驗證操作者是未封存 Project 的 OWNER，並確認目標使用者是同一 Workspace 的有效成員；ProjectMember 與 Notification 同 transaction 寫入，`(project_id, user_id)` unique conflict 由 application service 轉為 409。
+- `PATCH /project/:projectId/pin` 只更新目前 Session user 對應 membership 的 `pinned_at`；置頂列表依 `pinned_at DESC NULLS LAST`，再依 Project `updated_at DESC, id DESC` 排序。此偏好不改變其他成員的排序。
 
-Project／ProjectMember 初始 migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名。獨立 member ID 由 `backend/prisma/migrations/20260915080141_add_project_member_id/migration.sql` 加入。
+Project／ProjectMember 初始 migration：`backend/prisma/migrations/20260913135327_add_proejct_and_project_member_data_schema/migration.sql`。目錄中的 `proejct` 是已產生的 migration 名稱拼字；若已套用，不直接更名。獨立 member ID 由 `backend/prisma/migrations/20260915080141_add_project_member_id/migration.sql` 加入；nullable `pinned_at` 由 `backend/prisma/migrations/20260921024927_add_project_pinned_feature/migration.sql` 加入。
 
-`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填。全新資料庫在前一個 migration 建立空表後可套用；已經存在 ProjectMember 資料的環境會失敗。部署到保留既有資料的環境前，必須改成「nullable/default → 回填 → NOT NULL／primary key」的安全 migration，並以真實 PostgreSQL 驗證。
+`20260915080141_add_project_member_id` 直接新增 `UUID NOT NULL id`，SQL 沒有 database default 或既有資料回填，因此只適合當時沒有 ProjectMember rows 的建置流程。本專案已確認沒有需要保留的舊版資料，環境已清除並重新 deploy，且 2026-09-21 隔離 E2E 已從空資料庫成功套用全部 13 個 migrations；因此不再把 legacy upgrade test 列為目前 blocker。若未來真的出現需要保留舊資料的部署來源，仍必須新增 forward-only 修正 migration，不能修改已套用的歷史 migration。
 
-## 10. 後續資料模型
+`20260921024927_add_project_pinned_feature` 只新增 nullable `TIMESTAMP(3)`，既有 membership 會自然得到 null，代表未置頂；這個 migration 不需要資料回填。
+
+## 10. `board_columns`
+
+Project 看板中的欄位。Board 是 UI／read-model 概念，不是資料表；每個 Column 直接屬於一個 Project。
+
+| 欄位 | 型別 | Null | 說明 |
+| --- | --- | --- | --- |
+| `id` | UUID | 否 | Column 主鍵。 |
+| `project_id` | UUID | 否 | 所屬 Project，參照 `projects.id`。 |
+| `title` | VARCHAR(80) | 否 | 欄位顯示名稱。 |
+| `color_key` | VARCHAR(30) | 否 | 穩定的視覺語意 key，不保存 CSS class 或色碼。 |
+| `position` | INTEGER | 否 | 邏輯排序值，不是 pixel；預設欄位使用 1024 的間隔。 |
+| `version` | INTEGER | 否 | Column optimistic concurrency version；預設 1。 |
+| `archived_at` | TIMESTAMP(3) | 是 | 軟封存時間。 |
+| `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
+| `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+
+預設 Columns 為「準備開始／coral／1024」、「正在進行／mint／2048」、「等待檢視／amber／3072」、「已完成／violet／4096」。`color_key` 是固定色票的 design token，不代表工作流程狀態；合法值由 `@kanban/contracts/board` 的 runtime whitelist 管理。`position` 保留間距以便插入；排序時使用 `position, id` 作穩定 tie-break，不建立 unique constraint。Project hard delete 時使用 `ON DELETE CASCADE`；正常產品流程仍應優先採 Project／Column soft archive。
+
+索引：`project_id, archived_at, position, id`。Migration：`backend/prisma/migrations/20260921083115_add_project_board_structure/migration.sql`，同時在 `projects` 加入 `version`／`board_revision`，建立 `board_columns`，並從 `NotificationResourceType` 移除 `BOARD`。
+
+`backend/prisma/migrations/20260921120000_rename_board_column_color_keys/migration.sql` 將舊的 `ready／active／review／done` data tokens 轉為中性的 `coral／mint／amber／violet`，避免自訂或拖曳 Column 後把顏色誤解為固定狀態。
+
+## 11. 後續資料模型
 
 下列是已規劃、但尚未建立的資料表；新增時需同步更新本文件、Prisma schema、contracts、migration 與測試：
 
-- `boards`、`board_columns`、`cards`：Kanban read model 與協作指令的持久化資料。
+- `cards`：Kanban 卡片與協作指令的持久化資料；直接透過 `column_id` 歸屬 Project。
 - `reminders`：負責未來排程時間；到期時才建立 `CARD_REMINDER` Notification。
 - `outbox_messages`：需要可靠背景投遞與 message queue 時才加入。
 
-## 11. Migration 規則
+## 12. Migration 規則
 
 1. 先修改 `backend/prisma/schema.prisma`。
 2. 產生可審閱的 Prisma migration，確認 SQL 的 enum、index、FK 與 delete behavior。

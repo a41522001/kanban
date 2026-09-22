@@ -2,8 +2,12 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { CreateProjectDto } from './dto/createProject.dto';
 import type { Prisma, Project, ProjectMember } from '@/generated/prisma/client';
-import type { AddProjectMemberParams } from './project.type';
+import type {
+  AddProjectMemberParams,
+  ProjectListItemRecord,
+} from './project.type';
 import type { MemberCandidate } from '@kanban/contracts/project';
+import { DEFAULT_BOARD_COLUMNS } from '@kanban/contracts/board';
 type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
   select: {
     id: true;
@@ -55,12 +59,18 @@ export class ProjectRepository {
   ): Promise<Project> {
     const db = tx ?? this.prismaService;
     const { name, description, workspaceId } = createProjectDto;
+    const boardColumnsData = [...DEFAULT_BOARD_COLUMNS];
     const result = await db.project.create({
       data: {
         name,
         description,
         workspaceId,
         createdById: userId,
+        boardColumns: {
+          createMany: {
+            data: boardColumnsData,
+          },
+        },
       },
     });
     return result;
@@ -70,23 +80,42 @@ export class ProjectRepository {
   async getProjectsByWorkspaceIdAndUserId(
     workspaceId: string,
     userId: string,
-  ): Promise<Project[]> {
-    const result = await this.prismaService.project.findMany({
+  ): Promise<ProjectListItemRecord[]> {
+    const result = await this.prismaService.projectMember.findMany({
       where: {
-        workspaceId,
-        archivedAt: null,
-        members: {
-          some: {
-            userId,
+        userId,
+        project: {
+          workspaceId,
+          archivedAt: null,
+          workspace: {
+            archivedAt: null,
           },
         },
-        workspace: {
-          archivedAt: null,
-        },
       },
-      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      select: {
+        pinnedAt: true,
+        project: true,
+      },
+      orderBy: [
+        {
+          pinnedAt: {
+            sort: 'desc',
+            nulls: 'last',
+          },
+        },
+        {
+          project: {
+            updatedAt: 'desc',
+          },
+        },
+        {
+          project: {
+            id: 'desc',
+          },
+        },
+      ],
     });
-    return result;
+    return result.map(({ project, pinnedAt }) => ({ ...project, pinnedAt }));
   }
 
   /** 取得所有專案及底下的成員by workspaceId */
@@ -226,5 +255,23 @@ export class ProjectRepository {
       },
     });
     return result;
+  }
+
+  /** 切換置頂狀態 */
+  async switchPinnedStatus(
+    projectId: string,
+    userId: string,
+    pinnedAt: Date | null,
+  ): Promise<number> {
+    const result = await this.prismaService.projectMember.updateMany({
+      data: {
+        pinnedAt,
+      },
+      where: {
+        userId,
+        projectId,
+      },
+    });
+    return result.count;
   }
 }

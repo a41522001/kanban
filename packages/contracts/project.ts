@@ -36,6 +36,7 @@ export interface ProjectListItemDto {
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;
+  pinnedAt: string | null;
 }
 
 /** 可被加入目前專案的 Workspace 成員候選資料。 */
@@ -55,4 +56,9 @@ export interface ProjectMemberAddedNotificationDetail {
   workspaceId: string;
   inviterName: string | null;
   joinedAt: string;
+}
+
+/** 置頂/取消置頂 專案請求 */
+export interface PinnedProjectRequest {
+  pinned: boolean;
 }

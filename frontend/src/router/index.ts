@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '@/views/loginView/LoginView.vue';
 import SignupView from '@/views/signupView/SignupView.vue';
-import BoardView from '@/views/boardView/BoardView.vue';
+import ProjectView from '@/views/projectView/ProjectView.vue';
 import WorkspaceView from '@/views/workspaceView/WorkspaceView.vue';
 import { useUserStore } from '@/stores/user';
 import { useNotificationStore } from '@/stores/notification';
@@ -21,9 +21,9 @@ const routes = [
     component: SignupView,
   },
   {
-    path: '/board',
-    name: 'board',
-    component: BoardView,
+    path: '/projects/:projectId',
+    name: 'project',
+    component: ProjectView,
   },
   {
     path: '/workspace',

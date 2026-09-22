@@ -28,7 +28,9 @@ npm run watch
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
 5. 按 `Generate All`；也可以單獨重建 Foundations、Components 或 Screens。
 
-目前 UI 版本標記為 `v13`。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入看板」。
+目前 UI 版本標記為 `v13`。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入專案」；前端對應 route 為 `/projects/:projectId`，Board 內容目前仍由 `ProjectView` 內的本機假資料呈現。
+
+2026-09-21 新增的 Project pin 已在程式端完成，但尚未加入 v13 的 `Project Card` variants 或 Workspace overview screens；目前以前端行為與 API contract 為真相來源，下次更新 Generator 時再補 Default／Pinned 狀態。
 
 v13 新增 `Project Member Added Notification Detail Dialog` 原生 Component Set，以及 Desktop／Mobile 通知詳情畫面。畫面以 `notificationId` 載入專案、Workspace、邀請者、角色與加入時間，並提供關閉及前往專案操作。
 

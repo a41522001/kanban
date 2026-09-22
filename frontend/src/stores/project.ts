@@ -5,7 +5,24 @@ import type {
   ProjectListItemDto,
   ProjectMemberDto,
 } from '@kanban/contracts/project';
-import { createProjectApi, getProjectMembersApi, getProjectsApi } from '@/services/project';
+import {
+  createProjectApi,
+  getProjectMembersApi,
+  getProjectsApi,
+  setProjectPinnedApi,
+} from '@/services/project';
+
+const sortProjects = (items: ProjectListItemDto[]): ProjectListItemDto[] =>
+  [...items].sort((left, right) => {
+    if (left.pinnedAt !== null && right.pinnedAt === null) return -1;
+    if (left.pinnedAt === null && right.pinnedAt !== null) return 1;
+
+    const pinnedComparison = (right.pinnedAt ?? '').localeCompare(left.pinnedAt ?? '');
+    if (pinnedComparison !== 0) return pinnedComparison;
+
+    const updatedComparison = right.updatedAt.localeCompare(left.updatedAt);
+    return updatedComparison !== 0 ? updatedComparison : right.id.localeCompare(left.id);
+  });
 
 export const useProjectStore = defineStore('projectStore', () => {
   const projects = ref<ProjectListItemDto[]>([]);
@@ -93,6 +110,17 @@ export const useProjectStore = defineStore('projectStore', () => {
     selectedProjectId.value = projects.value[0]?.id ?? null;
   };
 
+  const setProjectPinned = async (projectId: string, pinned: boolean) => {
+    await setProjectPinnedApi(projectId, pinned);
+
+    const pinnedAt = pinned ? new Date().toISOString() : null;
+    projects.value = sortProjects(
+      projects.value.map((project) =>
+        project.id === projectId ? { ...project, pinnedAt } : project,
+      ),
+    );
+  };
+
   const isProjectMembersLoading = (projectId: string) => loadingMemberIds.value.has(projectId);
 
   const resetProjects = () => {
@@ -121,6 +149,7 @@ export const useProjectStore = defineStore('projectStore', () => {
     refreshProjects,
     loadProjectMembers,
     createProject,
+    setProjectPinned,
     isProjectMembersLoading,
     resetProjects,
   };

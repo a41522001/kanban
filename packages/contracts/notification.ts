@@ -21,8 +21,6 @@ export type NotificationResourceType =
   | 'WORKSPACE'
   /// 指向 Project。
   | 'PROJECT'
-  /// 指向 Board。
-  | 'BOARD'
   /// 指向 Card。
   | 'CARD';
 

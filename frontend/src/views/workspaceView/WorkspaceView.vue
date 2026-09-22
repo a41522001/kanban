@@ -250,34 +250,61 @@
                   class="workspace__project-card"
                   :class="{ 'workspace__project-card--selected': project.id === selectedProjectId }"
                 >
-                  <button
-                    type="button"
-                    class="workspace__project-card-main"
-                    :aria-expanded="project.id === selectedProjectId"
-                    @click="void handleProjectSelect(project.id)"
-                  >
-                    <span class="workspace__project-card-heading">
-                      <span class="workspace__project-card-title">{{ project.name }}</span>
-                      <span class="workspace__status" :data-status="project.status">{{
-                        getProjectStatusLabel(project.status)
+                  <div class="workspace__project-card-summary">
+                    <button
+                      type="button"
+                      class="workspace__project-card-main"
+                      :aria-expanded="project.id === selectedProjectId"
+                      @click="void handleProjectSelect(project.id)"
+                    >
+                      <span class="workspace__project-card-heading">
+                        <span class="workspace__project-card-title">{{ project.name }}</span>
+                        <span class="workspace__status" :data-status="project.status">{{
+                          getProjectStatusLabel(project.status)
+                        }}</span>
+                      </span>
+                      <span class="workspace__project-card-description">{{
+                        project.description || t('workspace.projects.noDescription')
                       }}</span>
-                    </span>
-                    <span class="workspace__project-card-description">{{
-                      project.description || t('workspace.projects.noDescription')
-                    }}</span>
-                    <span class="workspace__project-card-meta">
-                      {{
-                        t('workspace.projects.updatedAt', {
-                          date: formatUpdatedAt(project.updatedAt),
-                        })
-                      }}
-                      <ChevronDown
-                        class="workspace__accordion-icon"
+                      <span class="workspace__project-card-meta">
+                        {{
+                          t('workspace.projects.updatedAt', {
+                            date: formatUpdatedAt(project.updatedAt),
+                          })
+                        }}
+                        <ChevronDown
+                          class="workspace__accordion-icon"
+                          :size="18"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      class="workspace__project-pin"
+                      :class="{ 'workspace__project-pin--active': project.pinnedAt !== null }"
+                      :disabled="pinningProjectIds.has(project.id)"
+                      :aria-label="
+                        project.pinnedAt
+                          ? t('workspace.projects.unpinProject', { project: project.name })
+                          : t('workspace.projects.pinProject', { project: project.name })
+                      "
+                      :title="
+                        project.pinnedAt
+                          ? t('workspace.projects.unpinProject', { project: project.name })
+                          : t('workspace.projects.pinProject', { project: project.name })
+                      "
+                      @click="void handleProjectPin(project)"
+                    >
+                      <LoaderCircle
+                        v-if="pinningProjectIds.has(project.id)"
+                        class="animate-spin"
                         :size="18"
                         aria-hidden="true"
                       />
-                    </span>
-                  </button>
+                      <Pin v-else :size="18" aria-hidden="true" />
+                    </button>
+                  </div>
 
                   <div
                     v-if="project.id === selectedProjectId"
@@ -289,7 +316,7 @@
                       :loading="isProjectMembersLoading(project.id)"
                       :can-manage-members="canInviteMembers"
                       @manage-members="openProjectMemberDialog(project.id)"
-                      @enter-board="enterBoard(project.id)"
+                      @enter-board="enterProject(project.id)"
                     />
                   </div>
                 </article>
@@ -302,7 +329,7 @@
                   :loading="isProjectMembersLoading(selectedProject.id)"
                   :can-manage-members="canInviteMembers"
                   @manage-members="openProjectMemberDialog(selectedProject.id)"
-                  @enter-board="enterBoard(selectedProject.id)"
+                  @enter-board="enterProject(selectedProject.id)"
                 />
               </aside>
             </div>
@@ -386,14 +413,16 @@ import {
   CircleAlert,
   ChevronDown,
   Layers3,
+  LoaderCircle,
   PanelTop,
+  Pin,
   Plus,
   Search,
   UserPlus,
   UsersRound,
 } from 'lucide-vue-next';
 import type { WorkspaceMemberDto, WorkspaceRole } from '@kanban/contracts/workspaces';
-import type { ProjectStatus } from '@kanban/contracts/project';
+import type { ProjectListItemDto, ProjectStatus } from '@kanban/contracts/project';
 import CreateProjectDialog from '@/components/project/CreateProjectDialog/CreateProjectDialog.vue';
 import ProjectAddMemberDialog from '@/components/project/ProjectAddMemberDialog/ProjectAddMemberDialog.vue';
 import ProjectMembers from '@/components/project/ProjectMembers/ProjectMembers.vue';
@@ -445,7 +474,13 @@ const {
   selectedProject,
   selectedProjectId,
 } = storeToRefs(projectStore);
-const { isProjectMembersLoading, loadProjectMembers, loadProjects, selectProject } = projectStore;
+const {
+  isProjectMembersLoading,
+  loadProjectMembers,
+  loadProjects,
+  selectProject,
+  setProjectPinned,
+} = projectStore;
 
 const isCreateDialogOpen = ref(false);
 const isInviteDialogOpen = ref(false);
@@ -460,6 +495,7 @@ const isMembersLoading = ref(false);
 let memberRequestId = 0;
 const projectSearch = ref('');
 const projectStatusFilter = ref<'ALL' | ProjectStatus>('ALL');
+const pinningProjectIds = ref(new Set<string>());
 const isDesktop = useMediaQuery('(min-width: 1024px)');
 
 const filteredProjects = computed(() => {
@@ -549,6 +585,21 @@ const handleProjectSelect = async (projectId: string) => {
   }
 };
 
+const handleProjectPin = async (project: ProjectListItemDto) => {
+  if (pinningProjectIds.value.has(project.id)) return;
+
+  pinningProjectIds.value = new Set(pinningProjectIds.value).add(project.id);
+  try {
+    await setProjectPinned(project.id, project.pinnedAt === null);
+  } catch (error: unknown) {
+    toast.error(getApiErrorResponse(error)?.message ?? t('workspace.projects.pinError'));
+  } finally {
+    const nextPinningProjectIds = new Set(pinningProjectIds.value);
+    nextPinningProjectIds.delete(project.id);
+    pinningProjectIds.value = nextPinningProjectIds;
+  }
+};
+
 const retryProjects = async () => {
   if (selectedWorkspaceId.value) await loadProjects(selectedWorkspaceId.value);
 };
@@ -567,10 +618,11 @@ const handleProjectMemberAdded = () => {
   if (projectToManageId.value) void loadProjectMembers(projectToManageId.value, true);
 };
 
-const enterBoard = (projectId: string) => {
+const enterProject = (projectId: string) => {
   void router.push({
-    name: 'board',
-    query: { workspaceId: selectedWorkspaceId.value ?? undefined, projectId },
+    name: 'project',
+    params: { projectId },
+    query: { workspaceId: selectedWorkspaceId.value ?? undefined },
   });
 };
 

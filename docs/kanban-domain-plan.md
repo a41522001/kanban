@@ -1,350 +1,172 @@
 # Kanban Domain 與一致性計畫
 
-## 1. 目標與已確認決策
+最後核對：2026-09-21。本文區分「已實作」與「目標設計」；現行端點以[目前 HTTP API](http-api.md)為準。
 
-先把 Kanban 的資料邊界、權限、排序與即時同步規則定清楚，再擴充 event handler，避免後續因產品階層、併發與權限問題重寫核心流程。
+## 1. 核心決策
 
-已確認的產品決策：
+1. 資訊階層是 `Workspace → Project → BoardColumn → Card`。
+2. 不建立 `Board` model／table。產品畫面中的 Board 是 Project 的 Kanban read model，Project 本身就是 Board aggregate root。
+3. 路由使用 `/projects/:projectId`，頁面名稱是 `ProjectView`；頁面內呈現 Board UI。
+4. Project 權限統一由 `ProjectMember` 控制，不建立 BoardMember。
+5. Category 與 Label 在 Project 範圍共用；Card 最多一個 Category，可有多個 Labels。
+6. Board 層級通知以 `NotificationResourceType.PROJECT` 指向 Project；不保留 `BOARD` resource type。
 
-1. 資訊階層為 `Workspace → Project → Board → BoardColumn → Card`。
-2. Workspace 同時支援個人與團隊；不建立 `PERSONAL`／`TEAM` 類型。只有一位成員時就是個人使用，加入其他成員後就是團隊使用。
-3. 同一個 Project 的所有 Boards 共用 ProjectMember 與角色權限，不建立 BoardMember。
-4. Category 與 Label 在 Project 範圍內共用。
-5. Card 最多一個 Category，可以有多個 Labels；兩者都屬於第一版持久化範圍。
+## 2. 目前實作邊界
 
-## 目前實作邊界
+User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 與 BoardColumn 已有 Prisma schema。Project 已有 create／list／members／memberCandidates／addMember／notification detail／pin API 與前端第一版。
 
-2026-09-20 核對：User、Workspace、WorkspaceMember、WorkspaceInvitation、Notification、Project、ProjectMember 已有 schema／migration。Workspace 建立／讀取／成員授權，以及邀請發送／接受／拒絕／通知已讀 Backend API 已實作並通過既有 E2E。Project 已有 shared contracts、Repository、runtime DTO validation、create／list／members／memberCandidates／addMember／notification detail Service 與 HTTP endpoints，並已完成第一版 Frontend overview／member Dialog；Service／Controller tests 與第一版隔離 E2E 已通過，負向授權、rollback、真實併行與 migration upgrade 仍待補。Board 起的資料模型／commands 仍是目標設計。現行端點以[目前 HTTP API](http-api.md)為準。
+`BoardColumn` migration 已建立；建立 Project 時，Project Repository 以 nested write 同時建立四個預設 Columns，Project Service 的既有 transaction 再建立 OWNER ProjectMember，因此 Project、預設 Columns 與 OWNER membership 共用同一 transaction。`Project.boardRevision` 初始為 0，因為預設 Columns 屬於初始 snapshot，不是建立後的協作 mutation。
 
-## 2. 第一版 Domain
+尚未完成：Board snapshot API、Column commands、Card／Category／Label schema、Project room、Socket commands、idempotency、recovery，以及直接驗證預設四欄內容／順序的 integration／E2E。13 個 migrations 的隔離 E2E 4 suites／9 tests 已通過。
 
-### User
-
-沿用既有 Auth domain：
-
-- id
-- email
-- displayName
-- passwordHash
-- avatarUrl
-- createdAt、updatedAt
-
-### Workspace
-
-- id
-- name
-- createdById
-- archivedAt
-- createdAt、updatedAt
-
-建立 Workspace 時，必須在同一 transaction 建立建立者的 WorkspaceMember，角色為 `OWNER`。
-
-### WorkspaceMember
-
-- id
-- workspaceId
-- userId
-- role：`OWNER`、`MEMBER`
-- joinedAt
-
-目前 Prisma schema 使用獨立 UUID `id` 作為 primary key，並以 `@@unique([workspaceId, userId])` 防止重複 membership。API 的 `WorkspaceMemberDto.memberId` 對應此 `id`。WorkspaceMember 代表使用者能進入工作區；實際能否進入 Project 仍由 ProjectMember 決定。
+## 3. 第一版 Domain
 
 ### Project
 
-- id
-- workspaceId
-- name
-- description
-- status：`ACTIVE`、`ON_HOLD`、`COMPLETED`
-- createdById
-- archivedAt
-- createdAt、updatedAt
+- `id`、`workspaceId`、`name`、`description`
+- `status`：`ACTIVE`、`ON_HOLD`、`COMPLETED`
+- `createdById`、`archivedAt`、`createdAt`、`updatedAt`
+- `version`：Project metadata 的 optimistic concurrency；預設 1
+- `boardRevision`：Column／Card domain mutation 的單調遞增序號；預設 0
 
-`status` 表示 Project 生命週期；`archivedAt` 表示是否從一般列表隱藏，兩者不可合併成同一欄位。Project 完成不會自動修改 Boards、Columns 或 Cards。
+`status` 與 `archivedAt` 是不同概念。`version` 保護 Project 名稱、描述、狀態等 metadata；`boardRevision` 用來判斷整份 Kanban snapshot 是否落後，對 JavaScript client 一律序列化成字串。
 
-建立 Project 時，必須在同一 transaction：
+建立 Project 時必須在同一 transaction：
 
-1. 驗證建立者是 WorkspaceMember。
+1. 驗證建立者是有效 WorkspaceMember。
 2. 建立 Project。
-3. 建立建立者的 ProjectMember，角色為 `OWNER`。
-4. 建立主要 Board。
-5. 建立四個預設 BoardColumns。
+3. 以 nested write 建立四個預設 BoardColumns。
+4. 建立建立者的 ProjectMember，角色為 `OWNER`。
 
 ### ProjectMember
 
-- id
-- projectId
-- userId
-- role：`OWNER`、`EDITOR`、`VIEWER`
-- joinedAt
+- `id`、`projectId`、`userId`
+- `role`：`OWNER`、`EDITOR`、`VIEWER`
+- `joinedAt`
+- `pinnedAt`：目前成員自己的 Project 置頂時間
 
-目前 Prisma schema 使用獨立 UUID `id` 作為 primary key，並以 `@@unique([projectId, userId])` 防止重複 membership。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember；這個跨 table 條件由 application service 驗證。現行 `POST /project/addMember` 是由 Project OWNER 直接加入同 Workspace 的既有成員，不建立 ProjectInvitation，也沒有接受／拒絕狀態。
-
-Board room join、Board snapshot、Column/Card command 都透過 `Board → Project → ProjectMember` 取得權限，不建立重複的 BoardMember。
-
-### Board
-
-- id
-- projectId
-- name
-- description
-- isPrimary
-- position
-- version
-- revision
-- createdById
-- archivedAt
-- createdAt、updatedAt
-
-同一個 Project 同時只能有一個未封存的 primary Board。PostgreSQL 使用 partial unique index 保護 `projectId + isPrimary = true + archivedAt IS NULL`。
-
-專案目前使用 Prisma 7.9。可選擇啟用 `partialIndexes` preview feature，或在 migration 內手寫 `CREATE UNIQUE INDEX ... WHERE "isPrimary" = true AND "archivedAt" IS NULL`。不可改用一般的 `@@unique([projectId, isPrimary, archivedAt])`，因為 PostgreSQL 對 `NULL` 的唯一性語意無法保證只存在一個未封存 primary Board。參考 [Prisma partial indexes 官方文件](https://www.prisma.io/docs/orm/prisma-schema/data-model/indexes#configuring-partial-indexes-with-where)。
-
-`version` 用於 Board metadata optimistic concurrency；`revision` 是 Board domain mutation 的單調遞增序號，傳給 JavaScript client 時必須序列化成字串。
+`@@unique([projectId, userId])` 防止重複 membership。ProjectMember 必須同時是 Project 所屬 Workspace 的 WorkspaceMember；此跨 table 規則由 application service 驗證。
 
 ### BoardColumn
 
-- id
-- boardId
-- title
-- colorKey
-- position
-- version
-- createdAt、updatedAt
+- `id`、`projectId`
+- `title`、`colorKey`
+- `position`：邏輯排序值，不是 px
+- `version`：Column optimistic concurrency；預設 1
+- `archivedAt`、`createdAt`、`updatedAt`
 
 預設 Columns：
 
-| Title    | colorKey | position |
-| -------- | -------- | -------- |
-| 準備開始 | `ready`  | 1024     |
-| 正在進行 | `active` | 2048     |
-| 等待檢視 | `review` | 3072     |
-| 已完成   | `done`   | 4096     |
+| title | colorKey | position |
+| --- | --- | ---: |
+| 準備開始 | `coral` | 1024 |
+| 正在進行 | `mint` | 2048 |
+| 等待檢視 | `amber` | 3072 |
+| 已完成 | `violet` | 4096 |
 
-### CardCategory
+索引使用 `projectId + archivedAt + position + id`。`position` 不設 unique；`id` 是穩定 tie-break。`colorKey` 是可持久化的 UI token，由 shared contract whitelist 驗證，不建立 colors table，也不因拖曳而改變。
 
-- id
-- projectId
-- name
-- normalizedName
-- colorKey
-- createdById
-- createdAt、updatedAt
+### Card（目標設計，尚未建立）
 
-`projectId + normalizedName` 建立 unique constraint。`colorKey` 保存穩定 key，例如 `mint`，不保存 hex、CSS variable 或 Tailwind class。後端透過 shared contract whitelist 驗證目前支援的 14 個 keys。
+- `id`、`columnId`、`categoryId?`
+- `title`、`description`
+- `position`、`version`
+- `dueAt?`、`createdById`
+- `archivedAt`、`createdAt`、`updatedAt`
 
-### CardLabel
+Card 狀態由所在 BoardColumn 決定，不重複保存 `status`。透過 Column 可追溯其 Project。
 
-- id
-- projectId
-- name
-- normalizedName
-- createdById
-- createdAt、updatedAt
+### CardCategory／CardLabel（目標設計）
 
-`projectId + normalizedName` 建立 unique constraint。`normalizedName` 由 Server 對輸入做 trim 與一致化後產生，用來避免同一 Project 出現只有大小寫或空白差異的重複 Label。
+兩者直接帶 `projectId`，在 Project 範圍內共用。`projectId + normalizedName` 建立 unique constraint。Category／Label 必須與 Card 所在 Column 屬於同一 Project，由 application service 驗證。
 
-### Card
-
-- id
-- columnId
-- categoryId，nullable
-- title
-- description
-- position
-- version
-- dueAt
-- createdById
-- archivedAt
-- createdAt、updatedAt
-
-Card 的狀態由所屬 BoardColumn 決定，不額外保存 `status`。Category 必須和 Card 所在 Board 屬於同一個 Project；由 application service 驗證。
-
-### CardLabelAssignment
-
-- cardId
-- labelId
-- assignedAt
-
-`cardId + labelId` 使用 composite primary key。Label 必須和 Card 所在 Board 屬於同一個 Project。Card 或 Label 被實際刪除時可以 cascade 刪除 assignment；核心 Workspace、Project、Board、Card 不使用無條件 cascade hard delete。
-
-## 3. 權限模型
-
-### Workspace 權限
-
-| 動作 | Owner | Member |
-| --- | --- | --- |
-| 讀取 Workspace | 是 | 是 |
-| 修改 Workspace | 是 | 否 |
-| 邀請／移除 WorkspaceMember | 是 | 否 |
-| 建立 Project | 是 | 是 |
-| 封存 Workspace | 是 | 否 |
-
-### Project 與 Board 權限
+## 4. 權限模型
 
 | 動作 | Owner | Editor | Viewer |
 | --- | --- | --- | --- |
-| 讀取 Project／Board | 是 | 是 | 是 |
+| 讀取 Project／Board snapshot | 是 | 是 | 是 |
 | 修改 Project metadata／status | 是 | 否 | 否 |
 | 管理 ProjectMember | 是 | 否 | 否 |
-| 建立／修改 Board | 是 | 否 | 否 |
-| 建立／修改 BoardColumn | 是 | 是 | 否 |
-| 建立／修改 Card | 是 | 是 | 否 |
+| 建立／修改／移動 BoardColumn | 是 | 是 | 否 |
+| 建立／修改／移動 Card | 是 | 是 | 否 |
 | 建立 Category／Label | 是 | 是 | 否 |
-| 封存 Project／Board | 是 | 否 | 否 |
+| 封存 Project | 是 | 否 | 否 |
 
-權限檢查應放在 application/service 邊界，不只放 Controller 或 Socket Gateway。HTTP、Socket 與未來 background worker 必須共用同一組 policy。
+HTTP、Socket 與 background worker 必須共用 application/service policy。任何 client 傳入的 Project／Column／Card ID 都要重新驗證 scope，不能只依賴 room membership。
 
-## 4. 排序策略
+## 5. 排序策略
 
-第一版使用整數 position 與固定間隔：初始值為 `1024`、`2048`、`3072`。插入兩筆之間時由 Server 計算中間值；沒有空間時，在 transaction 內重新編排該 Board 或 BoardColumn。
+第一版使用整數 position 與 1024 間隔。Client 傳 `beforeId`／`afterId` 等相鄰關係，Server 驗證同一 scope 後計算 position；兩值間沒有空間時，在 transaction 內重新編排該 Project 的 Columns 或該 Column 的 Cards。
 
-注意事項：
+- Column index：`projectId + archivedAt + position + id`。
+- Card index：`columnId + archivedAt + position + id`。
+- position 不建立 unique constraint，避免重排過程暫時撞值。
+- 資料量或拖曳頻率增加後，再評估 fractional indexing 或 LexoRank。
 
-- Client 不可直接提交可信任的 position。
-- Card／Column move command 傳 `beforeId`、`afterId` 或等價相鄰關係。
-- Server 必須確認參考 entity 位於目標 Board／Column。
-- Board 使用 `projectId + position` index；Column 使用 `boardId + position` index；Card 使用 `columnId + position` index。這些排序 index 不建立 unique constraint，避免 transaction 重排時暫時撞值。
-- 資料量或拖曳頻率明顯增加後，再評估 fractional indexing 或 LexoRank。
-
-## 5. Command 契約
-
-修改 Board domain 的 Socket command 使用：
+## 6. Command、Transaction 與一致性
 
 ```ts
 type CommandMeta = {
   commandId: string;
-  boardId: string;
+  projectId: string;
 };
 ```
 
-更新既有 entity 的 command 另外攜帶 `expectedVersion`。
+更新既有 entity 時另帶 `expectedVersion`。身分只從 Session 取得，不接受 payload 中的 userId。
 
-- `commandId`：提供 idempotency，避免重連或 client retry 重複寫入。
-- `expectedVersion`：提供 optimistic concurrency control。
-- 身分由 Session 取得，不放在 command payload。
+每個 mutation 的 transaction：
 
-HTTP commands：
+1. 取得 Session userId。
+2. 查詢 ProjectMember 與目標資源。
+3. 驗證角色、資源階層及 expectedVersion。
+4. 寫入 entity、排序或 archive 狀態。
+5. 將 `Project.boardRevision` 原子加一。
+6. commit 後才 ack 與 broadcast。
 
-- CreateWorkspace
-- CreateProject
-- UpdateProjectStatus
-- AddWorkspaceMember
-- AddProjectMember
-- CreateCardCategory
-- CreateCardLabel
+version update 應把 entity id 與 expectedVersion 都放在條件中；受影響列數為 0 時回 `VERSION_CONFLICT`，不可靜默採 last-write-wins。Client 可套用 Server 回傳的 authoritative entity，必要時重新取得 snapshot。
 
-Socket commands：
+## 7. Idempotency 與 Domain Event（目標設計）
 
-- UpdateBoard
-- CreateColumn
-- UpdateColumn
-- MoveColumn
-- CreateCard
-- UpdateCard
-- MoveCard
-- ArchiveCard
+每個 mutation command 使用 UUID `commandId`。可靠性階段加入 CommandReceipt，以 commandId unique，保存 userId、projectId、eventName、payloadHash 與第一次 ack。相同 ID／相同內容回第一次結果；相同 ID／不同內容回 idempotency key reused error。
 
-## 6. Transaction 邊界
+事件至少包含：`eventId`、`commandId`、`projectId`、`boardRevision`、`actorId`、`occurredAt` 與 authoritative entity data。單一 NestJS instance 可先在 commit 後直接 emit；recovery 階段再加入事件保存，message queue 階段才加入 Outbox／RabbitMQ。
 
-每個 mutation 應形成一個清楚的 transaction：
+## 8. Project room 與 Snapshot（目標設計）
 
-1. 從 Session 取得 userId。
-2. 查詢必要資源與 WorkspaceMember／ProjectMember。
-3. 驗證角色、資源階層和 expectedVersion。
-4. 寫入資料及調整排序。
-5. Board domain mutation 更新 Board revision。
-6. commit。
-7. commit 成功後回傳 HTTP response 或 Socket ack，並 broadcast domain event。
+- Room：`project:{projectId}`，只能由 Server 組合。
+- Join：驗證 UUID、未封存 Project 與 ProjectMember 後加入。
+- Snapshot：`GET /project/:projectId/board`。
+- Snapshot 至少回 Project metadata、`boardRevision` 字串、依 `position,id` 排序的 Columns，以及各 Column 的 Cards。
+- reconnect 或 revision gap 時重新取得 snapshot；Socket 不是持久化真相。
 
-transaction 失敗時不得發布成功事件。
+## 9. 測試順序
 
-## 7. Optimistic Concurrency
+1. CreateProject transaction：Project、OWNER membership、四個預設 Columns 同時成功／rollback。
+2. 從空資料庫套用包含 BoardColumn 與 colorKey data migration 在內的 13 個 migrations（已通過）。
+3. Board snapshot authorization 與排序 integration tests。
+4. Column／Card scope、move、重排與 version conflict tests。
+5. duplicate commandId integration tests。
+6. 兩個真實 Socket clients 的 broadcast／reconnect／resync E2E。
 
-更新時把 entity id 與 version 都放入條件，成功後 version 加一。若受影響列數為 0，代表資源已被其他操作修改，回 `VERSION_CONFLICT`。
+## 10. 實作里程碑
 
-衝突時第一版採以下策略：
+### M1：Project 與初始看板
 
-- Server 不自動覆蓋新資料。
-- Ack 回 `VERSION_CONFLICT` 與目前 authoritative entity/version。
-- Client 校正或重新取得 Board snapshot，顯示提示後讓使用者重新操作。
-
-不要把 last-write-wins 當成預設策略，否則多人拖曳時可能靜默覆蓋資料。
-
-## 8. Idempotency
-
-每個 mutation command 使用 UUID commandId。進入可靠性階段後，Server 使用 CommandReceipt 保存已完成 command 的結果，至少以 commandId 建立 unique constraint，並保存 userId、boardId、eventName、payloadHash 與第一次 ack data。
-
-同一 commandId 再次送達時：
-
-- 不重複執行 mutation。
-- 相同 user、event 與 payload 回傳第一次結果。
-- 相同 ID 搭配不同內容回 idempotency key reused error。
-
-## 9. Domain Event 與 Message Queue
-
-Board room domain events 只描述已 commit 的事實：
-
-- board.updated
-- column.created
-- column.updated
-- column.moved
-- card.created
-- card.updated
-- card.moved
-- card.archived
-
-每個 event 至少包含 eventId、commandId、boardId、boardRevision、actorId、occurredAt 與必要的 authoritative entity data。
-
-第一版單一 NestJS instance 可以 commit 後直接 Socket.IO broadcast。進入 recovery 階段後加入 BoardEvent；進入 Message Queue 階段後加入 OutboxMessage，由 publisher 將 committed event 發送到 RabbitMQ，再由 Activity worker／其他 consumer 處理。不要誤稱一般 Socket.IO emit 或 RabbitMQ 為 exactly-once delivery。
-
-## 10. Prisma 與資料庫約束
-
-- 所有外鍵明確設定 delete 行為。
-- WorkspaceMember 使用獨立 UUID primary key，加上 `(workspaceId, userId)` unique constraint。
-- ProjectMember 使用獨立 UUID primary key，加上 `(projectId, userId)` unique constraint；CardLabelAssignment 仍預計使用 composite primary key。
-- Project 內 Category／Label 使用 normalizedName unique constraint。
-- CardCategory.colorKey 使用 varchar + shared contract whitelist，不使用 PostgreSQL enum。
-- ProjectStatus、WorkspaceRole、ProjectRole 是穩定 domain values，可使用 Prisma/PostgreSQL enum。
-- 常用查詢建立 `workspaceId + archivedAt`、`workspaceId + status`、`projectId + position`、`boardId + position`、`columnId + position` index。
-- position 不建立 unique constraint。
-- Prisma migration 必須提交版本控制，production 不使用 db push。
-- Service 層仍需做 authorization 與跨 table scope 驗證；資料庫約束只負責最後一道完整性保護。
-
-## 11. 測試順序
-
-1. WorkspaceMember／ProjectMember authorization unit tests。
-2. CreateWorkspace 與 CreateProject transaction integration tests。
-3. Category／Label project scope tests。
-4. Board snapshot authorization integration tests。
-5. Card move 與 position 重排 unit tests。
-6. version conflict integration tests。
-7. transaction rollback integration tests。
-8. duplicate commandId integration tests。
-9. 兩個 Socket client 的 broadcast e2e tests。
-10. reconnect 後 snapshot recovery e2e tests。
-
-## 12. 實作里程碑
-
-### M1：Workspace 與 Project 基礎
-
-- [x] Workspace／WorkspaceMember schema、migration、repository。
-- [x] 建立／讀取 Workspace 與成員查詢 authorization（靜態核對）。
-- [x] Project／ProjectMember schema 與 migration。
-- [x] Project repository、create／list／members／memberCandidates／addMember／notification detail Service 與 HTTP API；Service／Controller tests 與第一版隔離 E2E 已通過。
-- [ ] 完整建立 Project transaction：目前已建立 Project 與 OWNER ProjectMember；主要 Board、四個預設 Columns 尚未實作。
-- [ ] WorkspaceMember 與 ProjectMember 完整權限：create／addMember 已有檢查，list、detail、角色調整、移除成員與 Board commands 尚未實作。
+- [x] Project／ProjectMember schema、Repository、核心 HTTP API 與 pin。
+- [x] Project `version`／`boardRevision` 與 BoardColumn schema／migration。
+- [x] 建立 Project 時 nested-create 四個預設 Columns。
+- [ ] 補預設 Columns 內容／順序與 transaction rollback integration／E2E；13 migrations deploy 已通過。
+- [ ] Project detail、角色調整與移除成員。
 
 ### M2：Board read model 與 Card metadata
 
-- [ ] 取得 Project 與 Board snapshot。
-- [ ] CardCategory／CardLabel 建立與查詢。
-- [ ] Card／Column CRUD validation 與 position transaction。
+- [ ] `GET /project/:projectId/board` snapshot。
+- [ ] Card／CardCategory／CardLabel schema 與 migration。
+- [ ] Column／Card CRUD、archive 與 position transaction。
 
 ### M3：即時協作
 
-- [ ] typed Socket events 與 ack。
-- [ ] Board room join 時透過 ProjectMember authorization。
+- [ ] typed Socket events／ack 與 `project:{projectId}` room authorization。
 - [ ] 每個 mutation 重新驗證 ProjectMember role。
 - [ ] commit 後 broadcast。
 
@@ -352,11 +174,10 @@ Board room domain events 只描述已 commit 的事實：
 
 - [ ] version conflict。
 - [ ] CommandReceipt idempotency。
-- [ ] BoardEvent 與 reconnect snapshot recovery。
+- [ ] revision gap 與 reconnect snapshot recovery。
 
-### M5：Redis 與 Message Queue
+### M5：多 instance 與非同步工作
 
-- [ ] Presence 與 soft lock TTL。
+- [ ] Presence／soft lock TTL。
 - [ ] Socket.IO Redis adapter 與多 instance 測試。
-- [ ] Transactional Outbox。
-- [ ] RabbitMQ activity consumer、retry、DLQ 與 consumer idempotency。
+- [ ] Transactional Outbox、RabbitMQ retry／DLQ／consumer idempotency。

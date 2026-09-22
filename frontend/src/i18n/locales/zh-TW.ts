@@ -160,7 +160,7 @@ export const zhTW = {
     description: '集中查看所有專案，選一個進入主要看板。',
     projects: {
       title: '所有專案',
-      sortHint: '依最近更新排序',
+      sortHint: '置頂優先，其餘依最近更新排序',
       search: '搜尋專案名稱或描述',
       statusFilter: '依專案狀態篩選',
       filters: { all: '全部', active: '進行中', onHold: '暫停', completed: '已完成' },
@@ -171,6 +171,9 @@ export const zhTW = {
       members: '專案成員',
       memberCount: '{count} 位成員',
       noMembers: '目前沒有可顯示的專案成員。',
+      pinProject: '置頂「{project}」',
+      unpinProject: '取消置頂「{project}」',
+      pinError: '目前無法更新置頂狀態，請稍後再試。',
     },
     actions: {
       createWorkspace: '新增工作區',

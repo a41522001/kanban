@@ -10,7 +10,10 @@
     <div class="board__columns">
       <section v-for="column in boardColumns" :key="column.id" class="board__column">
         <div class="board__column-header">
-          <span class="board__column-accent" :class="columnAccentClass[column.colorKey]"></span>
+          <span
+            class="board__column-accent"
+            :class="boardColumnColorMap[column.colorKey].accentClass"
+          ></span>
           <span class="board__column-title">{{ column.title }}</span>
         </div>
         <div class="board__cards">
@@ -35,25 +38,19 @@ import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/stores/user';
 import type { BoardColumnData } from '@/types/board';
+import { boardColumnColorMap } from '@/constants/boardColumnColors';
 import { ref } from 'vue';
 import { Plus } from 'lucide-vue-next';
 
 const dialog = ref<boolean>(false);
 const userStore = useUserStore();
-const columnAccentClass = {
-  ready: 'board__column-accent--ready',
-  active: 'board__column-accent--active',
-  review: 'board__column-accent--review',
-  done: 'board__column-accent--done',
-} as const;
-
 const boardColumns = ref<BoardColumnData[]>([
   {
     id: 'ready',
     boardId: 'board-1',
     title: '準備開始',
     position: 1,
-    colorKey: 'ready',
+    colorKey: 'coral',
     version: 1,
     cards: [
       {
@@ -99,7 +96,7 @@ const boardColumns = ref<BoardColumnData[]>([
     boardId: 'board-1',
     title: '正在進行',
     position: 2,
-    colorKey: 'active',
+    colorKey: 'mint',
     version: 1,
     cards: [
       {
@@ -133,7 +130,7 @@ const boardColumns = ref<BoardColumnData[]>([
     boardId: 'board-1',
     title: '等待檢視',
     position: 3,
-    colorKey: 'review',
+    colorKey: 'amber',
     version: 1,
     cards: [
       {
@@ -167,7 +164,7 @@ const boardColumns = ref<BoardColumnData[]>([
     boardId: 'board-1',
     title: '已完成',
     position: 4,
-    colorKey: 'done',
+    colorKey: 'violet',
     version: 1,
     cards: [
       {
@@ -199,4 +196,4 @@ const boardColumns = ref<BoardColumnData[]>([
 ]);
 </script>
 
-<style scoped src="./board-view.css"></style>
+<style scoped src="./project-view.css"></style>

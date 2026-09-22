@@ -3,6 +3,7 @@ import type {
   AddProjectMemberRequest,
   CreateProjectRequest,
   MemberCandidate,
+  PinnedProjectRequest,
   ProjectMemberAddedNotificationDetail,
   ProjectListItemDto,
   ProjectMemberDto,
@@ -15,6 +16,20 @@ export const getProjectsApi = async (
   const response = await api<ApiResponse<ProjectListItemDto[]>>({
     url: `/project/${workspaceId}`,
     method: 'get',
+  });
+
+  return response.data;
+};
+
+export const setProjectPinnedApi = async (
+  projectId: string,
+  pinned: boolean,
+): Promise<ApiResponse<null>> => {
+  const data: PinnedProjectRequest = { pinned };
+  const response = await api<ApiResponse<null>, PinnedProjectRequest>({
+    url: `/project/${projectId}/pin`,
+    method: 'patch',
+    data,
   });
 
   return response.data;

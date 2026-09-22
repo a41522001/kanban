@@ -85,7 +85,7 @@ Board canvas 必須是一條不換行的欄位列，每個 Column 使用固定�
 - `min-w-max`：讓內層列的寬度可隨所有欄位延伸，避免 flex 容器意外收縮。
 - `overscroll-x-contain`：可選增強。到達左右邊界時，盡量不將水平手勢傳給外層或觸發瀏覽器的歷史導覽；它不是捲動功能本身，且應接受部分瀏覽器支援度差異。
 
-目前的 `BoardView.vue` 已具備 `overflow-x-auto`、`overscroll-x-contain`、`w-72`、`shrink-0` 的核心方向。後續實作 `v-for` 時必須補上 `:key="column.id"`，並確保 mock 的每一個 `id` 都唯一；為了測試捲動而複製欄位時，也不可複用 `done` 之類的 ID。
+目前的 `frontend/src/views/projectView/ProjectView.vue` 以 Board 作為 Project 的主要操作區，已具備 `overflow-x-auto`、`overscroll-x-contain`、`w-72`、`shrink-0` 的核心方向。前端 route 是 `/projects/:projectId`；後端 BoardColumn schema 已建立，但 snapshot／Card API 尚未實作，因此畫面仍使用本機假資料。現有 mock type 的 `boardId` 應在串接時改為 `projectId`。snapshot render 必須保留 `:key="column.id"`，且每一個 id 都唯一。
 
 ### 4.2 各裝置行為
 
@@ -197,6 +197,8 @@ const cardDragOptions = {
 Phase 0／1 可使用接近正式資料的 mock 形狀，避免 UI 完成後大幅重寫：
 
 ```ts
+import type { BoardColumnColorKey } from "@kanban/contracts/board";
+
 type MockCard = {
   id: string;
   columnId: string;
@@ -207,10 +209,10 @@ type MockCard = {
 
 type MockBoardColumn = {
   id: string;
-  boardId: string;
+  projectId: string;
   title: string;
   position: number;
-  colorKey: "ready" | "active" | "review" | "done";
+  colorKey: BoardColumnColorKey;
   cards: MockCard[];
   version: number;
 };
@@ -241,7 +243,7 @@ type MockBoardColumn = {
 ```ts
 type CardMovePayload = {
   commandId: string;
-  boardId: string;
+  projectId: string;
   cardId: string;
   sourceColumnId: string;
   targetColumnId: string;
@@ -296,7 +298,7 @@ soft lock 是「讓其他使用者不要白費力氣」的 UX 提示，不是資
 
 ```ts
 type CardDragStartPayload = {
-  boardId: string;
+  projectId: string;
   cardId: string;
 };
 
@@ -309,7 +311,7 @@ type CardDragStartAck =
     };
 
 type CardDragStateChangedPayload = {
-  boardId: string;
+  projectId: string;
   cardId: string;
   state: "started" | "ended" | "expired";
   lockedBy: { userId: string; displayName: string } | null;
@@ -328,7 +330,7 @@ type CardDragStateChangedPayload = {
 | 單一 NestJS instance      | 記憶體 `Map` + timeout／過期檢查    | 實作簡單，足以驗證 UX。                         |
 | 多個 API／Socket instance | Redis 原子 `SET key value NX EX 10` | 所有 instance 共用鎖，並由 Redis TTL 自動到期。 |
 
-Redis key 可採類似 `board:{boardId}:card-drag-lock:{cardId}` 的形式。取得鎖、續期（若實作）與釋放必須驗證 owner，以免使用者 A 誤刪使用者 B 新取得的鎖。Column 使用獨立 key，例如 `board:{boardId}:column-drag-lock:{columnId}`。
+Redis key 可採類似 `project:{projectId}:card-drag-lock:{cardId}` 的形式。取得鎖、續期（若實作）與釋放必須驗證 owner，以免使用者 A 誤刪使用者 B 新取得的鎖。Column 使用獨立 key，例如 `project:{projectId}:column-drag-lock:{columnId}`。
 
 第一版不必做 lock 續期。若拖曳可能長於 10 秒，再加入由 Server ACK 驅動、間隔明確且有 owner 驗證的續期機制；不要因為追求 lock 而讓拖曳路徑先變得複雜。
 

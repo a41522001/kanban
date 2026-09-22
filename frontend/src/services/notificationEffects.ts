@@ -27,7 +27,6 @@ const resourceSyncHandlers: Record<NotificationResourceType, ResourceSyncHandler
     await projectStore.refreshProjects();
     if (projectId) await projectStore.loadProjectMembers(projectId, true);
   },
-  BOARD: skipResourceSync,
   CARD: skipResourceSync,
 };
 

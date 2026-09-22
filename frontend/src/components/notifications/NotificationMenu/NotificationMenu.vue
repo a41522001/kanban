@@ -359,8 +359,9 @@ const handleWorkspaceInvitationAccepted = async (workspaceId: string) => {
 
 const handleOpenProject = (detail: ProjectMemberAddedNotificationDetail) => {
   void router.push({
-    name: 'board',
-    query: { workspaceId: detail.workspaceId, projectId: detail.projectId },
+    name: 'project',
+    params: { projectId: detail.projectId },
+    query: { workspaceId: detail.workspaceId },
   });
 };
 
