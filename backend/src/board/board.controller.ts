@@ -8,11 +8,15 @@ import {
   Patch,
   Post,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import { MoveBoardColumnDto } from './dto/moveBoardColumn.dto';
+import { SessionGuard } from '@/session/session.guard';
+
 @Controller('board')
+@UseGuards(SessionGuard)
 export class BoardController {
   @Get(':projectId')
   async getBoardSnapshot(
