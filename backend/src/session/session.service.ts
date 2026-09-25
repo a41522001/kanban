@@ -123,6 +123,18 @@ export class SessionService {
         };
     }
   }
+
+  /** Socket 專用: 不執行輪轉 僅驗證並回傳 userId */
+  async authenticateSocketSession(sessionId: string): Promise<string | null> {
+    const session = await this.getSession(sessionId);
+
+    if (!session) {
+      return null;
+    }
+
+    return session.userId;
+  }
+
   /** 撤銷Session */
   async revokeSession(sessionId: string): Promise<void> {
     const sessionIdHash = this.hashSessionId(sessionId);

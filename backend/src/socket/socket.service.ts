@@ -14,6 +14,7 @@ import type { PublicNotification } from '@kanban/contracts/notification';
 import { WorkspacesService } from '@/workspaces/workspaces.service';
 interface SocketData {
   userId: string;
+  session: string;
 }
 
 @Injectable()
@@ -37,6 +38,8 @@ export class SocketService implements OnModuleDestroy {
   /** 取得workspace room */
   private getWorkspaceRoom = (workspaceId: string): string =>
     `workspace:${workspaceId}`;
+  /** 取得session room */
+  private getSessionRoom = (session: string) => `session:${session}`;
   // #endregion
 
   initialize(httpServer: HttpServer): void {
@@ -67,8 +70,9 @@ export class SocketService implements OnModuleDestroy {
         });
     });
     // 連線
-    this.io.on('connection', (socket) => {
-      void socket.join(this.getUserRoom(socket.data.userId));
+    this.io.on('connection', async (socket) => {
+      await socket.join(this.getUserRoom(socket.data.userId));
+      await socket.join(this.getSessionRoom(socket.data.session));
       console.log(`a user connected: ${socket.data.userId}`);
       socket.on('demo:echo', (payload) => {
         socket.emit('demo:echoed', {
@@ -95,6 +99,11 @@ export class SocketService implements OnModuleDestroy {
         console.log(`a user disconnected: ${socket.data.userId}`);
       });
     });
+  }
+
+  /** session撤銷後主動斷開socket連線 */
+  disconnectSession(sessionId: string): void {
+    this.io?.in(this.getSessionRoom(sessionId)).disconnectSockets(true);
   }
 
   /** 推播工作區成員改變 */
@@ -141,17 +150,18 @@ export class SocketService implements OnModuleDestroy {
       });
     }
 
-    const authResult = await this.sessionService.authenticateSession(sessionId);
+    const userId =
+      await this.sessionService.authenticateSocketSession(sessionId);
 
-    if (!authResult) {
+    if (!userId) {
       throw new AppException({
         status: HttpStatus.UNAUTHORIZED,
         code: ApiCode.Unauthenticated,
         message: '登入已失效，請重新登入',
       });
     }
-
-    socket.data.userId = authResult.userId;
+    socket.data.session = sessionId;
+    socket.data.userId = userId;
   };
 
   /** 驗證工作區 */
