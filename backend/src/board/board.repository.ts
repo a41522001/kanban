@@ -29,10 +29,14 @@ export class BoardRepository {
         projectId,
         archivedAt: null,
       },
-      orderBy: {
-        position: 'asc',
-        updatedAt: 'desc',
-      },
+      orderBy: [
+        {
+          position: 'asc',
+        },
+        {
+          updatedAt: 'desc',
+        },
+      ],
     });
     return result;
   }

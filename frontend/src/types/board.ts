@@ -31,12 +31,17 @@ export interface BoardCardData {
   version: number;
 }
 
-export interface BoardColumnData {
+/** 後端 `GET /board/:projectId` 目前回傳的欄位資料。 */
+export interface BoardColumnRecord {
   id: string;
-  boardId: string;
+  projectId: string;
   title: string;
   position: number;
   colorKey: BoardColumnColorKey;
-  cards: BoardCardData[];
   version: number;
+}
+
+/** Board 畫面使用的欄位資料；Card persistence 接上前 cards 維持空陣列。 */
+export interface BoardColumnData extends BoardColumnRecord {
+  cards: BoardCardData[];
 }

@@ -24,6 +24,10 @@
   @apply w-72 shrink-0 rounded-surface border border-border-strong bg-auth-page p-4 pb-20;
 }
 
+.board__column--skeleton {
+  @apply h-64 animate-pulse bg-surface-subtle;
+}
+
 .board__column-header {
   @apply mb-3 flex gap-3;
 }
@@ -56,6 +60,34 @@
   @apply mb-3 flex flex-col gap-3;
 }
 
+.board__empty-cards {
+  @apply rounded-control border border-dashed border-border px-3 py-5 text-center text-sm text-content-tertiary;
+}
+
 .board__add-card-button {
   @apply justify-start gap-3 px-0 hover:bg-transparent hover:text-content-secondary;
+}
+
+.board__state {
+  @apply m-4 flex min-h-48 flex-col items-center justify-center gap-3 rounded-surface border border-border bg-auth-page p-6 text-center text-content-secondary;
+}
+
+.board__column--chosen {
+  @apply opacity-55;
+}
+
+.board__column--chosen .board__column-handle {
+  @apply cursor-grabbing;
+}
+
+.board__column--chosen .board__add-card-button {
+  @apply pointer-events-none opacity-45;
+}
+
+.board__column--ghost {
+  @apply border-dashed border-action-primary bg-action-primary-soft opacity-70;
+}
+
+.board__column--dragging {
+  @apply rotate-1 shadow-card;
 }

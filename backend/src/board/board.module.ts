@@ -5,11 +5,12 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { ProjectModule } from '@/project/project.module';
 import { SessionModule } from '@/session/session.module';
 import { BoardRepository } from './board.repository';
+import { RedisModule } from '@/redis/redis.module';
 
 @Module({
   controllers: [BoardController],
   providers: [BoardService, BoardRepository],
-  imports: [PrismaModule, ProjectModule, SessionModule],
+  imports: [PrismaModule, ProjectModule, SessionModule, RedisModule],
   exports: [BoardService],
 })
 export class BoardModule {}

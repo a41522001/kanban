@@ -14,18 +14,24 @@ import type { Request } from 'express';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import { MoveBoardColumnDto } from './dto/moveBoardColumn.dto';
 import { SessionGuard } from '@/session/session.guard';
+import { BoardService } from './board.service';
 
 @Controller('board')
 @UseGuards(SessionGuard)
 export class BoardController {
+  constructor(private readonly boardService: BoardService) {}
+
   @Get(':projectId')
   async getBoardSnapshot(
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Req() req: Request,
-  ): Promise<ApiResult<null>> {
-    await new Promise((resolve) => resolve({ projectId, req }));
+  ) {
+    const result = await this.boardService.getBoardColumn(
+      projectId,
+      req.userId!,
+    );
     return {
-      data: null,
+      data: result,
       message: '',
     };
   }
@@ -34,10 +40,13 @@ export class BoardController {
   async createBoardColumn(
     @Body() addBoardColumnDto: AddBoardColumnDto,
     @Req() req: Request,
-  ): Promise<ApiResult<null>> {
-    await new Promise((resolve) => resolve(1));
+  ) {
+    const result = await this.boardService.createBoardColumn(
+      addBoardColumnDto,
+      req.userId!,
+    );
     return {
-      data: null,
+      data: result,
       message: '',
     };
   }
