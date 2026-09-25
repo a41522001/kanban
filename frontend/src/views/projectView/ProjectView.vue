@@ -7,24 +7,57 @@
       </div>
     </header>
 
-    <div class="board__columns">
-      <section v-for="column in boardColumns" :key="column.id" class="board__column">
-        <div class="board__column-header">
-          <span
-            class="board__column-accent"
-            :class="boardColumnColorMap[column.colorKey].accentClass"
-          ></span>
-          <span class="board__column-title">{{ column.title }}</span>
-        </div>
-        <div class="board__cards">
-          <BoardCard v-for="card in column.cards" :key="card.id" :card="card" />
-        </div>
-        <Button variant="ghost" class="board__add-card-button" @click="dialog = true">
-          <Plus :size="16" />
-          <span>新增卡片</span>
-        </Button>
-      </section>
+    <div v-if="isLoading" class="board__columns" aria-busy="true" aria-label="載入看板欄位中">
+      <div v-for="index in 4" :key="index" class="board__column board__column--skeleton" />
     </div>
+
+    <div v-else-if="loadError" class="board__state" role="alert">
+      <p>無法載入看板欄位。</p>
+      <Button variant="outline" @click="loadBoard">重新載入</Button>
+    </div>
+
+    <div v-else-if="boardColumns.length === 0" class="board__state" role="status">
+      目前沒有可顯示的欄位。
+    </div>
+
+    <template v-else>
+      <VueDraggable
+        v-model="boardColumns"
+        class="board__columns"
+        tag="div"
+        :animation="250"
+        :delay="150"
+        draggable=".board__column"
+        direction="horizontal"
+        handle=".board__column-handle"
+        :delay-on-touch-only="true"
+        chosen-class="board__column--chosen"
+        ghost-class="board__column--ghost"
+        drag-class="board__column--dragging"
+      >
+        <section v-for="column in boardColumns" :key="column.id" class="board__column">
+          <div class="board__column-header">
+            <button type="button" class="board__column-handle" aria-label="拖曳欄位">
+              <GripVertical :size="18" aria-hidden="true" />
+            </button>
+            <span
+              class="board__column-accent"
+              :class="boardColumnColorMap[column.colorKey].accentClass"
+            ></span>
+            <span class="board__column-title">{{ column.title }}</span>
+          </div>
+          <div class="board__cards">
+            <BoardCard v-for="card in column.cards" :key="card.id" :card="card" />
+            <p v-if="column.cards.length === 0" class="board__empty-cards">尚無卡片</p>
+          </div>
+          <Button variant="ghost" class="board__add-card-button" @click="dialog = true">
+            <Plus :size="16" />
+            <span>新增卡片</span>
+          </Button>
+        </section>
+      </VueDraggable>
+    </template>
+
     <!-- 新增卡片Dialog -->
     <DialogAddCard v-model="dialog" />
   </main>
@@ -39,161 +72,63 @@ import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/stores/user';
 import type { BoardColumnData } from '@/types/board';
 import { boardColumnColorMap } from '@/constants/boardColumnColors';
-import { ref } from 'vue';
-import { Plus } from 'lucide-vue-next';
-
+import { getBoardColumnsApi } from '@/services/board';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { GripVertical, Plus } from 'lucide-vue-next';
+import { VueDraggable } from 'vue-draggable-plus';
 const dialog = ref<boolean>(false);
 const userStore = useUserStore();
-const boardColumns = ref<BoardColumnData[]>([
-  {
-    id: 'ready',
-    boardId: 'board-1',
-    title: '準備開始',
-    position: 1,
-    colorKey: 'coral',
-    version: 1,
-    cards: [
-      {
-        id: 'card-1',
-        columnId: 'ready',
-        title: '規劃工作區首頁資訊架構',
-        category: {
-          name: '企劃',
-          colorKey: 'coral',
-        },
-        labels: ['UX', 'Frontend'],
-        position: 1,
-        version: 1,
-      },
-      {
-        id: 'card-2',
-        columnId: 'ready',
-        title: '建立新增看板 API',
-        category: {
-          name: 'API',
-          colorKey: 'mint',
-        },
-        labels: ['Board', 'Backend'],
-        position: 2,
-        version: 1,
-      },
-      {
-        id: 'card-3',
-        columnId: 'ready',
-        title: '補上卡片到期日欄位',
-        category: {
-          name: '資料庫',
-          colorKey: 'amber',
-        },
-        labels: ['Card', 'Database'],
-        position: 3,
-        version: 1,
-      },
-    ],
-  },
-  {
-    id: 'active',
-    boardId: 'board-1',
-    title: '正在進行',
-    position: 2,
-    colorKey: 'mint',
-    version: 1,
-    cards: [
-      {
-        id: 'card-4',
-        columnId: 'active',
-        title: '建立使用者註冊 API',
-        category: {
-          name: '後端',
-          colorKey: 'mint',
-        },
-        labels: ['Auth', 'Backend'],
-        position: 1,
-        version: 2,
-      },
-      {
-        id: 'card-5',
-        columnId: 'active',
-        title: '串接登入表單驗證',
-        category: {
-          name: '前端',
-          colorKey: 'lavender',
-        },
-        labels: ['Auth', 'Frontend'],
-        position: 2,
-        version: 1,
-      },
-    ],
-  },
-  {
-    id: 'review',
-    boardId: 'board-1',
-    title: '等待檢視',
-    position: 3,
-    colorKey: 'amber',
-    version: 1,
-    cards: [
-      {
-        id: 'card-6',
-        columnId: 'review',
-        title: '實作 Board WebSocket Room',
-        category: {
-          name: '即時同步',
-          colorKey: 'blue',
-        },
-        labels: ['WebSocket', 'Backend'],
-        position: 1,
-        version: 3,
-      },
-      {
-        id: 'card-7',
-        columnId: 'review',
-        title: '調整手機版看板橫向滑動',
-        category: {
-          name: 'RWD',
-          colorKey: 'slate',
-        },
-        labels: ['RWD', 'Frontend'],
-        position: 2,
-        version: 1,
-      },
-    ],
-  },
-  {
-    id: 'done',
-    boardId: 'board-1',
-    title: '已完成',
-    position: 4,
-    colorKey: 'violet',
-    version: 1,
-    cards: [
-      {
-        id: 'card-8',
-        columnId: 'done',
-        title: '建立共用 Alert 元件',
-        category: {
-          name: 'UI 元件',
-          colorKey: 'coral',
-        },
-        labels: ['UI', 'Frontend'],
-        position: 1,
-        version: 2,
-      },
-      {
-        id: 'card-9',
-        columnId: 'done',
-        title: '建立全域 Loading 元件',
-        category: {
-          name: '狀態管理',
-          colorKey: 'lavender',
-        },
-        labels: ['UI', 'Pinia'],
-        position: 2,
-        version: 1,
-      },
-    ],
-  },
-]);
+const route = useRoute();
+const boardColumns = ref<BoardColumnData[]>([]);
+const isLoading = ref<boolean>(true);
+const loadError = ref<boolean>(false);
+let loadSequence = 0;
+
+const projectId = computed<string>(() => {
+  const value = route.params.projectId;
+  return typeof value === 'string' ? value : '';
+});
+
+const loadBoard = async () => {
+  const requestId = ++loadSequence;
+  const currentProjectId = projectId.value;
+
+  if (!currentProjectId) {
+    boardColumns.value = [];
+    isLoading.value = false;
+    return;
+  }
+
+  isLoading.value = true;
+  loadError.value = false;
+  try {
+    const response = await getBoardColumnsApi(currentProjectId);
+    if (requestId !== loadSequence) {
+      return;
+    }
+    boardColumns.value = (response.data ?? []).map((column) => ({
+      ...column,
+      cards: [],
+    }));
+  } catch {
+    if (requestId === loadSequence) {
+      loadError.value = true;
+    }
+  } finally {
+    if (requestId === loadSequence) {
+      isLoading.value = false;
+    }
+  }
+};
+
+onMounted(() => {
+  void loadBoard();
+});
+
+watch(projectId, () => {
+  void loadBoard();
+});
 </script>
 
 <style scoped src="./project-view.css"></style>

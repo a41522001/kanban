@@ -104,3 +104,6 @@ export const formatValidationErrors = (
 
   return result;
 };
+
+/** 鎖 */
+export const withLock = (lockKey: string, redis: any, callback: any) => {};
