@@ -333,6 +333,69 @@ describe('SessionService', () => {
     });
   });
 
+  describe('authenticateSocketSession', () => {
+    const sessionId = 'socket-session-token';
+    const sessionIdHash = createHash('sha256').update(sessionId).digest('hex');
+    const nowMs = Date.now();
+    const currentSession: CurrentSession = {
+      userId: 'user-1',
+      familyId: 'family-1',
+      state: 'current',
+      generation: 1,
+      familyCreatedAtMs: nowMs - 60_000,
+      tokenIssuedAtMs: nowMs - 60_000,
+      rotateAtMs: nowMs - 1,
+      expiresAtMs: nowMs + 24 * 60 * 60 * 1000,
+    };
+    const graceSession: GraceSession = {
+      userId: 'user-2',
+      familyId: 'family-2',
+      state: 'grace',
+      generation: 2,
+      familyCreatedAtMs: nowMs - 60_000,
+      tokenIssuedAtMs: nowMs - 30_000,
+    };
+
+    it.each([
+      ['Current', currentSession],
+      ['Grace', graceSession],
+    ] as const)(
+      '有效的 %s Session 回傳 userId，且不執行輪轉',
+      async (_state, session) => {
+        // Arrange
+        const getSessionSpy = jest
+          .spyOn(sessionRepository, 'getSession')
+          .mockResolvedValue(session);
+        const rotateSessionSpy = jest.spyOn(sessionRepository, 'rotateSession');
+
+        // Act
+        const result =
+          await sessionService.authenticateSocketSession(sessionId);
+
+        // Assert
+        expect(result).toBe(session.userId);
+        expect(getSessionSpy).toHaveBeenCalledWith(sessionIdHash);
+        expect(rotateSessionSpy).not.toHaveBeenCalled();
+      },
+    );
+
+    it('查無 Session 時回傳 null，且不執行輪轉', async () => {
+      // Arrange
+      const getSessionSpy = jest
+        .spyOn(sessionRepository, 'getSession')
+        .mockResolvedValue(null);
+      const rotateSessionSpy = jest.spyOn(sessionRepository, 'rotateSession');
+
+      // Act
+      const result = await sessionService.authenticateSocketSession(sessionId);
+
+      // Assert
+      expect(result).toBeNull();
+      expect(getSessionSpy).toHaveBeenCalledWith(sessionIdHash);
+      expect(rotateSessionSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('revokeSession', () => {
     const sessionId = 'session-token';
     const sessionIdHash = createHash('sha256').update(sessionId).digest('hex');
