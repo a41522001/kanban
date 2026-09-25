@@ -3,9 +3,10 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { SessionModule } from '@/session/session.module';
 import { UserModule } from '@/user/user.module';
+import { SocketModule } from '@/socket/socket.module';
 @Module({
   controllers: [AuthController],
   providers: [AuthService],
-  imports: [SessionModule, UserModule],
+  imports: [SessionModule, UserModule, SocketModule],
 })
 export class AuthModule {}

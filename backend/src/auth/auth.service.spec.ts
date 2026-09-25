@@ -4,11 +4,12 @@ import { AuthService } from './auth.service';
 import { SessionService } from '@/session/session.service';
 import bcrypt from 'bcrypt';
 import { UserService } from '@/user/user.service';
+import { SocketService } from '@/socket/socket.service';
 describe('AuthService', () => {
   let authService: AuthService;
   let userService: UserService;
   let sessionService: SessionService;
-
+  let socketService: SocketService;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,12 +36,19 @@ describe('AuthService', () => {
             getById: jest.fn(),
           },
         },
+        {
+          provide: SocketService,
+          useValue: {
+            disconnectSession: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     authService = module.get<AuthService>(AuthService);
     userService = module.get<UserService>(UserService);
     sessionService = module.get<SessionService>(SessionService);
+    socketService = module.get<SocketService>(SocketService);
   });
   /** 註冊 */
   describe('signup', () => {
@@ -163,9 +171,15 @@ describe('AuthService', () => {
     it('登出', async () => {
       const sessionId = 'sessionId';
       const deleteSession = jest.spyOn(sessionService, 'revokeSession');
+      const disconnectSessionSpy = jest.spyOn(
+        socketService,
+        'disconnectSession',
+      );
       await authService.logout(sessionId);
       expect(deleteSession).toHaveBeenCalledTimes(1);
       expect(deleteSession).toHaveBeenCalledWith(sessionId);
+      expect(disconnectSessionSpy).toHaveBeenCalledTimes(1);
+      expect(disconnectSessionSpy).toHaveBeenCalledWith(sessionId);
     });
   });
 });

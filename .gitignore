@@ -20,6 +20,8 @@ backend/src/generated/prisma/
 .agents/skills/*
 !.agents/skills/figma-plugin-native-design/
 !.agents/skills/figma-plugin-native-design/**
+!.agents/skills/nestjs-testing/
+!.agents/skills/nestjs-testing/**
 .claude/
 .windsurf/
 /backend/.claude/
