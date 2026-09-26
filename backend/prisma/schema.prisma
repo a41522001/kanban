@@ -1,3 +1,10 @@
+enum AuthProvider {
+  // 本地系統註冊
+  LOCAL
+  // Google OAuth
+  GOOGLE
+}
+
 enum WorkspaceRole {
   // 可管理工作區設定、成員與邀請的擁有者。
   OWNER
@@ -68,20 +75,25 @@ datasource db {
 
 model User {
   // 使用者的穩定識別碼。
-  id           String   @id @default(uuid()) @db.Uuid
+  id                           String                @id @default(uuid()) @db.Uuid
   // 登入帳號；全系統唯一，最大長度 320。
-  email        String   @unique @db.VarChar(320)
+  email                        String                @unique @db.VarChar(320)
   // 顯示在介面與通知中的名稱。
-  displayName  String   @map("display_name") @db.VarChar(100)
+  displayName                  String                @map("display_name") @db.VarChar(100)
   // 密碼雜湊；絕不保存或回傳原始密碼。
-  passwordHash String   @map("password_hash")
+  passwordHash                 String?               @map("password_hash")
+  // 
+  authProvider                 AuthProvider          @default(LOCAL) @map("auth_provider")
   // 選填的使用者頭像 URL。
-  avatarUrl    String?  @map("avatar_url")
+  avatarUrl                    String?               @map("avatar_url")
   // 帳號建立時間。
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt                    DateTime              @default(now()) @map("created_at")
   // 帳號資料最後更新時間。
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
+  updatedAt                    DateTime              @updatedAt @map("updated_at")
+  // 電子郵件驗證時間
+  emailVerifiedAt              DateTime?             @map("email_verified_at")
+  // Google登入的使用者資訊
+  googleSub                    String?               @unique @map("google_sub")
   // 此使用者建立的工作區。
   createdWorkspaces            Workspace[]           @relation("WorkspaceCreatedBy")
   // 此使用者加入的工作區 membership。

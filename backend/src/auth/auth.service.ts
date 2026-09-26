@@ -38,7 +38,9 @@ export class AuthService {
     if (!user) {
       return null;
     }
-
+    if (user.authProvider !== 'LOCAL' || user.passwordHash === null) {
+      return null;
+    }
     const isCorrect = await decodePassword(password, user.passwordHash);
     if (isCorrect) {
       const sessionId = await this.sessionService.saveCurrentSession(user.id);

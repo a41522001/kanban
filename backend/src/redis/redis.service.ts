@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env';
 import { createClient, RedisClientType } from 'redis';
 import { SESSION_SCRIPTS, type SessionScripts } from '@/session/session.script';
+import { createNodeRedisClient, type IRedisClient } from 'bullmq';
 type EmptyRedisExtensions = Record<string, never>;
 
 type AppRedisClient = RedisClientType<
@@ -39,5 +40,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   getClient(): AppRedisClient {
     return this.client;
+  }
+
+  createBullMQConnection(): IRedisClient {
+    return createNodeRedisClient(this.client);
   }
 }
