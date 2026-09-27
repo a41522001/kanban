@@ -22,13 +22,17 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     this.emailQueueEvent = new QueueEvents('email', {
       connection: this.redisClient,
     });
-    this.emailQueueEvent.on('completed', async ({ jobId }) => {
+    this.emailQueueEvent.on('completed', ({ jobId }) => {
       console.log(123);
-      const job = await this.emailQueue.getJob(jobId);
-      console.log(job);
+      void this.emailQueue
+        .getJob(jobId)
+        .then((job) => console.log(job))
+        .catch((error: unknown) => console.error('讀取已完成工作失敗', error));
     });
   }
   async onModuleDestroy(): Promise<void> {
+    // QueueEvents 也持有 Redis 連線，關閉事件監聽後再結束 Queue。
+    await this.emailQueueEvent?.close();
     await this.emailQueue?.close();
     await this.redisService.destroyBullMqConnection();
   }

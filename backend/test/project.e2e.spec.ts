@@ -1,3 +1,4 @@
+import { verifyTestUser } from './helpers/verify-test-user';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -62,9 +63,13 @@ describe('Project (e2e)', () => {
     member3Agent = request.agent(app.getHttpServer());
     // 註冊
     await ownerAgent.post('/auth/signup').send(workspaceOwner).expect(201);
+    await verifyTestUser(app, workspaceOwner.email);
     await member1Agent.post('/auth/signup').send(workspaceMember1).expect(201);
+    await verifyTestUser(app, workspaceMember1.email);
     await member2Agent.post('/auth/signup').send(workspaceMember2).expect(201);
+    await verifyTestUser(app, workspaceMember2.email);
     await member3Agent.post('/auth/signup').send(workspaceMember3).expect(201);
+    await verifyTestUser(app, workspaceMember3.email);
     // 邀請人登入
     await ownerAgent
       .post('/auth/login')

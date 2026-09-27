@@ -5,5 +5,6 @@ export type AppExceptionOptions = {
   status: HttpStatus;
   code: ApiCode;
   message: string;
+  data?: unknown;
   errors?: FieldErrors | null;
 };

@@ -52,9 +52,12 @@ export class UserRepository {
   }
   /** 更新user為已驗證帳號 */
   async updateVerifiedAccount(id: string, dateTime: Date) {
-    await this.prismaService.user.update({
+    // 條件在 DB 內判斷，並行驗證也只會寫入第一次的時間。
+    await this.prismaService.user.updateMany({
       where: {
         id,
+        authProvider: 'LOCAL',
+        emailVerifiedAt: null,
       },
       data: {
         emailVerifiedAt: dateTime,

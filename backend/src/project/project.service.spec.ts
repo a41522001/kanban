@@ -97,6 +97,8 @@ describe('ProjectService', () => {
       const mockRawProjects: ProjectListItemRecord[] = [
         {
           id: 'project-1',
+          version: 1,
+          boardRevision: 0n,
           workspaceId,
           name: 'Project Alpha',
           description: 'Description 1',
@@ -109,6 +111,8 @@ describe('ProjectService', () => {
         },
         {
           id: 'project-2',
+          version: 1,
+          boardRevision: 0n,
           workspaceId,
           name: 'Project Beta',
           description: null,
@@ -588,6 +592,8 @@ describe('ProjectService', () => {
 
       const mockProject = {
         id: 'project-new-1',
+        version: 1,
+        boardRevision: 0n,
         name: createProjectDto.name,
         description: createProjectDto.description,
         workspaceId: createProjectDto.workspaceId,

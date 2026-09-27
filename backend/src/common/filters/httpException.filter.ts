@@ -22,7 +22,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
-    const apiResponse: ApiResponse<null> = {
+    const apiResponse: ApiResponse<unknown> = {
       code: ApiCode.InternalError,
       message: '發生非預期錯誤',
       time: new Date().toISOString(),
@@ -33,6 +33,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof AppException) {
       apiResponse.code = exception.code;
       apiResponse.message = exception.message;
+      apiResponse.data = exception.data ?? null;
       apiResponse.error = exception.errors ?? null;
       response.status(status).json(apiResponse);
       return;

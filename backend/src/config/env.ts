@@ -17,6 +17,11 @@ export const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive(),
   MAIL_FROM: z.string(),
   VERIFY_MAIL_EXPIRE_MINUTE: z.coerce.number().int().positive().default(30),
+  RATE_LIMIT_VERIFY_EMAIL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60),
 });
 
 export type Env = z.infer<typeof envSchema>;
