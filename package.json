@@ -4,6 +4,7 @@
   "scripts": {
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend start:dev",
+    "dev:worker": "pnpm --filter backend start:worker:dev",
     "debug:backend": "pnpm --filter backend start:debug",
     "build": "pnpm --filter frontend build && pnpm --filter backend build",
     "build:contracts": "pnpm --filter @kanban/contracts build",

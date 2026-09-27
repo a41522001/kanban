@@ -83,6 +83,29 @@ describe('HttpExceptionFilter', () => {
     });
   });
 
+  it('應把 AppException 的資料放進標準回應 data', () => {
+    const { host, statusMock, jsonMock } = createFilterTestContext();
+
+    filter.catch(
+      new AppException({
+        status: HttpStatus.TOO_MANY_REQUESTS,
+        code: ApiCode.RequestError,
+        message: '冷卻中，請稍後再試',
+        data: { retryAfterSeconds: 42 },
+      }),
+      host,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.TOO_MANY_REQUESTS);
+    expect(jsonMock).toHaveBeenCalledWith({
+      code: ApiCode.RequestError,
+      message: '冷卻中，請稍後再試',
+      time: fixedTime.toISOString(),
+      data: { retryAfterSeconds: 42 },
+      error: null,
+    });
+  });
+
   it('應將一般 HttpException 轉成統一 ApiResponse', () => {
     const { host, statusMock, jsonMock } = createFilterTestContext();
 

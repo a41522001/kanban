@@ -7,8 +7,8 @@ import type { CreateUserData } from './user.type';
 export class UserRepository {
   constructor(private readonly prismaService: PrismaService) {}
   /** 新增 */
-  async create(data: CreateUserData): Promise<void> {
-    await this.prismaService.user.create({ data });
+  async create(data: CreateUserData): Promise<User> {
+    return await this.prismaService.user.create({ data });
   }
   /** 取得 By Email */
   async getByEmail(email: string): Promise<User | null> {
@@ -47,6 +47,20 @@ export class UserRepository {
       },
       data: {
         avatarUrl: url,
+      },
+    });
+  }
+  /** 更新user為已驗證帳號 */
+  async updateVerifiedAccount(id: string, dateTime: Date) {
+    // 條件在 DB 內判斷，並行驗證也只會寫入第一次的時間。
+    await this.prismaService.user.updateMany({
+      where: {
+        id,
+        authProvider: 'LOCAL',
+        emailVerifiedAt: null,
+      },
+      data: {
+        emailVerifiedAt: dateTime,
       },
     });
   }

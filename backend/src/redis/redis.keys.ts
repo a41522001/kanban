@@ -2,4 +2,6 @@ export const redisKeys = {
   session: (sessionIdHash: string) => `session:token:${sessionIdHash}`,
   userSessions: (userid: string) => `user:sessions:${userid}`,
   dragSession: (projectId: string) => `lock:projectDragSession:${projectId}`,
+  verifyEmail: (token: string) => `verify:email:${token}`,
+  rateLimitEmailVerify: (email: string) => `rateLimit:emailVerify:${email}`,
 };

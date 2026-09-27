@@ -1,3 +1,4 @@
+import { verifyTestUser } from './helpers/verify-test-user';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
@@ -38,7 +39,9 @@ describe('WorkspaceInvitation (e2e)', () => {
 
     // 註冊
     await inviterAgent.post('/auth/signup').send(inviter).expect(201);
+    await verifyTestUser(app, inviter.email);
     await inviteeAgent.post('/auth/signup').send(invitee).expect(201);
+    await verifyTestUser(app, invitee.email);
     // 邀請人登入
     await inviterAgent
       .post('/auth/login')
@@ -128,7 +131,9 @@ describe('WorkspaceInvitation (e2e)', () => {
 
     // 註冊
     await inviterAgent.post('/auth/signup').send(inviter).expect(201);
+    await verifyTestUser(app, inviter.email);
     await inviteeAgent.post('/auth/signup').send(invitee).expect(201);
+    await verifyTestUser(app, invitee.email);
     // 邀請人登入
     await inviterAgent
       .post('/auth/login')

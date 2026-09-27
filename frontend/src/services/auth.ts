@@ -1,8 +1,8 @@
 import api from './http';
-import type { LoginRequest, SignupRequest } from '@kanban/contracts/auth';
+import type { LoginRequest, SignupRequest, SignupResult } from '@kanban/contracts/auth';
 import type { ApiResponse } from '@kanban/contracts/api';
-export const signupApi = async (data: SignupRequest): Promise<ApiResponse<null>> => {
-  const res = await api<ApiResponse<null>, SignupRequest>({
+export const signupApi = async (data: SignupRequest): Promise<ApiResponse<SignupResult>> => {
+  const res = await api<ApiResponse<SignupResult>, SignupRequest>({
     url: '/auth/signup',
     method: 'post',
     data,

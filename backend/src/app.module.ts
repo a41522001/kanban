@@ -20,6 +20,9 @@ import { WrapResponseInterceptor } from './common/interceptors/wrapResponse.inte
 import { WorkspaceInvitationModule } from './workspaceInvitation/workspaceInvitation.module';
 import { ProjectModule } from './project/project.module';
 import { BoardModule } from './board/board.module';
+import { QueueModule } from './queue/queue.module';
+import { EmailModule } from './email/email.module';
+
 const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
   imports: [
@@ -44,6 +47,8 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
     WorkspaceInvitationModule,
     ProjectModule,
     BoardModule,
+    QueueModule,
+    EmailModule,
   ],
   providers: [
     {

@@ -5,19 +5,50 @@ import { SessionService } from '@/session/session.service';
 import bcrypt from 'bcrypt';
 import { UserService } from '@/user/user.service';
 import { SocketService } from '@/socket/socket.service';
+import { RedisService } from '@/redis/redis.service';
+import { QueueService } from '@/queue/queue.service';
+import { ApiCode } from '@kanban/contracts/api';
+import type { User } from '@/generated/prisma/client';
 describe('AuthService', () => {
   let authService: AuthService;
   let userService: UserService;
   let sessionService: SessionService;
   let socketService: SocketService;
+  let queueService: QueueService;
+  const pendingUser: User = {
+    id: '1',
+    email: 'test@test.com',
+    displayName: 'test',
+    passwordHash: 'hash',
+    authProvider: 'LOCAL',
+    avatarUrl: null,
+    emailVerifiedAt: null,
+    googleSub: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  let redisClient: {
+    set: jest.Mock;
+    ttl: jest.Mock;
+    hGetAll: jest.Mock;
+    del: jest.Mock;
+  };
   beforeEach(async () => {
+    redisClient = {
+      set: jest.fn().mockResolvedValue('OK'),
+      ttl: jest.fn().mockResolvedValue(60),
+      hGetAll: jest.fn(),
+      del: jest.fn(),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn().mockReturnValue(3),
+            getOrThrow: jest.fn((key: string) =>
+              key === 'RATE_LIMIT_VERIFY_EMAIL_SECONDS' ? 60 : 3,
+            ),
           },
         },
         {
@@ -34,12 +65,25 @@ describe('AuthService', () => {
             createUser: jest.fn(),
             getByEmail: jest.fn(),
             getById: jest.fn(),
+            updateUserToVerifiedAccount: jest.fn(),
           },
         },
         {
           provide: SocketService,
           useValue: {
             disconnectSession: jest.fn(),
+          },
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            getClient: jest.fn().mockReturnValue(redisClient),
+          },
+        },
+        {
+          provide: QueueService,
+          useValue: {
+            addVerificationEmailQueue: jest.fn(),
           },
         },
       ],
@@ -49,6 +93,7 @@ describe('AuthService', () => {
     userService = module.get<UserService>(UserService);
     sessionService = module.get<SessionService>(SessionService);
     socketService = module.get<SocketService>(SocketService);
+    queueService = module.get<QueueService>(QueueService);
   });
   /** 註冊 */
   describe('signup', () => {
@@ -64,10 +109,26 @@ describe('AuthService', () => {
         .mockResolvedValue(null);
       const createSpy = jest
         .spyOn(userService, 'createUser')
-        .mockResolvedValue(undefined);
+        .mockResolvedValue({
+          id: '1',
+          email: req.email,
+          displayName: req.name,
+          passwordHash: 'hashed-password',
+          authProvider: 'LOCAL',
+          avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      const addJobSpy = jest.spyOn(queueService, 'addVerificationEmailQueue');
 
       const result = await authService.signup(req);
-      expect(result).toBe(true);
+      expect(result).toEqual({
+        accountCreated: true,
+        emailQueued: true,
+        retryAfterSeconds: 60,
+      });
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
       expect(getByEmailSpy).toHaveBeenCalledTimes(1);
 
@@ -78,6 +139,17 @@ describe('AuthService', () => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         passwordHash: expect.any(String),
       });
+      expect(addJobSpy).toHaveBeenCalledWith({
+        userId: '1',
+        email: req.email,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        token: expect.any(String),
+      });
+      expect(redisClient.set).toHaveBeenCalledWith(
+        `rateLimit:emailVerify:${req.email}`,
+        '1',
+        { EX: 60 },
+      );
     });
 
     it('註冊失敗, 使用者已存在', async () => {
@@ -88,7 +160,10 @@ describe('AuthService', () => {
           displayName: req.name,
           email: req.email,
           passwordHash: 'hashed-password',
+          authProvider: 'LOCAL',
           avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -98,6 +173,193 @@ describe('AuthService', () => {
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
       expect(getByEmailSpy).toHaveBeenCalledTimes(1);
       expect(createSpy).not.toHaveBeenCalled();
+    });
+  });
+  describe('verifyEmail', () => {
+    it('驗證成功後刪除 token', async () => {
+      redisClient.hGetAll.mockResolvedValue({
+        userId: '1',
+        email: 'test@test.com',
+      });
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue(pendingUser);
+
+      await expect(authService.verifyEmail('token')).resolves.toBe(true);
+      expect(
+        jest.spyOn(userService, 'updateUserToVerifiedAccount'),
+      ).toHaveBeenCalledWith('1');
+      expect(redisClient.del).toHaveBeenCalledWith('verify:email:token');
+    });
+
+    it('已驗證帳號使用其他有效 token，不改寫驗證時間', async () => {
+      redisClient.hGetAll.mockResolvedValue({
+        userId: '1',
+        email: pendingUser.email,
+      });
+      jest
+        .spyOn(userService, 'getByEmail')
+        .mockResolvedValue({ ...pendingUser, emailVerifiedAt: new Date() });
+      await expect(authService.verifyEmail('old-token')).resolves.toBe(true);
+      expect(
+        jest.spyOn(userService, 'updateUserToVerifiedAccount'),
+      ).not.toHaveBeenCalled();
+      expect(redisClient.del).toHaveBeenCalledWith('verify:email:old-token');
+    });
+
+    it('無效 token 不更新使用者', async () => {
+      redisClient.hGetAll.mockResolvedValue({});
+      await expect(authService.verifyEmail('missing')).resolves.toBe(false);
+      expect(
+        jest.spyOn(userService, 'updateUserToVerifiedAccount'),
+      ).not.toHaveBeenCalled();
+    });
+
+    it('DB 故障向外拋出且保留 token', async () => {
+      const error = new Error('DB unavailable');
+      redisClient.hGetAll.mockResolvedValue({
+        userId: '1',
+        email: pendingUser.email,
+      });
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue(pendingUser);
+      jest
+        .spyOn(userService, 'updateUserToVerifiedAccount')
+        .mockRejectedValue(error);
+      await expect(authService.verifyEmail('token')).rejects.toBe(error);
+      expect(redisClient.del).not.toHaveBeenCalled();
+    });
+
+    it('Redis 故障不當成連結無效', async () => {
+      const error = new Error('Redis unavailable');
+      redisClient.hGetAll.mockRejectedValue(error);
+      await expect(authService.verifyEmail('token')).rejects.toBe(error);
+    });
+  });
+
+  it('帳號已建立後入列失敗，回傳可重寄的結果', async () => {
+    jest.spyOn(userService, 'getByEmail').mockResolvedValue(null);
+    jest.spyOn(userService, 'createUser').mockResolvedValue(pendingUser);
+    jest
+      .spyOn(queueService, 'addVerificationEmailQueue')
+      .mockRejectedValue(new Error('Queue unavailable'));
+    redisClient.ttl.mockResolvedValue(52);
+    await expect(
+      authService.signup({
+        email: pendingUser.email,
+        password: 'testtest',
+        name: 'test',
+      }),
+    ).resolves.toEqual({
+      accountCreated: true,
+      emailQueued: false,
+      retryAfterSeconds: 52,
+    });
+  });
+
+  it('帳號已建立後 Redis 故障，仍回傳帳號已建立', async () => {
+    jest.spyOn(userService, 'getByEmail').mockResolvedValue(null);
+    jest.spyOn(userService, 'createUser').mockResolvedValue(pendingUser);
+    redisClient.set.mockRejectedValue(new Error('Redis unavailable'));
+    redisClient.ttl.mockRejectedValue(new Error('Redis unavailable'));
+    await expect(
+      authService.signup({
+        email: pendingUser.email,
+        password: 'testtest',
+        name: 'test',
+      }),
+    ).resolves.toEqual({
+      accountCreated: true,
+      emailQueued: false,
+      retryAfterSeconds: 60,
+    });
+    expect(
+      jest.spyOn(queueService, 'addVerificationEmailQueue'),
+    ).not.toHaveBeenCalled();
+  });
+
+  describe('resendVerificationEmail', () => {
+    const email = 'test@test.com';
+
+    it.each([
+      { authProvider: 'GOOGLE', emailVerifiedAt: null },
+      { authProvider: 'LOCAL', emailVerifiedAt: new Date() },
+    ])('不寄給已驗證或 Google 帳號：%p', async (account) => {
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue({
+        id: '1',
+        email,
+        ...account,
+      } as Awaited<ReturnType<UserService['getByEmail']>>);
+
+      await expect(authService.resendVerificationEmail(email)).resolves.toEqual(
+        { retryAfterSeconds: 60 },
+      );
+      expect(redisClient.set).toHaveBeenCalled();
+      expect(
+        jest.spyOn(queueService, 'addVerificationEmailQueue'),
+      ).not.toHaveBeenCalled();
+    });
+
+    it('冷卻中不重複入列', async () => {
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue({
+        id: '1',
+        email,
+        authProvider: 'LOCAL',
+        emailVerifiedAt: null,
+      } as Awaited<ReturnType<UserService['getByEmail']>>);
+      redisClient.set.mockResolvedValue(null);
+      redisClient.ttl.mockResolvedValue(42);
+
+      await expect(
+        authService.resendVerificationEmail(email),
+      ).rejects.toMatchObject({
+        code: ApiCode.EmailVerificationCooldown,
+        data: { retryAfterSeconds: 42 },
+      });
+      expect(
+        jest.spyOn(queueService, 'addVerificationEmailQueue'),
+      ).not.toHaveBeenCalled();
+    });
+
+    it('取得寄送資格後入列並回傳成功', async () => {
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue({
+        id: '1',
+        email,
+        authProvider: 'LOCAL',
+        emailVerifiedAt: null,
+      } as Awaited<ReturnType<UserService['getByEmail']>>);
+
+      await expect(authService.resendVerificationEmail(email)).resolves.toEqual(
+        { retryAfterSeconds: 60 },
+      );
+      expect(redisClient.set).toHaveBeenCalledWith(
+        `rateLimit:emailVerify:${email}`,
+        '1',
+        { NX: true, EX: 60 },
+      );
+      expect(
+        jest.spyOn(queueService, 'addVerificationEmailQueue'),
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('不存在的帳號也回傳一致的受理與倒數', async () => {
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue(null);
+      await expect(authService.resendVerificationEmail(email)).resolves.toEqual(
+        { retryAfterSeconds: 60 },
+      );
+      expect(
+        jest.spyOn(queueService, 'addVerificationEmailQueue'),
+      ).not.toHaveBeenCalled();
+    });
+
+    it('重寄入列失敗回傳專用錯誤和剩餘冷卻', async () => {
+      jest.spyOn(userService, 'getByEmail').mockResolvedValue(pendingUser);
+      jest
+        .spyOn(queueService, 'addVerificationEmailQueue')
+        .mockRejectedValue(new Error('Queue unavailable'));
+      await expect(
+        authService.resendVerificationEmail(email),
+      ).rejects.toMatchObject({
+        code: ApiCode.VerificationEmailQueueFailed,
+        data: { retryAfterSeconds: 60 },
+      });
     });
   });
   /** 登入 */
@@ -127,7 +389,10 @@ describe('AuthService', () => {
           displayName: 'test',
           email: req.email,
           passwordHash: wrongPasswordHash,
+          authProvider: 'LOCAL',
           avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -150,7 +415,10 @@ describe('AuthService', () => {
           displayName: 'test',
           email: req.email,
           passwordHash,
+          authProvider: 'LOCAL',
           avatarUrl: null,
+          emailVerifiedAt: new Date(),
+          googleSub: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -163,6 +431,20 @@ describe('AuthService', () => {
       expect(saveSpy).toHaveBeenCalledWith(userId);
       expect(saveSpy).toHaveBeenCalledTimes(1);
       expect(result).toBe(sessionId);
+    });
+
+    it('密碼正確但未驗證，回傳 EmailVerificationRequired 且不建立 Session', async () => {
+      const passwordHash = await bcrypt.hash(req.password, 4);
+      jest
+        .spyOn(userService, 'getByEmail')
+        .mockResolvedValue({ ...pendingUser, passwordHash });
+      await expect(authService.login(req)).rejects.toMatchObject({
+        code: ApiCode.EmailVerificationRequired,
+        data: { email: req.email },
+      });
+      expect(
+        jest.spyOn(sessionService, 'saveCurrentSession'),
+      ).not.toHaveBeenCalled();
     });
   });
 
