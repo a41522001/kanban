@@ -5,11 +5,14 @@ import { SessionService } from '@/session/session.service';
 import bcrypt from 'bcrypt';
 import { UserService } from '@/user/user.service';
 import { SocketService } from '@/socket/socket.service';
+import { RedisService } from '@/redis/redis.service';
+import { QueueService } from '@/queue/queue.service';
 describe('AuthService', () => {
   let authService: AuthService;
   let userService: UserService;
   let sessionService: SessionService;
   let socketService: SocketService;
+  let queueService: QueueService;
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -42,6 +45,18 @@ describe('AuthService', () => {
             disconnectSession: jest.fn(),
           },
         },
+        {
+          provide: RedisService,
+          useValue: {
+            getClient: jest.fn(),
+          },
+        },
+        {
+          provide: QueueService,
+          useValue: {
+            addVerificationEmailQueue: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -49,6 +64,7 @@ describe('AuthService', () => {
     userService = module.get<UserService>(UserService);
     sessionService = module.get<SessionService>(SessionService);
     socketService = module.get<SocketService>(SocketService);
+    queueService = module.get<QueueService>(QueueService);
   });
   /** 註冊 */
   describe('signup', () => {
@@ -64,7 +80,19 @@ describe('AuthService', () => {
         .mockResolvedValue(null);
       const createSpy = jest
         .spyOn(userService, 'createUser')
-        .mockResolvedValue(undefined);
+        .mockResolvedValue({
+          id: '1',
+          email: req.email,
+          displayName: req.name,
+          passwordHash: 'hashed-password',
+          authProvider: 'LOCAL',
+          avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      const addJobSpy = jest.spyOn(queueService, 'addVerificationEmailQueue');
 
       const result = await authService.signup(req);
       expect(result).toBe(true);
@@ -78,6 +106,12 @@ describe('AuthService', () => {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         passwordHash: expect.any(String),
       });
+      expect(addJobSpy).toHaveBeenCalledWith({
+        userId: '1',
+        email: req.email,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        token: expect.any(String),
+      });
     });
 
     it('註冊失敗, 使用者已存在', async () => {
@@ -88,7 +122,10 @@ describe('AuthService', () => {
           displayName: req.name,
           email: req.email,
           passwordHash: 'hashed-password',
+          authProvider: 'LOCAL',
           avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -127,7 +164,10 @@ describe('AuthService', () => {
           displayName: 'test',
           email: req.email,
           passwordHash: wrongPasswordHash,
+          authProvider: 'LOCAL',
           avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -150,7 +190,10 @@ describe('AuthService', () => {
           displayName: 'test',
           email: req.email,
           passwordHash,
+          authProvider: 'LOCAL',
           avatarUrl: null,
+          emailVerifiedAt: null,
+          googleSub: null,
           createdAt: new Date(),
           updatedAt: new Date(),
         });

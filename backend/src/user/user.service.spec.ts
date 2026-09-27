@@ -53,7 +53,10 @@ describe('UserService', () => {
       const user = {
         ...mockUser,
         passwordHash: 'passwordHash',
+        authProvider: 'LOCAL' as const,
         avatarUrl: null,
+        emailVerifiedAt: null,
+        googleSub: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
