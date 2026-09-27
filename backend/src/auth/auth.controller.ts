@@ -3,6 +3,8 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -179,5 +181,22 @@ export class AuthController {
     return {
       message: '登出成功',
     };
+  }
+  /** 驗證email */
+  @Patch('verify/:token')
+  async verifyEmail(@Param('token') token: string): Promise<ApiResult<null>> {
+    const result = await this.authService.verifyEmail(token);
+    if (result) {
+      return {
+        message: '驗證成功',
+        data: null,
+      };
+    }
+
+    throw new AppException({
+      code: ApiCode.AuthVerifyFail,
+      message: '驗證失敗',
+      status: HttpStatus.UNAUTHORIZED,
+    });
   }
 }

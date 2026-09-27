@@ -5,5 +5,6 @@ import { RedisModule } from '@/redis/redis.module';
 @Module({
   imports: [RedisModule],
   providers: [QueueService],
+  exports: [QueueService],
 })
 export class QueueModule {}

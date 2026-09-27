@@ -4,9 +4,11 @@ import { AuthService } from './auth.service';
 import { SessionModule } from '@/session/session.module';
 import { UserModule } from '@/user/user.module';
 import { SocketModule } from '@/socket/socket.module';
+import { QueueModule } from '@/queue/queue.module';
+import { RedisModule } from '@/redis/redis.module';
 @Module({
   controllers: [AuthController],
   providers: [AuthService],
-  imports: [SessionModule, UserModule, SocketModule],
+  imports: [SessionModule, UserModule, SocketModule, QueueModule, RedisModule],
 })
 export class AuthModule {}

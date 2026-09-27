@@ -14,7 +14,7 @@ type AppRedisClient = RedisClientType<
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly client: AppRedisClient;
-
+  private readonly mqRedisClient: IRedisClient;
   constructor(configService: ConfigService<Env>) {
     this.client = createClient({
       url: configService.getOrThrow('REDIS_URL', {
@@ -22,7 +22,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       }),
       scripts: SESSION_SCRIPTS,
     });
+
     this.client.on('error', (error) => {
+      console.error('Redis error:', error);
+    });
+
+    this.mqRedisClient = createNodeRedisClient(
+      createClient({
+        url: configService.getOrThrow('REDIS_URL', {
+          infer: true,
+        }),
+      }),
+    );
+
+    this.mqRedisClient.on('error', (error) => {
       console.error('Redis error:', error);
     });
   }
@@ -43,6 +56,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   createBullMQConnection(): IRedisClient {
-    return createNodeRedisClient(this.client);
+    return this.mqRedisClient;
+  }
+
+  async destroyBullMqConnection(): Promise<void> {
+    await this.mqRedisClient.quit();
   }
 }

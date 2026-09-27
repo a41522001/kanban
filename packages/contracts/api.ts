@@ -15,6 +15,8 @@ export enum ApiCode {
   EmailAlreadyRegistered = 2002,
   /** 尚未登入、Session 不存在或已失效 */
   Unauthenticated = 2003,
+  /** Auth 驗證失敗 */
+  AuthVerifyFail = 2004,
   /** 找不到自己可存取的資源 */
   ResourceNotFound = 3001,
   /** 未被 AppException 明確分類的預期 HTTP 錯誤 */
