@@ -62,7 +62,7 @@
 - 有 Email context：顯示信箱並提供重寄。
 - 從其他裝置開啟或 context 遺失：顯示 Email 欄位與「寄送驗證信」。
 - 送出中停用重複提交；受理後顯示成功回饋與倒數。
-- 冷卻建議 60 秒，以後端傳回的 retryAt / retryAfterSeconds 為準；前端倒數不是限流依據。
+- 冷卻預設 60 秒，以後端 data.retryAfterSeconds 為準；retryAt 是前端自行計算的截止時間，不是 API 欄位。前端倒數不是限流依據。
 - 429 更新倒數，不顯示一般伺服器故障。
 - 網路失敗保留 Email 並允許重試；若請求結果不明確，不宣稱一定沒有寄信。
 - 格式錯誤直接標在 Email 欄位。
@@ -80,13 +80,13 @@
 
 Redis key 被刪除或到期後，現有資料不足以區分「已使用」「已過期」「隨機錯誤 token」，所以合併為連結不可用，不設計沒有資料支持的個別判斷。
 
-若仍有效的 token 對應到同一個已驗證信箱，建議後端直接視為成功、清除該 token、不改寫原驗證時間。已刪除 token 再開啟則顯示連結不可用。這個差異需在重複開啟與重試測試中確認。
+若仍有效的 token 對應到同一個已驗證信箱，後端已直接視為成功、清除該 token、不改寫原驗證時間。已刪除 token 再開啟則顯示連結不可用。後端 E2E 已涵蓋此差異；前端仍需驗收重複開啟與重試畫面。
 
 驗證頁只根據 token 的後端結果顯示成功，不根據目前登入者或瀏覽器暫存的 Email 推定被驗證的帳號。
 
 ## 文案與「已寄出」狀態：需審查
 
-目前註冊成功及未來重寄成功，預設只代表工作已入列，不能保證 SMTP 已完成。
+目前註冊成功及重寄受理，預設只代表工作已入列，不能保證 SMTP 已完成。
 
 建議第一版把等待頁標題定為「請查看你的信箱」。已確認註冊成功的入口可寫「驗證信正在寄送至 user@example.com，可能需要一點時間」；公開重寄入口顯示「重寄申請已受理」與上述條件式文案，不宣稱該信箱一定有帳號或一定會寄信。
 
@@ -166,10 +166,31 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 | 驗證結果 | PATCH /auth/verify/:token；400 / AuthVerifyFail、500 / InternalError | 分別顯示連結不可用與服務故障 |
 | token 一次性使用 | DB 成功後刪 key；其他有效 token 不重寫時間 | 顯示成功或連結不可用 |
 | 部分註冊成功 | 201 / SignupEmailQueueFailed；data.accountCreated 為 true、emailQueued 為 false | 告知帳號已建立並提供重寄 |
-| 有效期限文案 | Worker 用 VERIFY_MAIL_EXPIRE_MINUTE | 前端需要數字時由 API 提供，不另硬編碼與後端不同的期限 |
+| 有效期限文案 | Worker 用 VERIFY_MAIL_EXPIRE_MINUTE，只有信件提供分鐘數；HTTP 未回傳到期時間 | SVG 先寫「請在信件標示的期限內完成驗證」；若需精確數字再擴充 contract |
 | 已登入狀態 | 已有 User Store 與 logout | 公開驗證頁保留 Session；切換帳號必須明確操作 |
 
 前端根據 ApiCode 切換狀態，不比對 message 字串。上述後端 contracts 已實作；細節見 email-verification-worker-spec.md。UI / SVG / Figma 仍依本提案審查後再生成。
+
+## API 與畫面狀態對照（靜態盤點）
+
+以下沿用 [目前 HTTP API](http-api.md#auth-api-詳細規格)，不是新增 API 的提案。
+
+| API 結果 | 設計狀態 | 前端注意事項 |
+| --- | --- | --- |
+| signup 201 / 1 | signup-pending | data.emailQueued=true 僅代表入列 |
+| signup 201 / 2007 | signup-mail-error | Axios 成功分支也要處理；帳號已建立 |
+| login 403 / 2005 | verification-required | data 僅有 email，沒有倒數；無暫存時允許提交，再以 429 校正 |
+| resend 202 / 1 | resend-accepted | 不確認信箱存在或 SMTP 成功 |
+| resend 429 / 2006 | cooldown | data.retryAfterSeconds 控制倒數 |
+| resend 503 / 2008 | request-error | 保留 Email，依剩餘秒數提供稍後重試 |
+| resend 400 / 1000 | request-error 的欄位錯誤變體 | 在 Email 欄位下呈現 error.email.messages |
+| verify 200 / 1 | verify-success | 提供登入操作，不自動建立 Session |
+| verify 400 / 2004 | verify-unavailable | 無效／到期／已使用共用一種畫面 |
+| verify 500 或網路失敗 | verify-request-error | 可重試，不宣稱連結已過期 |
+
+既有 request-error manifest 應在 Figma / Vue 中保留「欄位錯誤、冷卻中的服務失敗、網路失敗」差異，不能把 503 的倒數丟掉。無 token 頁面由前端直接顯示 unavailable。頁面重新整理、瀏覽器返回或跨分頁完成驗證也需保留登入入口。
+
+目前仍待前端實作 service functions、路由、狀態分流、暫存／倒數與 i18n；Google 登入、忘記密碼目前只有按鈕外觀，審查時需決定首版隱藏或明示尚未開放。Workspace／Board 等全站缺口見 [設計前功能盤點](feature-readiness.md)。
 
 ## 審查與交付階段
 

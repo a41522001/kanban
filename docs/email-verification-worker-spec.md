@@ -330,7 +330,7 @@ pnpm --filter backend test --runInBand
 pnpm run test:backend:e2e
 ```
 
-E2E runner 使用 compose.e2e.yml 的獨立 PostgreSQL / Redis、套用測試 migration，完成後清理測試容器。auth.e2e.spec.ts 啟動真正的 API 與 Worker 容器（Nest DI context），僅將 EmailService 換成測試替身；涵蓋入列、Worker 寫入 Redis、取得信件 token、重寄、驗證、登入與登出。
+E2E runner 使用 compose.e2e.yml 的獨立 PostgreSQL / Redis、套用測試 migration，完成後清理測試容器。auth.e2e.spec.ts 啟動真正的 API 與 Worker 的 Nest DI context，僅將 EmailService 換成測試替身；涵蓋入列、Worker 寫入 Redis、取得信件 token、重寄、驗證、登入與登出。
 
 測試也涵蓋並行驗證、舊 token 不改寫時間、無效與過期 token、DB / Redis 故障、入列失敗後重寄恢復，以及 API 回應格式。其他功能的 E2E 測試使用已驗證帳號 fixture，避免登入限制影響工作區／專案測試。
 
@@ -353,3 +353,7 @@ E2E runner 使用 compose.e2e.yml 的獨立 PostgreSQL / Redis、套用測試 mi
 - [Job data 型別](../backend/src/types/queue.ts)
 - [環境設定 schema](../backend/src/config/env.ts)
 - [前端 router](../frontend/src/router/index.ts)與 [Auth API service](../frontend/src/services/auth.ts)
+
+## 設計前文件對照（2026-09-27）
+
+HTTP request、status、code、data 與錯誤範例以 [目前 HTTP API](http-api.md#auth-api-詳細規格) 為串接依據；畫面缺口見 [功能盤點](feature-readiness.md)。本文件中的後端已實作行為不代表前端頁面已完成。API 尚未提供驗證到期時間、jobId 或 SMTP 狀態，SVG 不能依賴這些未提供的欄位。

@@ -1,12 +1,12 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-21（Auth 行為未變；已依目前 router 與 Frontend type-check 更新 ProjectView route）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 最後靜態檢視：2026-09-27。既有登入／註冊表單與 Session 流程已完成第一版；後端已啟用驗證限制，但前端驗證／重寄流程尚未實作。畫面規劃見 [驗證信設計提案](email-verification-ui-plan.md)。
 
 ## 1. 目標
 
 已完成 Signup、Login、登入狀態恢復、protected route 與 Logout，並正確使用 HttpOnly Session Cookie。
 
-目前 signup 只建立帳號，成功後導向 Login；login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。
+目前後端 signup 建立未驗證 LOCAL 帳號並排入寄信工作；前端仍在提示確認後導向 Login。login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。未驗證帳號現在會被後端 403 擋下，前端目前只顯示通用 Alert，尚未導向驗證信頁。
 
 ## 2. 資料流
 
@@ -96,15 +96,28 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - confirmPassword 只存在 frontend，不傳給 backend，除非 contract 改變。
 - Signup success 提示確認後導向 Login，不自動登入。
 
-目前 backend signup 只建立帳號，不建立 Session。第一版 frontend 在 signup 成功後導向 Login；若未來改成自動登入，必須同步修改 API contract 與測試。
+目前 backend signup 不建立 Session。signupApi 型別已同步 SignupResult，但 SignupView 未依 code=2007 或 emailQueued=false 分流，兩種 201 都仍顯示提示後去 Login。下一版需改導向驗證信頁，明確區分入列成功與帳號已建立但排信失敗。
 
 ## 6. Route Guard
 
 - `/login`、`/signup` 是白名單。
 - 其他路徑先透過 `initializeUser()` 驗證；沒有 user 導向 Login。
-- Project 頁使用 protected route `/projects/:projectId`；目前 `ProjectView` 內的 Board 尚未串接持久化 API。
+- Project 頁使用 protected route `/projects/:projectId`；目前 `ProjectView` 已讀取 DB Columns，但拖曳順序尚未持久化、Card 尚未實作。
 - Route guard 只透過 Store 取得 session，Store 負責 request 去重。
 - 尚未保存原始 redirect target，也尚未讓已登入使用者從 login/signup 自動導向 home。
+
+### 驗證信流程待接項目
+
+- services/auth.ts 尚缺 verifyEmailApi、resendVerificationEmailApi。
+- router 尚缺 `/auth/check-email`、`/auth/verify/:token`、缺 token 的 `/auth/verify`；需改用 route meta 判斷公開頁，避免被現有 Session guard 擋住。
+- LoginView 需針對 403 / EmailVerificationRequired 導向驗證信頁；SignupView 需處理 201 的 code 1 / 2007。
+- 驗證信頁需串接 202／429／503 的倒數、欄位錯誤及可重試狀態；驗證結果頁需區分 200、400 / 2004 與 500／網路失敗。
+- Email／入口原因／本機 retryAt 可用 sessionStorage 保留；token 只由信件 URL 讀取，不放入 Storage。
+- 頁面生命週期內避免重複驗證；重新整理後 token 若已消耗，仍以後端 400 顯示連結不可用，提供登入入口。
+- Public 驗證頁不依賴 Socket 或 Session；保留既有登入，不因驗證信切換帳號。
+- Login／Signup 目前的 Google 按鈕與忘記密碼按鈕只有外觀，尚無對應後端 API／操作。
+
+驗證信前端串接完成後才可宣告瀏覽器註冊到驗證的完整流程完成。詳細畫面狀態與審查項目見 [設計提案](email-verification-ui-plan.md)。
 
 ## 7. Cookie、CORS 與 CSRF
 
@@ -142,7 +155,9 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - [x] Axios API client（`withCredentials: true`）。
 - [x] User Store session restore 與 request 去重。
 - [x] Login API integration。
-- [x] Signup API integration。
+- [x] Signup API integration（既有表單；尚缺 201 部分成功分流）。
+- [ ] 驗證信／驗證結果頁、公開路由、重寄倒數。
+- [ ] 未驗證登入導向、驗證信 i18n 與瀏覽器完整流程驗收。
 - [x] Protected route guard。
 - [x] Logout。
 - [x] Socket connect/disconnect hook 與 Notification realtime handler。

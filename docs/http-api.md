@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後核對：2026-09-21。以 Controllers、DTO、`packages/contracts` 與目前原始碼為準；已納入 Project pin API 與 ProjectView route。Project 是 Board aggregate root，BoardColumn schema 已建立，但 Board snapshot／Column／Card API 尚未實作。測試紀錄見[進度](progress.md)。
+最後靜態核對：2026-09-27。依 Controllers、Service、DTO、Prisma 與 `packages/contracts` 核對；本次只更新文件，未重新執行 API 或測試。Auth 驗證／重寄已完成，Board 已有部分實作，未完成端點另行標示。功能缺口見[設計前功能盤點](feature-readiness.md)，既有測試紀錄見[進度](progress.md)。
 
 ## 基本約定
 
@@ -14,9 +14,11 @@
 
 | Method / path | 身分與權限 | Request | 成功 status / data |
 | --- | --- | --- | --- |
-| POST `/auth/signup` | 公開 | `{ email, password, name }` | 201 / null；不建立 Session |
-| POST `/auth/login` | 公開 | `{ email, password }` | 200 / null；設定 Session Cookie |
+| POST `/auth/signup` | 公開 | `{ email, password, name }` | 201 / `SignupResult`；code 1 或 2007，均不建立 Session |
+| POST `/auth/login` | 公開 | `{ email, password }` | 200 / null；已驗證 LOCAL 帳號才設定 Session Cookie |
 | POST `/auth/logout` | 不套 Guard | 無 body；可帶 Cookie | 200 / null；撤銷本次 token 並清 Cookie |
+| PATCH `/auth/verify/:token` | 公開，不需 Session | URL token；無 body | 200 / null；消耗 token，不建立 Session |
+| POST `/auth/resend-verification-email` | 公開，不需 Session | `{ email }` | 202 / `{ retryAfterSeconds }`；條件式受理 |
 | GET `/user/userInfo` | 有效 Session | 無 | 200 / PublicUser |
 | POST `/workspaces` | 有效 Session | `{ name }` | 201 / WorkspaceDto |
 | GET `/workspaces` | 有效 Session | 無 | 200 / WorkspaceListItemDto[] |
@@ -33,13 +35,105 @@
 | GET `/project/:projectId/memberCandidates` | 有效 Session、未封存 Project 與 Workspace 的 Project OWNER | Path `projectId` | 200 / 同 Workspace 成員清單；`projectRole=null` 代表尚未加入 |
 | POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標 membership 必須屬於同一個有效 Workspace | `{ projectId, workspaceMemberId, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
 | GET `/project/notificationDetail/:notificationId` | 有效 Session，只能查本人收到且類型正確的 Project member added 通知 | UUID v4 path param | 200 / `ProjectMemberAddedNotificationDetail`；回傳 Project、Workspace、邀請者、角色與加入時間 |
+| GET `/project/:projectId/members` | 有效 Session，且為未封存 Project 的 ProjectMember；目前未檢查 Workspace 封存 | UUID path param | 200 / `ProjectMemberDto[]` |
 | GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID v4 path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
 | PATCH `/project/:projectId/pin` | 有效 Session，且為未封存 Project／Workspace 的 ProjectMember | Path `projectId`；body `{ pinned: boolean }` | 200 / null，message 為「更新成功」；只修改目前使用者自己的 `ProjectMember.pinnedAt` |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
 
+## Auth API 詳細規格
+
+Email 欄位會 trim 並轉小寫，需符合 Email 格式且最多 320 字元；登入／註冊 password 為 8–72 字元，不 trim。註冊 name 會 trim，非空且最多 100 字元。confirmPassword 與同意條款目前只在前端驗證，不傳給 API；額外 body 欄位回 400 / ValidationError。
+
+所有範例 Email、時間均為假資料。`retryAfterSeconds` 以後端回傳值為準，冷卻由 `RATE_LIMIT_VERIFY_EMAIL_SECONDS` 設定，預設 60 秒。
+
+### POST /auth/signup
+
+Request：`{ "email": "user@example.com", "password": "example-password", "name": "示範使用者" }`。
+
+| 結果 | HTTP / code | data | 前端應採取的動作（待實作） |
+| --- | --- | --- | --- |
+| 帳號建立、工作入列 | 201 / Success (1) | `{ accountCreated: true, emailQueued: true, retryAfterSeconds: 60 }` | 前往驗證信頁，顯示正在安排寄送與倒數 |
+| 帳號建立，但設定冷卻或入列失敗 | 201 / SignupEmailQueueFailed (2007) | `{ accountCreated: true, emailQueued: false, retryAfterSeconds: number }` | 提示帳號已建立，倒數後可重寄，不重新註冊 |
+| Email 已存在（前置查詢） | 409 / EmailAlreadyRegistered (2002) | null | 留在表單，提供登入／重寄入口 |
+| DTO 錯誤 | 400 / ValidationError (1000) | null | 以 error 顯示欄位錯誤 |
+| 建立帳號等未處理例外 | 500 / InternalError (5000) | null | 顯示服務失敗；不能從一般 500 推定帳號建立結果 |
+
+201 的 `emailQueued: true` 只表示 BullMQ 接受工作；SMTP 在 Worker 非同步執行，之後的寄信失敗不會改寫這次 HTTP 回應。201 / 2007 也會走 Axios 的成功分支，前端必須讀取 code 與 data，不能只在 catch 處理排信失敗。排信失敗保留已存在的冷卻；Redis 無法查 TTL 時以設定秒數回傳。
+
+部分成功範例（HTTP 201）：
+
+```json
+{
+  "code": 2007,
+  "data": { "accountCreated": true, "emailQueued": false, "retryAfterSeconds": 60 },
+  "message": "帳號已建立，驗證信暫時無法寄送，請稍後重寄",
+  "time": "2026-09-27T00:00:00.000Z",
+  "error": null
+}
+```
+
+### POST /auth/login
+
+Request：`{ "email": "user@example.com", "password": "example-password" }`。
+
+| 結果 | HTTP / code | data / 副作用 |
+| --- | --- | --- |
+| LOCAL 帳號、密碼正確且已驗證 | 200 / Success (1) | null；建立 Session，設定 HttpOnly sessionId Cookie |
+| 帳號不存在、非 LOCAL、無密碼或密碼錯誤 | 401 / InvalidCredentials (2001) | null；不建立 Session |
+| 密碼正確但 emailVerifiedAt 為 null | 403 / EmailVerificationRequired (2005) | `{ email: "user@example.com" }`；不建立 Session、不設定登入 Cookie |
+| DTO 錯誤／服務故障 | 400 / 1000 或 500 / 5000 | null |
+
+前端遇到 2005 應帶回應中的 Email 前往驗證信頁，清除密碼輸入；進頁本身不自動重寄。2005 不等於 Session 失效的 2003，不應觸發全域 session-expired 清理。
+
+### PATCH /auth/verify/:token
+
+信件 URL 是 `${FRONTEND_URL}/auth/verify/:token`；前端從路由讀 token，再向後端送 PATCH，無 request body。直接開啟信件 URL 不會自動完成驗證，仍需實作前端頁面。
+
+| 結果 | HTTP / code | data |
+| --- | --- | --- |
+| 有效 token、符合原 userId 與 Email 的 LOCAL 帳號 | 200 / Success (1) | null |
+| token 無效、到期、已消耗、內容缺漏或使用者不符合 | 400 / AuthVerifyFail (2004) | null |
+| Redis／DB 操作失敗 | 500 / InternalError (5000) | null |
+
+先更新 DB 再刪 Redis token；已驗證帳號使用另一封仍有效的信也回 200，不重寫驗證時間。同一個 token 消耗後再次使用回 400，不能辨認是已用、過期還是錯誤 token，UI 合併顯示「連結已無法使用」。若 DB 已更新但 DEL 失敗，這次回 500，可重試清理。驗證成功不登入、不改變既有 Session。
+
+目前沒有 token path 的專用 DTO；缺少 token 的 URL 不屬於此 handler，不能依賴後端回 2004。前端 `/auth/verify` 應直接顯示連結不可用。
+
+### POST /auth/resend-verification-email
+
+Request：`{ "email": "user@example.com" }`。
+
+| 結果 | HTTP / code | data |
+| --- | --- | --- |
+| 申請受理 | 202 / Success (1) | `{ retryAfterSeconds: 60 }` |
+| 冷卻中 | 429 / EmailVerificationCooldown (2006) | `{ retryAfterSeconds: number }`，剩餘 TTL，最小為 0 |
+| 符合條件但入列失敗 | 503 / VerificationEmailQueueFailed (2008) | `{ retryAfterSeconds: number }` |
+| DTO 錯誤／Redis 取得資格或查帳號失敗 | 400 / 1000 或 500 / 5000 | null |
+
+所有合法 Email 都先以 Redis SET NX EX 取得冷卻資格，再查帳號；只有未驗證 LOCAL 帳號會入列。不存在、已驗證及 GOOGLE 帳號均回相同 202 與受理文案，且也適用 429 冷卻。202 不保證實際寄信。重寄產生新 token，但不主動取消舊 token；有效期限從各工作寫入 Redis 時計算。
+
+429 範例：
+
+```json
+{
+  "code": 2006,
+  "data": { "retryAfterSeconds": 42 },
+  "message": "冷卻中，請稍後再試",
+  "time": "2026-09-27T00:00:00.000Z",
+  "error": null
+}
+```
+
+倒數資訊固定放 `data`，沒有 Retry-After header。前端可自行算 `retryAt = Date.now() + retryAfterSeconds * 1000`；retryAt 不是 API 欄位。500／網路錯誤可能無倒數資料，不可視為冷卻已解除。
+
+Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀態。登入 403 也不提供剩餘冷卻秒數；無本機暫存時可顯示寄送按鈕，提交遇到 429 再依回應校正倒數。精確的驗證期限顯示在信件中，前端先使用「請在信件標示的期限內完成驗證」。詳細 Worker 流程見[寄信規格](email-verification-worker-spec.md)。
+
 ## Public data
 
+- SignupResult：`accountCreated: true, emailQueued: boolean, retryAfterSeconds: number`。
+- ResendVerificationEmailResult：`retryAfterSeconds: number`。
+- ProjectMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 ProjectMember UUID，沒有 joinedAt。
 - PublicUser：`email, displayName, avatarUrl`，實際完整型別見 `packages/contracts/user.ts`。
 - WorkspaceDto：`id, name, createdAt, updatedAt`。
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
@@ -108,8 +202,28 @@ Project list 的存取錯誤如下：
 | 不是 WorkspaceMember 或找不到 Workspace | 404 / ResourceNotFound (3001) |
 | Workspace 已封存 | 400 / RequestError (4000) |
 
+## Board：已存在但尚未完成的 API
+
+以下路徑已掛載於 BoardModule，均套 SessionGuard。它們目前不是完整 Board snapshot／拖曳 contract，應先處理下列缺口再依其設計協作互動。
+
+| Method / path | Request | 現況 response | 完成程度 |
+| --- | --- | --- | --- |
+| GET `/board/:projectId` | UUID path param | 200 / `BoardColumn[]` | 已查 DB，尚缺 Project membership 與 Project／Workspace archivedAt 授權檢查 |
+| POST `/board/addColumn` | `{ projectId, title, colorKey }` | 201 / `{ column, boardRevision: string }` | 已檢查有效 Project OWNER／EDITOR，transaction 新增 Column 並遞增 revision |
+| PATCH `/board/moveColumn` | 型別定義有 projectId、columnId、beforeColumnId、afterColumnId、expectedBoardRevision | handler 是 200 / null 佔位 | 未呼叫 Service、未更新排序、未檢查 revision；DTO 無 validation decorators，非空 body 會被全域 whitelist 拒絕 |
+
+目前 BoardColumn 直接回傳 Prisma 資料：`id, projectId, title, colorKey, position, version, archivedAt, createdAt, updatedAt`，尚無 shared response DTO。GET 只過濾 Column.archivedAt=null，依 position ASC、updatedAt DESC 排序；不含 Project metadata、boardRevision 或 cards。找不到 Columns 時回空陣列。**目前只要通過 SessionGuard 並提供 Project ID 即可查其未封存 Columns，授權尚未完成。**
+
+新增 Column 的 projectId 必須 UUID v4；title trim、非空且最多 80 字元；colorKey 限 coral／mint／amber／violet。position 設為未封存欄位的最大值加 1024（空集合從 1024 開始）。無 membership、VIEWER、Project 或 Workspace 已封存回 403 / RequestError；DTO 錯誤回 400 / ValidationError。
+
+前端 ProjectView 已呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；cards 暫填空陣列。VueDraggable 只更改本機順序，重新載入會回到 DB 順序。Card schema／API、Column 更新／封存、持久化拖曳及 project room 同步尚未完成。`GET /project/:projectId/board` 仍是[目標規格](board-api-websocket-spec.md)，不能當作現有路徑。
+
+Project 成員清單補充：`GET /project/:projectId/members` 無 membership 或 Project 已封存時拋一般 NotFoundException，經 Filter 回 404 / RequestError (4000)，目前不是 ResourceNotFound (3001)；Service 尚未拒絕 Workspace 已封存的情況。
+
 ## Swagger 與待辦
 
-Swagger 位於 `/api/docs`。Controller class 已標示 domain tag 與 Cookie auth，大多數既有 handlers 有 operation／主要成功與錯誤狀態；`PinnedProjectDto.pinned` 已有欄位說明與 boolean validation，但新 pin handler 尚未補 endpoint-specific `ApiOperation` 與 response decorators。Auth 的手寫 envelope schema 仍把 error 描述為 array，與實際 FieldError object 不一致；可重用 success/error envelope decorators 也尚未完成，因此 Swagger 仍不是完整 response contract 的唯一真相。
+Swagger 位於 `/api/docs`。既有 Auth／User／Workspace／Invitation／Notification／Project 多數端點已有基本 metadata；Auth 驗證 handler、Project members／notification detail／pin 與 Board handlers 仍缺完整 endpoint-specific metadata。驗證／重寄的完整錯誤 data schema、signup 的 201 / 2007 分支也尚未完整列在 Swagger 中。
 
-尚待補上 pin endpoint Swagger metadata 與 HTTP E2E、Project detail／角色調整／移除成員 endpoints、邀請取消、通知 query DTO、共用 Swagger response schema，以及更完整的錯誤授權／併發測試；通知已讀 HTTP endpoint 與對應 E2E 已完成。BoardColumn 目前只有 schema 與建立 Project 時的預設資料；`GET /project/:projectId/board` snapshot、Column commands 與 Card API 尚未建立。
+Auth 手寫 error schema 已改為 object，但 additionalProperties 仍描述成字串陣列，實際應是 `{ value, messages }` 的 FieldError。可重用 typed response decorators 尚未完成，因此目前以本文件、contracts 和執行程式共同核對 API，不把 Swagger 視為完整唯一真相。
+
+尚未實作的功能包括：Google OAuth、忘記／重設密碼、修改帳號 Email、寄信狀態查詢、通知 query DTO、邀請取消、Workspace／Project 成員角色調整與移除、Project detail／編輯／封存、完整 Board snapshot、Card API 與協作拖曳。分批優先順序與 SVG 設計邊界見[設計前功能盤點](feature-readiness.md)。
