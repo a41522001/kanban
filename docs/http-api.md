@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後靜態核對：2026-09-27。依 Controllers、Service、DTO、Prisma 與 `packages/contracts` 核對；本次只更新文件，未重新執行 API 或測試。Auth 驗證／重寄已完成，Board 已有部分實作，未完成端點另行標示。功能缺口見[設計前功能盤點](feature-readiness.md)，既有測試紀錄見[進度](progress.md)。
+最後靜態核對：2026-09-28。依 Controllers、Service、DTO、Prisma 與 `packages/contracts` 核對；本次只更新文件，未重新執行 API 或測試。Auth 驗證／重寄已完成，Board 已有部分實作，未完成端點另行標示。功能缺口見[功能盤點](feature-readiness.md)，既有測試紀錄見[進度](progress.md)。
 
 ## 基本約定
 
@@ -9,6 +9,7 @@
 - SessionGuard 從 Redis 驗證 Cookie，將 userId 放入 request，必要時用 Set-Cookie 輪轉。
 - 成功與錯誤皆包成 `{ code, data, message, time, error }`；以下「data」指 envelope 內部資料。
 - DTO whitelist、transform、forbidNonWhitelisted 已開啟；詳細錯誤格式見 [API contract](api-contract-plan.md)。
+- 使用 `ParseUUIDPipe` 且未指定版本的 path param 接受一般 UUID，並非只接受 v4；格式錯誤會由 Filter 回 400 / RequestError (4000)。DTO 上的 `@IsUUID('4')` 則只接受 v4，驗證失敗回 400 / ValidationError (1000)。
 
 ## 已實作端點
 
@@ -26,7 +27,7 @@
 | POST `/workspaceInvitation/invite` | 有效 Session，且為未封存工作區 Owner | `{ workspaceId, email }` | 201 / null，message 為「邀請已送出」 |
 | POST `/workspaceInvitation/accept` | 有效 Session，且為該有效 PENDING 邀請的受邀者 | `{ invitationId }` | 200 / null，message 為「已接受邀請」；建立 WorkspaceMember |
 | POST `/workspaceInvitation/decline` | 有效 Session，且為該有效 PENDING 邀請的受邀者 | `{ invitationId }` | 200 / null，message 為「已拒絕邀請」；不建立 WorkspaceMember |
-| GET `/workspaceInvitation/:invitationId` | 有效 Session，且為該邀請的受邀者 | UUID path param | 200 / `WorkspaceInvitationDetail`；只回傳本人可查看的邀請 |
+| GET `/workspaceInvitation/:workspaceInvitationId` | 有效 Session，且為該邀請的受邀者 | UUID path param | 200 / `WorkspaceInvitationDetail`；只回傳本人可查看的邀請 |
 | GET `/notifications` | 有效 Session，只查本人收件匣 | 目前無 query DTO | 200 / `{ items, nextCursor }` |
 | GET `/notifications/unreadCount` | 有效 Session，只查本人未讀數 | 無 | 200 / `{ count }` |
 | PATCH `/notifications/read` | 有效 Session，只能標記本人通知 | `{ notificationId }` | 200 / null；通知不存在或不屬於本人回 404 |
@@ -34,9 +35,9 @@
 | POST `/project` | 有效 Session，且為未封存 Workspace 的成員 | `{ name, description?, workspaceId }` | 201 / null，message 為「創建成功」；建立 Project 與 OWNER ProjectMember |
 | GET `/project/:projectId/memberCandidates` | 有效 Session、未封存 Project 與 Workspace 的 Project OWNER | Path `projectId` | 200 / 同 Workspace 成員清單；`projectRole=null` 代表尚未加入 |
 | POST `/project/addMember` | 有效 Session、未封存 Project 的 OWNER；目標 membership 必須屬於同一個有效 Workspace | `{ projectId, workspaceMemberId, role }`，role 僅允許 EDITOR／VIEWER | 201 / null，message 為「新增專案成員成功」；建立 ProjectMember 與通知 |
-| GET `/project/notificationDetail/:notificationId` | 有效 Session，只能查本人收到且類型正確的 Project member added 通知 | UUID v4 path param | 200 / `ProjectMemberAddedNotificationDetail`；回傳 Project、Workspace、邀請者、角色與加入時間 |
+| GET `/project/notificationDetail/:notificationId` | 有效 Session，只能查本人收到且類型正確的 Project member added 通知 | UUID path param | 200 / `ProjectMemberAddedNotificationDetail`；回傳 Project、Workspace、邀請者、角色與加入時間 |
 | GET `/project/:projectId/members` | 有效 Session，且為未封存 Project 的 ProjectMember；目前未檢查 Workspace 封存 | UUID path param | 200 / `ProjectMemberDto[]` |
-| GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID v4 path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
+| GET `/project/:workspaceId` | 有效 Session，且為未封存 Workspace 的成員 | UUID path param | 200 / `ProjectListItemDto[]`；只回傳目前使用者所屬且未封存的 Project |
 | PATCH `/project/:projectId/pin` | 有效 Session，且為未封存 Project／Workspace 的 ProjectMember | Path `projectId`；body `{ pinned: boolean }` | 200 / null，message 為「更新成功」；只修改目前使用者自己的 `ProjectMember.pinnedAt` |
 
 Logout 若 Redis 操作拋錯，Controller 仍清 Cookie，但錯誤會交由 Filter 回傳，不能保證總是 200。
@@ -84,11 +85,11 @@ Request：`{ "email": "user@example.com", "password": "example-password" }`。
 | 密碼正確但 emailVerifiedAt 為 null | 403 / EmailVerificationRequired (2005) | `{ email: "user@example.com" }`；不建立 Session、不設定登入 Cookie |
 | DTO 錯誤／服務故障 | 400 / 1000 或 500 / 5000 | null |
 
-前端遇到 2005 應帶回應中的 Email 前往驗證信頁，清除密碼輸入；進頁本身不自動重寄。2005 不等於 Session 失效的 2003，不應觸發全域 session-expired 清理。
+前端遇到 2005 應帶回應中的 Email 前往 `/checkEmail`，清除密碼輸入；進頁本身不自動重寄。註冊 201 也會進入同頁，但使用註冊結果文案。2005 不等於 Session 失效的 2003，不應觸發全域 session-expired 清理。
 
 ### PATCH /auth/verify/:token
 
-信件 URL 是 `${FRONTEND_URL}/auth/verify/:token`；前端從路由讀 token，再向後端送 PATCH，無 request body。直接開啟信件 URL 不會自動完成驗證，仍需實作前端頁面。
+信件 URL 是 `${FRONTEND_URL}/verifyEmail/:token`；前端公開頁面從路由讀 token，再向後端 `PATCH /auth/verify/:token` 送出一次請求，無 request body。驗證期間顯示載入畫面，成功後顯示前往登入；不自動建立 Session。
 
 | 結果 | HTTP / code | data |
 | --- | --- | --- |
@@ -98,7 +99,7 @@ Request：`{ "email": "user@example.com", "password": "example-password" }`。
 
 先更新 DB 再刪 Redis token；已驗證帳號使用另一封仍有效的信也回 200，不重寫驗證時間。同一個 token 消耗後再次使用回 400，不能辨認是已用、過期還是錯誤 token，UI 合併顯示「連結已無法使用」。若 DB 已更新但 DEL 失敗，這次回 500，可重試清理。驗證成功不登入、不改變既有 Session。
 
-目前沒有 token path 的專用 DTO；缺少 token 的 URL 不屬於此 handler，不能依賴後端回 2004。前端 `/auth/verify` 應直接顯示連結不可用。
+目前沒有 token path 的專用 DTO；缺少 token 的 URL 不屬於此 handler，不能依賴後端回 2004。前端 `/verifyEmail` 直接顯示連結不可用，不呼叫 API。2004 與 500／網路錯誤使用不同 Dialog；後者允許手動重試，且不推定連結已失效。
 
 ### POST /auth/resend-verification-email
 
@@ -151,7 +152,7 @@ Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀�
 
 建立 Workspace 的 name 會 trim，需非空且最多 100 字元。建立者透過 nested create 同時成為 Owner。列表只回本人加入且未封存的工作區。
 
-成員查詢會先檢查呼叫者 membership 與 archivedAt，無存取權回 404。邀請要求 workspaceId 為 UUID v4，email 會 trim／lowercase 並限制 320 字元；業務錯誤如下：
+成員查詢會先檢查呼叫者 membership 與 archivedAt，無存取權回 404 / RequestError (4000)，因 Service 拋的是一般 `NotFoundException`。邀請要求 workspaceId 為 UUID v4，email 會 trim／lowercase 並限制 320 字元；業務錯誤如下：
 
 | 情況 | HTTP status / code |
 | --- | --- |
@@ -164,7 +165,7 @@ Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀�
 
 ## Notification 邊界
 
-目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。通知列表只回傳 type 與 resource pointer；前端依 `type` 選擇 domain detail API：`WORKSPACE_INVITED` 使用 `resourceId` 呼叫 `GET /workspaceInvitation/:invitationId`，`PROJECT_MEMBER_ADDED` 使用 notification id 呼叫 `GET /project/notificationDetail/:notificationId`。
+目前 Controller 只傳 recipientUserId。Repository 雖已支援 cursor、limit、type、unreadOnly，但尚未接 query DTO；HTTP 固定使用預設每頁 20 筆，依 createdAt DESC、id DESC 排序。回應有 nextCursor，但目前不能透過 HTTP 傳 cursor 取得下一頁。通知列表只回傳 type 與 resource pointer；前端依 `type` 選擇 domain detail API：`WORKSPACE_INVITED` 使用 `resourceId` 呼叫 `GET /workspaceInvitation/:workspaceInvitationId`，`PROJECT_MEMBER_ADDED` 使用 notification id 呼叫 `GET /project/notificationDetail/:notificationId`。
 
 未讀數條件只有 `recipientUserId + readAt = null`，過期通知仍會計入。單筆已讀以 `notificationId + recipientUserId + readAt IS NULL` 條件更新；全部已讀同樣限定目前 Session 的 recipient，兩者皆為冪等操作。通知以 HTTP 載入為持久化真相；邀請與 Project member added 都在 transaction commit 後由 Socket.IO 以 `notification:created` 推送 `PublicNotification` 摘要給收件者目前在線的 user room。接受邀請建立 WorkspaceMember 的 transaction commit 後，另以 `workspace:memberChanged` `{ workspaceId }` 推送給該 Workspace room 的目前訂閱者；前端再呼叫成員清單 API，不把事件 payload 當作完整資料。前端透過集中式 notification effect／resource sync handler 更新 domain Store：Workspace 與 Project 已接上，Board／Card 尚為佔位。Socket 斷線或漏收時仍需由前端重新呼叫通知列表、未讀數或對應 domain API，因目前尚未完成 reconnect resync。
 

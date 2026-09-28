@@ -1,11 +1,11 @@
-# 驗證信前端與 Figma 設計提案
+# 驗證信前端設計與實作
 
 日期：2026-09-27。
-狀態：本文件下方保留 2026-09-27 的原提案作歷史參考；2026-09-28 核准的畫面與 Figma 交付以緊接的「目前核准範圍」為準。前端第 1 階段（註冊結果、未驗證登入導向、提示頁與重寄倒數）已串接；點擊信件後的驗證頁留待第 2 階段。
+狀態：本文件下方保留 2026-09-27 的原提案作歷史參考；2026-09-28 核准的畫面與 Figma 交付以緊接的「目前核准範圍」為準。前端第 1 階段與第 2 階段均已串接，包含註冊、重寄、點擊信件驗證及結果畫面。
 
 ## 目前核准範圍（2026-09-28）
 
-登入、註冊表單的 SVG 不預先放驗證信資訊。註冊成功且寄信工作入列後，前端直接進入 `/auth/check-email`，顯示「請查看你的信箱」與首次寄送冷卻；入列失敗則在同頁告知並提供稍後重寄。帳密正確但未驗證時，登入 API 回傳 `EmailVerificationRequired` 且不建立 Session，前端也進入同一路由，但顯示「請先驗證電子郵件」並讓使用者主動寄送。信件連結進入 `/auth/verify/:token`，先顯示「正在驗證」，只有 API 成功才顯示驗證成功並提供「前往登入」。錯誤不另建獨立頁面，Dialog 與頁面狀態依下節處理；驗證失敗後不能讓「驗證中」或成功內容留在 Dialog 背後。
+登入、註冊表單的 SVG 不預先放驗證信資訊。註冊成功且寄信工作入列後，前端直接進入 `/checkEmail`，顯示「請查看你的信箱」與首次寄送冷卻；入列失敗則在同頁告知並提供稍後重寄。帳密正確但未驗證時，登入 API 回傳 `EmailVerificationRequired` 且不建立 Session，前端也進入同一路由，但顯示「請先驗證電子郵件」並讓使用者主動寄送。信件連結進入 `/verifyEmail/:token`，先顯示「正在驗證」，只有 API 成功才顯示驗證成功並提供「前往登入」。錯誤不另建獨立頁面，Dialog 與頁面狀態依下節處理；驗證失敗後不能讓「驗證中」或成功內容留在 Dialog 背後。
 
 | Current SVG | 狀態 | Figma v14 |
 | --- | --- | --- |
@@ -14,11 +14,11 @@
 | `design/auth-email-verify-loading.svg` | 點擊信件後等待驗證 API | 同區塊 Loading |
 | `design/auth-email-verify-success.svg` | 驗證成功後返回登入 | 同區塊 Success |
 
-四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；前端第 1 階段已完成 Ready／Cooldown 與其錯誤 Dialog、基本響應式排版；Loading／Success 與驗證錯誤仍待第 2 階段。來源與輸出清單見 [design 索引](../design/README.md)及 [Plugin manifest](../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
+四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；前端已完成 Ready／Cooldown／Loading／Success、錯誤 Dialog 與基本響應式排版。來源與輸出清單見 [design 索引](../design/README.md)及 [Plugin manifest](../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
 
 ### 錯誤處理與前端接線規格（2026-09-28）
 
-這是四張已核准畫面的互動規格；第 1 階段已實作註冊結果、未驗證登入導向、驗證提示頁與重寄，第 2 階段驗證結果頁尚未實作。登入與註冊 SVG 不新增驗證信靜態文案。登入回傳 `EmailVerificationRequired` 才顯示「請先驗證電子郵件」；註冊成功則進入同版型的「請查看你的信箱」。註冊入列失敗在同頁顯示 Dialog 並保留冷卻，不要求再次註冊。
+這是四張已核准畫面的互動規格；第 1 階段已實作註冊結果、未驗證登入導向、驗證提示頁與重寄，第 2 階段已實作公開驗證路由、驗證結果與錯誤 Dialog。登入與註冊 SVG 不新增驗證信靜態文案。登入回傳 `EmailVerificationRequired` 才顯示「請先驗證電子郵件」；註冊成功則進入同版型的「請查看你的信箱」。註冊入列失敗在同頁顯示 Dialog 並保留冷卻，不要求再次註冊。
 
 | 入口與 API 結果 | 畫面行為 | 使用者下一步 |
 | --- | --- | --- |
@@ -40,9 +40,9 @@
 
 提示頁由註冊 `201` 或登入 `2005` 帶入 Email，並保存入口原因；若直接開啟或重整後失去 Email context，導回登入，避免顯示範例信箱或替未知地址重寄。倒數只顯示後端回傳秒數或同一瀏覽器已保存的截止時間；後端 `429` 永遠是準確來源。除註冊提交後的結果 Dialog 外，驗證信資訊不預先放進登入／註冊畫面。
 
-第 1 階段已依核准的 Ready／Cooldown Figma 畫面完成 Vue 與基本響應式排版，使用既有 Alert Dialog 顯示註冊與重寄錯誤。Email 與倒數截止時間保存在 sessionStorage，重新整理後接續；沒有 Email 時返回登入。沒有新增 SVG 或 Figma 畫面。第 2 階段的驗證結果、失效連結及重試仍未開發，須依使用者授權進行。
+第 1 階段已依核准的 Ready／Cooldown Figma 畫面完成 Vue 與基本響應式排版，使用既有 Alert Dialog 顯示註冊與重寄錯誤。Email 與倒數截止時間保存在 sessionStorage，重新整理後接續；沒有 Email 時返回登入。第 2 階段依 Loading／Success 畫面完成驗證頁；失效連結或服務錯誤在同頁使用中性背景及 Dialog，服務錯誤可手動重試。驗證路由只讀 URL token，不讀取 sessionStorage 的 Email 判定結果。沒有新增 SVG 或 Figma 畫面。
 
-以下段落是原 14 狀態提案；狀態數、畫面清單與實作進度以目前核准範圍為準，不作為現行交付清單。
+以下段落是 2026-09-27 的原 14 狀態提案，保留作設計歷程；其中頁面、數量、進度與待審查事項不作為現行交付清單。現行頁面與行為以上方「目前核准範圍」為準。
 
 ## 範圍與來源
 
@@ -65,10 +65,10 @@
 
 | 頁面 | 建議路由 | 用途 |
 | --- | --- | --- |
-| 驗證信頁 | /auth/check-email | 註冊後等待、登入未驗證提示、輸入信箱重寄、重寄倒數與失敗 |
-| 驗證結果頁 | /auth/verify/:token | 讀 token 自動驗證，顯示處理中、成功、連結不可用或暫時失敗 |
+| 驗證信頁 | /checkEmail | 註冊後等待、登入未驗證提示、重寄倒數與失敗 |
+| 驗證結果頁 | /verifyEmail/:token | 讀 token 自動驗證，顯示處理中、成功、連結不可用或暫時失敗 |
 
-另為 /auth/verify（缺少 token）提供相同的連結不可用畫面。路由以 meta.public 等明確規則判斷，不用比對含動態 token 的完整字串。這些頁面不要求 Session，也不為了進入頁面而連接 Socket。
+另為 /verifyEmail（缺少 token）提供相同的連結不可用畫面。路由以 meta.public 等明確規則判斷，不用比對含動態 token 的完整字串。這些頁面不要求 Session，也不為了進入頁面而連接 Socket；後端驗證 API 保持 `PATCH /auth/verify/:token`。
 
 現有 /login、/signup 繼續使用，更新成功後的導向與相關提示即可。
 
@@ -77,7 +77,7 @@
 ### 1. 註冊成功
 
 1. 使用者提交註冊。
-2. User 建立且寄信工作成功入列後，導向 /auth/check-email。
+2. User 建立且寄信工作成功入列後，導向 /checkEmail。
 3. 顯示註冊信箱、查看收件匣／垃圾郵件提示、有效期限說明。
 4. 重寄按鈕進入建議 60 秒冷卻；後端應同時記錄首次寄信請求的冷卻。
 5. 使用者開啟信件連結，在驗證結果頁完成驗證。
@@ -89,7 +89,7 @@
 
 1. 後端先確認帳號與密碼正確。
 2. emailVerifiedAt 為 null 時回傳專用 EmailVerificationRequired，且不建立 Session。
-3. 前端清除密碼輸入，帶已提交的 Email 導向 /auth/check-email。
+3. 前端清除密碼輸入，帶後端回應的 Email 導向 /checkEmail。
 4. 顯示「請先驗證電子郵件」與主要操作「寄送驗證信」。
 5. 只有使用者按下按鈕才呼叫寄信 API；進入或重新整理頁面不自動寄信。
 6. 若已有冷卻期限，顯示倒數；使用者也可直接去開啟先前信件。
@@ -233,7 +233,7 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 
 既有 request-error manifest 應在 Figma / Vue 中保留「欄位錯誤、冷卻中的服務失敗、網路失敗」差異，不能把 503 的倒數丟掉。無 token 頁面由前端直接顯示 unavailable。頁面重新整理、瀏覽器返回或跨分頁完成驗證也需保留登入入口。
 
-目前仍待前端實作 service functions、路由、狀態分流、暫存／倒數與 i18n；SVG 已暫時隱藏無 API 的 Google 登入／忘記密碼按鈕，Vue 畫面尚未對齊。Workspace／Board 等全站缺口見 [設計前功能盤點](feature-readiness.md)。
+此節是原提案的狀態清單；目前前端 service functions、路由、狀態分流、暫存／倒數與 i18n 已實作。Google 登入與忘記密碼尚無 API；Workspace／Board 等全站缺口見 [功能盤點](feature-readiness.md)。
 
 ## 審查與交付階段
 
@@ -244,11 +244,11 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 5. 依 Figma 與現有 contract 開發前端；後端已啟用未驗證登入限制。
 6. 驗收註冊、未驗證登入、跨裝置驗證、重寄冷卻、連結不可用、暫時錯誤與手機版流程。
 
-目前完成第 1 階段，等待 SVG 畫面審查；Figma Generator 與前端功能尚未開始更新。
+以上是原提案的交付順序。現行核准的四張 SVG 已透過 Figma Generator v14 建立畫面，驗證信前端第 1、2 階段均已完成；使用者已回報前後端流程實測成功。
 
-## 請使用者審查的決策
+## 原提案的審查題目（已完成審查）
 
-- 兩頁架構是否接受：重寄整合在 /auth/check-email？
+- 兩頁架構是否接受：重寄整合在 /checkEmail？
 - 等待文案採「請查看你的信箱」，還是加入實際寄送狀態追蹤後顯示「驗證信已寄出」？
 - 重寄冷卻建議 60 秒；舊信在各自期限內仍有效，帳號驗證後不重寫時間，是否接受？
 - 驗證成功由使用者按「前往登入」，不自動登入；目前不做輪詢，是否接受？

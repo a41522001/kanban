@@ -2,11 +2,11 @@
 
 SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為原生 Figma Frame、Auto Layout、Component、Variant、Variables 與 Styles，不能把 SVG 匯入後當成完成品。
 
-## 2026-09-27 API 現況與待審查範圍
+## 2026-09-28 功能現況與設計範圍
 
-Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；手機版、錯誤 Dialog 與前端串接尚未完成。規格參考見 [驗證信提案](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
+Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；前端提示、重寄、驗證與錯誤 Dialog 已完成，手機響應式由 Vue 實作，沒有另建手機版 SVG。規格參考見 [驗證信設計與實作](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
 
-- Signup 已排信，前端仍缺驗證頁及 201 部分成功分流；既有「建立工作區」文案需改為「建立帳號」。
+- Signup 已排信，前端已處理 201 正常入列與部分成功分流，並提供信件驗證頁；使用者已回報前後端流程實測成功。
 - Project members API 回 memberId、displayName、avatarUrl、role，沒有 joinedAt；overview 的加入時間只能作為未來設計，不可直接使用不存在欄位。
 - Card、持久化拖曳與協作狀態是目標設計；目前 Board 已讀 DB Columns，但 cards 為空、拖曳只改本機。
 

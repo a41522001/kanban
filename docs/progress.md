@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後靜態檢視：2026-09-27。以目前原始碼核對 Auth 與 Board 現況；本輪只更新文件，歷史 build／測試結果保留於下方。
+最後靜態檢視：2026-09-28。以目前原始碼核對驗證信前後端流程；本輪只更新文件，歷史 build／測試結果保留於下方。
 
 ## Native WebSocket
 
@@ -35,7 +35,7 @@
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
 | Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定與成功／錯誤狀態已完成；接受成功後同時刷新通知與 Workspace read model。Socket 通知透過集中式 notification effect／resource sync handler 分派 domain 更新；Notification resource 只有 WorkspaceInvitation／Workspace／Project／Card，不保留 Board |
 | Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；Workspace `workspace:into` 會驗證 membership／archivedAt 後加入 `workspace:{workspaceId}`，`workspace:leave` 負責離開；接受邀請 transaction commit 後推送 `workspace:memberChanged`，邀請通知則推送 `notification:created`；重連、快速切換競速與更完整 lifecycle 測試尚待補 |
-| Frontend Auth vertical slice | 既有核心流程已完成，驗證信尚待串接 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
+| Frontend Auth vertical slice | 驗證信流程已串接 | signup／login、HttpOnly Cookie、userInfo、protected route、logout；註冊結果、未驗證登入、重寄倒數、信件連結驗證、成功與錯誤 Dialog 均已串接 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
 | Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀、Workspace invitation detail 與 Project member added detail API 已完成；兩種 domain flow 都在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端依 notification type 導向對應 Dialog |
 | Project domain | 建置中，read／create／member notification／pin 已形成前端 vertical slice | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 在既有 transaction 建立 Project、四個預設 Columns 與 OWNER membership。pin 與 member flows 已串接；13 migrations E2E 已通過，負向授權、四欄直接 assertion、rollback 與真實併行仍待補 |
@@ -43,7 +43,13 @@
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
 
-## 2026-09-27 驗證信與設計前盤點
+## 2026-09-28 驗證信前後端完成
+
+- 後端完成 LOCAL 帳號註冊入列、Worker 寄信、Redis token 與 TTL、驗證、重寄冷卻、未驗證登入限制；前端完成 `/checkEmail`、`/verifyEmail/:token` 與缺 token 的 `/verifyEmail`。信件連結由 Worker 指向 `/verifyEmail/:token`，驗證頁呼叫 `PATCH /auth/verify/:token`，成功後由使用者前往登入。
+- 使用者已回報真實驗證信前後端流程實測成功；本次文件更新未重新操作 SMTP、資料庫或瀏覽器。最近一次前端 `pnpm run test:unit -- --run` 為 15 files／57 tests 通過，`pnpm run type-check` 通過。後端與 E2E 的舊結果保留如下，不視為本次重跑。
+- 仍未包含寄信失敗自動 retry／backoff、SMTP 投遞狀態查詢、免寄信開發模式、Google OAuth 或忘記密碼。
+
+## 2026-09-27 驗證信與設計前盤點（歷史紀錄）
 
 - Auth 已完成五項後端工作：驗證消耗 token／保留首次時間、重寄條件與冷卻、註冊排信失敗的部分成功結果、未驗證登入限制、contracts 與測試。
 - 上一輪以 Node 24.13 執行後端 Jest：21 suites 通過、5 suites skipped；169 tests 通過、5 tests skipped。隔離 E2E 為 4 suites／13 tests 通過，使用真正 DB／Redis／BullMQ Worker，SMTP 為替身。後端／前端 TypeScript 檢查通過。
@@ -57,7 +63,7 @@
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
 - Backend E2E 使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；目前案例覆蓋 Auth lifecycle、邀請接受／拒絕、通知單筆／全部已讀，以及 Project 建立、候選人、addMember、member-added notification detail 與重複加入 409。
 - runner 結束後會移除 E2E containers、network 與暫存 volumes；專案以 `.nvmrc` 與 CI 的 `node-version-file` 固定 Node 24.13，避免 Jest 30 在 Node 22 載入 `@nestjs/schedule` 12 ESM 時失敗。
-- Frontend unit tests 目前覆蓋 signup／login pure form validation、User／Notification／Project Store、Project／WorkspaceInvitation services、Project pin request／optimistic sort、通知副作用 handler、邀請回覆卡、Project add-member／notification detail Dialog，以及共用 Alert／Loading；尚未覆蓋真實 route、Socket lifecycle 或瀏覽器 Cookie 行為。
+- Frontend unit tests 目前覆蓋 signup／login pure form validation、驗證信提示與結果路由／元件、User／Notification／Project Store、Project／WorkspaceInvitation services、Project pin request／optimistic sort、通知副作用 handler、邀請回覆卡、Project add-member／notification detail Dialog，以及共用 Alert／Loading；尚未覆蓋完整真實寄信的瀏覽器流程、Socket lifecycle 或瀏覽器 Cookie 行為。
 - 2026-09-12 以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite build：8 個 frontend test files、25 個 tests 全數通過，type-check／lint／production build 亦通過。Playwright CLI 以攔截的本機 API 假資料驗證桌面邀請卡、接受成功、工作區清單更新及 375px 響應式畫面。
 - 2026-09-12 變更 frontend HTTP error handling 後，使用 Node 24.13 執行 `pnpm --filter frontend type-check` 與 `pnpm --filter frontend test:unit --run`：8 個 test files、25 個 tests 全數通過。Vite 顯示既有 `configLoader: 'native'` 未來相容性提醒，與測試結果及本次修改無關。
 - 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；列表狀態與未讀 badge 會即時更新，邀請回覆成功後同步標記該通知為已讀。

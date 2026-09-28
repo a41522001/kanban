@@ -620,7 +620,7 @@ const handleProjectMemberAdded = () => {
 
 const enterProject = (projectId: string) => {
   void router.push({
-    name: 'project',
+    name: 'projects',
     params: { projectId },
     query: { workspaceId: selectedWorkspaceId.value ?? undefined },
   });

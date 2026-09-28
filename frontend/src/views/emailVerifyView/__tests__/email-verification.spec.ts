@@ -6,7 +6,7 @@ import { ApiCode, type ApiResponse } from '@kanban/contracts/api';
 import router from '@/router';
 import { i18n } from '@/i18n';
 import Alert from '@/components/app/Alert/Alert.vue';
-import { loginApi, signupApi, resendVerificationEmailApi } from '@/services/auth';
+import { loginApi, signupApi, resendVerificationEmailApi, verifyEmailApi } from '@/services/auth';
 import { getUserInfoApi } from '@/services/user';
 import { ensureConnected } from '@/services/socket';
 import { useEmailVerificationStore } from '@/stores/emailVerification';
@@ -15,6 +15,7 @@ vi.mock('@/services/auth', () => ({
   loginApi: vi.fn(),
   signupApi: vi.fn(),
   resendVerificationEmailApi: vi.fn(),
+  verifyEmailApi: vi.fn(),
 }));
 vi.mock('@/services/user', () => ({ getUserInfoApi: vi.fn() }));
 vi.mock('@/services/socket', () => ({ ensureConnected: vi.fn() }));
@@ -28,6 +29,7 @@ const response = <T>(data: T, code = ApiCode.Success): ApiResponse<T> => ({
   time: '',
   error: null,
 });
+
 const apiError = (code: ApiCode, data: unknown = null) => ({
   isAxiosError: true,
   response: { data: response(data, code) },
@@ -62,7 +64,7 @@ const signup = async () => {
 };
 const showNotice = async () => {
   useEmailVerificationStore().setEmail('user@example.com');
-  await render('/auth/check-email');
+  await render('/checkEmail');
 };
 const dialogText = () => document.querySelector('[role="alertdialog"]')?.textContent;
 
@@ -87,7 +89,7 @@ describe('email verification stage 1', () => {
     );
     await render('/signup');
     await signup();
-    expect(router.currentRoute.value.path).toBe('/auth/check-email');
+    expect(router.currentRoute.value.path).toBe('/checkEmail');
     expect(wrapper.get('h1').text()).toBe('請查看你的信箱');
     expect(wrapper.text()).toContain('驗證信已安排寄送');
     expect(wrapper.text()).toContain('01:00 後可再次寄送');
@@ -105,7 +107,7 @@ describe('email verification stage 1', () => {
     );
     await render('/signup');
     await signup();
-    expect(router.currentRoute.value.path).toBe('/auth/check-email');
+    expect(router.currentRoute.value.path).toBe('/checkEmail');
     expect(wrapper.get('h1').text()).toBe('帳號已建立');
     expect(wrapper.text()).toContain('這封驗證信尚未安排寄送');
     expect(dialogText()).toContain('暫時無法安排驗證信');
@@ -132,7 +134,7 @@ describe('email verification stage 1', () => {
     );
     await render('/login');
     await login();
-    expect(router.currentRoute.value.path).toBe('/auth/check-email');
+    expect(router.currentRoute.value.path).toBe('/checkEmail');
     expect(wrapper.text()).toContain('user@example.com');
     expect(wrapper.get('h1').text()).toBe('請先驗證電子郵件');
     expect(getUserInfoApi).not.toHaveBeenCalled();
@@ -147,7 +149,7 @@ describe('email verification stage 1', () => {
     await login();
     expect(router.currentRoute.value.path).toBe('/login');
     expect(dialogText()).toBeTruthy();
-    await router.push('/auth/check-email');
+    await router.push('/checkEmail');
     expect(router.currentRoute.value.path).toBe('/login');
   });
 
@@ -216,12 +218,80 @@ describe('email verification stage 1', () => {
     vi.setSystemTime(Date.now() + 18000);
     pinia = createPinia();
     setActivePinia(pinia);
-    await render('/auth/check-email');
+    await render('/checkEmail');
     expect(wrapper.text()).toContain('00:42 後可再次寄送');
     expect(resendVerificationEmailApi).not.toHaveBeenCalled();
     useEmailVerificationStore().setEmail('other@example.com');
     await flushPromises();
     expect(wrapper.text()).toContain('other@example.com');
     expect(wrapper.find('#verification-cooldown').exists()).toBe(false);
+  });
+});
+
+describe('email verification stage 2', () => {
+  it('公開驗證頁只送出一次 PATCH，等待回應時顯示處理中', async () => {
+    let finish!: (value: ApiResponse<null>) => void;
+    vi.mocked(verifyEmailApi).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await render('/verifyEmail/email-token');
+    expect(verifyEmailApi).toHaveBeenCalledExactlyOnceWith('email-token');
+    expect(wrapper.get('h1').text()).toBe('正在驗證你的電子郵件');
+    expect(wrapper.get('[role="status"]').text()).toContain('驗證中');
+    expect(getUserInfoApi).not.toHaveBeenCalled();
+    expect(ensureConnected).not.toHaveBeenCalled();
+    finish(response(null));
+    await flushPromises();
+    expect(wrapper.get('h1').text()).toBe('電子郵件驗證成功');
+    expect(wrapper.text()).toContain('已完成');
+    expect(wrapper.get('a[href="/login"]').text()).toBe('前往登入');
+    expect(dialogText()).toBeUndefined();
+  });
+
+  it('失效連結顯示中性畫面與 Dialog，缺少 token 不送請求', async () => {
+    vi.mocked(verifyEmailApi).mockRejectedValue(apiError(ApiCode.AuthVerifyFail));
+    await render('/verifyEmail/expired-token');
+    expect(wrapper.get('h1').text()).toBe('此驗證連結已無法使用');
+    expect(dialogText()).toContain('連結可能已過期或已使用');
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain('已完成');
+    wrapper.unmount();
+    document.body.innerHTML = '';
+    vi.clearAllMocks();
+    await render('/verifyEmail');
+    expect(verifyEmailApi).not.toHaveBeenCalled();
+    expect(wrapper.get('h1').text()).toBe('此驗證連結已無法使用');
+    expect(dialogText()).toContain('連結可能已過期或已使用');
+  });
+
+  it('網路錯誤不判定連結失效；使用者按再試一次才重新請求', async () => {
+    vi.mocked(verifyEmailApi)
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(response(null));
+    await render('/verifyEmail/email-token');
+    expect(wrapper.get('h1').text()).toBe('暫時無法確認驗證結果');
+    expect(dialogText()).toContain('網路或服務暫時發生問題');
+    expect(verifyEmailApi).toHaveBeenCalledOnce();
+    const retryButton = Array.from(document.querySelectorAll('[role="alertdialog"] button')).find(
+      (button) => button.textContent?.includes('再試一次'),
+    ) as HTMLButtonElement;
+    retryButton.click();
+    await flushPromises();
+    expect(verifyEmailApi).toHaveBeenCalledTimes(2);
+    expect(wrapper.get('h1').text()).toBe('電子郵件驗證成功');
+    expect(dialogText()).toBeUndefined();
+  });
+
+  it('服務錯誤後重試若回 2004，仍提示先登入確認驗證狀態', async () => {
+    vi.mocked(verifyEmailApi)
+      .mockRejectedValueOnce(apiError(ApiCode.InternalError))
+      .mockRejectedValueOnce(apiError(ApiCode.AuthVerifyFail));
+    await render('/verifyEmail/email-token');
+    await wrapper.get('button').trigger('click');
+    await flushPromises();
+    expect(wrapper.get('h1').text()).toBe('此驗證連結已無法使用');
+    expect(dialogText()).toContain('請先登入確認是否完成驗證');
   });
 });

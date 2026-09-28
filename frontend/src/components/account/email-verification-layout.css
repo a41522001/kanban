@@ -25,5 +25,5 @@
   @apply min-w-0 px-6 py-10 sm:px-10 lg:pt-35 lg:pr-10 lg:pb-15 lg:pl-14 xl:pr-[9.7222vw] xl:pl-[14.4444vw];
 }
 .verification-layout__panel {
-  @apply mx-auto w-full max-w-145 lg:mx-0;
+  @apply mx-auto w-full max-w-100 lg:max-w-145 lg:mx-0;
 }

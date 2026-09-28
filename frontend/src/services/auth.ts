@@ -44,3 +44,11 @@ export const resendVerificationEmailApi = async (
   );
   return res.data;
 };
+
+export const verifyEmailApi = async (token: string): Promise<ApiResponse<null>> => {
+  const res = await api<ApiResponse<null>>({
+    url: `/auth/verify/${encodeURIComponent(token)}`,
+    method: 'patch',
+  });
+  return res.data;
+};

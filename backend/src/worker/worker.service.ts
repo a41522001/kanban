@@ -45,7 +45,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         infer: true,
       }) * 60;
     const host = this.configService.getOrThrow('FRONTEND_URL', { infer: true });
-    const url = `${host}/auth/verify/${token}`;
+    const url = `${host}/verifyEmail/${token}`;
     await redisClient
       .multi()
       .hSet(redisKey, {

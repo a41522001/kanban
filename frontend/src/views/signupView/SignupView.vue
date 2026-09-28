@@ -318,7 +318,7 @@ const handleSignup = async () => {
       !queueFailed,
       response.data.retryAfterSeconds,
     );
-    await router.push({ name: 'email-verification-notice' });
+    await router.push({ name: 'checkEmail' });
     if (queueFailed) {
       alertStore.openAlert({ content: t('auth.signup.emailQueueFailed') });
     }

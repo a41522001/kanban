@@ -7,14 +7,27 @@ import { useUserStore } from '@/stores/user';
 import { useNotificationStore } from '@/stores/notification';
 import { ensureConnected } from '@/services/socket';
 
-import EmailVerificationNoticeView from '@/views/emailVerificationView/EmailVerificationNoticeView.vue';
+import CheckEmailView from '@/views/checkEmailView/CheckEmailView.vue';
+import EmailVerifyView from '@/views/emailVerifyView/EmailVerifyView.vue';
 import { useEmailVerificationStore } from '@/stores/emailVerification';
 
 const routes = [
   {
-    path: '/auth/check-email',
-    name: 'email-verification-notice',
-    component: EmailVerificationNoticeView,
+    path: '/checkEmail',
+    name: 'checkEmail',
+    component: CheckEmailView,
+    meta: { public: true },
+  },
+  {
+    path: '/verifyEmail/:token',
+    name: 'verifyEmail',
+    component: EmailVerifyView,
+    meta: { public: true },
+  },
+  {
+    path: '/verifyEmail',
+    name: 'verifyEmailMissingToken',
+    component: EmailVerifyView,
     meta: { public: true },
   },
   {
@@ -31,7 +44,7 @@ const routes = [
   },
   {
     path: '/projects/:projectId',
-    name: 'project',
+    name: 'projects',
     component: ProjectView,
   },
   {
@@ -46,7 +59,7 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (to.name === 'email-verification-notice' && !useEmailVerificationStore().email) {
+  if (to.name === 'checkEmail' && !useEmailVerificationStore().email) {
     return { name: 'login' };
   }
   if (to.meta.public) {

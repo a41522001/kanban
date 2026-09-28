@@ -251,7 +251,7 @@ const handleLogin = async () => {
     ) {
       loginForm.value.password = '';
       verification.setEmail(data.email);
-      await router.push({ name: 'email-verification-notice' });
+      await router.push({ name: 'checkEmail' });
       return;
     }
 

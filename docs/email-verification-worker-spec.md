@@ -1,6 +1,6 @@
 # Email 驗證、Redis Token 與 BullMQ Worker 流程
 
-更新日期：2026-09-27。
+更新日期：2026-09-28。
 狀態：依目前程式碼整理的實作說明；待實作項目另列於文末。
 
 ## 目前範圍與進度
@@ -11,7 +11,7 @@
 - PostgreSQL 的 `User.emailVerifiedAt` 保存驗證時間。
 - 使用原生 BullMQ API 與 NestJS 依賴注入；API、Worker 共用 backend 專案，但分別啟動為獨立 Node.js 進程。
 - 使用 Nodemailer，由 `EmailService` 直接連 SMTP 寄信。
-- 前端驗證頁與 console 寄信模式尚未實作。
+- 前端 `/checkEmail` 提示／重寄頁與 `/verifyEmail/:token` 驗證頁已實作；console 寄信模式尚未實作。
 - Google 登入、Workspace 邀請與站內通知不在本次流程範圍。
 
 API 沿用 `code / data / message / time / error` 格式。倒數資訊放在 `data.retryAfterSeconds`，不使用自訂回應 header。SMTP 真實寄信先前已由使用者確認；自動化 E2E 使用真實 PostgreSQL、Redis、BullMQ 與 Worker，SMTP 邊界替換成收集信件的測試實作。
@@ -42,7 +42,7 @@ sequenceDiagram
     R-->>A: QueueEvents 收到 completed
     A->>R: getJob(jobId)，印出工作
 
-    Note over C,A: 目前可直接呼叫驗證 API；前端自動驗證頁尚未接上
+    Note over C,A: 前端 /verifyEmail/:token 頁面讀取 token 並呼叫驗證 API
     C->>A: PATCH /auth/verify/:token
     A->>R: HGETALL verify:email:{token}
     R-->>A: userId 與 email
@@ -197,10 +197,10 @@ EmailService 在 `onModuleInit()` 建立並重用 Nodemailer transporter。設�
 連結由 Worker 組成：
 
 ```text
-{FRONTEND_URL}/auth/verify/{token}
+{FRONTEND_URL}/verifyEmail/{token}
 ```
 
-這是前端網址。目前前端尚無此路由或自動呼叫驗證 API 的頁面；不能只靠點擊信件連結完成驗證。前端註冊成功後仍顯示提示，確認後前往登入頁。
+這是前端網址。使用者點擊連結後，前端頁面讀取 token 並自動呼叫 `PATCH /auth/verify/:token`；成功後顯示驗證完成畫面與前往登入的按鈕。
 
 EmailService 目前直接使用 SMTP；沒有 EmailSender 介面、ConsoleEmailSender 或依設定切換 provider。`EMAIL_TRANSPORT` 雖存在環境設定中，尚未用於切換寄信行為。
 
@@ -292,22 +292,28 @@ pnpm run dev:backend
 pnpm run dev:worker
 ```
 
+再開一個終端機啟動前端：
+
+```sh
+pnpm run dev:frontend
+```
+
 根目錄的 dev:worker 會執行 backend 的 `nest start --watch --entryFile worker/main`。只啟動 dev:backend 不會執行 WorkerModule。
 
 ## 目前可手動確認的流程
 
-以下是操作步驟，不代表已全部執行通過。使用尚未註冊且能收信的測試信箱：
+以下是操作步驟。使用者已回報完成真實寄信與前後端驗證流程；文件更新時未重新執行。使用尚未註冊且能收信的測試信箱。下方使用 `backend/.env.example` 的 `PORT=4001`；若本機 `.env` 設了其他 PORT，請改用實際值。
 
 ```sh
-curl -X POST http://localhost:3000/auth/signup \
+curl -X POST http://localhost:4001/auth/signup \
   -H 'Content-Type: application/json' \
   -d '{"email":"your-email@example.com","password":"password123","name":"Test"}'
 ```
 
-確認註冊回傳 201、Worker 處理工作、API 收到 completed，並實際收到信件。信件連結中的 token 可先手動用於驗證 API：
+確認註冊回傳 201、Worker 處理工作、API 收到 completed，並實際收到信件。開啟信件中的前端 `/verifyEmail/:token` 連結，頁面會自動呼叫驗證 API。若要單獨檢查 API，可改用下列指令；同一個 token 成功使用後不可再次驗證。
 
 ```sh
-curl -X PATCH 'http://localhost:3000/auth/verify/替換成信件中的token'
+curl -X PATCH 'http://localhost:4001/auth/verify/替換成信件中的token'
 ```
 
 核對：
@@ -336,10 +342,8 @@ E2E runner 使用 compose.e2e.yml 的獨立 PostgreSQL / Redis、套用測試 mi
 
 ## 後續工作
 
-1. 依審查後的設計實作前端驗證信頁、驗證結果頁，串接上述 contracts 與倒數。
-2. 需要時增加 Worker 寄信失敗的自動重試、投遞狀態追蹤。
-3. 需要免真實寄信的開發模式時，加入 console / SMTP 實作切換；目前 EMAIL_TRANSPORT 尚未控制寄信行為。
-4. 既有 emailVerifiedAt 為 null 的 LOCAL 帳號也受登入限制，可由重寄 API 取得驗證信。
+1. 需要時增加 Worker 寄信失敗的自動重試、投遞狀態追蹤。
+2. 需要免真實寄信的開發模式時，加入 console / SMTP 實作切換；目前 EMAIL_TRANSPORT 尚未控制寄信行為。
 
 ## 程式碼對照
 

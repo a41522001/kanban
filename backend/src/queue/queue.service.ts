@@ -23,7 +23,6 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
       connection: this.redisClient,
     });
     this.emailQueueEvent.on('completed', ({ jobId }) => {
-      console.log(123);
       void this.emailQueue
         .getJob(jobId)
         .then((job) => console.log(job))
