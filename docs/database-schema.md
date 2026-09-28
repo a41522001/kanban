@@ -1,6 +1,6 @@
 # Flowboard 資料庫 Schema
 
-最後檢視：2026-09-21（依 Prisma schema、13 個 migrations、Project／BoardColumn 實作與隔離 E2E migration deploy 結果核對）。
+最後靜態檢視：2026-09-27。核對 User 驗證欄位與 Board 現況；本文保留先前 migration 驗收紀錄，本輪未重新執行 migration／測試。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
@@ -36,9 +36,16 @@ users ──< workspace_members >── workspaces ──< projects ──< boar
   └────────────< project_members >───────────────────┘
 ```
 
-`Project` 是 Kanban Board 的 aggregate root，不另外建立 `boards` 資料表。`Project` 與 `ProjectMember` 已有 create／list／members／memberCandidates／addMember／notification detail／pin API；`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好。`BoardColumn` schema 與 migration 已建立，建立 Project 時會在同一個 transaction 內由 nested write 建立四個預設 Columns，並另建立建立者的 OWNER membership。`Card` 與 Board snapshot API 尚未建立。13 個 migrations 的隔離 E2E 已通過；預設四欄內容／順序的直接 assertion、pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。
+`Project` 是 Kanban Board 的 aggregate root，不另外建立 `boards` 資料表。`Project` 與 `ProjectMember` 已有 create／list／members／memberCandidates／addMember／notification detail／pin API；`ProjectMember.pinnedAt` 保存每位成員自己的 Project 列表偏好。`BoardColumn` schema 與 migration 已建立，建立 Project 時會在同一個 transaction 內由 nested write 建立四個預設 Columns，並另建立建立者的 OWNER membership。`GET /board/:projectId` 已提供 Columns，`POST /board/addColumn` 已新增 Column；完整 snapshot 與 Card 尚未建立，讀取授權待補。13 個 migrations 的隔離 E2E 已通過；預設四欄內容／順序的直接 assertion、pin HTTP E2E、負向授權、rollback 與完整併行測試仍待補。
 
 ## 2. Enum
+
+### `AuthProvider`
+
+| 值 | 意義 |
+| --- | --- |
+| `LOCAL` | 本地密碼帳號，User 預設值；登入前需 emailVerifiedAt 非 null。 |
+| `GOOGLE` | 預留 Google OAuth 帳號類型；只有 schema，登入流程尚未實作。 |
 
 ### `WorkspaceRole`
 
@@ -97,11 +104,16 @@ Board 沒有獨立 resource type；看板層級操作以 `PROJECT` 指向 `proje
 | --- | --- | --- | --- |
 | `id` | UUID | 否 | 使用者主鍵。 |
 | `email` | VARCHAR(320) | 否 | 登入帳號；全系統唯一。 |
-| `displayName` | VARCHAR(100) | 否 | 介面與通知顯示名稱。 |
-| `password_hash` | TEXT | 否 | 密碼雜湊。 |
+| `display_name` | VARCHAR(100) | 否 | 介面與通知顯示名稱。 |
+| `password_hash` | TEXT | 是 | 密碼雜湊；LOCAL 登入要求此欄非 null。 |
+| `auth_provider` | AuthProvider | 否 | 預設 LOCAL；可為 GOOGLE。 |
+| `email_verified_at` | TIMESTAMP(3) | 是 | null 表示未驗證；成功驗證只寫入第一次時間。 |
+| `google_sub` | TEXT | 是 | Google 帳號識別碼，唯一；不取代內部 UUID。 |
 | `avatar_url` | TEXT | 是 | 使用者頭像 URL。 |
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+
+不建立驗證 token 資料表；Worker 在 Redis 寫入 token 對應的 userId／email hash 與 TTL。驗證 API 先核對帳號，再以 emailVerifiedAt=null 的條件式更新寫入時間，成功後刪除 Redis key。驗證與重寄不在公開 API 暴露 userId。詳細見 [寄信規格](email-verification-worker-spec.md)。
 
 關聯：一位使用者可建立多個 Workspace 與 Project、加入多個 Workspace 與 Project、收到多則 Notification，也可作為多則 Notification 的 actor。
 

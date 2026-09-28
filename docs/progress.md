@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後檢視：2026-09-21（依目前原始碼、Project／BoardColumn scoped build 與 tests、Frontend type-check，以及套用 13 個 migrations 的隔離 PostgreSQL／Redis E2E 核對）。
+最後靜態檢視：2026-09-28。以目前原始碼核對驗證信前後端流程；本輪只更新文件，歷史 build／測試結果保留於下方。
 
 ## Native WebSocket
 
@@ -22,7 +22,7 @@
 | 項目 | 狀態 | 說明 |
 | --- | --- | --- |
 | pnpm monorepo、NestJS、PostgreSQL、Redis | 已完成 | frontend、backend、contracts 已建立 |
-| Auth HTTP API | 已完成 | signup、login、`GET /user/userInfo`、logout |
+| Auth HTTP API | LOCAL 驗證流程已完成 | signup／排信、verify、resend、未驗證登入限制、userInfo、logout；Google／忘記密碼未實作 |
 | Session 建立與 Hash schema | 已完成 | Raw ID 只在 Cookie，Redis 使用 SHA-256 Hash key |
 | Session 輪轉 | 已完成核心流程 | 15 分鐘 request-driven rotation、20 秒 Grace、Lua 原子競爭 |
 | 5 裝置限制 | 已完成核心流程 | ZSET + create Lua 原子清理與淘汰 |
@@ -35,13 +35,27 @@
 | Invitation expiration scheduler | 已實作，驗收待補 | `@nestjs/schedule` 每分鐘把 `status=PENDING AND expiresAt<=now` 批次更新為 EXPIRED；單一 instance 以 `waitForCompletion` 防止 job 重疊 |
 | Frontend Invitation／Notification | 已完成第一版 | 邀請 Dialog、通知列表、邀請詳細 Dialog、未讀 badge、單筆／全部已讀、接受／婉拒、處理中鎖定與成功／錯誤狀態已完成；接受成功後同時刷新通知與 Workspace read model。Socket 通知透過集中式 notification effect／resource sync handler 分派 domain 更新；Notification resource 只有 WorkspaceInvitation／Workspace／Project／Card，不保留 Board |
 | Socket.IO Session handshake 與通知推播 | 已完成第一版 | Socket middleware 以 HttpOnly Session Cookie 驗證，將 userId 寫入 `socket.data` 並加入 user room；Workspace `workspace:into` 會驗證 membership／archivedAt 後加入 `workspace:{workspaceId}`，`workspace:leave` 負責離開；接受邀請 transaction commit 後推送 `workspace:memberChanged`，邀請通知則推送 `notification:created`；重連、快速切換競速與更完整 lifecycle 測試尚待補 |
-| Frontend Auth vertical slice | 已完成核心流程 | signup、login、HttpOnly Cookie、userInfo 恢復登入、protected route、logout、前端表單驗證，以及所有 HTTP `Unauthenticated` 的統一 session 清理與導頁 |
+| Frontend Auth vertical slice | 驗證信流程已串接 | signup／login、HttpOnly Cookie、userInfo、protected route、logout；註冊結果、未驗證登入、重寄倒數、信件連結驗證、成功與錯誤 Dialog 均已串接 |
 | 前端共用 UI 基礎 | 已完成基礎 | shadcn-vue Button／AlertDialog／DropdownMenu、共用 Input、Avatar、UserMenu；持續隨功能擴充 |
 | Notification read model 與即時推播 | 已完成第一版 | Notification schema、migration、shared contract、收件者列表、未讀數、單筆／全部已讀、Workspace invitation detail 與 Project member added detail API 已完成；兩種 domain flow 都在同一 transaction 建立通知，commit 後由 Socket.IO 推送 `notification:created` 摘要，前端依 notification type 導向對應 Dialog |
 | Project domain | 建置中，read／create／member notification／pin 已形成前端 vertical slice | Project、ProjectMember schema／migration、shared contracts、Repository 與 runtime DTO validation 已建立；`POST /project` 在既有 transaction 建立 Project、四個預設 Columns 與 OWNER membership。pin 與 member flows 已串接；13 migrations E2E 已通過，負向授權、四欄直接 assertion、rollback 與真實併行仍待補 |
-| BoardColumn／Card domain | BoardColumn persistence 已起步 | Project 是 Board aggregate root，沒有 Board table。Project `version`／`boardRevision`、BoardColumn schema／migration、預設四欄 shared contract、`coral／mint／amber／violet` runtime whitelist 與 nested create 已完成；snapshot API、Card models、Socket commands 與直接 persistence tests 尚未完成 |
+| BoardColumn／Card domain | Columns 讀取與新增已實作，尚有授權缺口 | GET /board/:projectId 已由前端使用，但未檢查 Project membership；addColumn 已寫 DB／revision。moveColumn 仍佔位，前端拖曳只改本機；完整 snapshot、Card 與協作未完成 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
+
+## 2026-09-28 驗證信前後端完成
+
+- 後端完成 LOCAL 帳號註冊入列、Worker 寄信、Redis token 與 TTL、驗證、重寄冷卻、未驗證登入限制；前端完成 `/checkEmail`、`/verifyEmail/:token` 與缺 token 的 `/verifyEmail`。信件連結由 Worker 指向 `/verifyEmail/:token`，驗證頁呼叫 `PATCH /auth/verify/:token`，成功後由使用者前往登入。
+- 使用者已回報真實驗證信前後端流程實測成功；本次文件更新未重新操作 SMTP、資料庫或瀏覽器。最近一次前端 `pnpm run test:unit -- --run` 為 15 files／57 tests 通過，`pnpm run type-check` 通過。後端與 E2E 的舊結果保留如下，不視為本次重跑。
+- 仍未包含寄信失敗自動 retry／backoff、SMTP 投遞狀態查詢、免寄信開發模式、Google OAuth 或忘記密碼。
+
+## 2026-09-27 驗證信與設計前盤點（歷史紀錄）
+
+- Auth 已完成五項後端工作：驗證消耗 token／保留首次時間、重寄條件與冷卻、註冊排信失敗的部分成功結果、未驗證登入限制、contracts 與測試。
+- 上一輪以 Node 24.13 執行後端 Jest：21 suites 通過、5 suites skipped；169 tests 通過、5 tests skipped。隔離 E2E 為 4 suites／13 tests 通過，使用真正 DB／Redis／BullMQ Worker，SMTP 為替身。後端／前端 TypeScript 檢查通過。
+- 本輪只作文件與原始碼靜態核對，未重跑測試；同步 http-api、api-contract、frontend-auth、Board 現況、驗證信設計提案與文件索引。
+- Frontend signup 回應型別已同步，但視圖未分流 201 / 2007；LoginView 未分流 403 / 2005，驗證／重寄 pages、services、public routes 皆待實作。
+- 新增 [設計前功能盤點](feature-readiness.md)，列出 Board GET 授權、Project members 封存檢查、SMTP 狀態追蹤／免寄信模式與其他未完成事項。SVG／Figma 仍待使用者審查。
 
 ## 測試現況
 
@@ -49,7 +63,7 @@
 - SessionService、SessionRepository、Lua 輪轉、5 裝置限制與 revoke 尚未有足夠測試。
 - Backend E2E 使用獨立 PostgreSQL、Redis、migration 與 `.env.e2e`；目前案例覆蓋 Auth lifecycle、邀請接受／拒絕、通知單筆／全部已讀，以及 Project 建立、候選人、addMember、member-added notification detail 與重複加入 409。
 - runner 結束後會移除 E2E containers、network 與暫存 volumes；專案以 `.nvmrc` 與 CI 的 `node-version-file` 固定 Node 24.13，避免 Jest 30 在 Node 22 載入 `@nestjs/schedule` 12 ESM 時失敗。
-- Frontend unit tests 目前覆蓋 signup／login pure form validation、User／Notification／Project Store、Project／WorkspaceInvitation services、Project pin request／optimistic sort、通知副作用 handler、邀請回覆卡、Project add-member／notification detail Dialog，以及共用 Alert／Loading；尚未覆蓋真實 route、Socket lifecycle 或瀏覽器 Cookie 行為。
+- Frontend unit tests 目前覆蓋 signup／login pure form validation、驗證信提示與結果路由／元件、User／Notification／Project Store、Project／WorkspaceInvitation services、Project pin request／optimistic sort、通知副作用 handler、邀請回覆卡、Project add-member／notification detail Dialog，以及共用 Alert／Loading；尚未覆蓋完整真實寄信的瀏覽器流程、Socket lifecycle 或瀏覽器 Cookie 行為。
 - 2026-09-12 以專案本機執行檔執行 `vue-tsc --build`、Vitest、ESLint 與 Vite build：8 個 frontend test files、25 個 tests 全數通過，type-check／lint／production build 亦通過。Playwright CLI 以攔截的本機 API 假資料驗證桌面邀請卡、接受成功、工作區清單更新及 375px 響應式畫面。
 - 2026-09-12 變更 frontend HTTP error handling 後，使用 Node 24.13 執行 `pnpm --filter frontend type-check` 與 `pnpm --filter frontend test:unit --run`：8 個 test files、25 個 tests 全數通過。Vite 顯示既有 `configLoader: 'native'` 未來相容性提醒，與測試結果及本次修改無關。
 - 2026-09-12 手動驗收前端通知流程：單筆已讀、全部已讀、接受工作區邀請、婉拒工作區邀請皆通過；列表狀態與未讀 badge 會即時更新，邀請回覆成功後同步標記該通知為已讀。
@@ -84,7 +98,7 @@
 ## 下一步
 
 1. 補 Project pin endpoint-specific Swagger metadata 與 HTTP E2E，驗證 pin → list 排序、unpin、validation、非成員與封存狀態。
-2. 補 CreateProject 預設四欄內容／順序與 rollback E2E，再實作 Board snapshot；13 migrations deploy 已通過，ProjectView 目前仍使用本機假資料。
+2. 補 CreateProject 預設四欄內容／順序與 rollback E2E，再完成 Board snapshot；GET /board/:projectId 已讀 DB，需優先補授權，Card 與拖曳仍未持久化。
 3. 建立 Card／Category／Label schema 與 Column／Card commands，改用 `projectId` contract 與 `project:{projectId}` room。
 4. 補 Project 未登入／非 OWNER／跨 Workspace／他人通知存取 E2E、transaction rollback 與重複加入真實併行測試。
 5. 補 expiration job unit test 與真實資料庫過期批次更新測試。
@@ -103,7 +117,7 @@
 - Notification HTTP 尚未接 cursor／filters，預設只回最新 20 筆；過期但未讀通知仍計入未讀數。
 - Notification 列表只回傳 type、resource pointer 與 read state；Workspace invitation detail API 已由 Controller 提供，前端點擊邀請通知時先標記已讀，再取得邀請狀態。Socket.IO 已提供第一版 `notification:created` 推送，但重連後重新同步、事件遺失補償與跨分頁同步仍未完成。
 - Workspace View 已透過 `workspace:into`／`workspace:leave` 管理目前 Workspace room，後端加入前會驗證 membership 與 archivedAt；目前尚未處理 Socket reconnect 後 rejoin、快速切換造成的非同步 room 競速，以及成員被移除後既有 Socket 的 room 清理。`workspace:memberChanged` 只傳 Workspace ID，前端收到後重新呼叫成員清單 API。
-- Project create／list／member list／addMember／pin 已有 HTTP route 並完成第一版 Workspace overview 串接；create 仍只回 `null`，因此前端建立後重新取得 list 並選取第一筆。建立時後端已寫入四個 BoardColumns，但前端尚無 snapshot API，頁內仍使用假資料且 mock 的 `boardId` 尚待改為 `projectId`。置頂成功後前端以本機時間 optimistic 更新，重新載入時才以 Server 時間校正。
+- Project create／list／member list／addMember／pin 已有 HTTP route 並完成第一版 Workspace overview 串接；create 仍只回 `null`，因此前端建立後重新取得 list 並選取第一筆。建立時後端已寫入四個 BoardColumns；前端已呼叫 GET /board/:projectId，但仍缺完整 snapshot，Card 尚無資料，拖曳順序僅保存在本機。置頂成功後前端以本機時間 optimistic 更新，重新載入時才以 Server 時間校正。
 - Project member candidate read model 與 Frontend Dialog 已改以 `workspaceMemberId` 銜接 addMember command，shared `AssignableProjectRole` 與 runtime DTO 都只允許 EDITOR／VIEWER；Service／Controller／Frontend component／service tests 與第一版隔離 E2E 已補。Project E2E 的四個案例會沿用前一個案例建立的 `projectId`／candidate，仍應重構為自給自足的情境，並補負向授權、rollback 與真實併行驗收。
 - `20260915080141_add_project_member_id` 只適用當時沒有 ProjectMember rows 的建置流程。本專案沒有需保留的舊版資料，環境已清除重建，且目前 13 個 migrations 已由隔離 E2E 從空資料庫驗證；因此不再把 legacy upgrade 視為 blocker。若未來新增保留舊資料的部署來源，必須另建 forward-only migration。
 

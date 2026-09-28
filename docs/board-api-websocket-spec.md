@@ -1,6 +1,6 @@
 # Project Board API 與 WebSocket 規格
 
-最後核對：2026-09-21。本文是 Board vertical slice 的目標規格；已實作端點以[目前 HTTP API](http-api.md)為準。
+最後靜態核對：2026-09-27。本文是 Board vertical slice 的目標規格；已實作端點以[目前 HTTP API](http-api.md)為準。
 
 ## 1. 邊界與命名
 
@@ -18,7 +18,12 @@
 - `BoardColumn` model 與 migration 已建立，直接以 `projectId` 關聯 Project。
 - `DEFAULT_BOARD_COLUMNS` shared contract 已建立。
 - 建立 Project 時，Repository nested-create 四個預設 Columns；外層既有 transaction 同時建立 OWNER ProjectMember。
-- `BoardModule` 已註冊為後續實作骨架，目前沒有 snapshot／command endpoints。
+- `GET /board/:projectId` 已提供 DB Columns 陣列，但缺 Project membership／Project 與 Workspace 封存檢查，尚不等同本文完整 snapshot。
+- `POST /board/addColumn` 已檢查 OWNER／EDITOR 與封存狀態，在 transaction 新增 Column 並遞增 revision。
+- `PATCH /board/moveColumn` 與 Service 為佔位，尚無排序寫入；DTO 缺 runtime validation。
+- 前端 ProjectView 已讀取 Columns；cards 為空陣列，拖曳只改本機陣列。
+
+本文後續 snapshot、排序、commands、ack 與 room 均為目標設計。現有 GET 排序是 position ASC、updatedAt DESC，與下文目標 position ASC、id ASC 尚有差異。
 
 目前 scoped 驗證已通過 contracts build、Backend build、Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests，以及 Frontend type-check。隔離 E2E 4 suites／9 tests 已由空資料庫成功套用 13 個 migrations；Project create flow 通過，但仍需補四個預設 Columns 內容／順序與 rollback 的直接 assertion。
 

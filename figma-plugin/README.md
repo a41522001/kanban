@@ -26,9 +26,11 @@ npm run watch
 2. 在 Canvas 按右鍵，選擇 `Plugins` → `Development` → `Import plugin from manifest…`。
 3. 選取 `/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin/manifest.json`。
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
-5. 按 `Generate All`；也可以單獨重建 Foundations、Components 或 Screens。
+5. 本次驗證信畫面按 `Email Verification · 4 desktop screens`；它只更新驗證信區塊。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
 
-目前 UI 版本標記為 `v13`。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入專案」；前端對應 route 為 `/projects/:projectId`，Board 內容目前仍由 `ProjectView` 內的本機假資料呈現。
+目前 UI 版本標記為 `v14`。新增 `Email Verification · 4 desktop screens` 按鈕，更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components`、`03 · Screens` 裡的驗證信區塊；不重建登入、註冊或其他功能畫面。`Generate All` 也包含這四個狀態。
+
+v13 曾新增其他既有畫面。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入專案」；前端對應 route 為 `/projects/:projectId`，Board 內容目前仍由 `ProjectView` 內的本機假資料呈現。
 
 2026-09-21 新增的 Project pin 已在程式端完成，但尚未加入 v13 的 `Project Card` variants 或 Workspace overview screens；目前以前端行為與 API contract 為真相來源，下次更新 Generator 時再補 Default／Pinned 狀態。
 
@@ -41,6 +43,20 @@ v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Mem
 2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。Workspace Overview 的 Desktop／Tablet／Mobile 畫面亦已完成 runtime／visual check。
 
 2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。已確認 `Project Member Added Notification Detail Dialog` 有 Desktop／Mobile 兩個 variants，兩個 Screen 均使用 Instances，並完成 runtime／visual check。
+
+
+## v14 Email Verification source-to-output manifest
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/auth-email-notice-verification-required.svg` | Desktop `1440 × 900`，Ready | `02 · Components` → `Email Verification Brand`／`Email Verification Notice`; `03 · Screens` → `Auth / Email Verification` → Ready |
+| `../design/auth-email-notice-verification-required-cooldown.svg` | Desktop `1440 × 900`，Cooldown | 同上 → Cooldown |
+| `../design/auth-email-verify-loading.svg` | Desktop `1440 × 900`，Loading | `02 · Components` → `Email Verification Brand`／`Email Verification Result`; 同上 → Loading |
+| `../design/auth-email-verify-success.svg` | Desktop `1440 × 900`，Success | 同上 → Success |
+
+四個 Screen 使用原生 Auto Layout、上述 Component Set 的 Instances 與既有 `Button` Instances。驗證成功 API 的 `data` 為 null，結果頁不展示信箱。手機 SVG 尚未核准，v14 只產生 Desktop。
+
+2026-09-28 已在既有 `Flowboard — Native Design System` 執行 v14 專用動作兩次，兩次均完成；`03 · Screens` 保持單一 `Auth / Email Verification` 區塊與四張 Desktop Frame，`02 · Components` 有 Brand、Notice、Result 三個 Component Sets。已放大檢查 Ready 畫面與 Screen Instances。登入、註冊等原有區塊未重建。
 
 ## v13 source-to-output manifest
 

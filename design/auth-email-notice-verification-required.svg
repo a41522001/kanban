@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title description">
+  <title id="title">Flowboard 電子郵件尚未驗證</title>
+  <desc id="description">使用者以正確帳密嘗試登入後，系統提示先驗證電子郵件，並提供寄送驗證信與返回登入的操作。</desc>
+  <defs>
+    <style>
+      text { font-family: "Noto Sans TC", "PingFang TC", Arial, sans-serif; }
+      .ink { fill: #29324A; }
+      .muted { fill: #697287; }
+      .light { fill: #F7F8FA; }
+      .soft { fill: #BFC7D7; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="900" fill="#F7F8FA"/>
+  <rect width="506" height="900" fill="#29324A"/>
+
+  <!-- 品牌區沿用目前登入與註冊頁的深藍與看板語言。 -->
+  <g transform="translate(72 64)">
+    <rect width="18" height="25" rx="4" fill="#DF6E51"/>
+    <rect x="24" y="8" width="18" height="17" rx="4" fill="#A9D2C8"/>
+    <text x="56" y="22" fill="#F7F8FA" font-size="24" font-weight="700">Flowboard</text>
+  </g>
+  <text x="72" y="260" fill="#F7F8FA" font-size="37" font-weight="700" letter-spacing="-1">每段協作，</text>
+  <text x="72" y="316" fill="#F7F8FA" font-size="37" font-weight="700" letter-spacing="-1">都有個起點。</text>
+  <text x="72" y="368" class="soft" font-size="15">先確認信箱，再開始與團隊一起推進工作。</text>
+
+  <rect x="72" y="492" width="364" height="206" rx="12" fill="#36415D"/>
+  <text x="96" y="530" class="soft" font-size="12" letter-spacing="1">FLOWBOARD / 開始協作前</text>
+  <rect x="96" y="548" width="316" height="124" rx="9" fill="#FFFFFF"/>
+  <circle cx="120" cy="577" r="5" fill="#DF6E51"/>
+  <text x="134" y="581" class="muted" font-size="12">待你確認</text>
+  <text x="116" y="620" class="ink" font-size="20" font-weight="700">確認你的電子郵件</text>
+  <text x="116" y="648" class="muted" font-size="14">完成驗證即可登入 Flowboard</text>
+  <text x="72" y="846" class="soft" font-size="13">把下一步交代清楚，工作就能往前走。</text>
+
+  <!-- 登入遭未驗證狀態擋下；此時尚未建立 Session，也未自動寄信。 -->
+  <g transform="translate(714 140)">
+    <text class="muted" font-size="13" font-weight="600" letter-spacing="1">登入帳號 / 電子郵件驗證</text>
+    <text y="98" class="ink" font-size="42" font-weight="700" letter-spacing="-1">請先驗證電子郵件</text>
+    <text y="151" class="muted" font-size="16">你的帳號尚未完成電子郵件驗證。</text>
+    <text y="180" class="muted" font-size="16">請寄送驗證信，完成驗證後再登入。</text>
+
+    <text y="270" class="muted" font-size="13">登入信箱</text>
+    <text y="316" class="ink" font-size="24" font-weight="600">user@example.com</text>
+    <path d="M0 340H580" stroke="#D9DEE7"/>
+
+    <text y="402" class="ink" font-size="17" font-weight="700">已經收到驗證信？</text>
+    <text y="433" class="muted" font-size="15">直接開啟信件中的連結，即可完成驗證。</text>
+    <text y="461" class="muted" font-size="15">如果還沒收到，可以寄送一封新的驗證信。</text>
+
+    <rect y="510" width="280" height="52" rx="8" fill="#DF6E51"/>
+    <text x="140" y="543" text-anchor="middle" fill="#FFF9F4" font-size="16" font-weight="700">寄送驗證信</text>
+    <text y="620" fill="#C4573E" font-size="15" font-weight="600">已完成驗證？返回登入</text>
+  </g>
+</svg>

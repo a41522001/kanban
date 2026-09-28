@@ -2,12 +2,24 @@
 
 SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為原生 Figma Frame、Auto Layout、Component、Variant、Variables 與 Styles，不能把 SVG 匯入後當成完成品。
 
+## 2026-09-28 功能現況與設計範圍
+
+Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；前端提示、重寄、驗證與錯誤 Dialog 已完成，手機響應式由 Vue 實作，沒有另建手機版 SVG。規格參考見 [驗證信設計與實作](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
+
+- Signup 已排信，前端已處理 201 正常入列與部分成功分流，並提供信件驗證頁；使用者已回報前後端流程實測成功。
+- Project members API 回 memberId、displayName、avatarUrl、role，沒有 joinedAt；overview 的加入時間只能作為未來設計，不可直接使用不存在欄位。
+- Card、持久化拖曳與協作狀態是目標設計；目前 Board 已讀 DB Columns，但 cards 為空、拖曳只改本機。
+
 ## Source of truth
 
 | Area | Desktop | Tablet | Mobile | Status |
 | --- | --- | --- | --- | --- |
 | Login | `auth-login.svg` | — | `auth-login-mobile.svg` | Current |
 | Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
+| Email verification notice | `auth-email-notice-verification-required.svg` | — | — | Current · Desktop ready |
+| Email verification cooldown | `auth-email-notice-verification-required-cooldown.svg` | — | — | Current · Desktop ready |
+| Email verification loading | `auth-email-verify-loading.svg` | — | — | Current · Desktop ready |
+| Email verification success | `auth-email-verify-success.svg` | — | — | Current · Desktop ready |
 | Workspace project overview | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
 | Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
 | Project add member | `project-add-member-dialog.svg` | — | `project-add-member-dialog-mobile.svg` | Current |
@@ -43,7 +55,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 - Desktop 使用「專案清單 + 已選取專案成員面板」的 master-detail 結構；選取專案不等同直接進入 Board，主要看板入口需保留為明確操作。
 - Project Card 顯示 `status`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。Project role 不在 overview 顯示，進入專案內部後再呈現。
 - Project Card 的 pin 是目前使用者自己的快捷偏好，不改變 Project 本身狀態或其他成員的排序。置頂與取消置頂必須有可存取名稱、active state 與至少 `40 × 40` 的操作區，且不能與「選取 Project」或「進入 Project」共用同一個隱含 click target。
-- 成員面板列出選取專案的所有成員，僅顯示 `displayName`、`avatarUrl` 與 `joinedAt`，不在 overview 暴露 Project role 或其他 User 欄位。
+- 成員面板列出選取專案的所有成員，現行 API 可支援 `displayName`、`avatarUrl`；`joinedAt` 尚未提供，需待 contract 擴充才顯示。overview 不顯示 Project role 或其他 User 欄位。
 - Tablet／Mobile 不保留雙欄；未展開的 Project Card 只顯示 list API 已提供的 status、名稱、描述與更新時間。點選卡片會展開手風琴，才以 projectId 載入並呈現該 Project 的完整成員資訊；主要看板仍由展開內容中的明確操作進入。
 - Workspace membership 只代表可進入工作區；列表是否顯示 Project 仍以 `ProjectMember` 權限為準。Repository 可載入 Projects 與 Members，但 Service 必須完成目前使用者的權限驗證。
 - Project 狀態包含 `ACTIVE`、`ON_HOLD`、`COMPLETED`；封存是另一個維度，不與 `COMPLETED` 混用。
@@ -76,7 +88,7 @@ Card
 - 第一版一次選取一位 Workspace member，以可搜尋 listbox 呈現，不使用原生單選下拉。成員數增加時仍可掃描姓名、頭像與狀態，Mobile 也保留至少 `44px` 操作高度。
 - 已屬於 Project 的成員在候選清單中顯示目前角色與「已加入」，並停用選取；`P2002` conflict 只作為併發或 stale data 的 fallback，不作為正常 UX 判斷流程。
 - OWNER 不可由此流程指派；可選角色只有 `EDITOR` 與 `VIEWER`，預設 `EDITOR`。新增操作僅對目前 Project OWNER 顯示，Backend 仍作最終授權。
-- Candidate read model 必須提供同一個可比對的 identity 與 membership 狀態。建議 `GET /project/:projectId/memberCandidates` 回傳 `workspaceMemberId`、`displayName`、`avatarUrl`、`projectRole|null`，並讓新增 command 接受 `workspaceMemberId`；目前 Workspace／Project DTO 的 `memberId` 分別代表不同 membership，且 command 收 email，無法可靠支援這個 UI。
+- Candidate read model 必須提供同一個可比對的 identity 與 membership 狀態。目前 `GET /project/:projectId/memberCandidates` 已回傳 `workspaceMemberId`、`displayName`、`avatarUrl`、`projectRole|null`，新增 command 已接受 `workspaceMemberId`。Workspace／Project DTO 的 `memberId` 分別代表不同 membership，不可混用。
 - Desktop 使用置中 `600px` Dialog；Mobile 使用 `358px` inset Dialog。Loading 時鎖定關閉與送出；成功後關閉 Dialog、刷新 Project members，失敗時保留選取與角色。
 
 ## Notification dropdown contract
@@ -92,7 +104,7 @@ Card
 - Notification Item 的內容區與已讀按鈕是兩個獨立操作目標；內容區依 Type 開啟對應的 domain UI，已讀按鈕只更新 readAt，不得觸發導頁或資源動作。
 - 通知列表不呈現 invitation 的 PENDING／ACCEPTED／DECLINED 等資源狀態；列表只負責通知摘要與已讀／未讀。
 - Runtime variants 至少包含 Default、Loading、Empty、Error；載入錯誤提供「重新載入」。
-- Socket.IO 日後只觸發列表／未讀數同步，PostgreSQL 與 HTTP read model 仍是通知真相。
+- Socket.IO 已推送 notification:created 摘要，PostgreSQL 與 HTTP read model 仍是通知真相；reconnect 後漏收同步尚待補齊。
 
 ## Project member added notification detail contract
 

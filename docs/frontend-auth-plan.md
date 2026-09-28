@@ -1,12 +1,12 @@
 # Frontend Auth Vertical Slice
 
-> 最後檢視：2026-09-21（Auth 行為未變；已依目前 router 與 Frontend type-check 更新 ProjectView route）。核心流程已完成；本文件保留實作決策與尚未納入 MVP 的項目。
+> 更新：2026-09-28。驗證信前端第 1、2 階段已完成：註冊結果導向與重寄、公開驗證路由、載入與成功畫面，以及失效連結與服務錯誤 Dialog。畫面規劃見 [驗證信設計提案](email-verification-ui-plan.md)。
 
 ## 1. 目標
 
 已完成 Signup、Login、登入狀態恢復、protected route 與 Logout，並正確使用 HttpOnly Session Cookie。
 
-目前 signup 只建立帳號，成功後導向 Login；login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。
+目前後端 signup 建立未驗證 LOCAL 帳號並排入寄信工作；前端在 201 後直接顯示信箱提示頁與首次寄送冷卻。login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。未驗證帳號回 403 / EmailVerificationRequired 後，前端清除密碼、保存回應中的 Email 並進入 `/checkEmail`，不自動寄信。
 
 ## 2. 資料流
 
@@ -87,24 +87,35 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - 防止重複 submit。
 - Backend FieldErrors 映射至 email/password。
 - Invalid credentials 顯示 general error，不暴露帳號是否存在。
-- 目前 finally 只解除 submitting，不會主動清空 password；成功導頁後元件才卸載。
+- 收到 EmailVerificationRequired 時會清除 password；一般帳密錯誤保留表單供修改。登入成功後清除驗證提示頁的暫存。
 
 ### Signup
 
 - Client validation 僅改善 UX，backend validation 才是安全邊界。
 - 顯示 email、password、name、confirmPassword 錯誤。
 - confirmPassword 只存在 frontend，不傳給 backend，除非 contract 改變。
-- Signup success 提示確認後導向 Login，不自動登入。
+- Signup 201 成功後直接導向 `/checkEmail`，顯示「驗證信已安排寄送」及後端回傳的倒數；不自動登入。
 
-目前 backend signup 只建立帳號，不建立 Session。第一版 frontend 在 signup 成功後導向 Login；若未來改成自動登入，必須同步修改 API contract 與測試。
+Backend signup 不建立 Session。SignupView 已依 code=2007 或 emailQueued=false 區分正常入列與排信失敗：兩者都清除密碼並導向信箱提示頁；入列失敗另顯示 Dialog，保留後端倒數以供稍後重寄。Email 重複顯示欄位錯誤；500／網路錯誤不推定帳號未建立。登入回傳 EmailVerificationRequired 時，也進入同一路由，但使用登入未驗證文案。詳細錯誤行為見 [驗證信前端規格](email-verification-ui-plan.md)。
 
 ## 6. Route Guard
 
-- `/login`、`/signup` 是白名單。
+- `/login`、`/signup`、`/checkEmail`、`/verifyEmail/:token` 與 `/verifyEmail` 以 `meta.public` 標示公開頁；提示頁沒有 Email context 時返回 Login，驗證頁不需要此 context。對應 route names 為 `login`、`signup`、`checkEmail`、`verifyEmail` 與 `verifyEmailMissingToken`。
 - 其他路徑先透過 `initializeUser()` 驗證；沒有 user 導向 Login。
-- Project 頁使用 protected route `/projects/:projectId`；目前 `ProjectView` 內的 Board 尚未串接持久化 API。
+- Project 頁使用 protected route `/projects/:projectId`；目前 `ProjectView` 已讀取 DB Columns，但拖曳順序尚未持久化、Card 尚未實作。
 - Route guard 只透過 Store 取得 session，Store 負責 request 去重。
 - 尚未保存原始 redirect target，也尚未讓已登入使用者從 login/signup 自動導向 home。
+
+### 驗證信流程進度
+
+- 已新增 `resendVerificationEmailApi` 與 `verifyEmailApi`；驗證請求以 URL token 呼叫一次 PATCH，不存放 token。
+- `/checkEmail` 不查 Session、不連 Socket；登入 2005 提供 Email，進頁不自動寄信。
+- 重寄中停用提交。202 顯示條件式受理訊息；429 使用後端秒數校正倒數；503 顯示 Dialog 並保留冷卻；400／500／網路失敗顯示 Dialog，不宣稱信一定未寄出。
+- Email、入口原因與 retryAt 保存於 sessionStorage；倒數由截止時間計算，重整不中斷，切換 Email 時重設，不保存密碼或 token。
+- `/verifyEmail/:token` 顯示載入後依 code 分流：成功顯示「前往登入」，2004 顯示連結不可用；服務或網路錯誤顯示結果待確認與手動重試。`/verifyEmail` 缺 token 時不呼叫 API，直接顯示連結不可用。後端驗證 API 路徑仍是 `PATCH /auth/verify/:token`；錯誤均使用中性背景與 Dialog。
+- Login／Signup 的 Google／忘記密碼入口維持既有外觀，後端功能尚未實作。
+
+第 1 階段的 10 個整合式元件測試涵蓋註冊部分成功、2005 導向、context 缺失、重複提交、202／429／503／網路錯誤與倒數恢復；第 2 階段另有 4 個驗證結果測試。前端 build 與全部 57 個 Vitest 測試通過；使用者已回報實測驗證信前後端流程成功。目前沒有另行記錄完整真實寄信流程的自動化瀏覽器測試。
 
 ## 7. Cookie、CORS 與 CSRF
 
@@ -131,7 +142,7 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
 - [x] Login／Signup pure form validation。
 - [x] User Store session restore 成功、失敗快取、並行 request 去重與 reset。
-- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；目前 spec 只測 pure validation，尚未有 submit／loading／error component test。
+- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；另有第 1 階段整合式元件測試覆蓋未驗證登入與註冊結果分流；完整成功登入流程驗收仍待後續。
 - [x] Logout 即使 API 失敗仍會清空本地 User Store 並導向 Login。
 - [ ] Route guard redirect target 與已登入 public route redirect。
 - [ ] Playwright refresh 後仍維持登入，以及完整登入／登出 flow。
@@ -142,12 +153,15 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - [x] Axios API client（`withCredentials: true`）。
 - [x] User Store session restore 與 request 去重。
 - [x] Login API integration。
-- [x] Signup API integration。
+- [x] Signup API integration，包含 201 部分成功與錯誤分流。
+- [x] 驗證提示頁、公開路由、重寄倒數與未驗證登入導向。
+- [x] 第 1 階段繁中／英文 i18n 與整合式元件測試。
+- [ ] 驗證結果頁與真實註冊到驗證的完整流程驗收。
 - [x] Protected route guard。
 - [x] Logout。
 - [x] Socket connect/disconnect hook 與 Notification realtime handler。
 - [x] Form validation／User Store unit tests。
-- [ ] Login／Signup component tests。
+- [x] Login／Signup 第 1 階段結果分流 component tests。
 - [ ] Playwright auth flow。
 
 ## 11. 驗收條件

@@ -1,8 +1,18 @@
 <template>
-  <div :class="cn('flex gap-2 items-end', props.class)">
-    <span class="bg-action-primary w-5.5 h-7 rounded-lg mr-1"></span>
-    <span class="bg-flow-active w-5.5 h-5 rounded-lg mr-4 mt-auto"></span>
-    <h1 class="font-bold text-2xl leading-none">{{ t('brand.name') }}</h1>
+  <div :class="cn(compact ? 'flex items-center gap-1.5' : 'flex gap-2 items-end', props.class)">
+    <span
+      :class="cn('bg-action-primary rounded-lg', compact ? 'h-6.25 w-4.5' : 'w-5.5 h-7 mr-1')"
+    ></span>
+    <span
+      :class="
+        cn('bg-flow-active rounded-lg', compact ? 'h-4.25 w-4.5 mr-2' : 'w-5.5 h-5 mr-4 mt-auto')
+      "
+    ></span>
+    <component
+      :is="compact ? 'span' : 'h1'"
+      :class="cn('font-bold text-2xl', compact ? 'leading-8.5' : 'leading-none')"
+      >{{ t('brand.name') }}</component
+    >
   </div>
 </template>
 <script setup lang="ts">
@@ -13,5 +23,6 @@ defineOptions({ name: 'SharedLogo' });
 const { t } = useI18n();
 const props = defineProps<{
   class?: string;
+  compact?: boolean;
 }>();
 </script>

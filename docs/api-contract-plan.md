@@ -1,6 +1,6 @@
 # API Contract 與錯誤處理規格
 
-最後靜態核對：2026-09-21。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；Controller class 已有 Swagger tag／auth，多數既有 handlers 有 operation／主要 response 描述與 request DTO metadata。新 Project pin handler 尚缺 endpoint-specific metadata，共用 response envelope decorator 仍待實作。
+最後靜態核對：2026-09-27。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；多數既有 Controller class 已有 Swagger tag／auth，部分 Board metadata 尚缺；多數既有 handlers 有 operation／主要 response 描述與 request DTO metadata。新 Project pin handler 尚缺 endpoint-specific metadata，共用 response envelope decorator 仍待實作。
 
 ## 1. 目標
 
@@ -20,6 +20,11 @@ export enum ApiCode {
   InvalidCredentials = 2001,
   EmailAlreadyRegistered = 2002,
   Unauthenticated = 2003,
+  AuthVerifyFail = 2004,
+  EmailVerificationRequired = 2005,
+  EmailVerificationCooldown = 2006,
+  SignupEmailQueueFailed = 2007,
+  VerificationEmailQueueFailed = 2008,
   ResourceNotFound = 3001,
   RequestError = 4000,
   InternalError = 5000,
@@ -87,6 +92,11 @@ Validation response：
 | `2001` | `InvalidCredentials` | 401 | Email 或密碼錯誤 | 顯示安全的登入失敗訊息。 |
 | `2002` | `EmailAlreadyRegistered` | 409 | 註冊 Email 已存在 | 顯示安全的註冊失敗訊息。 |
 | `2003` | `Unauthenticated` | 401 | Cookie 缺失、Session 不存在或已失效 | HTTP client 發出 session 失效事件；App 清空 User／Workspace／Notification Store 並導向 Login。 |
+| `2004` | `AuthVerifyFail` | 400 | 驗證連結無效、到期或已使用 | 顯示連結不可用，提供重寄及登入入口。 |
+| `2005` | `EmailVerificationRequired` | 403 | 密碼正確但未驗證 | data.email 帶到驗證信頁，不當作 Session 失效。 |
+| `2006` | `EmailVerificationCooldown` | 429 | 重寄冷卻中 | 讀取 data.retryAfterSeconds 更新倒數。 |
+| `2007` | `SignupEmailQueueFailed` | 201 | 帳號已建立，但驗證信未入列 | 在成功分支辨認，保留帳號建立結果並提供重寄。 |
+| `2008` | `VerificationEmailQueueFailed` | 503 | 重寄驗證信入列失敗 | 保留 Email，以 data.retryAfterSeconds 控制重試。 |
 | `3001` | `ResourceNotFound` | 404 | 找不到目前使用者可存取的資源 | 依情境顯示欄位錯誤或重新同步局部資料；不可用它判斷資源是否原本存在。 |
 | `4000` | `RequestError` | 預期的 4xx | 未以 `AppException` 明確分類的一般 `HttpException` | 顯示通用「請求失敗」或依頁面情境處理。 |
 | `5000` | `InternalError` | 500 | 未預期的 server error | 顯示本地化通用錯誤；不可顯示原始例外內容。 |
@@ -98,13 +108,15 @@ Validation response：
 3. 同步補上本表、Filter／Controller 測試，以及前端需要的 UI 行為。
 4. 已發布的 code 不改變語意，也不重新指派給其他錯誤。
 
-HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的 application 情境。兩者都要保留。
+HTTP status 與 code 都要保留。HTTP 201 / SignupEmailQueueFailed 表示 User 已建立但排信失敗，Axios 不會進 catch；其餘驗證錯誤由既有 getApiErrorResponse 解析。倒數統一由 data.retryAfterSeconds 提供，不使用 Retry-After header。詳細 request／response 範例見 [Auth API](http-api.md#auth-api-詳細規格)。
+
+Frontend 對 2004–2008 的頁面分流尚未實作；上表前端處理欄是待完成規格。
 
 ## 4. Exception Ownership
 
 - ValidationPipe 將 ValidationError 轉成 FieldErrors，再建立 AppException。
 - Controller 可拋出 transport 或 business exception。
-- Service 不組 HTTP envelope；目前 WorkspaceInvitationService 與 ProjectService 會拋帶 HTTP status 的 AppException，WorkspacesService 會拋 NotFoundException，尚未完全分離 domain error 與 transport。
+- Service 不組 HTTP envelope；目前 AuthService、WorkspaceInvitationService 與 ProjectService 會拋帶 HTTP status 的 AppException，WorkspacesService 會拋 NotFoundException，尚未完全分離 domain error 與 transport。
 - HttpExceptionFilter 是唯一組裝 error envelope 的地方。
 - 未預期錯誤不可將 stack、SQL、Redis key 或內部錯誤訊息回傳給 client。
 - `ApiCode` 是 runtime contract；`packages/contracts` 會同時輸出 ESM 給 frontend 與 CJS 給 backend，不能將它改回 type-only export。
@@ -125,7 +137,7 @@ HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的
 
 ## 6. Filter 規格
 
-- AppException：使用 status、code、message、errors 組 response。
+- AppException：使用 status、code、message、data、errors 組 response；未提供 data 時為 null。錯誤 response 的 data 可以是倒數或 Email，不能一律假設為 null。
 - 一般 HttpException：回 `RequestError` 與安全的「請求失敗」，不直接輸出 Nest 原始 response 或 `exception.message`。
 - Unknown exception：固定 `InternalError` 與「發生非預期錯誤」。
 - 所有分支都必須 return，避免重複寫 response。
@@ -133,9 +145,9 @@ HTTP status 表示 transport 狀態；`code` 表示可供 client 穩定判斷的
 
 ## 7. Swagger
 
-- [x] 現有 Auth、User、Workspace、WorkspaceInvitation、Notification、Project Controller 已設定 domain tag 與 operation summary。
-- [x] 受 SessionGuard 保護的 Controller 已標示 Session Cookie auth 與 401；各 endpoint 已列出主要成功與 400／403／404／409 業務狀態。
-- [x] 現有 request DTO 已提供 Swagger 欄位描述、format、enum 與 example。
+- [ ] 既有 Auth、User、Workspace、WorkspaceInvitation、Notification、Project 多數 handler 有 metadata；Auth verify、Project members／notification detail／pin、Board handlers 仍待補齊。
+- [ ] 補齊所有受保護端點的 Cookie auth／401，以及 Auth 201 部分成功、403、429、503 的 typed data schema。
+- [ ] 多數 request DTO 已提供欄位描述；MoveBoardColumnDto 等未完成 DTO 尚缺 runtime validation 與 Swagger metadata。
 - [ ] 建立可重用的 success/error schema decorator，避免 controller 內重複手寫 envelope。
 - [ ] Validation error schema 必須反映 FieldError 的 value 與 messages；Auth 現有手寫 schema 仍與實際格式不完全一致。
 - [ ] 為所有 success response 補齊可重用的 typed data schema，而不只提供 description。

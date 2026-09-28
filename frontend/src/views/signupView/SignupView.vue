@@ -229,6 +229,7 @@ import { signupApi } from '@/services/auth';
 import { getApiErrorResponse } from '@/services/http';
 import { useAlertStore } from '@/stores/alert';
 import { useLoadingStore } from '@/stores/loading';
+import { useEmailVerificationStore } from '@/stores/emailVerification';
 import {
   createSignupForm,
   mapSignupFieldErrors,
@@ -243,6 +244,7 @@ const { t } = useI18n();
 const router = useRouter();
 const alertStore = useAlertStore();
 const loadingStore = useLoadingStore();
+const verification = useEmailVerificationStore();
 const signupForm = ref(createSignupForm());
 const fieldErrors = ref<SignupFieldMessages>({});
 const isSubmitting = ref(false);
@@ -297,26 +299,45 @@ const handleSignup = async () => {
   isSubmitting.value = true;
 
   try {
+    const request = toSignupRequest(signupForm.value);
     const response = await loadingStore.withLoading(
-      () => signupApi(toSignupRequest(signupForm.value)),
+      () => signupApi(request),
       t('auth.signup.submitting'),
     );
 
-    alertStore.openAlert({
-      content: response.message,
-      confirm: goLoginPage,
-    });
+    signupForm.value.password = '';
+    signupForm.value.confirmPassword = '';
+    if (!response.data) {
+      alertStore.openAlert({ content: t('auth.signup.resultUnknown') });
+      return;
+    }
+    const queueFailed =
+      response.code === ApiCode.SignupEmailQueueFailed || response.data.emailQueued === false;
+    verification.setSignupResult(
+      request.email.toLowerCase(),
+      !queueFailed,
+      response.data.retryAfterSeconds,
+    );
+    await router.push({ name: 'checkEmail' });
+    if (queueFailed) {
+      alertStore.openAlert({ content: t('auth.signup.emailQueueFailed') });
+    }
   } catch (error: unknown) {
     const response = getApiErrorResponse(error);
 
     fieldErrors.value = mapSignupFieldErrors(response?.error ?? null);
+    if (response?.code === ApiCode.EmailAlreadyRegistered) {
+      fieldErrors.value.email = [t('auth.signup.emailAlreadyRegistered')];
+      return;
+    }
 
     if (response?.code === ApiCode.ValidationError) {
       return;
     }
 
     alertStore.openAlert({
-      content: response?.message ?? t('error.requestFailed'),
+      content: t('auth.signup.resultUnknown'),
+      confirmText: t('auth.common.confirm'),
     });
   } finally {
     isSubmitting.value = false;

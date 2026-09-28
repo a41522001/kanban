@@ -2,24 +2,25 @@
 
 本目錄保存會影響多個模組的規格、設計決策與驗收條件。實作前先更新規格，完成後同步更新 progress。
 
-## 目前優先順序
+## 文件導覽
 
-1. [目前 HTTP API](http-api.md)與[測試策略](testing-strategy.md)：補 Project pin 的 HTTP E2E 與 endpoint-specific Swagger metadata。
-2. [Kanban domain 與一致性](kanban-domain-plan.md)：Project 已確立為 Board aggregate root，BoardColumn schema／migration、shared colorKey whitelist、預設四欄與 13 migrations E2E 已完成；下一步補四欄直接 assertion、snapshot 與 Card schema。
-3. [Board API 與 WebSocket](board-api-websocket-spec.md)：以 `project:{projectId}` room 實作 authorization，再導入 command、ack、idempotency、concurrency 與 recovery。
-4. [Workspace 邀請與通知](workspace-invitation-notification.md)：補取消、query 分頁、expiration job／rollback／併發測試、room reconnect 與漏收同步。
-5. [Session 架構與輪轉](session-architecture.md)：補 SessionService、Lua 與真實 Redis integration tests，並收斂 handshake rotation／完整 revoke 策略。
-6. [API contract 與錯誤處理](api-contract-plan.md)：補共用 Swagger response schema 與 Project detail／角色調整／移除成員 endpoints。
-7. [Logging 計畫](logging-plan.md)。
-8. [安全檢查表](security-checklist.md)與[部署計畫](deployment-plan.md)。
+1. [功能盤點與未完成項目](feature-readiness.md)：查看目前功能缺口、API 能力與畫面範圍。
+2. [目前 HTTP API](http-api.md)、[API contract](api-contract-plan.md)：Auth 已加入驗證／重寄、部分註冊成功與登入限制；Board 現行端點與未完成項目已分開標示。
+3. [驗證信前端設計與實作](email-verification-ui-plan.md)：四張核准 SVG 已進 Figma，前端提示／重寄、載入／成功與錯誤 Dialog 已完成。
+4. [Board API 與 WebSocket](board-api-websocket-spec.md)：先補 GET /board/:projectId 授權，再完成 snapshot、持久化拖曳、Card 與協作。
+5. [Workspace 邀請與通知](workspace-invitation-notification.md)：取消、分頁、併發與 reconnect resync。
+6. [Session 架構](session-architecture.md)、[測試策略](testing-strategy.md)、[Logging](logging-plan.md)、[安全](security-checklist.md)與[部署](deployment-plan.md)：依各文件未完成項目推進。
 
 ## 現行實作入口
 
 - [目前 HTTP API](http-api.md)
 - [Workspace 邀請與通知](workspace-invitation-notification.md)
 - [Frontend Auth vertical slice](frontend-auth-plan.md)
+- [驗證信 Queue／Worker 規格](email-verification-worker-spec.md)
+- [驗證信 UI／SVG 與前端實作](email-verification-ui-plan.md)
+- [功能盤點與未完成項目](feature-readiness.md)
 
-最後核對：2026-09-21。Project 前後端第一版已加入每位 ProjectMember 的置頂偏好；前端 Project 頁已統一為 `ProjectView` 與 `/projects/:projectId`。Project 是 Board aggregate root，不建立 Board table；BoardColumn migration、預設四欄 nested create 與 shared colorKey contract 已加入。contracts／Backend build、Project 36 tests、BoardColumn DTO 6 tests、Frontend type-check 與套用 13 個 migrations 的隔離 E2E 4 suites／9 tests通過。完整執行紀錄以 progress 為準。
+最後靜態核對：2026-09-28。本輪文件更新未重新執行測試。使用者已回報驗證信前後端流程實測成功；最近一次前端 Vitest 為 15 files／57 tests 通過，型別檢查通過。後端 169 tests 通過、5 skipped，E2E 4 suites／13 tests 通過，屬歷史驗收；詳見 progress。
 
 ## 既有路線
 
