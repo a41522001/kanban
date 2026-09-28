@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
 
 @import 'tailwindcss';
 @import './components/input.css';
@@ -9,6 +9,8 @@
 @theme {
   /* Pages and surfaces */
   --color-auth-page: #f7f8fa;
+  --color-auth-card: #36415d;
+  --color-auth-border: #d7dce5;
   --color-board-page: #e9ecf1;
   --color-surface: #ffffff;
   --color-surface-subtle: #f7f8fa;

@@ -1,5 +1,11 @@
 import api from './http';
-import type { LoginRequest, SignupRequest, SignupResult } from '@kanban/contracts/auth';
+import type {
+  LoginRequest,
+  SignupRequest,
+  SignupResult,
+  ResendVerificationEmailRequest,
+  ResendVerificationEmailResult,
+} from '@kanban/contracts/auth';
 import type { ApiResponse } from '@kanban/contracts/api';
 export const signupApi = async (data: SignupRequest): Promise<ApiResponse<SignupResult>> => {
   const res = await api<ApiResponse<SignupResult>, SignupRequest>({
@@ -23,5 +29,18 @@ export const logoutApi = async (): Promise<ApiResponse<null>> => {
     url: '/auth/logout',
     method: 'post',
   });
+  return res.data;
+};
+
+export const resendVerificationEmailApi = async (
+  data: ResendVerificationEmailRequest,
+): Promise<ApiResponse<ResendVerificationEmailResult>> => {
+  const res = await api<ApiResponse<ResendVerificationEmailResult>, ResendVerificationEmailRequest>(
+    {
+      url: '/auth/resend-verification-email',
+      method: 'post',
+      data,
+    },
+  );
   return res.data;
 };

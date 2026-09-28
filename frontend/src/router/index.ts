@@ -7,17 +7,26 @@ import { useUserStore } from '@/stores/user';
 import { useNotificationStore } from '@/stores/notification';
 import { ensureConnected } from '@/services/socket';
 
-const publicPaths = new Set(['/login', '/signup']);
+import EmailVerificationNoticeView from '@/views/emailVerificationView/EmailVerificationNoticeView.vue';
+import { useEmailVerificationStore } from '@/stores/emailVerification';
 
 const routes = [
   {
+    path: '/auth/check-email',
+    name: 'email-verification-notice',
+    component: EmailVerificationNoticeView,
+    meta: { public: true },
+  },
+  {
     path: '/login',
     name: 'login',
+    meta: { public: true },
     component: LoginView,
   },
   {
     path: '/signup',
     name: 'signup',
+    meta: { public: true },
     component: SignupView,
   },
   {
@@ -37,7 +46,10 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
-  if (publicPaths.has(to.path)) {
+  if (to.name === 'email-verification-notice' && !useEmailVerificationStore().email) {
+    return { name: 'login' };
+  }
+  if (to.meta.public) {
     return true;
   }
 

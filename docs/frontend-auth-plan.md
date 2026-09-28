@@ -1,12 +1,12 @@
 # Frontend Auth Vertical Slice
 
-> 最後靜態檢視：2026-09-27。既有登入／註冊表單與 Session 流程已完成第一版；後端已啟用驗證限制，但前端驗證／重寄流程尚未實作。畫面規劃見 [驗證信設計提案](email-verification-ui-plan.md)。
+> 更新：2026-09-28。第 1 階段已完成註冊結果 Dialog、未驗證登入導向、驗證提示頁與重寄倒數；點擊信件後的驗證結果頁留待第 2 階段。畫面規劃見 [驗證信設計提案](email-verification-ui-plan.md)。
 
 ## 1. 目標
 
 已完成 Signup、Login、登入狀態恢復、protected route 與 Logout，並正確使用 HttpOnly Session Cookie。
 
-目前後端 signup 建立未驗證 LOCAL 帳號並排入寄信工作；前端仍在提示確認後導向 Login。login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。未驗證帳號現在會被後端 403 擋下，前端目前只顯示通用 Alert，尚未導向驗證信頁。
+目前後端 signup 建立未驗證 LOCAL 帳號並排入寄信工作；前端在 201 後直接顯示信箱提示頁與首次寄送冷卻。login 成功提示確認後導向 `/workspace`，並由 route guard 取得 userInfo。未驗證帳號回 403 / EmailVerificationRequired 後，前端清除密碼、保存回應中的 Email 並進入 /auth/check-email，不自動寄信。
 
 ## 2. 資料流
 
@@ -87,37 +87,35 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - 防止重複 submit。
 - Backend FieldErrors 映射至 email/password。
 - Invalid credentials 顯示 general error，不暴露帳號是否存在。
-- 目前 finally 只解除 submitting，不會主動清空 password；成功導頁後元件才卸載。
+- 收到 EmailVerificationRequired 時會清除 password；一般帳密錯誤保留表單供修改。登入成功後清除驗證提示頁的暫存。
 
 ### Signup
 
 - Client validation 僅改善 UX，backend validation 才是安全邊界。
 - 顯示 email、password、name、confirmPassword 錯誤。
 - confirmPassword 只存在 frontend，不傳給 backend，除非 contract 改變。
-- Signup success 提示確認後導向 Login，不自動登入。
+- Signup 201 成功後直接導向 `/auth/check-email`，顯示「驗證信已安排寄送」及後端回傳的倒數；不自動登入。
 
-目前 backend signup 不建立 Session。signupApi 型別已同步 SignupResult，但 SignupView 未依 code=2007 或 emailQueued=false 分流，兩種 201 都仍顯示提示後去 Login。下一版需改導向驗證信頁，明確區分入列成功與帳號已建立但排信失敗。
+Backend signup 不建立 Session。SignupView 已依 code=2007 或 emailQueued=false 區分正常入列與排信失敗：兩者都清除密碼並導向信箱提示頁；入列失敗另顯示 Dialog，保留後端倒數以供稍後重寄。Email 重複顯示欄位錯誤；500／網路錯誤不推定帳號未建立。登入回傳 EmailVerificationRequired 時，也進入同一路由，但使用登入未驗證文案。詳細錯誤行為見 [驗證信前端規格](email-verification-ui-plan.md)。
 
 ## 6. Route Guard
 
-- `/login`、`/signup` 是白名單。
+- `/login`、`/signup`、`/auth/check-email` 以 `meta.public` 標示公開頁；提示頁沒有 Email context 時返回 Login。
 - 其他路徑先透過 `initializeUser()` 驗證；沒有 user 導向 Login。
 - Project 頁使用 protected route `/projects/:projectId`；目前 `ProjectView` 已讀取 DB Columns，但拖曳順序尚未持久化、Card 尚未實作。
 - Route guard 只透過 Store 取得 session，Store 負責 request 去重。
 - 尚未保存原始 redirect target，也尚未讓已登入使用者從 login/signup 自動導向 home。
 
-### 驗證信流程待接項目
+### 驗證信流程進度
 
-- services/auth.ts 尚缺 verifyEmailApi、resendVerificationEmailApi。
-- router 尚缺 `/auth/check-email`、`/auth/verify/:token`、缺 token 的 `/auth/verify`；需改用 route meta 判斷公開頁，避免被現有 Session guard 擋住。
-- LoginView 需針對 403 / EmailVerificationRequired 導向驗證信頁；SignupView 需處理 201 的 code 1 / 2007。
-- 驗證信頁需串接 202／429／503 的倒數、欄位錯誤及可重試狀態；驗證結果頁需區分 200、400 / 2004 與 500／網路失敗。
-- Email／入口原因／本機 retryAt 可用 sessionStorage 保留；token 只由信件 URL 讀取，不放入 Storage。
-- 頁面生命週期內避免重複驗證；重新整理後 token 若已消耗，仍以後端 400 顯示連結不可用，提供登入入口。
-- Public 驗證頁不依賴 Socket 或 Session；保留既有登入，不因驗證信切換帳號。
-- Login／Signup 目前的 Google 按鈕與忘記密碼按鈕只有外觀，尚無對應後端 API／操作。
+- 已新增 `resendVerificationEmailApi`；`verifyEmailApi` 留待第 2 階段。
+- `/auth/check-email` 不查 Session、不連 Socket；登入 2005 提供 Email，進頁不自動寄信。
+- 重寄中停用提交。202 顯示條件式受理訊息；429 使用後端秒數校正倒數；503 顯示 Dialog 並保留冷卻；400／500／網路失敗顯示 Dialog，不宣稱信一定未寄出。
+- Email、入口原因與 retryAt 保存於 sessionStorage；倒數由截止時間計算，重整不中斷，切換 Email 時重設，不保存密碼或 token。
+- 第 2 階段仍需新增 `/auth/verify/:token`、缺 token 的 `/auth/verify`、驗證 API 串接及結果分流。
+- Login／Signup 的 Google／忘記密碼入口維持既有外觀，後端功能尚未實作。
 
-驗證信前端串接完成後才可宣告瀏覽器註冊到驗證的完整流程完成。詳細畫面狀態與審查項目見 [設計提案](email-verification-ui-plan.md)。
+第 1 階段的 10 個整合式元件測試涵蓋註冊部分成功、2005 導向、context 缺失、重複提交、202／429／503／網路錯誤與倒數恢復。2026-09-28 前端 build 與全部 53 個 Vitest 測試通過；瀏覽器操作使用模擬 API，尚未進行完整真實寄信到驗證的串接驗收。
 
 ## 7. Cookie、CORS 與 CSRF
 
@@ -144,7 +142,7 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 
 - [x] Login／Signup pure form validation。
 - [x] User Store session restore 成功、失敗快取、並行 request 去重與 reset。
-- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；目前 spec 只測 pure validation，尚未有 submit／loading／error component test。
+- [x] Login／Signup submit loading 與 Validation Error 的 UI 處理已實作；另有第 1 階段整合式元件測試覆蓋未驗證登入與註冊結果分流；完整成功登入流程驗收仍待後續。
 - [x] Logout 即使 API 失敗仍會清空本地 User Store 並導向 Login。
 - [ ] Route guard redirect target 與已登入 public route redirect。
 - [ ] Playwright refresh 後仍維持登入，以及完整登入／登出 flow。
@@ -155,14 +153,15 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - [x] Axios API client（`withCredentials: true`）。
 - [x] User Store session restore 與 request 去重。
 - [x] Login API integration。
-- [x] Signup API integration（既有表單；尚缺 201 部分成功分流）。
-- [ ] 驗證信／驗證結果頁、公開路由、重寄倒數。
-- [ ] 未驗證登入導向、驗證信 i18n 與瀏覽器完整流程驗收。
+- [x] Signup API integration，包含 201 部分成功與錯誤分流。
+- [x] 驗證提示頁、公開路由、重寄倒數與未驗證登入導向。
+- [x] 第 1 階段繁中／英文 i18n 與整合式元件測試。
+- [ ] 驗證結果頁與真實註冊到驗證的完整流程驗收。
 - [x] Protected route guard。
 - [x] Logout。
 - [x] Socket connect/disconnect hook 與 Notification realtime handler。
 - [x] Form validation／User Store unit tests。
-- [ ] Login／Signup component tests。
+- [x] Login／Signup 第 1 階段結果分流 component tests。
 - [ ] Playwright auth flow。
 
 ## 11. 驗收條件

@@ -164,6 +164,7 @@ import { getApiErrorResponse } from '@/services/http';
 import { useAlertStore } from '@/stores/alert';
 import { useLoadingStore } from '@/stores/loading';
 import { useUserStore } from '@/stores/user';
+import { useEmailVerificationStore } from '@/stores/emailVerification';
 import {
   createLoginForm,
   mapLoginFieldErrors,
@@ -179,6 +180,7 @@ const router = useRouter();
 const loadingStore = useLoadingStore();
 const alertStore = useAlertStore();
 const userStore = useUserStore();
+const verification = useEmailVerificationStore();
 const loginForm = ref(createLoginForm());
 const fieldErrors = ref<LoginFieldMessages>({});
 const isSubmitting = ref(false);
@@ -192,6 +194,7 @@ const goSignupPage = () => {
 };
 
 const goWorkspacePage = () => {
+  verification.clear();
   userStore.resetUser();
   void router.push({ name: 'workspace' });
 };
@@ -236,6 +239,21 @@ const handleLogin = async () => {
     });
   } catch (error: unknown) {
     const response = getApiErrorResponse(error);
+
+    const data = response?.data;
+    if (
+      response?.code === ApiCode.EmailVerificationRequired &&
+      typeof data === 'object' &&
+      data !== null &&
+      'email' in data &&
+      typeof data.email === 'string' &&
+      data.email.trim()
+    ) {
+      loginForm.value.password = '';
+      verification.setEmail(data.email);
+      await router.push({ name: 'email-verification-notice' });
+      return;
+    }
 
     fieldErrors.value = mapLoginFieldErrors(response?.error ?? null);
 

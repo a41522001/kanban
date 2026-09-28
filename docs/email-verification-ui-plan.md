@@ -1,11 +1,11 @@
 # 驗證信前端與 Figma 設計提案
 
 日期：2026-09-27。
-狀態：本文件下方保留 2026-09-27 的原提案作歷史參考；2026-09-28 核准的畫面與 Figma 交付以緊接的「目前核准範圍」為準。前端尚未串接。
+狀態：本文件下方保留 2026-09-27 的原提案作歷史參考；2026-09-28 核准的畫面與 Figma 交付以緊接的「目前核准範圍」為準。前端第 1 階段（註冊結果、未驗證登入導向、提示頁與重寄倒數）已串接；點擊信件後的驗證頁留待第 2 階段。
 
 ## 目前核准範圍（2026-09-28）
 
-使用者決定登入、註冊 SVG 不加入驗證信資訊。帳密正確但未驗證時，登入 API 回傳 `EmailVerificationRequired` 且不建立 Session；前端此時才進入驗證提示頁。進頁不自動重寄；使用者按「寄送驗證信」後，受理與 429 冷卻都在同一頁處理。信件連結進入 `/auth/verify/:token`，先顯示「正在驗證」，只有 API 成功才顯示驗證成功並提供「前往登入」。錯誤不另建獨立頁面，後續在同一流程設計 Dialog／頁面狀態；驗證失敗後不能讓「驗證中」或成功內容留在 Dialog 背後。
+登入、註冊表單的 SVG 不預先放驗證信資訊。註冊成功且寄信工作入列後，前端直接進入 `/auth/check-email`，顯示「請查看你的信箱」與首次寄送冷卻；入列失敗則在同頁告知並提供稍後重寄。帳密正確但未驗證時，登入 API 回傳 `EmailVerificationRequired` 且不建立 Session，前端也進入同一路由，但顯示「請先驗證電子郵件」並讓使用者主動寄送。信件連結進入 `/auth/verify/:token`，先顯示「正在驗證」，只有 API 成功才顯示驗證成功並提供「前往登入」。錯誤不另建獨立頁面，Dialog 與頁面狀態依下節處理；驗證失敗後不能讓「驗證中」或成功內容留在 Dialog 背後。
 
 | Current SVG | 狀態 | Figma v14 |
 | --- | --- | --- |
@@ -14,9 +14,35 @@
 | `design/auth-email-verify-loading.svg` | 點擊信件後等待驗證 API | 同區塊 Loading |
 | `design/auth-email-verify-success.svg` | 驗證成功後返回登入 | 同區塊 Success |
 
-四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；手機版、錯誤 Dialog、前端實作仍待後續工作。來源與輸出清單見 [design 索引](../design/README.md)及 [Plugin manifest](../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
+四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；前端第 1 階段已完成 Ready／Cooldown 與其錯誤 Dialog、基本響應式排版；Loading／Success 與驗證錯誤仍待第 2 階段。來源與輸出清單見 [design 索引](../design/README.md)及 [Plugin manifest](../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
 
-以下段落是原 14 狀態提案，其中「註冊後立即進入驗證信頁」、28 張 SVG、重新生成全部畫面等內容已被目前核准範圍取代，不作為實作依據。
+### 錯誤處理與前端接線規格（2026-09-28）
+
+這是四張已核准畫面的互動規格；第 1 階段已實作註冊結果、未驗證登入導向、驗證提示頁與重寄，第 2 階段驗證結果頁尚未實作。登入與註冊 SVG 不新增驗證信靜態文案。登入回傳 `EmailVerificationRequired` 才顯示「請先驗證電子郵件」；註冊成功則進入同版型的「請查看你的信箱」。註冊入列失敗在同頁顯示 Dialog 並保留冷卻，不要求再次註冊。
+
+| 入口與 API 結果 | 畫面行為 | 使用者下一步 |
+| --- | --- | --- |
+| 註冊 `201 / Success (1)` | 直接進入信箱提示頁，顯示「驗證信已安排寄送」、註冊信箱與首次寄送冷卻；`emailQueued` 只代表 BullMQ 入列。 | 查看信箱，點擊連結完成驗證後前往登入。 |
+| 註冊 `201 / SignupEmailQueueFailed (2007)` | 直接進入同一信箱提示頁，以「帳號已建立，但驗證信尚未安排寄送」文案和 Dialog 告知；保留後端倒數。 | 倒數結束後在同頁重寄，不重新註冊。 |
+| 註冊 `409 / EmailAlreadyRegistered (2002)` 或 `400 / ValidationError (1000)` | 留在註冊表單，前者標示 Email 已使用，後者顯示欄位錯誤；不推定該帳號是否已驗證。 | 修改資料或自行前往登入。 |
+| 註冊 `500`／網路中斷 | 留在表單並顯示無法確認結果的 Dialog；網路中斷不能斷言帳號未建立。 | 可先嘗試登入，再決定是否重新提交註冊。 |
+| 登入 `401 / InvalidCredentials (2001)` | 留在登入表單，顯示帳密錯誤。 | 修改輸入後重試。 |
+| 登入 `403 / EmailVerificationRequired (2005)` | 清掉密碼欄位，使用回應的 `data.email` 進入驗證提示頁；不建立 Session，進頁不自動寄信。 | 點「寄送驗證信」，或查看先前信件。 |
+| 重寄 `202 / Success (1)` | 留在驗證提示頁，顯示受理回饋，依 `data.retryAfterSeconds` 停用按鈕並倒數；不宣稱 SMTP 已送達。 | 查看信箱；倒數結束可再次請求。 |
+| 重寄 `429 / EmailVerificationCooldown (2006)` | 同頁進入冷卻狀態，使用 `data.retryAfterSeconds` 更新倒數。 | 倒數結束後再按。 |
+| 重寄 `503 / VerificationEmailQueueFailed (2008)` | 同頁顯示錯誤 Dialog，保留 Email；若 `data.retryAfterSeconds > 0`，仍顯示冷卻，不提供立即重試。 | 冷卻結束後再按。 |
+| 重寄 `400 / ValidationError (1000)`、`500`／網路中斷 | 前者顯示請求資料錯誤；後者顯示「無法確認是否已受理，請先查看信箱，稍後再試」。都保留 Email。 | 留在提示頁；伺服器仍以 429 決定是否冷卻。 |
+| 驗證 `200 / Success (1)` | 從「正在驗證」切到已核准的成功畫面。 | 按「前往登入」；不自動建立 Session。 |
+| 驗證 `400 / AuthVerifyFail (2004)` 或 URL 缺 token | 停止 loading，在同一路由顯示中性結果背景與「連結無法使用」Dialog；不能讓 spinner 或成功畫面留在 Dialog 背後。有效期、已用與錯誤 token 無法再細分。 | 先前往登入確認；若仍未驗證，登入後到提示頁重寄。 |
+| 驗證 `500`／網路中斷 | 停止 loading，在同一路由顯示中性結果背景與「暫時無法確認驗證結果」Dialog；不能說連結已過期。 | 使用者可按「再試一次」或前往登入確認。 |
+
+驗證 API 由前端讀取 URL token 後呼叫一次，處理中防止重複提交。「再試一次」只能由使用者主動觸發：第一次請求即使在前端看似失敗，也可能已完成 DB 更新並消耗 token；因此重試得到 `2004` 時仍先建議登入確認，不立即斷言驗證失敗。中性結果背景沿用驗證結果頁的版型，移除 loading spinner 與成功勾號；不新增獨立 SVG 或路由。
+
+提示頁由註冊 `201` 或登入 `2005` 帶入 Email，並保存入口原因；若直接開啟或重整後失去 Email context，導回登入，避免顯示範例信箱或替未知地址重寄。倒數只顯示後端回傳秒數或同一瀏覽器已保存的截止時間；後端 `429` 永遠是準確來源。除註冊提交後的結果 Dialog 外，驗證信資訊不預先放進登入／註冊畫面。
+
+第 1 階段已依核准的 Ready／Cooldown Figma 畫面完成 Vue 與基本響應式排版，使用既有 Alert Dialog 顯示註冊與重寄錯誤。Email 與倒數截止時間保存在 sessionStorage，重新整理後接續；沒有 Email 時返回登入。沒有新增 SVG 或 Figma 畫面。第 2 階段的驗證結果、失效連結及重試仍未開發，須依使用者授權進行。
+
+以下段落是原 14 狀態提案；狀態數、畫面清單與實作進度以目前核准範圍為準，不作為現行交付清單。
 
 ## 範圍與來源
 

@@ -1,0 +1,29 @@
+@reference '../../styles/index.css';
+
+.verification-layout {
+  @apply min-h-dvh bg-auth-page text-content-primary lg:grid lg:min-h-[max(100dvh,900px)] lg:grid-cols-[35.1389%_minmax(0,1fr)];
+}
+.verification-layout__brand {
+  @apply hidden min-w-0 flex-col bg-content-primary px-10 pt-16 pb-13.5 lg:flex xl:pl-18 xl:pr-17.5;
+}
+.verification-layout__message {
+  @apply mt-32.5;
+}
+.verification-layout__headline {
+  @apply text-3xl font-bold leading-14 text-content-on-dark xl:text-[37px];
+}
+.verification-layout__preview {
+  @apply mt-28.75 flex min-h-51.5 w-full max-w-91 flex-col gap-3 rounded-surface bg-auth-card p-6;
+}
+.verification-layout__card {
+  @apply flex min-h-31 flex-col gap-2.25 rounded-control bg-surface px-5 py-4;
+}
+.verification-layout__tagline {
+  @apply mt-auto pt-16 text-xs leading-4.5 text-content-on-dark-muted;
+}
+.verification-layout__content {
+  @apply min-w-0 px-6 py-10 sm:px-10 lg:pt-35 lg:pr-10 lg:pb-15 lg:pl-14 xl:pr-[9.7222vw] xl:pl-[14.4444vw];
+}
+.verification-layout__panel {
+  @apply mx-auto w-full max-w-145 lg:mx-0;
+}

@@ -51,11 +51,11 @@ Email 欄位會 trim 並轉小寫，需符合 Email 格式且最多 320 字元�
 
 Request：`{ "email": "user@example.com", "password": "example-password", "name": "示範使用者" }`。
 
-| 結果 | HTTP / code | data | 前端應採取的動作（待實作） |
+| 結果 | HTTP / code | data | 前端動作（第 1 階段已實作） |
 | --- | --- | --- | --- |
-| 帳號建立、工作入列 | 201 / Success (1) | `{ accountCreated: true, emailQueued: true, retryAfterSeconds: 60 }` | 前往驗證信頁，顯示正在安排寄送與倒數 |
-| 帳號建立，但設定冷卻或入列失敗 | 201 / SignupEmailQueueFailed (2007) | `{ accountCreated: true, emailQueued: false, retryAfterSeconds: number }` | 提示帳號已建立，倒數後可重寄，不重新註冊 |
-| Email 已存在（前置查詢） | 409 / EmailAlreadyRegistered (2002) | null | 留在表單，提供登入／重寄入口 |
+| 帳號建立、工作入列 | 201 / Success (1) | `{ accountCreated: true, emailQueued: true, retryAfterSeconds: 60 }` | 直接進入信箱提示頁，顯示已安排寄送與首次冷卻；完成驗證後前往登入 |
+| 帳號建立，但設定冷卻或入列失敗 | 201 / SignupEmailQueueFailed (2007) | `{ accountCreated: true, emailQueued: false, retryAfterSeconds: number }` | 直接進入信箱提示頁並顯示失敗 Dialog；保留後端冷卻，稍後同頁重寄，不重新註冊 |
+| Email 已存在（前置查詢） | 409 / EmailAlreadyRegistered (2002) | null | 留在表單，提供登入入口；登入未驗證時再進入重寄提示頁 |
 | DTO 錯誤 | 400 / ValidationError (1000) | null | 以 error 顯示欄位錯誤 |
 | 建立帳號等未處理例外 | 500 / InternalError (5000) | null | 顯示服務失敗；不能從一般 500 推定帳號建立結果 |
 
