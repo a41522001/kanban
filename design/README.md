@@ -4,7 +4,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 
 ## 2026-09-27 API 現況與待審查範圍
 
-Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。Auth 驗證信新畫面尚未生成，審查依據見 [驗證信提案](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
+Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；手機版、錯誤 Dialog 與前端串接尚未完成。規格參考見 [驗證信提案](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
 
 - Signup 已排信，前端仍缺驗證頁及 201 部分成功分流；既有「建立工作區」文案需改為「建立帳號」。
 - Project members API 回 memberId、displayName、avatarUrl、role，沒有 joinedAt；overview 的加入時間只能作為未來設計，不可直接使用不存在欄位。
@@ -16,6 +16,10 @@ Current 表示目前採用的視覺參考，不代表畫面中的每項操作都
 | --- | --- | --- | --- | --- |
 | Login | `auth-login.svg` | — | `auth-login-mobile.svg` | Current |
 | Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
+| Email verification notice | `auth-email-notice-verification-required.svg` | — | — | Current · Desktop ready |
+| Email verification cooldown | `auth-email-notice-verification-required-cooldown.svg` | — | — | Current · Desktop ready |
+| Email verification loading | `auth-email-verify-loading.svg` | — | — | Current · Desktop ready |
+| Email verification success | `auth-email-verify-success.svg` | — | — | Current · Desktop ready |
 | Workspace project overview | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
 | Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
 | Project add member | `project-add-member-dialog.svg` | — | `project-add-member-dialog-mobile.svg` | Current |

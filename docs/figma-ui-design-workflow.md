@@ -97,9 +97,13 @@ npm run build
 - 畫面與 Current SVG 在層級、間距、文案和 responsive 結構上相符。
 - 第二次執行 `Generate All` 不會建立重複 generated roots。
 
-## 8. Current v13 基準
+## 8. Current v14 基準
 
-目前 Generator 的可見版本為 `v13`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 對齊 Workspace responsive screens；v10 將 Mobile Project Card 改為手風琴；v11 將 Workspace 與 Project Overview 整併為唯一的 Workspace Project Overview；v12 新增 Project member candidate、role option 與 add-member Dialog 的原生 component sets／states；v13 新增 Project member added notification detail Dialog 與 Desktop／Mobile screens。
+2026-09-28 已在既有 Figma 檔執行 v14 `Email Verification · 4 desktop screens` 專用動作兩次。`02 · Components` 新增 Email Verification Brand／Notice／Result 三組原生 Component Sets；`03 · Screens` 新增單一 `Auth / Email Verification` 區塊，包含 Ready、Cooldown、Loading、Success 四張 1440 × 900 Frame。畫面使用 Instances，Ready 畫面已放大比對 Current SVG；重跑未累積重複區塊。v14 尚未產生手機版本或錯誤 Dialog，前端亦尚未串接。
+
+### v13 歷史基準
+
+v13 時 Generator 的可見版本為 `v13`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 對齊 Workspace responsive screens；v10 將 Mobile Project Card 改為手風琴；v11 將 Workspace 與 Project Overview 整併為唯一的 Workspace Project Overview；v12 新增 Project member candidate、role option 與 add-member Dialog 的原生 component sets／states；v13 新增 Project member added notification detail Dialog 與 Desktop／Mobile screens。
 
 - `Project Card` → Desktop 使用 Default／Selected；Tablet／Mobile 使用 Default／Expanded；三種 viewport 皆保留 Active／OnHold／Completed
 - `Selected Project Members` → Desktop master-detail 成員面板，只呈現 displayName、avatarUrl 與 joinedAt

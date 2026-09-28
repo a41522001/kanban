@@ -1,7 +1,22 @@
 # 驗證信前端與 Figma 設計提案
 
 日期：2026-09-27。
-狀態：待使用者審查。本文為目標設計，不表示功能已實作；審查通過後才產生 SVG，再更新既有 Figma Generator，最後開發前端。
+狀態：本文件下方保留 2026-09-27 的原提案作歷史參考；2026-09-28 核准的畫面與 Figma 交付以緊接的「目前核准範圍」為準。前端尚未串接。
+
+## 目前核准範圍（2026-09-28）
+
+使用者決定登入、註冊 SVG 不加入驗證信資訊。帳密正確但未驗證時，登入 API 回傳 `EmailVerificationRequired` 且不建立 Session；前端此時才進入驗證提示頁。進頁不自動重寄；使用者按「寄送驗證信」後，受理與 429 冷卻都在同一頁處理。信件連結進入 `/auth/verify/:token`，先顯示「正在驗證」，只有 API 成功才顯示驗證成功並提供「前往登入」。錯誤不另建獨立頁面，後續在同一流程設計 Dialog／頁面狀態；驗證失敗後不能讓「驗證中」或成功內容留在 Dialog 背後。
+
+| Current SVG | 狀態 | Figma v14 |
+| --- | --- | --- |
+| `design/auth-email-notice-verification-required.svg` | 登入未驗證、可寄送 | `Auth / Email Verification` Ready |
+| `design/auth-email-notice-verification-required-cooldown.svg` | 同頁重寄冷卻 | 同區塊 Cooldown |
+| `design/auth-email-verify-loading.svg` | 點擊信件後等待驗證 API | 同區塊 Loading |
+| `design/auth-email-verify-success.svg` | 驗證成功後返回登入 | 同區塊 Success |
+
+四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；手機版、錯誤 Dialog、前端實作仍待後續工作。來源與輸出清單見 [design 索引](../design/README.md)及 [Plugin manifest](../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
+
+以下段落是原 14 狀態提案，其中「註冊後立即進入驗證信頁」、28 張 SVG、重新生成全部畫面等內容已被目前核准範圍取代，不作為實作依據。
 
 ## 範圍與來源
 
@@ -42,7 +57,7 @@
 5. 使用者開啟信件連結，在驗證結果頁完成驗證。
 6. 成功後按「前往登入」；不自動登入、不自動跳轉。
 
-註冊動作文案使用「建立帳號」。現有 SVG 的「建立工作區」與 API 只建立 User 的行為不符，需要同步修正。
+註冊動作文案使用「建立帳號」。既有登入／註冊 SVG 已把「建立工作區」改為「建立帳號」，與 API 只建立 User 的行為一致。
 
 ### 2. 登入但尚未驗證
 
@@ -128,9 +143,9 @@ Redis key 被刪除或到期後，現有資料不足以區分「已使用」「�
 
 現有 CSS 的 font token 指定 Noto Sans TC，但 Google Fonts import 載入 Noto Sans，需在前端實作階段核對並統一，避免 Figma 與瀏覽器字形不同。
 
-## SVG → Figma → Vue manifest（待審查）
+## SVG → Figma → Vue manifest（SVG 已生成，待畫面審查）
 
-核准後新增 12 個狀態，各做 Desktop / Mobile，預計 24 個 SVG。每個檔案只含一個產品畫面，檔名以以下 basename 加 .svg 或 -mobile.svg。
+已新增 14 個驗證信狀態，各做 Desktop / Mobile，共 28 張 SVG；另新增註冊 Email 重複狀態 2 張。每檔只含一個產品畫面，檔名以以下 basename 加 .svg 或 -mobile.svg。
 
 | Basename | 頁面／狀態 | Figma section |
 | --- | --- | --- |
@@ -140,14 +155,16 @@ Redis key 被刪除或到期後，現有資料不足以區分「已使用」「�
 | auth-email-notice-sending | 正在提交寄信請求 | Auth / Email Verification |
 | auth-email-notice-resend-accepted | 重寄受理與回饋 | Auth / Email Verification |
 | auth-email-notice-cooldown | 冷卻中及 429 回饋 | Auth / Email Verification |
-| auth-email-notice-request-error | 寄信請求失敗／輸入錯誤示例 | Auth / Email Verification |
+| auth-email-notice-request-error | 503 排信失敗，保留剩餘倒數 | Auth / Email Verification |
+| auth-email-notice-validation-error | 400 Email 欄位格式錯誤 | Auth / Email Verification |
+| auth-email-notice-network-error | 網路結果不明，先查信箱再重試 | Auth / Email Verification |
 | auth-email-notice-signup-mail-error | 帳號已建立但寄信排程失敗 | Auth / Email Verification |
 | auth-email-verify-loading | 驗證中 | Auth / Email Verification |
 | auth-email-verify-success | 驗證成功 | Auth / Email Verification |
 | auth-email-verify-unavailable | 缺少、錯誤、到期或已使用 token | Auth / Email Verification |
 | auth-email-verify-request-error | 可重試的網路／服務錯誤 | Auth / Email Verification |
 
-既有 auth-login、auth-signup 的 Desktop / Mobile 共 4 個 SVG 同步入口、CTA 與導向說明，維持原視覺語言。若核准真實寄送狀態追蹤，再擴充 manifest 中的寄送成功／失敗狀態。
+既有 auth-login、auth-signup 的 Desktop / Mobile 共 4 個 SVG 已同步入口、CTA 與導向說明；auth-signup-email-exists 另有 Desktop / Mobile 兩張。Google／忘記密碼仍無 API，這批 SVG 暫不顯示；現行 Vue 尚有按鈕，前端落地時需對齊。若之後加入真實寄送狀態追蹤，再擴充寄送成功／失敗狀態。
 
 Figma 沿用既有檔案的 01 · Foundations、02 · Components、03 · Screens。更新既有 figma-plugin，不建立另一套 Generator，不直接匯入 SVG 當成交付。
 
@@ -190,18 +207,18 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 
 既有 request-error manifest 應在 Figma / Vue 中保留「欄位錯誤、冷卻中的服務失敗、網路失敗」差異，不能把 503 的倒數丟掉。無 token 頁面由前端直接顯示 unavailable。頁面重新整理、瀏覽器返回或跨分頁完成驗證也需保留登入入口。
 
-目前仍待前端實作 service functions、路由、狀態分流、暫存／倒數與 i18n；Google 登入、忘記密碼目前只有按鈕外觀，審查時需決定首版隱藏或明示尚未開放。Workspace／Board 等全站缺口見 [設計前功能盤點](feature-readiness.md)。
+目前仍待前端實作 service functions、路由、狀態分流、暫存／倒數與 i18n；SVG 已暫時隱藏無 API 的 Google 登入／忘記密碼按鈕，Vue 畫面尚未對齊。Workspace／Board 等全站缺口見 [設計前功能盤點](feature-readiness.md)。
 
 ## 審查與交付階段
 
-1. 本提案審查：確認頁面、狀態、文案、重寄規則與額外功能範圍。
-2. 核准後：產生 SVG、更新 design/README 的 Current manifest，執行現有 audit-svg-pages 腳本並檢查畫面。
+1. SVG 已生成：14 個驗證信狀態、註冊 Email 重複狀態、既有登入／註冊與 Workspace overview 規格校正。
+2. 畫面審查：確認狀態、文案、重寄規則與額外功能範圍；Current manifest 與 SVG audit 同步維護。
 3. 更新既有 Plugin components / screens，完成 typecheck、build、可見版本標記。
 4. 在既有 Figma 檔案執行 Generate All，檢查畫面、instance、Auto Layout，連續重跑確認不累積重複節點。
 5. 依 Figma 與現有 contract 開發前端；後端已啟用未驗證登入限制。
 6. 驗收註冊、未驗證登入、跨裝置驗證、重寄冷卻、連結不可用、暫時錯誤與手機版流程。
 
-目前只進行第 1 階段。核准前不生成 SVG、不修改 Figma、不開發前端功能。
+目前完成第 1 階段，等待 SVG 畫面審查；Figma Generator 與前端功能尚未開始更新。
 
 ## 請使用者審查的決策
 
@@ -209,4 +226,4 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 - 等待文案採「請查看你的信箱」，還是加入實際寄送狀態追蹤後顯示「驗證信已寄出」？
 - 重寄冷卻建議 60 秒；舊信在各自期限內仍有效，帳號驗證後不重寫時間，是否接受？
 - 驗證成功由使用者按「前往登入」，不自動登入；目前不做輪詢，是否接受？
-- 本輪涵蓋驗證信完整流程；真正修改帳號 Email、忘記密碼、Google 登入是否維持另案？
+- 本輪涵蓋驗證信完整流程；真正修改帳號 Email、忘記密碼、Google 登入是否維持另案？這批 SVG 暫隱藏尚無 API 的按鈕。

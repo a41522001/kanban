@@ -5,7 +5,7 @@ const FONT_MEDIUM = { family: 'Noto Sans TC', style: 'Medium' } as FontName;
 const FONT_BOLD = { family: 'Noto Sans TC', style: 'Bold' } as FontName;
 let resolvedFonts = { regular: FONT, medium: FONT_MEDIUM, bold: FONT_BOLD };
 
-type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens';
+type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification';
 type Direction = 'HORIZONTAL' | 'VERTICAL';
 type ColorMap = Record<string, string>;
 type NotificationViewport = 'Desktop' | 'Mobile';
@@ -42,6 +42,7 @@ const colors: ColorMap = {
   'bg/subtle': '#F7F8FA',
   'bg/dark': '#29324A',
   'bg/dark-raised': '#44506A',
+  'bg/auth-card': '#36415D',
   'text/primary': '#29324A',
   'text/secondary': '#697287',
   'text/tertiary': '#8B95A8',
@@ -92,6 +93,10 @@ const typeScale = {
   'Heading / H1': { size: 32, lineHeight: 42, weight: 'bold' },
   'Heading / H2': { size: 24, lineHeight: 34, weight: 'bold' },
   'Heading / H3': { size: 18, lineHeight: 28, weight: 'bold' },
+  'Heading / Auth Display': { size: 42, lineHeight: 58, weight: 'bold' },
+  'Heading / Auth Hero': { size: 37, lineHeight: 56, weight: 'bold' },
+  'Heading / Auth Card': { size: 20, lineHeight: 28, weight: 'bold' },
+  'Heading / Auth Email': { size: 24, lineHeight: 34, weight: 'medium' },
   'Body / Large': { size: 16, lineHeight: 26, weight: 'regular' },
   'Body / Medium': { size: 14, lineHeight: 22, weight: 'regular' },
   'Body / Small': { size: 12, lineHeight: 18, weight: 'regular' },
@@ -324,6 +329,10 @@ async function buildFoundations(): Promise<FrameNode> {
   await getOrCreateTextStyle('Heading / H1', 32, 42, 'bold');
   await getOrCreateTextStyle('Heading / H2', 24, 34, 'bold');
   await getOrCreateTextStyle('Heading / H3', 18, 28, 'bold');
+  await getOrCreateTextStyle('Heading / Auth Display', 42, 58, 'bold');
+  await getOrCreateTextStyle('Heading / Auth Hero', 37, 56, 'bold');
+  await getOrCreateTextStyle('Heading / Auth Card', 20, 28, 'bold');
+  await getOrCreateTextStyle('Heading / Auth Email', 24, 34, 'medium');
   await getOrCreateTextStyle('Body / Large', 16, 26, 'regular');
   await getOrCreateTextStyle('Body / Medium', 14, 22, 'regular');
   await getOrCreateTextStyle('Body / Small', 12, 18, 'regular');
@@ -1838,6 +1847,7 @@ async function buildComponents(replace = true): Promise<FrameNode> {
   const buttonRow = auto('Button', 'HORIZONTAL', { gap: 24 });
   root.appendChild(buttonRow);
   componentSets.Button = componentSet('Button', ['Primary', 'Secondary', 'Outline', 'Ghost', 'Danger'].map(buttonVariant), buttonRow);
+  createEmailVerificationComponents(root);
 
   const inputRow = auto('Input', 'HORIZONTAL', { gap: 24 });
   root.appendChild(inputRow);
@@ -2311,6 +2321,239 @@ function boardScreen(): FrameNode {
   content.appendChild(columns);
   screen.appendChild(content);
   return screen;
+}
+
+type EmailBrandState = 'Pending' | 'Loading' | 'Success';
+type EmailNoticeState = 'Ready' | 'Cooldown';
+type EmailResultState = 'Loading' | 'Success';
+
+function emailSpacer(height: number): FrameNode {
+  const spacer = auto(`Space / ${height}`, 'VERTICAL');
+  fixed(spacer, 1, height);
+  return spacer;
+}
+
+function emailBrandVariant(state: EmailBrandState): ComponentNode {
+  const panel = figma.createComponent();
+  panel.name = `State=${state}`;
+  panel.description = 'account/EmailVerificationBrand · Desktop brand panel · native Auto Layout';
+  panel.layoutMode = 'VERTICAL';
+  panel.primaryAxisSizingMode = 'FIXED';
+  panel.counterAxisSizingMode = 'FIXED';
+  fixed(panel, 506, 900);
+  setPadding(panel, 64, 70, 54, 72);
+  applyFill(panel, 'bg/dark');
+
+  const logo = auto('Flowboard logo', 'HORIZONTAL', { gap: 14 });
+  logo.counterAxisAlignItems = 'CENTER';
+  const mark = auto('Logo mark', 'HORIZONTAL', { gap: 6 });
+  mark.counterAxisAlignItems = 'CENTER';
+  const coral = figma.createRectangle(); coral.name = 'Coral mark'; coral.resize(18, 25); setRadius(coral, 'radius/sm'); applyFill(coral, 'action/primary');
+  const mint = figma.createRectangle(); mint.name = 'Mint mark'; mint.resize(18, 17); setRadius(mint, 'radius/sm'); applyFill(mint, 'flow/active');
+  mark.appendChild(coral); mark.appendChild(mint);
+  logo.appendChild(mark);
+  logo.appendChild(text('Wordmark', 'Flowboard', 'Heading / H2', 'text/on-dark'));
+  panel.appendChild(logo);
+
+  panel.appendChild(emailSpacer(130));
+  const hero = auto('Brand message', 'VERTICAL', { gap: 20 });
+  hero.appendChild(text('Headline', '每段協作，\n都有個起點。', 'Heading / Auth Hero', 'text/on-dark'));
+  hero.appendChild(text('Description', state === 'Success'
+    ? '信箱已確認，接下來就能與團隊一起推進工作。'
+    : state === 'Loading'
+      ? '正在確認信箱，稍後就能繼續下一步。'
+      : '先確認信箱，再開始與團隊一起推進工作。', 'Body / Medium', 'text/on-dark-muted'));
+  panel.appendChild(hero);
+  panel.appendChild(emailSpacer(115));
+
+  const board = auto('Verification task preview', 'VERTICAL', { gap: 12, padding: [24], fill: 'bg/auth-card', radius: 'radius/lg' });
+  fixed(board, 364, 206);
+  board.appendChild(text('Context', 'FLOWBOARD / 開始協作前', 'Label / Small', 'text/on-dark-muted'));
+  const card = auto('Task card', 'VERTICAL', { gap: 9, padding: [16, 20], fill: 'bg/surface', radius: 'radius/md' });
+  fixed(card, 316, 124);
+  const status = auto('Task status', 'HORIZONTAL', { gap: 8 });
+  status.counterAxisAlignItems = 'CENTER';
+  if (state === 'Success') {
+    status.appendChild(icon('Completed check', '<circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7 12l3.4 3.4L17 8.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>', 20, 'flow/active-strong'));
+  } else {
+    const dot = figma.createEllipse(); dot.name = 'Status dot'; dot.resize(10, 10); applyFill(dot, 'action/primary'); status.appendChild(dot);
+  }
+  status.appendChild(text('Status', state === 'Success' ? '已完成' : state === 'Loading' ? '處理中' : '待你確認', 'Body / Small', 'text/secondary'));
+  card.appendChild(status);
+  card.appendChild(text('Task title', '確認你的電子郵件', 'Heading / Auth Card'));
+  card.appendChild(text('Task detail', state === 'Success' ? '現在可以登入 Flowboard' : state === 'Loading' ? '正在核對驗證連結' : '完成驗證即可登入 Flowboard', 'Body / Medium', 'text/secondary'));
+  board.appendChild(card);
+  panel.appendChild(board);
+  panel.appendChild(emailSpacer(130));
+  panel.appendChild(text('Brand footer', '把下一步交代清楚，工作就能往前走。', 'Body / Small', 'text/on-dark-muted'));
+  return panel;
+}
+
+function emailContentBase(name: string): ComponentNode {
+  const content = figma.createComponent();
+  content.name = name;
+  content.description = 'account/EmailVerificationView · Desktop content · native Auto Layout';
+  content.layoutMode = 'VERTICAL';
+  content.primaryAxisSizingMode = 'FIXED';
+  content.counterAxisSizingMode = 'FIXED';
+  fixed(content, 934, 900);
+  setPadding(content, 140, 140, 60, 208);
+  applyFill(content, 'bg/auth');
+  return content;
+}
+
+function emailDivider(): RectangleNode {
+  const rule = figma.createRectangle();
+  rule.name = 'Section divider';
+  rule.resize(580, 1);
+  applyFill(rule, 'border/default');
+  return rule;
+}
+
+function emailButton(label: string, disabled = false): InstanceNode {
+  const source = componentVariant('Button', disabled ? 'Outline' : 'Primary');
+  if (!source) throw new Error('Button component is required for Email Verification');
+  const button = source.createInstance();
+  button.name = disabled ? 'Resend button / Disabled' : `${label} button`;
+  overrideText(button, 'Label', label);
+  fixed(button, 280, 52);
+  button.primaryAxisAlignItems = 'CENTER';
+  button.counterAxisAlignItems = 'CENTER';
+  if (disabled) {
+    applyFill(button, 'bg/canvas');
+    const labelNode = button.findOne((node) => node.type === 'TEXT' && node.name === 'Label') as TextNode | null;
+    if (labelNode) applyFill(labelNode, 'text/secondary');
+  }
+  return button;
+}
+
+function emailNoticeVariant(state: EmailNoticeState): ComponentNode {
+  const content = emailContentBase(`State=${state}`);
+  content.description = 'account/EmailVerificationNotice · Ready/Cooldown · uses shadcn-vue/Button instance';
+  content.appendChild(text('Eyebrow', '登入帳號 / 電子郵件驗證', 'Body / Small', 'text/secondary'));
+  content.appendChild(emailSpacer(34));
+  content.appendChild(text('Title', '請先驗證電子郵件', 'Heading / Auth Display'));
+  content.appendChild(emailSpacer(8));
+  const intro = auto('Introduction', 'VERTICAL', { gap: 3 });
+  intro.appendChild(text('Reason', '你的帳號尚未完成電子郵件驗證。', 'Body / Large', 'text/secondary'));
+  intro.appendChild(text('Instruction', state === 'Ready'
+    ? '請寄送驗證信，完成驗證後再登入。'
+    : '先開啟驗證信中的連結，完成驗證後再登入。', 'Body / Large', 'text/secondary'));
+  content.appendChild(intro);
+  content.appendChild(emailSpacer(72));
+  content.appendChild(text('Email label', '登入信箱', 'Body / Small', 'text/secondary'));
+  content.appendChild(emailSpacer(14));
+  content.appendChild(text('Email address', 'user@example.com', 'Heading / Auth Email'));
+  content.appendChild(emailSpacer(18));
+  content.appendChild(emailDivider());
+  content.appendChild(emailSpacer(42));
+  content.appendChild(text('Help title', '已經收到驗證信？', 'Heading / H3'));
+  content.appendChild(emailSpacer(5));
+  content.appendChild(text('Help instruction', '直接開啟信件中的連結，即可完成驗證。', 'Body / Medium', 'text/secondary'));
+  content.appendChild(text('Resend instruction', state === 'Ready'
+    ? '如果還沒收到，可以寄送一封新的驗證信。'
+    : '如果還沒收到，請檢查垃圾郵件或稍後重新寄送。', 'Body / Medium', 'text/secondary'));
+  content.appendChild(emailSpacer(31));
+  const action = auto('Verification email action', 'HORIZONTAL', { gap: 22 });
+  action.counterAxisAlignItems = 'CENTER';
+  action.appendChild(emailButton(state === 'Ready' ? '寄送驗證信' : '重新寄送驗證信', state === 'Cooldown'));
+  if (state === 'Cooldown') action.appendChild(text('Cooldown remaining', '00:42 後可再次寄送', 'Body / Medium', 'text/secondary'));
+  content.appendChild(action);
+  content.appendChild(emailSpacer(49));
+  content.appendChild(text('Login link', '已完成驗證？返回登入', 'Body / Medium', 'action/primary-hover'));
+  return content;
+}
+
+function emailResultVariant(state: EmailResultState): ComponentNode {
+  const content = emailContentBase(`State=${state}`);
+  content.description = 'account/EmailVerificationResult · Loading/Success · only Success exposes login';
+  content.appendChild(text('Eyebrow', `電子郵件驗證 / ${state === 'Loading' ? '處理中' : '已完成'}`, 'Body / Small', 'text/secondary'));
+  content.appendChild(emailSpacer(34));
+  content.appendChild(text('Title', state === 'Loading' ? '正在驗證你的電子郵件' : '電子郵件驗證成功', 'Heading / Auth Display'));
+  content.appendChild(emailSpacer(8));
+  const intro = auto('Result message', 'VERTICAL', { gap: 3 });
+  intro.appendChild(text('Status detail', state === 'Loading' ? '我們正在確認信件中的驗證連結。' : '你的信箱已完成驗證。', 'Body / Large', 'text/secondary'));
+  intro.appendChild(text('Next action', state === 'Loading'
+    ? '請稍候，完成後會在這裡顯示結果。'
+    : '請返回登入頁，使用帳號與密碼登入 Flowboard。', 'Body / Large', 'text/secondary'));
+  content.appendChild(intro);
+  content.appendChild(emailSpacer(77));
+  content.appendChild(emailDivider());
+  content.appendChild(emailSpacer(35));
+  content.appendChild(text('Section title', state === 'Loading' ? '驗證進行中' : '下一步', 'Heading / H3'));
+  content.appendChild(emailSpacer(5));
+  content.appendChild(text('Section detail', state === 'Loading'
+    ? '不需要重新開啟連結或重複送出請求。'
+    : '登入後，就能開始使用 Flowboard。', 'Body / Medium', 'text/secondary'));
+  content.appendChild(emailSpacer(33));
+  if (state === 'Success') {
+    content.appendChild(emailButton('前往登入'));
+  } else {
+    const progress = auto('Verification progress', 'HORIZONTAL', { gap: 14 });
+    progress.counterAxisAlignItems = 'CENTER';
+    progress.appendChild(icon('Progress ring', '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/><path d="M12 2a10 10 0 0 1 9 6" stroke="#DF6E51" stroke-width="3" stroke-linecap="round"/>', 24, 'border/default'));
+    progress.appendChild(text('Progress label', '驗證中…', 'Body / Medium'));
+    content.appendChild(progress);
+  }
+  return content;
+}
+
+function createEmailVerificationComponents(root: FrameNode): void {
+  const row = auto('Email Verification components', 'VERTICAL', { gap: 24 });
+  tag(row, 'email-verification-components');
+  row.appendChild(text('Section title', 'Email Verification', 'Heading / H2'));
+  const brandRow = auto('Brand variants', 'HORIZONTAL', { gap: 24 });
+  row.appendChild(brandRow);
+  componentSets['Email Verification Brand'] = componentSet('Email Verification Brand', (['Pending', 'Loading', 'Success'] as const).map(emailBrandVariant), brandRow);
+  const contentRow = auto('Content variants', 'HORIZONTAL', { gap: 24 });
+  row.appendChild(contentRow);
+  componentSets['Email Verification Notice'] = componentSet('Email Verification Notice', (['Ready', 'Cooldown'] as const).map(emailNoticeVariant), contentRow);
+  componentSets['Email Verification Result'] = componentSet('Email Verification Result', (['Loading', 'Success'] as const).map(emailResultVariant), contentRow);
+  root.appendChild(row);
+}
+
+function emailVerificationScreen(state: 'Ready' | 'Cooldown' | 'Loading' | 'Success'): FrameNode {
+  const screen = auto(`Auth / Email Verification / ${state} / 1440×900`, 'HORIZONTAL', { fill: 'bg/auth' });
+  fixed(screen, 1440, 900);
+  const brandState: EmailBrandState = state === 'Success' ? 'Success' : state === 'Loading' ? 'Loading' : 'Pending';
+  const brand = componentVariant('Email Verification Brand', `State=${brandState}`);
+  const content = componentVariant(state === 'Ready' || state === 'Cooldown' ? 'Email Verification Notice' : 'Email Verification Result', `State=${state}`);
+  if (!brand || !content) throw new Error(`Email Verification component missing for ${state}`);
+  screen.appendChild(brand.createInstance());
+  screen.appendChild(content.createInstance());
+  return screen;
+}
+
+function emailVerificationSection(): FrameNode {
+  const section = auto('Section / Auth / Email Verification', 'VERTICAL', { gap: 24 });
+  tag(section, 'email-verification-screens');
+  section.appendChild(text('Section title', 'Auth / Email Verification', 'Heading / H2'));
+  const row = auto('Screens / Auth / Email Verification', 'HORIZONTAL', { gap: 48 });
+  (['Ready', 'Cooldown', 'Loading', 'Success'] as const).forEach((state) => {
+    const screen = emailVerificationScreen(state);
+    tag(screen, 'screen');
+    row.appendChild(screen);
+  });
+  section.appendChild(row);
+  return section;
+}
+
+async function generateEmailVerificationOnly(): Promise<FrameNode> {
+  const screensRoot = await existingGeneratedRoot('03 · Screens', 'Flowboard Screens');
+  const componentsRoot = await existingGeneratedRoot('02 · Components', 'Flowboard Components');
+  if (!screensRoot || !componentsRoot) throw new Error('Existing Flowboard Screens and Components are required; run Generate All first.');
+  await buildFoundations();
+  await hydrateComponentCache();
+  const oldScreen = screensRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'email-verification-screens');
+  oldScreen?.remove();
+  await figma.setCurrentPageAsync(componentsRoot.parent as PageNode);
+  const oldComponents = componentsRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'email-verification-components');
+  oldComponents?.remove();
+  createEmailVerificationComponents(componentsRoot);
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  const signupIndex = screensRoot.children.findIndex((child) => child.name === 'Section / Auth / Signup');
+  screensRoot.insertChild(signupIndex < 0 ? screensRoot.children.length : signupIndex + 1, emailVerificationSection());
+  return screensRoot;
 }
 
 function authScreen(kind: 'Login' | 'Signup'): FrameNode {
@@ -3268,6 +3511,12 @@ async function buildScreens(): Promise<FrameNode> {
   const groups: Array<{ name: string; screens: Array<() => FrameNode> }> = [
     { name: 'Auth / Login', screens: [() => authScreen('Login'), () => mobileAuthScreen('Login')] },
     { name: 'Auth / Signup', screens: [() => authScreen('Signup'), () => mobileAuthScreen('Signup')] },
+    { name: 'Auth / Email Verification', screens: [
+      () => emailVerificationScreen('Ready'),
+      () => emailVerificationScreen('Cooldown'),
+      () => emailVerificationScreen('Loading'),
+      () => emailVerificationScreen('Success'),
+    ] },
     { name: 'Workspace Project Overview', screens: [workspaceProjectOverviewDesktopScreen, workspaceProjectOverviewTabletScreen, workspaceProjectOverviewMobileScreen] },
     { name: 'Workspace Invite', screens: [() => workspaceInviteDialogScreen(false), () => workspaceInviteDialogScreen(true)] },
     { name: 'Project Add Member', screens: [() => projectAddMemberDialogScreen(false), () => projectAddMemberDialogScreen(true), projectAddMemberStatesScreen] },
@@ -3283,6 +3532,7 @@ async function buildScreens(): Promise<FrameNode> {
   for (const group of groups) {
     postStatus(`Creating ${group.name}…`);
     const section = auto(`Section / ${group.name}`, 'VERTICAL', { gap: 24 });
+    if (group.name === 'Auth / Email Verification') tag(section, 'email-verification-screens');
     section.appendChild(text('Section title', group.name, 'Heading / H2'));
     const row = auto(`Screens / ${group.name}`, 'HORIZONTAL', { gap: 48 });
     group.screens.forEach((create) => { const screen = create(); tag(screen, 'screen'); row.appendChild(screen); });
@@ -3293,6 +3543,15 @@ async function buildScreens(): Promise<FrameNode> {
 
 async function generate(action: GeneratorAction): Promise<void> {
   await ensureFonts();
+  if (action === 'email-verification') {
+    postStatus('Updating Email Verification components and screens…');
+    const result = await generateEmailVerificationOnly();
+    await figma.setCurrentPageAsync(result.parent as PageNode);
+    figma.viewport.scrollAndZoomIntoView([result.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'email-verification-screens') as SceneNode]);
+    postStatus('Completed: Email Verification components and four desktop screens.');
+    figma.notify('Flowboard Email Verification design is ready.', { timeout: 3000 });
+    return;
+  }
   let result: FrameNode | undefined;
   if (action === 'components' || action === 'screens') {
     postStatus('Preparing foundations…');

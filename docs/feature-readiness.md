@@ -4,7 +4,7 @@
 
 ## 驗證信：本輪設計依據
 
-後端已具備註冊入列、Worker 寫 Redis token／TTL 並透過 Nodemailer 寄信、驗證與重寄 API、冷卻及未驗證登入限制。可依現有 API 規劃兩頁：`/auth/check-email` 與 `/auth/verify/:token`。本輪 UI 提案、12 個狀態與桌機／手機 manifest 仍待審查，見 [驗證信前端設計](email-verification-ui-plan.md)。
+後端已具備註冊入列、Worker 寫 Redis token／TTL 並透過 Nodemailer 寄信、驗證與重寄 API、冷卻及未驗證登入限制。可依現有 API 規劃兩頁：`/auth/check-email` 與 `/auth/verify/:token`。本輪 UI 提案已生成 14 個狀態與桌機／手機 SVG manifest，畫面仍待審查，見 [驗證信前端設計](email-verification-ui-plan.md)。
 
 | 項目 | 現況 | 還缺什麼／對設計的影響 |
 | --- | --- | --- |
@@ -18,7 +18,7 @@
 | SMTP 狀態 | QueueEvents 只印出工作結果 | 使用「請查看信箱／申請已受理」，若要真實「已寄出」需新增狀態 API／推播與 contract |
 | 開發時免寄真信 | E2E 有 EmailService 測試替身 | EMAIL_TRANSPORT 設定目前無效，開發用 console provider 尚未實作 |
 | 寄信失敗處理 | Worker throw 會使工作失敗 | 尚無明確 attempts／backoff、failed 告警／前端狀態、完成工作清理規則；人工重寄可先使用 |
-| Google OAuth／忘記密碼 | 有 UI 按鈕，無 API 流程 | 本輪不視為完成；審查是否隱藏或標示尚未開放 |
+| Google OAuth／忘記密碼 | 有 UI 按鈕，無 API 流程 | 本輪不視為完成；SVG 暫隱藏，現行 Vue 按鈕仍需對齊 |
 
 精確回應與前端分流已寫於 [Auth API](http-api.md#auth-api-詳細規格)。入列成功、SMTP 寄送成功、收件匣收到信是不同階段，目前 API 只提供第一階段結果。
 
@@ -49,12 +49,12 @@
 
 ## SVG 審查範圍
 
-建議先審查驗證信兩頁、12 個狀態（桌機／手機共 24 張）與既有登入／註冊 4 張 SVG 的入口更新。仍需確認：
+已生成驗證信兩頁、14 個狀態（桌機／手機共 28 張），另有註冊 Email 重複狀態 2 張，既有登入／註冊 4 張 SVG 也已更新；以下是畫面審查重點。仍需確認：
 
 - 等待頁使用「請查看你的信箱」與條件式受理文案；真實寄送狀態追蹤另列需求。
 - 驗證成功提供「前往登入」，不自動登入；公開頁保留現有 Session。
 - 倒數使用 API 秒數；Email 遺失時顯示輸入表單；不把 token 放入 Storage。
-- Google／忘記密碼首版按鈕如何呈現，避免看似可用但沒有操作。
+- SVG 已暫隱藏 Google／忘記密碼入口；前端首版如何對齊，避免看似可用但沒有操作。
 
 本輪 Auth 設計不需要等待所有 Board／Card 功能完成。若擴充全站 SVG，需先逐項核准上表未完成功能的目標規格；不能把現有設計圖當作已實作功能。
 
