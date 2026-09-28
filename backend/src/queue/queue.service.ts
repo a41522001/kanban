@@ -11,7 +11,13 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   private emailQueue!: Queue<SendVerificationEmailData>;
   private emailQueueEvent!: QueueEvents;
   async addVerificationEmailQueue(data: SendVerificationEmailData) {
-    return this.emailQueue.add('send-verification-email', data);
+    return this.emailQueue.add('send-verification-email', data, {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 1000,
+      },
+    });
   }
 
   onModuleInit() {
