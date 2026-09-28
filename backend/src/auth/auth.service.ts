@@ -23,6 +23,8 @@ import { redisKeys } from '@/redis/redis.keys';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly rateLimitEmailVerifySeconds: number;
+  // 要在開發環境測試送信時記得改成false
+  private readonly devAutoVerifyEmail: boolean = true;
   constructor(
     private readonly configService: ConfigService<Env>,
     private readonly sessionService: SessionService,
@@ -39,6 +41,7 @@ export class AuthService {
 
   /** 註冊 */
   async signup(data: SignupRequest): Promise<SignupResult | false> {
+    const nodeEnv = this.configService.getOrThrow('NODE_ENV', { infer: true });
     const { email, password, name } = data;
     const user = await this.userService.getByEmail(email);
     if (user) {
@@ -55,6 +58,17 @@ export class AuthService {
       email: email,
       token: randomBytes(32).toString('base64url'),
     };
+
+    // TODO: 開發環境先跳過信箱驗證並直接更改user為已驗證
+    if (nodeEnv === 'development' && this.devAutoVerifyEmail) {
+      await this.userService.updateUserToVerifiedAccount(newUser.id);
+      return {
+        accountCreated: true,
+        emailQueued: true,
+        retryAfterSeconds: 0,
+      };
+    }
+
     const key = redisKeys.rateLimitEmailVerify(email);
     const redisClient = this.redisService.getClient();
     try {
