@@ -213,7 +213,6 @@ describe('ProjectService', () => {
     const candidate = {
       workspaceMemberId: 'workspace-member-2',
       displayName: 'Mina',
-      avatarUrl: null,
       projectRole: null,
     };
 
@@ -699,14 +698,13 @@ describe('ProjectService', () => {
         {
           id: 'member-1',
           role: 'OWNER' as const,
-          user: { displayName: 'Alice', avatarUrl: null },
+          user: { displayName: 'Alice' },
         },
         {
           id: 'member-2',
           role: 'EDITOR' as const,
           user: {
             displayName: 'Bob',
-            avatarUrl: 'https://example.com/avatar.png',
           },
         },
       ];
@@ -726,13 +724,11 @@ describe('ProjectService', () => {
           memberId: 'member-1',
           role: 'OWNER',
           displayName: 'Alice',
-          avatarUrl: null,
         },
         {
           memberId: 'member-2',
           role: 'EDITOR',
           displayName: 'Bob',
-          avatarUrl: 'https://example.com/avatar.png',
         },
       ]);
     });
@@ -788,7 +784,6 @@ describe('ProjectService', () => {
         resourceId: projectId,
         createdAt: new Date(),
         actorUserDisplayName: 'Inviter User',
-        actorUserAvatarUrl: 'https://example.com/inviter.png',
       };
 
       jest
@@ -862,7 +857,6 @@ describe('ProjectService', () => {
         resourceId: projectId,
         createdAt: new Date(),
         actorUserDisplayName: 'Inviter User',
-        actorUserAvatarUrl: null,
       };
 
       jest

@@ -124,13 +124,11 @@ describe('WorkspaceController', () => {
       const member1 = {
         memberId: '1',
         displayName: '測試成員1',
-        avatarUrl: null,
         role: 'OWNER' as WorkspaceRole,
       };
       const member2 = {
         memberId: '2',
         displayName: '測試成員2',
-        avatarUrl: null,
         role: 'MEMBER' as WorkspaceRole,
       };
       const workspaceMemberDto: WorkspaceMemberDto[] = [member1, member2];

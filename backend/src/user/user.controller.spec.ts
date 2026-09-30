@@ -45,7 +45,6 @@ describe('UserController', () => {
     const res = {
       email: 'test@email.com',
       displayName: 'test',
-      avatarUrl: null,
     };
     const spy = jest.spyOn(userService, 'getUserInfo').mockResolvedValue(res);
     const result = await controller.userInfo(req);

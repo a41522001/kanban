@@ -13,7 +13,6 @@ const mockedGetUserInfoApi = vi.mocked(getUserInfoApi);
 const user: PublicUser = {
   email: 'jeffery@example.com',
   displayName: 'Jeffery',
-  avatarUrl: null,
 };
 
 const userInfoResponse: ApiResponse<PublicUser> = {

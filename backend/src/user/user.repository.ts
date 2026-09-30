@@ -39,17 +39,6 @@ export class UserRepository {
       },
     });
   }
-  /** 更改avatar */
-  async updateAvatar(id: string, url: string) {
-    await this.prismaService.user.update({
-      where: {
-        id,
-      },
-      data: {
-        avatarUrl: url,
-      },
-    });
-  }
   /** 更新user為已驗證帳號 */
   async updateVerifiedAccount(id: string, dateTime: Date) {
     // 條件在 DB 內判斷，並行驗證也只會寫入第一次的時間。
