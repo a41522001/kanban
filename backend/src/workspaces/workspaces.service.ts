@@ -79,7 +79,6 @@ export class WorkspacesService {
         memberId: id,
         role: role,
         displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
       };
     });
   }

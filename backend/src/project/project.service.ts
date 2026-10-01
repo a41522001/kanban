@@ -144,10 +144,9 @@ export class ProjectService {
 
     // API 只公開 membership id；內部 User.id 不得傳到前端。
     return candidates.map(
-      ({ workspaceMemberId, displayName, avatarUrl, projectRole }) => ({
+      ({ workspaceMemberId, displayName, projectRole }) => ({
         workspaceMemberId,
         displayName,
-        avatarUrl,
         projectRole,
       }),
     );
@@ -295,7 +294,6 @@ export class ProjectService {
         memberId: id,
         role: role,
         displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
       };
     });
   }

@@ -77,7 +77,6 @@ describe('ProjectController', () => {
         {
           workspaceMemberId: 'workspace-member-1',
           displayName: 'Mina',
-          avatarUrl: null,
           projectRole: null,
         },
       ];
@@ -127,13 +126,11 @@ describe('ProjectController', () => {
         {
           memberId: '1',
           displayName: '1',
-          avatarUrl: null,
           role: 'OWNER',
         },
         {
           memberId: '2',
           displayName: '2',
-          avatarUrl: null,
           role: 'EDITOR',
         },
       ];

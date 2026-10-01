@@ -108,12 +108,8 @@
                 "
                 @click="selectedWorkspaceMemberId = candidate.workspaceMemberId"
               >
-                <img
-                  v-if="candidate.avatarUrl"
-                  :src="candidate.avatarUrl"
-                  :alt="candidate.displayName"
-                />
-                <span v-else class="project-add-member-dialog__avatar" aria-hidden="true">
+                <!-- TODO(avatar): 頭像功能完成後改用共用 Avatar 元件顯示圖片，見 docs/avatar-processing-spec.md -->
+                <span class="project-add-member-dialog__avatar" aria-hidden="true">
                   {{ candidate.displayName.trim().charAt(0).toUpperCase() }}
                 </span>
                 <span class="project-add-member-dialog__candidate-copy">

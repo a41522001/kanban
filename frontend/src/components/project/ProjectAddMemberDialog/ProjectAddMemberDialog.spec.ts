@@ -42,13 +42,11 @@ const candidates: MemberCandidate[] = [
   {
     workspaceMemberId: 'workspace-member-owner',
     displayName: 'Jeffery',
-    avatarUrl: null,
     projectRole: 'OWNER',
   },
   {
     workspaceMemberId: 'workspace-member-mina',
     displayName: 'Mina',
-    avatarUrl: null,
     projectRole: null,
   },
 ];

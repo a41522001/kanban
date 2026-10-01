@@ -54,7 +54,6 @@ describe('UserService', () => {
         ...mockUser,
         passwordHash: 'passwordHash',
         authProvider: 'LOCAL' as const,
-        avatarUrl: null,
         emailVerifiedAt: null,
         googleSub: null,
         createdAt: new Date(),

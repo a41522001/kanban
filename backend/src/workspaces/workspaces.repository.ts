@@ -25,7 +25,6 @@ type WorkspaceMemberResponse = Prisma.WorkspaceMemberGetPayload<{
     user: {
       select: {
         displayName: true;
-        avatarUrl: true;
       };
     };
   };
@@ -173,7 +172,6 @@ export class WorkspacesRepository {
         user: {
           select: {
             displayName: true,
-            avatarUrl: true,
           },
         },
       },
