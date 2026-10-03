@@ -31,6 +31,16 @@ export enum ApiCode {
   RequestError = 4000,
   /** 未預期的伺服器錯誤 */
   InternalError = 5000,
+  /** Avatar 無法解碼、真實格式不符、動圖或尺寸／像素超限 */
+  AvatarInvalidImage = 6001,
+  /** Avatar 檔案超過大小上限 */
+  AvatarFileTooLarge = 6002,
+  /** Avatar declared MIME 不在允許清單 */
+  AvatarUnsupportedType = 6003,
+  /** Avatar 上傳超過頻率限制 */
+  AvatarRateLimited = 6004,
+  /** Avatar 寫檔或資料庫暫時失敗 */
+  AvatarStorageUnavailable = 6005,
 }
 /** 以欄位名稱索引的驗證錯誤集合。 */
 export type FieldErrors = Record<string, FieldError>;
