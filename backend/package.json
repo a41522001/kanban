@@ -28,7 +28,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "pretest:e2e": "pnpm --filter @kanban/contracts build",
     "test:e2e": "cross-env E2E_ENV=true node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand",
-    "db:e2e:migrate": "cross-env E2E_ENV=true prisma migrate deploy"
+    "db:e2e:migrate": "cross-env E2E_ENV=true prisma migrate deploy",
+    "prisma:generate": "pnpm exec prisma generate",
+    "prisma:deploy": "pnpm exec prisma migrate deploy"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

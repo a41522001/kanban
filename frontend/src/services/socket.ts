@@ -4,7 +4,7 @@ import { ref } from 'vue';
 export const isConnected = ref<boolean>(false);
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-  import.meta.env.VITE_API_URL,
+  import.meta.env.VITE_SOCKET_URL,
   {
     autoConnect: false,
     withCredentials: true,

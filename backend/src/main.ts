@@ -7,9 +7,13 @@ import { configureApp } from './app.setup';
 import type { Server as HttpServer } from 'node:http';
 import type { Env } from './config/env';
 import { setupSwagger } from './swagger.setup';
+import { RequestMethod } from '@nestjs/common';
 const bootstrap = async (): Promise<void> => {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,
+  });
+  app.setGlobalPrefix('v1/api', {
+    exclude: [{ path: 'health', method: RequestMethod.GET }],
   });
   configureApp(app);
   const configService = app.get(ConfigService<Env>);
