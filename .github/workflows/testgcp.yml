@@ -1,6 +1,7 @@
 name: testgcp
 on:
-  workflow_dispatch:
+  push:
+    branches: [feature/gcp]
 
 permissions:
   contents: read
