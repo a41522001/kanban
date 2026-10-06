@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/*.tsbuildinfo
+backend/src/generated/prisma
+.git
+.pnpm-store

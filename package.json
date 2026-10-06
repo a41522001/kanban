@@ -8,14 +8,17 @@
     "debug:backend": "pnpm --filter backend start:debug",
     "build": "pnpm --filter frontend build && pnpm --filter backend build",
     "build:contracts": "pnpm --filter @kanban/contracts build",
+    "build:backend": "pnpm --filter backend build",
+    "build:frontend": "pnpm --filter frontend build",
+    "start:backend": "pnpm --filter backend start:prod",
     "lint": "pnpm --filter frontend lint && pnpm --filter backend lint",
     "test:backend": "pnpm --filter backend test",
     "test:backend:watch": "pnpm --filter backend test:watch",
     "test:backend:cov": "pnpm --filter backend test:cov",
     "test:backend:debug": "pnpm --filter backend test:debug",
     "test:backend:e2e": "node scripts/runBackend.e2e.mjs",
-    "prisma:generate": "pnpm --filter backend exec prisma generate",
-    "prisma:deploy": "pnpm --filter backend exec prisma migrate deploy"
+    "prisma:generate": "pnpm --filter backend prisma:generate",
+    "prisma:deploy": "pnpm --filter backend prisma:deploy"
   },
   "license": "ISC",
   "engines": {
