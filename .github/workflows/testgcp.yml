@@ -26,14 +26,6 @@ jobs:
           push: true
           tags: ghcr.io/a41522001/kanban-testgcp:latest
 
-      - uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
-          port: ${{ secrets.PORT }}
-          script: whoami
-
   deploy:
     needs:  build-and-push
     runs-on: ubuntu-latest
