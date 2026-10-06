@@ -25,3 +25,26 @@ jobs:
           file: testgcp/Dockerfile
           push: true
           tags: ghcr.io/a41522001/kanban-testgcp:latest
+
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script: whoami
+
+  deploy:
+    needs:  build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 進 VM 部署
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/testgcp
+            docker compose pull
+            docker compose up -d
