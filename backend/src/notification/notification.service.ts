@@ -120,7 +120,6 @@ export class NotificationService {
       resourceId: notification.resourceId,
       createdAt: notification.createdAt,
       actorUserDisplayName: notification.actor?.displayName ?? null,
-      actorUserAvatarUrl: notification.actor?.avatarUrl ?? null,
     };
   }
 }

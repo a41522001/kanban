@@ -29,8 +29,8 @@
     </p>
     <ul v-else class="project-members__list">
       <li v-for="member in members" :key="member.memberId">
-        <img v-if="member.avatarUrl" :src="member.avatarUrl" :alt="member.displayName" />
-        <span v-else class="project-members__avatar" aria-hidden="true">
+        <!-- TODO(avatar): 頭像功能完成後改用共用 Avatar 元件顯示圖片，見 docs/avatar-processing-spec.md -->
+        <span class="project-members__avatar" aria-hidden="true">
           {{ member.displayName.trim().charAt(0).toUpperCase() }}
         </span>
         <span>{{ member.displayName }}</span>

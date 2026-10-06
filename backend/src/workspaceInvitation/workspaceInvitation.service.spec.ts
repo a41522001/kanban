@@ -523,7 +523,6 @@ describe('WorkspaceInvitationService', () => {
         authProvider: 'LOCAL' as const,
         emailVerifiedAt: new Date(),
         googleSub: null,
-        avatarUrl: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -656,7 +655,6 @@ describe('WorkspaceInvitationService', () => {
           authProvider: 'LOCAL',
           emailVerifiedAt: now,
           googleSub: null,
-          avatarUrl: null,
           createdAt: now,
           updatedAt: now,
         };
@@ -801,7 +799,6 @@ describe('WorkspaceInvitationService', () => {
           authProvider: 'LOCAL',
           emailVerifiedAt: now,
           googleSub: null,
-          avatarUrl: null,
           createdAt: now,
           updatedAt: now,
         };

@@ -24,7 +24,6 @@ export interface AddProjectMemberRequest {
 export interface ProjectMemberDto {
   memberId: string;
   displayName: string;
-  avatarUrl: string | null;
   role: ProjectRole;
 }
 /** 專案列表中的專案摘要資料。 */
@@ -43,7 +42,6 @@ export interface ProjectListItemDto {
 export interface MemberCandidate {
   workspaceMemberId: string;
   displayName: string;
-  avatarUrl: string | null;
   projectRole: ProjectRole | null;
 }
 

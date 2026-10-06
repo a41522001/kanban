@@ -63,6 +63,15 @@ enum ProjectRole {
   VIEWER
 }
 
+enum AvatarVariantStatus {
+  // 已產生 128px，64／256px 等待背景處理。
+  PENDING
+  // 三種尺寸皆已產生。
+  COMPLETED
+  // 背景重試用盡；前端持續使用 128px。
+  FAILED
+}
+
 generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
@@ -84,8 +93,6 @@ model User {
   passwordHash                 String?               @map("password_hash")
   // 
   authProvider                 AuthProvider          @default(LOCAL) @map("auth_provider")
-  // 選填的使用者頭像 URL。
-  avatarUrl                    String?               @map("avatar_url")
   // 帳號建立時間。
   createdAt                    DateTime              @default(now()) @map("created_at")
   // 帳號資料最後更新時間。
@@ -107,8 +114,35 @@ model User {
   sentWorkspaceInvitations WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
   createdProjects          Project[]             @relation("ProjectCreatedBy")
   projectMemberships       ProjectMember[]
+  avatar                   Avatar?
 
   @@map("users")
+}
+
+model Avatar {
+  // 與 User 一對一，同時作為主鍵。
+  userId          String              @id @map("user_id") @db.Uuid
+  // 每次上傳由 server 產生；也是 storage 目錄名稱與背景寫回的比對依據。
+  uploadId        String              @map("upload_id") @db.Uuid
+  // 同步產生的 128px URL。
+  mediumUrl       String              @map("medium_url")
+  // 背景產生的 64px URL。
+  smallUrl        String?             @map("small_url")
+  // 背景產生的 256px URL。
+  largeUrl        String?             @map("large_url")
+  // 背景尺寸的處理狀態。
+  variantStatus   AvatarVariantStatus @default(PENDING) @map("variant_status")
+  // 補入列排程已重新派送的次數。
+  variantAttempts Int                 @default(0) @map("variant_attempts")
+  // 頭像建立時間。
+  createdAt       DateTime            @default(now()) @map("created_at")
+  // 最後更新時間；補入列排程依此判斷逾時。
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([variantStatus, updatedAt])
+  @@map("avatars")
 }
 
 model Workspace {

@@ -15,7 +15,6 @@ type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
     user: {
       select: {
         displayName: true;
-        avatarUrl: true;
       };
     };
   };
@@ -31,7 +30,6 @@ export class ProjectRepository {
       SELECT
         wm.id AS "workspaceMemberId",
         u.display_name AS "displayName",
-        u.avatar_url AS "avatarUrl",
         pm.role AS "projectRole"
       FROM projects AS p
       JOIN workspaces AS w
@@ -145,7 +143,6 @@ export class ProjectRepository {
             user: {
               select: {
                 displayName: true,
-                avatarUrl: true,
               },
             },
           },
@@ -249,7 +246,6 @@ export class ProjectRepository {
         user: {
           select: {
             displayName: true,
-            avatarUrl: true,
           },
         },
       },

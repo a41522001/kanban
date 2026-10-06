@@ -26,11 +26,10 @@ export class UserService {
     if (!user) {
       return null;
     }
-    const { email, displayName, avatarUrl } = user;
+    const { email, displayName } = user;
     return {
       email,
       displayName,
-      avatarUrl,
     };
   }
   /** 更新user為已驗證帳號 */

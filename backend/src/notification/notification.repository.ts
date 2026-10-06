@@ -123,7 +123,6 @@ export class NotificationRepository {
         actor: {
           select: {
             displayName: true,
-            avatarUrl: true,
           },
         },
       },

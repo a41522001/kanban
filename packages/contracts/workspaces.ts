@@ -23,6 +23,5 @@ export interface WorkspaceListItemDto extends WorkspaceDto {
 export interface WorkspaceMemberDto {
   memberId: string;
   displayName: string;
-  avatarUrl: string | null;
   role: WorkspaceRole;
 }

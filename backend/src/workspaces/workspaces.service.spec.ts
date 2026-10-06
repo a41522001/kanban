@@ -196,12 +196,10 @@ describe('WorkspacesService', () => {
     const member1 = {
       id: '1',
       displayName: 'test1',
-      avatarUrl: null,
     };
     const member2 = {
       id: '2',
       displayName: 'test2',
-      avatarUrl: null,
     };
     const workspaceMemberResponse: WorkspaceMemberResponse[] = [
       {
@@ -209,7 +207,6 @@ describe('WorkspacesService', () => {
         id: member1.id,
         user: {
           displayName: member1.displayName,
-          avatarUrl: member1.avatarUrl,
         },
       },
       {
@@ -217,7 +214,6 @@ describe('WorkspacesService', () => {
         id: member2.id,
         user: {
           displayName: member2.displayName,
-          avatarUrl: member2.avatarUrl,
         },
       },
     ];
@@ -228,13 +224,11 @@ describe('WorkspacesService', () => {
           memberId: '1',
           role: 'OWNER',
           displayName: 'test1',
-          avatarUrl: null,
         },
         {
           memberId: '2',
           role: 'MEMBER',
           displayName: 'test2',
-          avatarUrl: null,
         },
       ];
       const getSingleWorkspaceMemberSpy = jest
