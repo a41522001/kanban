@@ -305,7 +305,7 @@ pnpm run dev:frontend
 以下是操作步驟。使用者已回報完成真實寄信與前後端驗證流程；文件更新時未重新執行。使用尚未註冊且能收信的測試信箱。下方使用 `backend/.env.example` 的 `PORT=4001`；若本機 `.env` 設了其他 PORT，請改用實際值。
 
 ```sh
-curl -X POST http://localhost:4001/auth/signup \
+curl -X POST http://localhost:4001/v1/api/auth/signup \
   -H 'Content-Type: application/json' \
   -d '{"email":"your-email@example.com","password":"password123","name":"Test"}'
 ```
@@ -313,7 +313,7 @@ curl -X POST http://localhost:4001/auth/signup \
 確認註冊回傳 201、Worker 處理工作、API 收到 completed，並實際收到信件。開啟信件中的前端 `/verifyEmail/:token` 連結，頁面會自動呼叫驗證 API。若要單獨檢查 API，可改用下列指令；同一個 token 成功使用後不可再次驗證。
 
 ```sh
-curl -X PATCH 'http://localhost:4001/auth/verify/替換成信件中的token'
+curl -X PATCH 'http://localhost:4001/v1/api/auth/verify/替換成信件中的token'
 ```
 
 核對：

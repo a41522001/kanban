@@ -4,7 +4,7 @@
 
 ## 基本約定
 
-- 預設 base URL：`http://localhost:4001`，沒有全域 `/api` 前綴。
+- 預設 base URL：`http://localhost:4001/v1/api`。2026-10-06 起 `main.ts` 設定全域前綴 `v1/api`（排除 `GET /health`，目前尚未實作），下表路徑皆需加上此前綴，例如 `POST /v1/api/auth/signup`。Socket.IO 不受前綴影響，仍為 `/socket.io/`。E2E 測試未套用前綴。
 - 除公開 Auth 端點外，下表受保護的路徑都使用 `sessionId` HttpOnly Cookie。
 - SessionGuard 從 Redis 驗證 Cookie，將 userId 放入 request，必要時用 Set-Cookie 輪轉。
 - 成功與錯誤皆包成 `{ code, data, message, time, error }`；以下「data」指 envelope 內部資料。

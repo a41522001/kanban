@@ -19,6 +19,9 @@
 - [驗證信 Queue／Worker 規格](email-verification-worker-spec.md)
 - [驗證信 UI／SVG 與前端實作](email-verification-ui-plan.md)
 - [功能盤點與未完成項目](feature-readiness.md)
+- [部署現況與 CI/CD](deployment-plan.md#0-目前實作現況cicd-mvp)：Docker Compose 部署到 GCP VM，cd.yml 於 main 自動測試、推送 GHCR 與部署；網域與 HTTPS 尚未完成。
+
+2026-10-06：新增 Docker 化與 CI/CD MVP 紀錄，REST 路由改為 `/v1/api` 前綴。
 
 最後靜態核對：2026-09-28。本輪文件更新未重新執行測試。使用者已回報驗證信前後端流程實測成功；最近一次前端 Vitest 為 15 files／57 tests 通過，型別檢查通過。後端 169 tests 通過、5 skipped，E2E 4 suites／13 tests 通過，屬歷史驗收；詳見 progress。
 

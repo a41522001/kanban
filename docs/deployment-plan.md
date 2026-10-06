@@ -1,5 +1,90 @@
 # Deployment 與維運計畫
 
+## 0. 目前實作現況（CI/CD MVP）
+
+最後核對：2026-10-06。本節描述已實作並部署的行為；第 1 節以後為目標設計，兩者差異列於本節最後。
+
+### 架構
+
+單一 GCP Compute Engine VM（e2-micro、Ubuntu 26.04、asia-east1）以 Docker Compose 執行五個容器：
+
+~~~text
+Internet
+   |
+frontend (Nginx) :80
+   |-- /            -> Vue 靜態檔（SPA fallback 到 index.html）
+   |-- /v1/api/     -> backend:4001（保留 /v1/api 前綴）
+   |-- /socket.io/  -> backend:4001（WebSocket Upgrade）
+
+Compose 預設網路（未對外開 port）
+   |-- backend   (NestJS API；啟動前先執行 migration)
+   |-- worker    (BullMQ 寄信 Worker；與 backend 共用 image)
+   |-- postgres  (postgres:18.1，volume kanban-postgres)
+   |-- redis     (redis:8.8-alpine，volume kanban-redis)
+~~~
+
+- Backend 以 `app.setGlobalPrefix('v1/api')` 提供 REST 路由，`GET /health` 被排除於前綴之外，但目前沒有實作 health controller。Socket.IO 不受 global prefix 影響，固定使用 `/socket.io/`。
+- 前端 build 時注入 `VITE_API_URL=/v1/api`、`VITE_SOCKET_URL=/`（Dockerfile `ARG` 預設值）。兩者皆為同源相對路徑，VM IP 或網域變更時不需重新 build。
+
+### 相關檔案
+
+| 檔案 | 用途 |
+| --- | --- |
+| `backend/Dockerfile` | Multi-stage；builder 執行 `pnpm install --frozen-lockfile`、`prisma generate`、Nest build；runner 帶入 `dist`、`prisma/`、`prisma.config.ts` 與完整 `node_modules`。`CMD` 先執行 `npx --no prisma migrate deploy`，成功後 `exec node dist/src/main.js` |
+| `frontend/Dockerfile` | Multi-stage；builder 執行 type-check 與 Vite build，runner 為 `nginx:1.31.6-alpine` |
+| `frontend/nginx.conf` | 靜態檔、`/v1/api/` 與 `/socket.io/` 反向代理 |
+| `compose.prod.yml` | Production compose；frontend／backend／worker 使用 `ghcr.io/a41522001/kanban-*:${IMAGE_TAG:-latest}` |
+| `.dockerignore` | 排除 `node_modules`、`dist`、`.env*`、`*.tsbuildinfo`、Prisma 產生檔與 `.git` |
+| `.github/workflows/ci.yml` | push 到 `dev`、`feature/*` 時執行 Backend E2E 與 unit tests；提供 `workflow_call` 給 CD 呼叫 |
+| `.github/workflows/cd.yml` | push 到 `main` 時：呼叫 ci.yml → build／push image → SSH 部署 |
+
+Runner 階段不使用 `pnpm run`：在只含 backend 的 image 內執行 `pnpm run` 會觸發 pnpm 對整個 workspace 重新 install（2026-10-05 實測），因此 `CMD` 直接呼叫 `npx --no prisma` 與 `node`。`--no` 確保找不到本機 Prisma 時直接失敗，不會從 npm 下載其他版本。
+
+### CD 流程（cd.yml）
+
+1. `ci`：以 reusable workflow 呼叫 ci.yml。
+2. `build`：登入 GHCR（`GITHUB_TOKEN`，workflow 權限 `packages: write`），build frontend 與 backend image，各推送 `latest` 與 `${{ github.sha }}` 兩個 tag。
+3. `deploy`：以 `appleboy/scp-action` 將 `compose.prod.yml` 傳到 VM 的 `/app`，再以 `appleboy/ssh-action` 執行：
+   - `echo "IMAGE_TAG=${{ github.sha }}" > .env`：compose 從 `/app/.env` 讀取 image tag，手動執行 `docker compose` 時也使用同一版本。
+   - `cp compose.prod.yml compose.yml`：使用 cp 而非 mv，只重跑 deploy job 時仍可成功。
+   - `docker compose pull`、`docker compose up -d`。
+   - `docker image prune -af`：移除未被容器使用的舊版 image，避免 VM 磁碟被版本累積占滿。
+   - script 開頭 `set -e`，任一步失敗即中止並讓 workflow 顯示失敗。
+
+GHCR 上的 `kanban-frontend`、`kanban-backend` 因連結到 public repo 而為 public；VM 不需 `docker login`。Image 不含 `.env.prod`。
+
+### GitHub Secrets 與 VM 設定
+
+| 項目 | 內容 |
+| --- | --- |
+| Secrets | `SSH_HOST`（VM 外部 IP）、`SSH_USER`、`SSH_PRIVATE_KEY`（部署專用 ed25519 金鑰，無 passphrase） |
+| VM SSH 公鑰 | 加在 VM 中繼資料，不會過期 |
+| `/app` | 由 `sudo mkdir` 建立並 `chown` 給部署帳號，部署不需 sudo |
+| `/app/backend/.env.prod` | 手動建立、`chmod 600`，不進版控與 image。DB／Redis host 使用 service 名稱 `postgres`、`redis`；`PORT=4001` 必填（未設定時預設 3000，Nginx 會連不到） |
+| `/app/.env` | 由 deploy 寫入 `IMAGE_TAG`，僅供 compose 變數替換，與容器環境變數無關 |
+| Docker | 官方 apt repository 安裝；部署帳號加入 `docker` 群組 |
+
+注意事項：
+
+- VM 目前使用**臨時外部 IP**。VM 停止再啟動後 IP 會改變，需同步更新 `SSH_HOST` Secret 與 `.env.prod` 的 `FRONTEND_URL`。
+- `POSTGRES_USER`／`POSTGRES_PASSWORD` 只在 postgres volume 第一次初始化時生效，之後修改 `.env.prod` 不會變更資料庫密碼。
+- `email.service.ts` 寫死 `secure: true`，`SMTP_PORT` 必須使用 465；使用 587 會因 TLS 握手失敗而寄不出信。
+- 修改 `.env.prod` 後需 `docker compose up -d --force-recreate backend worker`；`restart` 不會重新讀取 `env_file`。
+
+### 驗收紀錄
+
+- 2026-10-05：本機 build 兩個 image 成功（backend 1.04 GB、frontend 96 MB）。不給環境變數執行 API 與 Worker 入口時，皆執行到 zod env 驗證才停止，確認路徑別名、Prisma client 與 contracts 可正常載入；`nginx -t` 通過；前端 bundle 含 `v1/api`、不含 `localhost:4001`。以臨時 PostgreSQL 執行 `npx --no prisma migrate deploy`，14 個 migrations 全部套用、建立 9 張資料表。
+- 2026-10-06：cd.yml 於 main 執行，部署到 VM。外部檢查 `/` 回 200、`/v1/api/user/userInfo` 回 401 與 `Unauthenticated` envelope、`/socket.io/?EIO=4&transport=polling` 回 200 handshake；GHCR 兩個 image 匿名 pull 回 200。使用者回報修正 SMTP 設定後，production 註冊驗證信可正常收信。
+- Image SHA tag 與 `IMAGE_TAG` 部署流程已實作；尚未記錄 VM 上 `cat /app/.env` 與 `docker compose images` 的核對結果。
+
+### 已知限制與尚未完成
+
+- **登入無法使用**：production Cookie 為 `secure: true`、`sameSite: 'none'`，以 `http://IP` 瀏覽時瀏覽器不會儲存 Cookie。需完成網域與 HTTPS（規劃：Cloudflare 購買網域，Proxy 搭配 Full (strict) 與 Origin Certificate），並將 `FRONTEND_URL` 改為 `https://` 網域。
+- 尚未改用靜態 IP；尚未設定 `restart: unless-stopped`，VM 重開機後容器不會自動啟動。
+- 退版只回復程式碼，不回復 migration。
+- 與下方目標設計的差異：backend 以 root 執行且 runtime 含 devDependencies（Prisma CLI 為 devDependency，migration 需要）；migration 在 backend 容器啟動時執行，非獨立 release job；無 health check、smoke test、vulnerability scan 與 deployment concurrency；Nginx 未傳遞 `X-Forwarded-*` 等 header，NestJS 未設定 trust proxy；未設定 log rotation 與資料庫備份。
+- scp／ssh action 未設定 `fingerprint`，尚未固定 VM 主機身分；第三方 action 以版本號釘選，未釘選 commit SHA。
+
 ## 1. 目標架構
 
 第一版採單一 Linux VPS 與 Docker Compose，降低維運複雜度：
