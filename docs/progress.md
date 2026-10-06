@@ -119,7 +119,7 @@
 8. 補 Socket.IO handshake 的 Session rotation／過期策略、`connect_error` 處理與 Origin／連線 lifecycle 測試。
 9. 補 Workspace room 的 reconnect rejoin、快速切換競速、membership 移除後清理與真實 client integration tests。
 10. 補通知 Socket.IO 的 reconnect／漏收 HTTP resync、跨分頁同步與真實 client integration tests。
-11. 部署：VM 改用靜態 IP、購買網域並設定 HTTPS，完成後驗證 production 登入；compose 加入 `restart: unless-stopped`；在 VM 核對 `IMAGE_TAG` 與實際執行版本。
+11. 部署：依 [VM 初始化 Runbook](vm-setup-runbook.md) 以較高規格重建 VM 並使用靜態 IP、購買網域並設定 HTTPS，完成後驗證 production 登入；compose 加入 `restart: unless-stopped`；在 VM 核對 `IMAGE_TAG` 與實際執行版本。
 
 ## 已知限制
 
