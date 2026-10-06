@@ -20,6 +20,7 @@
 - [驗證信 UI／SVG 與前端實作](email-verification-ui-plan.md)
 - [功能盤點與未完成項目](feature-readiness.md)
 - [部署現況與 CI/CD](deployment-plan.md#0-目前實作現況cicd-mvp)：Docker Compose 部署到 GCP VM，cd.yml 於 main 自動測試、推送 GHCR 與部署；網域與 HTTPS 尚未完成。
+- [VM 初始化 Runbook](vm-setup-runbook.md)：新建 production VM 的步驟、`/app` 目錄結構、`.env.prod` 範本與驗證方式。
 
 2026-10-06：新增 Docker 化與 CI/CD MVP 紀錄，REST 路由改為 `/v1/api` 前綴。
 
