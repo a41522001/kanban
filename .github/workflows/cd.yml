@@ -32,7 +32,9 @@ jobs:
           context: .
           file: frontend/Dockerfile
           push: true
-          tags: ghcr.io/a41522001/kanban-frontend:latest
+          tags: |
+            ghcr.io/a41522001/kanban-frontend:latest
+            ghcr.io/a41522001/kanban-frontend:${{ github.sha }}
 
       - name: 打包後端
         uses: docker/build-push-action@v7
@@ -40,7 +42,9 @@ jobs:
           context: .
           file: backend/Dockerfile
           push: true
-          tags: ghcr.io/a41522001/kanban-backend:latest
+          tags: |
+            ghcr.io/a41522001/kanban-backend:latest
+            ghcr.io/a41522001/kanban-backend:${{ github.sha }}
 
   deploy:
     needs: build
@@ -67,6 +71,8 @@ jobs:
           script: |
             set -e
             cd /app
+            echo "IMAGE_TAG=${{ github.sha }}" > .env
             cp compose.prod.yml compose.yml
             docker compose pull
             docker compose up -d
+            docker image prune -af
