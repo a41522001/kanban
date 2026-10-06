@@ -1,19 +1,14 @@
 name: kanban-prod
 services:
   frontend:
-
-    build: 
-      context: .
-      dockerfile: frontend/Dockerfile
+    image: ghcr.io/a41522001/kanban-frontend:latest
     depends_on: 
       - backend
     ports:
       - "80:80"
 
   backend:
-    build: 
-      context: .
-      dockerfile: backend/Dockerfile
+    image: ghcr.io/a41522001/kanban-backend:latest
     depends_on: 
       postgres:
         condition: service_healthy
@@ -22,9 +17,7 @@ services:
     env_file: ./backend/.env.prod
 
   worker:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    image: ghcr.io/a41522001/kanban-backend:latest
     command: ["node", "backend/dist/src/worker/main.js"]
     env_file: ./backend/.env.prod
     depends_on:
