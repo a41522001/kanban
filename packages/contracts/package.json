@@ -2,15 +2,60 @@
   "name": "@kanban/contracts",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm run build:esm && pnpm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node ./scripts/rename-cjs.mjs"
+  },
   "exports": {
     "./api": {
-      "types": "./api.ts"
+      "types": "./dist/esm/api.d.ts",
+      "import": "./dist/esm/api.js",
+      "require": "./dist/cjs/api.cjs"
     },
     "./auth": {
-      "types": "./auth.ts"
+      "types": "./dist/esm/auth.d.ts",
+      "import": "./dist/esm/auth.js",
+      "require": "./dist/cjs/auth.cjs"
+    },
+    "./user": {
+      "types": "./dist/esm/user.d.ts",
+      "import": "./dist/esm/user.js",
+      "require": "./dist/cjs/user.cjs"
     },
     "./socket": {
-      "types": "./socket.ts"
+      "types": "./dist/esm/socket.d.ts",
+      "import": "./dist/esm/socket.js",
+      "require": "./dist/cjs/socket.cjs"
+    },
+    "./workspaces": {
+      "types": "./dist/esm/workspaces.d.ts",
+      "import": "./dist/esm/workspaces.js",
+      "require": "./dist/cjs/workspaces.cjs"
+    },
+    "./notification": {
+      "types": "./dist/esm/notification.d.ts",
+      "import": "./dist/esm/notification.js",
+      "require": "./dist/cjs/notification.cjs"
+    },
+    "./workspaceInvitation": {
+      "types": "./dist/esm/workspaceInvitation.d.ts",
+      "import": "./dist/esm/workspaceInvitation.js",
+      "require": "./dist/cjs/workspaceInvitation.cjs"
+    },
+    "./project": {
+      "types": "./dist/esm/project.d.ts",
+      "import": "./dist/esm/project.js",
+      "require": "./dist/cjs/project.cjs"
+    },
+    "./board": {
+      "types": "./dist/esm/board.d.ts",
+      "import": "./dist/esm/board.js",
+      "require": "./dist/cjs/board.cjs"
     }
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
   }
 }

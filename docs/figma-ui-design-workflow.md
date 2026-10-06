@@ -1,0 +1,155 @@
+# Figma UI 設計稿工作流程
+
+本文件定義 Flowboard UI 設計稿的來源、產生方式與驗收條件。目標不是把 SVG 圖片放進 Figma，而是產生可編輯、可重用且能對應 Vue 元件的原生 Figma 設計系統。
+
+## 1. 固定資產與責任
+
+| 路徑 | 責任 |
+| --- | --- |
+| `design/README.md` | Current visual references 清單與各功能的視覺 contract |
+| `design/*.svg` | 一個檔案對應一個畫面或規格頁，只作 visual reference |
+| `design/archive/` | 歷史稿，不可再作為 Generator 輸入 |
+| `figma-plugin/` | 將 tokens、components 與 screens 重建為原生 Figma nodes |
+| `frontend/src/styles/index.css` | Flowboard 語意色彩、圓角、陰影與字體 token |
+| `frontend/src/components/ui` | shadcn-vue primitives |
+| `frontend/src/components/shared` | Flowboard 跨功能共用元件 |
+| `frontend/src/components/account`、`workspace`、`notifications`、`board` | 依產品功能領域分組的組合元件 |
+
+除非使用者明確要求新檔案，不得另建空白 Figma file 取代既有 `Flowboard — Native Design System`。不得直接匯入 SVG 並將向量圖層視為完成的設計稿。
+
+## 2. 設計順序
+
+每次新增或大幅調整畫面，都依下列順序進行：
+
+1. 讀取 `design/README.md`、本文件及相關功能文件。
+2. 盤點既有 SVG、Plugin components、前端 shadcn-vue／shared／domain 元件與 tokens。
+3. 在 `design/` 根目錄新增或修改單頁 SVG，並同步更新 Current 清單。
+4. 更新既有 `figma-plugin/src/code.ts`；不得建立另一個平行 Generator。
+5. 先產生／更新 Foundations，再產生 Components，最後組合 Screens。
+6. Build Plugin，使用 Figma Desktop 執行 `Generate All`。
+7. 比對 Current SVG 與 Figma Screen，檢查 responsive、狀態、元件 instance 與重跑結果。
+
+## 3. 原生 Figma 結構
+
+- Page 固定為 `01 · Foundations`、`02 · Components`、`03 · Screens`。
+- Screen 依功能分區，例如 `Workspace`、`Workspace Invite`、`Board`，Desktop／Tablet／Mobile 放在同一功能 section。
+- Dialog、Button、Input、Avatar、Badge 等重複元素必須由 Component／Component Set 建立，Screen 只放 Instance。
+- Layout 優先使用 Auto Layout；absolute positioning 僅用於 overlay、scrim 或確實需要疊放的內容。
+- 圖層使用產品語意命名，例如 `Workspace context`、`Dialog footer`，不得大量保留 `Frame 123`。
+- Component description 必須標示程式端對應，例如 `shadcn-vue/DialogContent`、`shared/Input` 或 `notifications/WorkspaceInvitationResponseCard`。
+- 顏色、間距與圓角優先綁定 Flowboard Variables／Styles；Variables API 不可用時才保留相同值的 editable native style。
+- Icon 使用原生 vector node，不使用 Unicode 字元冒充操作 icon。
+
+## 4. Responsive 與狀態
+
+- Desktop 基準為 `1440 × 900`；Mobile 基準為 `390 × 844`；有實際結構差異時才新增 Tablet `768 × 1024`。
+- 每個 SVG 只能包含一個產品畫面；Desktop、Tablet、Mobile 使用不同檔案。
+- Dialog 在 Mobile 至少保留 `16px` viewport gutter，互動 target 以 `44px` 左右為基準。
+- 功能需依適用情況涵蓋 default、focused、validation error、loading／disabled、server error、empty 與 success feedback。
+- 畫面文案需符合 i18n key 可承載的語意；純範例資料可直接使用 workspace name 或 example Email。
+
+## 5. Plugin build 與執行
+
+本機 Development Plugin 只能由 **Figma Desktop App** 匯入與執行；Figma 網頁版無法讀取本機 `manifest.json` 與 `dist`。
+
+```sh
+cd "/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin"
+npm install
+npm run build
+```
+
+若 npm 11 因上層 monorepo 的 `devEngines.packageManager` 拒絕獨立 Plugin 安裝，可在 `figma-plugin` 目錄執行一次 `npm install --force`。不要在 kanban root 執行 Plugin 的 npm build。
+
+首次匯入：
+
+1. 使用 Figma Desktop 開啟既有設計檔。
+2. Canvas 右鍵 → `Plugins` → `Development` → `Import plugin from manifest…`。
+3. 選取 `figma-plugin/manifest.json`。
+4. 再從 `Plugins` → `Development` 執行 `Flowboard Native Design Generator`。
+
+已匯入時，不要用一般 Community Plugin 搜尋：
+
+1. 關閉一般 Actions／Plugins 搜尋。
+2. Canvas 右鍵 → `Plugins` → `Development`。
+3. 執行 `Flowboard Native Design Generator`。
+4. 確認 UI 版本標記符合目前版本，再按 `Generate All`。
+
+`Generate All` 是結構有變動時的預設選擇；Foundations、Components、Screens 按鈕只用於針對已知範圍快速重建。
+
+## 6. Idempotency 與人工內容
+
+- Generator 只替換帶有自己 pluginData 的 generated root。
+- Variables 與 Styles 依名稱更新，避免每次建立重複項目。
+- 手動建立、且未帶 Generator pluginData 的節點不得被清除。
+- 更新 Generator 後至少連續執行兩次，確認 Page、Section、Component 與 Screen 沒有重複累積。
+- 版本造成輸出結構改變時，更新 Plugin UI 可見版本標記與 `figma-plugin/README.md`。
+
+## 7. 完成條件
+
+只有同時通過以下項目，才能說 Figma 設計稿完成：
+
+- `audit-svg-pages.mjs` 通過，Current SVG 沒有多畫面或不可讀問題。
+- Plugin TypeScript typecheck 與 production build 成功。
+- Figma Desktop 實際執行成功，沒有 runtime error。
+- `02 · Components` 中可找到預期的 main components／variants。
+- `03 · Screens` 中可找到預期的 Desktop／Mobile 畫面。
+- Screen 中的共用 controls 是 Instances，而不是複製的獨立 Frame。
+- 畫面與 Current SVG 在層級、間距、文案和 responsive 結構上相符。
+- 第二次執行 `Generate All` 不會建立重複 generated roots。
+
+## 8. Current v14 基準
+
+2026-09-28 已在既有 Figma 檔執行 v14 `Email Verification · 4 desktop screens` 專用動作兩次。`02 · Components` 新增 Email Verification Brand／Notice／Result 三組原生 Component Sets；`03 · Screens` 新增單一 `Auth / Email Verification` 區塊，包含 Ready、Cooldown、Loading、Success 四張 1440 × 900 Frame。畫面使用 Instances，Ready 畫面已放大比對 Current SVG；重跑未累積重複區塊。v14 尚未產生手機版本或錯誤 Dialog，前端亦尚未串接。
+
+### v13 歷史基準
+
+v13 時 Generator 的可見版本為 `v13`。v3 已驗證 Workspace Invite；v4 新增 Notification Dropdown；v5 新增工作區邀請回覆；v6 新增通知已讀操作；v7 將通知摘要與 domain action 拆開；v8 新增 Project Overview；v9 對齊 Workspace responsive screens；v10 將 Mobile Project Card 改為手風琴；v11 將 Workspace 與 Project Overview 整併為唯一的 Workspace Project Overview；v12 新增 Project member candidate、role option 與 add-member Dialog 的原生 component sets／states；v13 新增 Project member added notification detail Dialog 與 Desktop／Mobile screens。
+
+- `Project Card` → Desktop 使用 Default／Selected；Tablet／Mobile 使用 Default／Expanded；三種 viewport 皆保留 Active／OnHold／Completed
+- `Selected Project Members` → Desktop master-detail 成員面板，只呈現 displayName、avatarUrl 與 joinedAt
+- `03 · Screens` → 唯一的 `Workspace Project Overview` Desktop／Tablet／Mobile
+- 未展開卡片只使用 Project list read model；Tablet／Mobile 展開後才以 projectId 取得完整成員
+- `Workspace Project Preview` 與獨立 `Project Overview` Screen 不再生成
+
+Project role 不在 Project Overview 顯示，進入專案內部後再呈現。
+
+v7 的通知基準仍包含：
+
+- `Workspace Invite Dialog / Desktop`
+- `Workspace Invite Dialog / Mobile`
+- `03 · Screens` → `Workspace Invite` Desktop／Mobile screens
+- `Notification Trigger` → Default／Unread／Open variants
+- `Notification Item` → Desktop／Mobile × Unread／Read variants
+- `Notification Dropdown` → Desktop／Mobile × Default／Loading／Empty／Error variants
+- `03 · Screens` → `Notifications` Desktop／Mobile／runtime states screens
+- `Workspace Invitation Detail Dialog` → Desktop／Mobile × Loading／Pending／Responding／Accepted／Declined／Unavailable variants
+- `03 · Screens` → `Workspace Invitation Detail Dialog` Desktop／Mobile／states screens
+- `03 · Screens` → `Notifications` → `Notification Item / Interaction Contract` screen
+- `Notification Read Action` → Desktop／Mobile × Single／All × Default／Processing／Complete／Error variants
+- `03 · Screens` → `Notifications` Read Actions／States screen
+
+Workspace Invite 的 Vue 對應為 `shadcn-vue/Dialog`、`shadcn-vue/Button`、`shared/Input` 與 `shared/FormField`。Notification Dropdown 對應 `notifications/NotificationMenu`，底層使用 `shadcn-vue/DropdownMenu`、`Badge`、`ScrollArea` 與 `Skeleton`。
+
+2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。`Project Member Added Notification Detail Dialog` 的 Desktop／Mobile variants 與對應 Screen Instances 已完成 runtime／visual check。
+
+## 9. 前端落地與手動驗收
+
+目前前端已對應 v7 通知功能與獨立 Dialog：
+
+- `frontend/src/components/notifications/NotificationReadAction/` 提供單筆／全部已讀的共用操作元件，包含 processing、complete、error／retry 狀態。
+- `NotificationMenu`、`NotificationItem` 與 `WorkspaceInvitationDetailDialog` 已透過 Notification Store／Workspace Invitation service 串接 `PATCH /notifications/read`、`PATCH /notifications/readAll` 與 detail／response API，成功後原地同步 readAt、未讀數與 Bell badge。
+- 點擊 WORKSPACE_INVITED 的 content action 時，前端先標記該通知為已讀，再呼叫 detail API 開啟 Dialog；回覆狀態與已讀狀態仍分開管理。
+- 2026-09-13 已完成前端 v7 Dialog 與 detail API 串接；單筆已讀、全部已讀、接受邀請、婉拒邀請及點擊後先已讀再開啟詳細 Dialog 的流程已完成。
+
+## 10. v13 Figma design status
+
+2026-09-12 已更新 SVG visual references 並寫入既有 Figma 檔，2026-09-13 前端已完成對應：
+
+- Notification Dropdown 只呈現通知摘要與已讀／未讀；Notification Item 的 content action 與 read action 分離。
+- 新增 `notification-item-interactions.svg`，定義 Desktop／Mobile hit targets、focus return 與 Type routing。
+- WORKSPACE_INVITED 由列表內容區開啟獨立 Workspace Invitation Detail Dialog，不再把接受／婉拒按鈕放在 Dropdown Item。
+- Workspace Invitation Dialog 包含 Loading、Pending、Responding、Accepted、Declined 與 Unavailable／Expired states。
+- Workspace 與 Project Overview 已在 v11 source／Generator 整併為單一 `Workspace Project Overview`；v12 加入 Project add-member components，v13 加入 Project member added notification detail。Project role 保留在專案內部，不在 overview 顯示。
+- Project pin 是 2026-09-21 已落地的輕量 Workspace overview 操作，目前尚未重新產生對應 Current SVG／Figma variants；現行程式碼是行為真相，下一次更新 overview 設計稿時再補 Default／Pinned states。
+- Desktop 使用 Project master-detail；Tablet／Mobile 使用 accordion，且「進入專案」維持獨立操作，前端對應 `/projects/:projectId`。
+- v13 已完成靜態 SVG／Plugin build gate，並完成 Figma Desktop `Generate All` 與 visual check；2026-09-21 新增的 Project pin 尚未納入這次 Figma 輸出。

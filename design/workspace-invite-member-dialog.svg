@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="surface-shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#111827" flood-opacity=".2"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec-label{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.display{font-size:32px;font-weight:750;letter-spacing:-.03em}.title{font-size:24px;font-weight:700}.h2{font-size:18px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.button{font-size:14px;font-weight:700}.medium{font-weight:700}
+    </style>
+    <g id="logo">
+      <rect width="18" height="24" rx="4" fill="#DF6E51"/>
+      <rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/>
+      <text x="56" y="20" class="h2 inverse">Flowboard</text>
+    </g>
+    <g id="plus" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <g id="close" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l12 12M15 3 3 15"/></g>
+  </defs>
+
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="48" class="spec-label">WORKSPACE / INVITE MEMBER / 1440 × 900</text>
+
+  <g id="workspace-invite-desktop">
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
+    <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
+    <g transform="translate(72 100)">
+      <use href="#logo"/>
+      <text x="180" y="20" class="body inverse medium">工作區</text>
+      <text x="256" y="20" class="body" fill="#BFC7D7">最近</text>
+      <rect x="1248" y="-8" width="40" height="40" rx="10" fill="#44506A"/>
+      <g transform="translate(1260 4)" color="#F7F8FA"><use href="#plus"/></g>
+      <circle cx="1328" cy="12" r="16" fill="#A9D2C8"/><text x="1328" y="17" text-anchor="middle" class="body medium">J</text>
+    </g>
+
+    <g transform="translate(72 176)">
+      <text class="tiny">你的工作區</text>
+      <rect y="28" width="224" height="56" rx="12" fill="#29324A"/>
+      <rect x="12" y="40" width="32" height="32" rx="8" fill="#DF6E51"/>
+      <text x="28" y="61" text-anchor="middle" class="body inverse medium">無</text>
+      <text x="56" y="52" class="body inverse medium">無限有限公司</text>
+      <text x="56" y="70" class="tiny" fill="#BFC7D7">擁有者 · 3 個專案</text>
+      <line x1="0" y1="116" x2="224" y2="116" stroke="#CDD3DE"/>
+      <text y="152" class="tiny">工作區管理</text>
+      <rect y="168" width="224" height="44" rx="10" fill="#F7F8FA"/>
+      <text x="16" y="195" class="body medium">成員</text><text x="208" y="195" text-anchor="end" class="small">5</text>
+      <text y="244" class="body">已封存專案</text><text x="208" y="244" text-anchor="end" class="small">1</text>
+    </g>
+
+    <g transform="translate(328 176)">
+      <text class="tiny">工作區</text><text y="44" class="display">無限有限公司</text>
+      <text y="76" class="body" fill="#697287">集中查看所有專案，選一個進入主要看板。</text>
+      <rect x="920" width="200" height="48" rx="10" fill="#C4573E"/><text x="1020" y="30" text-anchor="middle" class="button inverse">新增專案</text>
+      <text y="136" class="h2">最近開啟</text>
+      <rect y="156" width="552" height="132" rx="12" fill="#F7F8FA"/><rect y="156" width="4" height="132" rx="2" fill="#DF6E51"/>
+      <text x="24" y="190" class="h2">XX 電商</text><text x="24" y="216" class="small">主要看板 · WebSocket 練習</text>
+      <rect x="568" y="156" width="552" height="132" rx="12" fill="#F7F8FA"/><rect x="568" y="156" width="4" height="132" rx="2" fill="#A9D2C8"/>
+      <text x="592" y="190" class="h2">XX 飲料</text><text x="592" y="216" class="small">主要看板 · 行銷與門市任務</text>
+      <text y="352" class="h2">所有專案</text>
+      <rect y="376" width="352" height="212" rx="12" fill="#F7F8FA"/><rect x="368" y="376" width="352" height="212" rx="12" fill="#F7F8FA"/><rect x="736" y="376" width="352" height="212" rx="12" fill="#F7F8FA"/>
+    </g>
+
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#172033" opacity=".58"/>
+
+    <g id="dialog" transform="translate(500 250)" filter="url(#surface-shadow)">
+      <rect width="520" height="500" rx="18" fill="#FFFFFF"/>
+      <text x="32" y="50" class="title">邀請工作區成員</text>
+      <rect x="448" y="24" width="40" height="40" rx="9" fill="#F7F8FA"/>
+      <g transform="translate(459 35)" color="#697287"><use href="#close"/></g>
+      <text x="32" y="84" class="body" fill="#697287">輸入已註冊 Flowboard 的電子郵件，邀請會出現在</text>
+      <text x="32" y="106" class="body" fill="#697287">對方的通知中心。</text>
+
+      <g transform="translate(32 134)">
+        <rect width="456" height="76" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="12" y="14" width="48" height="48" rx="12" fill="#DF6E51"/>
+        <text x="36" y="44" text-anchor="middle" class="h2 inverse">無</text>
+        <text x="76" y="31" class="body medium">無限有限公司</text>
+        <text x="76" y="53" class="small">邀請接受後才會加入成員列表</text>
+        <rect x="356" y="22" width="84" height="32" rx="16" fill="#FCE5DF"/>
+        <text x="398" y="43" text-anchor="middle" class="small" fill="#9F3F2C">成員 MEMBER</text>
+      </g>
+
+      <text x="32" y="246" class="body medium">電子郵件 *</text>
+      <rect x="32" y="260" width="456" height="52" rx="9" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/>
+      <text x="48" y="292" class="body">member@example.com</text>
+      <text x="32" y="338" class="small">目前僅能邀請已註冊的 Flowboard 使用者。</text>
+
+      <line x1="32" y1="382" x2="488" y2="382" stroke="#D7DCE5"/>
+      <rect x="270" y="414" width="96" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+      <text x="318" y="442" text-anchor="middle" class="button">取消</text>
+      <rect x="378" y="414" width="110" height="44" rx="9" fill="#DF6E51"/>
+      <text x="433" y="442" text-anchor="middle" class="button inverse">傳送邀請</text>
+    </g>
+  </g>
+</svg>

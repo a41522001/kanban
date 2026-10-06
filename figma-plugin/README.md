@@ -1,0 +1,85 @@
+# Flowboard Figma Development Plugin
+
+這個 Plugin 會把 `../design/*.svg` 與 `../frontend/src/styles/index.css` 已定義的視覺規則，重建為 Figma 原生的 Variables、Styles、Components、Auto Layout 與 Screens。它不會將 SVG 匯入 Canvas。
+
+## Build
+
+```sh
+cd "/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin"
+npm install
+npm run build
+```
+
+開發時可改用：
+
+```sh
+npm run watch
+```
+
+每次完成 build 或 watch 更新後，在 Figma 的 Development Plugin 視窗按 `Reload`。
+
+> 本機 Development Plugin 必須使用 Figma Desktop App。網頁版無法讀取本機 `manifest.json` 與 `dist`；一般 Community Plugin 搜尋也不會列出此 Plugin。
+
+## Import and run
+
+1. 使用 Figma Desktop 開啟既有的 `Flowboard — Native Design System`。
+2. 在 Canvas 按右鍵，選擇 `Plugins` → `Development` → `Import plugin from manifest…`。
+3. 選取 `/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin/manifest.json`。
+4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
+5. 本次驗證信畫面按 `Email Verification · 4 desktop screens`；它只更新驗證信區塊。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
+
+目前 UI 版本標記為 `v14`。新增 `Email Verification · 4 desktop screens` 按鈕，更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components`、`03 · Screens` 裡的驗證信區塊；不重建登入、註冊或其他功能畫面。`Generate All` 也包含這四個狀態。
+
+v13 曾新增其他既有畫面。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入專案」；前端對應 route 為 `/projects/:projectId`，Board 內容目前仍由 `ProjectView` 內的本機假資料呈現。
+
+2026-09-21 新增的 Project pin 已在程式端完成，但尚未加入 v13 的 `Project Card` variants 或 Workspace overview screens；目前以前端行為與 API contract 為真相來源，下次更新 Generator 時再補 Default／Pinned 狀態。
+
+v13 新增 `Project Member Added Notification Detail Dialog` 原生 Component Set，以及 Desktop／Mobile 通知詳情畫面。畫面以 `notificationId` 載入專案、Workspace、邀請者、角色與加入時間，並提供關閉及前往專案操作。
+
+v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` 原生 Component Sets，以及 Desktop／Mobile 與 Loading／Empty／Error／Processing 畫面。候選人以 `workspaceMemberId` 送出，已加入專案者顯示 disabled，可指派角色僅有 `EDITOR`／`VIEWER`。
+
+2026-09-12 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次修正後的 v7 `Generate All`：兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。已確認 Dialog Component Set 有 12 個分開排列的 variants，Screen 使用 Instances，並完成 Dialog states 與 Notification Item interaction contract 的 runtime／visual check。
+
+2026-09-18 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v9 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，未累積重複 generated roots。Workspace Overview 的 Desktop／Tablet／Mobile 畫面亦已完成 runtime／visual check。
+
+2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。已確認 `Project Member Added Notification Detail Dialog` 有 Desktop／Mobile 兩個 variants，兩個 Screen 均使用 Instances，並完成 runtime／visual check。
+
+
+## v14 Email Verification source-to-output manifest
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/auth-email-notice-verification-required.svg` | Desktop `1440 × 900`，Ready | `02 · Components` → `Email Verification Brand`／`Email Verification Notice`; `03 · Screens` → `Auth / Email Verification` → Ready |
+| `../design/auth-email-notice-verification-required-cooldown.svg` | Desktop `1440 × 900`，Cooldown | 同上 → Cooldown |
+| `../design/auth-email-verify-loading.svg` | Desktop `1440 × 900`，Loading | `02 · Components` → `Email Verification Brand`／`Email Verification Result`; 同上 → Loading |
+| `../design/auth-email-verify-success.svg` | Desktop `1440 × 900`，Success | 同上 → Success |
+
+四個 Screen 使用原生 Auto Layout、上述 Component Set 的 Instances 與既有 `Button` Instances。驗證成功 API 的 `data` 為 null，結果頁不展示信箱。手機 SVG 尚未核准，v14 只產生 Desktop。
+
+2026-09-28 已在既有 `Flowboard — Native Design System` 執行 v14 專用動作兩次，兩次均完成；`03 · Screens` 保持單一 `Auth / Email Verification` 區塊與四張 Desktop Frame，`02 · Components` 有 Brand、Notice、Result 三個 Component Sets。已放大檢查 Ready 畫面與 Screen Instances。登入、註冊等原有區塊未重建。
+
+## v13 source-to-output manifest
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/workspace-overview.svg` | Desktop `1440 × 900` | `02 · Components` → `Project Card`／`Selected Project Members`; `03 · Screens` → `Workspace Project Overview` → Desktop |
+| `../design/workspace-overview-tablet.svg` | Tablet `768 × 1024` | `02 · Components` → `Project Card`; 同上 → Tablet |
+| `../design/workspace-overview-mobile.svg` | Mobile `390 × 844` | `02 · Components` → `Project Card`; 同上 → Mobile |
+| `../design/project-add-member-dialog.svg` | Desktop `1440 × 900`，Default／Loading／Empty／Error／Processing | `02 · Components` → `Project Member Candidate`／`Project Role Option`／`Project Add Member Dialog`; `03 · Screens` → `Project Add Member` → Desktop／Runtime States |
+| `../design/project-add-member-dialog-mobile.svg` | Mobile `390 × 844`，Default | 同上 → Mobile |
+| `../design/notification-dropdown.svg` | Desktop `1440 × 900` | `02 · Components` → `Notification Item`／`Notification Dropdown`; `03 · Screens` → `Notifications` → Desktop |
+| `../design/notification-dropdown-mobile.svg` | Mobile `390 × 844` | 同上 → Mobile |
+| `../design/notification-dropdown-states.svg` | Loading／Empty／Error | `02 · Components` → `Notification Dropdown`; `03 · Screens` → Runtime States |
+| `../design/notification-item-interactions.svg` | Desktop／Mobile hit targets、Type routing、focus return | `03 · Screens` → `Notifications` → Interaction Contract |
+| `../design/workspace-invitation-response.svg` | Desktop `1440 × 900`，Dialog `520 × 456` | `03 · Screens` → `Workspace Invitation Detail Dialog` → Desktop |
+| `../design/workspace-invitation-response-mobile.svg` | Mobile `390 × 844`，Dialog `358 × 570` | 同上 → Mobile |
+| `../design/workspace-invitation-response-states.svg` | Loading／Pending／Responding／Accepted／Declined／Unavailable | `02 · Components` → `Workspace Invitation Detail Dialog`; `03 · Screens` → States |
+| `../design/project-member-added-notification-detail.svg` | Desktop `1440 × 900`，Dialog `520 × 544` | `02 · Components` → `Project Member Added Notification Detail Dialog`; `03 · Screens` → `Project Member Added Notification Detail` → Desktop |
+| `../design/project-member-added-notification-detail-mobile.svg` | Mobile `390 × 844`，Dialog `358 × 648` | 同上 → Mobile |
+| `../design/notification-read-actions-states.svg` | Single／All × Default／Processing／Complete／Error | `02 · Components` → `Notification Read Action`; `03 · Screens` → `Notifications` → Read Actions / States |
+
+共用 Button、Notification Item、Notification Dropdown、Avatar、色彩、圓角與字型均沿用既有 Components／Variables。SVG 只作視覺依據，不會匯入 Canvas。
+
+## Idempotency
+
+Plugin 只會刪除有 `flowboard-generator` pluginData 的根節點。Variables 與 Styles 會依名稱更新，Components／Screens 則會安全地替換該 Plugin 上次生成的 root，手動加入到頁面的內容不會被清除。

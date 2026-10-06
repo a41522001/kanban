@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="card-shadow" x="-14%" y="-14%" width="128%" height="136%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#29324A" flood-opacity=".09"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec-label{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:24px;font-weight:700}.h2{font-size:18px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:10px;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.soft{fill:#BFC7D7}.button{font-size:14px;font-weight:700;fill:#FFF9F4}.column-title{font-size:14px;font-weight:700}.card-title{font-size:14px;font-weight:650}.chip{font-size:10px;font-weight:700}.lock-text{font-size:10px;font-weight:700;fill:#606A7F}
+    </style>
+    <g id="logo">
+      <rect width="18" height="24" rx="4" fill="#DF6E51"/><rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/>
+      <text x="56" y="20" class="title inverse">Flowboard</text>
+    </g>
+    <g id="plus-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <g id="grip-icon" fill="currentColor">
+      <circle cx="3" cy="3" r="1.5"/><circle cx="9" cy="3" r="1.5"/><circle cx="3" cy="9" r="1.5"/><circle cx="9" cy="9" r="1.5"/><circle cx="3" cy="15" r="1.5"/><circle cx="9" cy="15" r="1.5"/>
+    </g>
+    <g id="users-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5" r="3"/><path d="M1 15c0-3 2-5 5-5s5 2 5 5M11 4c2 0 3 1 3 3 0 1-.5 2-1.5 2.5M12 11c2.5 0 4 1.5 4 4"/></g>
+    <g id="chevron-right" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 2 6 6-6 6"/></g>
+    <g id="card-handle">
+      <rect width="40" height="40" rx="8" fill="#FFFFFF" fill-opacity=".01"/>
+      <g transform="translate(14 11)" color="#8B95A8"><use href="#grip-icon"/></g>
+    </g>
+    <g id="column-handle">
+      <rect width="36" height="36" rx="8" fill="#F7F8FA"/>
+      <g transform="translate(12 9)" color="#8B95A8"><use href="#grip-icon"/></g>
+    </g>
+  </defs>
+
+  <!-- Current Board design. All layout padding and gaps use the 4px spacing grid. -->
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="48" class="spec-label">BOARD / CURRENT / 1440 × 900</text>
+
+  <g id="desktop-board-current">
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
+    <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
+
+    <g id="top-navigation" transform="translate(72 100)">
+      <use href="#logo"/>
+      <text x="180" y="20" class="body soft">工作區</text>
+      <text x="256" y="20" class="body soft">最近</text>
+      <rect x="1248" y="-8" width="40" height="40" rx="10" fill="#44506A"/>
+      <g transform="translate(1260 4)" color="#F7F8FA"><use href="#plus-icon"/></g>
+      <circle cx="1328" cy="12" r="16" fill="#A9D2C8"/><text x="1328" y="17" text-anchor="middle" class="body" font-weight="700">J</text>
+    </g>
+
+    <g id="board-heading" transform="translate(72 172)">
+      <text class="tiny">Jeffery 的工作區　/　Flowboard 即時協作　/　主要看板</text>
+      <text y="40" class="title">產品開發看板</text>
+      <text y="68" class="small">專案主要看板 · 即時同步中</text>
+
+      <g transform="translate(1024 8)">
+        <circle cx="16" cy="16" r="16" fill="#A9D2C8"/><text x="16" y="21" text-anchor="middle" class="body" font-weight="700">J</text>
+        <circle cx="44" cy="16" r="16" fill="#907ECE"/><text x="44" y="21" text-anchor="middle" class="body inverse" font-weight="700">M</text>
+        <circle cx="72" cy="16" r="16" fill="#E6B960"/><text x="72" y="21" text-anchor="middle" class="body" font-weight="700">A</text>
+      </g>
+      <g transform="translate(1120 0)">
+        <rect width="176" height="48" rx="10" fill="#29324A"/>
+        <g transform="translate(20 16)" color="#F7F8FA"><use href="#users-icon"/></g>
+        <text x="104" y="30" text-anchor="middle" class="button">專案成員</text>
+      </g>
+    </g>
+
+    <g id="board-canvas" transform="translate(72 264)">
+      <g id="column-ready">
+        <rect width="280" height="680" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#DF6E51"/>
+        <text x="32" y="36" class="column-title">準備開始</text><text x="208" y="36" class="small">03</text>
+        <g transform="translate(232 12)"><use href="#column-handle"/></g>
+
+        <g transform="translate(12 64)" filter="url(#card-shadow)">
+          <rect width="256" height="128" rx="10" fill="#FFFFFF"/>
+          <rect x="16" y="16" width="48" height="20" rx="10" fill="#FCE5DF"/><text x="40" y="30" text-anchor="middle" class="chip" fill="#A9432E">API</text>
+          <g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="60" class="card-title">建立使用者註冊 API</text><text x="16" y="84" class="small">Auth · Backend</text>
+          <circle cx="228" cy="104" r="12" fill="#907ECE"/><text x="228" y="108" text-anchor="middle" class="tiny inverse">J</text>
+        </g>
+        <g transform="translate(12 208)" filter="url(#card-shadow)">
+          <rect width="256" height="112" rx="10" fill="#FFFFFF"/><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <rect x="16" y="16" width="56" height="20" rx="10" fill="#FFF1D8"/><text x="16" y="64" class="card-title">登入頁表單驗證</text><text x="16" y="88" class="small">Frontend</text>
+        </g>
+        <g transform="translate(12 336)" filter="url(#card-shadow)">
+          <rect width="256" height="104" rx="10" fill="#FFFFFF"/><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="44" class="card-title">整理 Socket.IO 事件命名</text><text x="16" y="72" class="small">文件 · 8 月 16 日</text>
+        </g>
+        <g transform="translate(16 464)" color="#697287"><use href="#plus-icon"/><text x="28" y="14" class="body">新增卡片</text></g>
+      </g>
+
+      <g id="column-active" transform="translate(296 0)">
+        <rect width="280" height="680" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#A9D2C8"/><text x="32" y="36" class="column-title">正在進行</text><text x="208" y="36" class="small">02</text><g transform="translate(232 12)"><use href="#column-handle"/></g>
+        <g transform="translate(12 64)" filter="url(#card-shadow)">
+          <rect width="256" height="136" rx="10" fill="#FFFFFF"/><rect x="16" y="16" width="64" height="20" rx="10" fill="#E3F1EC"/><text x="48" y="30" text-anchor="middle" class="chip" fill="#3E756B">Session</text><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="60" class="card-title">Session Cookie 驗證流程</text><text x="16" y="84" class="small">Redis · Auth</text><rect x="16" y="108" width="120" height="6" rx="3" fill="#DFE4E9"/><rect x="16" y="108" width="76" height="6" rx="3" fill="#6EA99E"/>
+        </g>
+        <g transform="translate(12 216)" filter="url(#card-shadow)">
+          <rect width="256" height="112" rx="10" fill="#FFFFFF"/><rect x="16" y="16" width="64" height="20" rx="10" fill="#E9E6F7"/><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="64" class="card-title">Socket handshake middleware</text><text x="16" y="88" class="small">今天到期</text>
+        </g>
+        <g transform="translate(16 352)" color="#697287"><use href="#plus-icon"/><text x="28" y="14" class="body">新增卡片</text></g>
+      </g>
+
+      <g id="column-review" transform="translate(592 0)">
+        <rect width="280" height="680" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#E6B960"/><text x="32" y="36" class="column-title">等待檢視</text><text x="208" y="36" class="small">02</text><g transform="translate(232 12)"><use href="#column-handle"/></g>
+        <g transform="translate(12 64)" filter="url(#card-shadow)">
+          <rect width="256" height="124" rx="10" fill="#FFFFFF"/><rect x="16" y="16" width="56" height="20" rx="10" fill="#FCE5DF"/><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="64" class="card-title">AuthService 錯誤處理</text><text x="16" y="88" class="small">等待 review</text>
+        </g>
+        <g transform="translate(12 204)" filter="url(#card-shadow)">
+          <rect width="256" height="128" rx="10" fill="#FFFFFF"/><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="44" class="card-title">更新 session 文件</text><text x="16" y="68" class="small">2 則留言</text>
+          <rect x="16" y="88" width="168" height="24" rx="12" fill="#EEF0F4"/><circle cx="30" cy="100" r="8" fill="#907ECE"/><text x="44" y="104" class="lock-text">Mia 正在移動</text>
+        </g>
+      </g>
+
+      <g id="column-done" transform="translate(888 0)">
+        <rect width="280" height="680" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#907ECE"/><text x="32" y="36" class="column-title">已完成</text><text x="208" y="36" class="small">02</text><g transform="translate(232 12)"><use href="#column-handle"/></g>
+        <g transform="translate(12 64)" filter="url(#card-shadow)">
+          <rect width="256" height="112" rx="10" fill="#FFFFFF"/><g transform="translate(208 4)"><use href="#card-handle"/></g>
+          <text x="16" y="44" class="card-title">建立 Redis 連線模組</text><text x="16" y="72" class="small">完成於今天</text><circle cx="228" cy="88" r="12" fill="#A9D2C8"/><path d="M222 88l4 4 8-9" stroke="#29324A" stroke-width="2" fill="none"/>
+        </g>
+      </g>
+
+      <g id="add-column" transform="translate(1184 0)">
+        <rect width="192" height="48" rx="10" fill="#F7F8FA" stroke="#AAB3C2" stroke-dasharray="8 8"/>
+        <g transform="translate(20 16)" color="#697287"><use href="#plus-icon"/></g><text x="108" y="30" text-anchor="middle" class="body" font-weight="700">新增欄位</text>
+      </g>
+    </g>
+  </g>
+</svg>

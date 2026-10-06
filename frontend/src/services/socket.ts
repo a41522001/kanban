@@ -1,20 +1,10 @@
+import type { ServerToClientEvents, ClientToServerEvents } from '@kanban/contracts/socket';
 import { io, type Socket } from 'socket.io-client';
 import { ref } from 'vue';
 export const isConnected = ref<boolean>(false);
-type EchoPayload = {
-  text: string;
-};
-
-interface ServerToClientEvents {
-  'demo:echoed': (payload: EchoPayload & { serverTime: string }) => void;
-}
-
-interface ClientToServerEvents {
-  'demo:echo': (payload: EchoPayload) => void;
-}
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-  import.meta.env.VITE_API_URL,
+  import.meta.env.VITE_SOCKET_URL,
   {
     autoConnect: false,
     withCredentials: true,
@@ -22,12 +12,10 @@ export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
 );
 
 socket.on('connect', () => {
-  console.log('用戶端已連線');
   isConnected.value = true;
 });
 
 socket.on('disconnect', () => {
-  console.log('用戶端已離線');
   isConnected.value = false;
 });
 
@@ -39,8 +27,58 @@ export const disconnect = () => {
   socket.disconnect();
 };
 
+export const ensureConnected = () => {
+  if (!socket.connected) {
+    socket.connect();
+  }
+};
+
+// #region emit
+/** echo */
 export const emitEcho = (message: string) => {
   socket.emit('demo:echo', {
     text: message,
   });
 };
+/** 進入工作區 */
+export const emitWorkspaceInto = (workspaceId: string) => {
+  const payload = {
+    workspaceId,
+  };
+  socket.emit('workspace:into', payload);
+};
+/** 離開工作區 */
+export const emitWorkspaceLeave = (workspaceId: string) => {
+  const payload = {
+    workspaceId,
+  };
+  socket.emit('workspace:leave', payload);
+};
+// #endregion
+
+// #region on
+/** 監聽通知創建 */
+export const onNotificationCreated = (handler: ServerToClientEvents['notification:created']) => {
+  socket.on('notification:created', handler);
+};
+/** 監聽工作區成員加入 */
+export const onWorkspaceMemberChanged = (
+  handler: ServerToClientEvents['workspace:memberChanged'],
+) => {
+  socket.on('workspace:memberChanged', handler);
+};
+// #endregion
+
+// #region off
+/** 移除監聽通知創建 */
+export const offNotificationCreated = (handler: ServerToClientEvents['notification:created']) => {
+  socket.off('notification:created', handler);
+};
+
+/** 移除工作區成員加入 */
+export const offWorkspaceMemberChanged = (
+  handler: ServerToClientEvents['workspace:memberChanged'],
+) => {
+  socket.off('workspace:memberChanged', handler);
+};
+// #endregion

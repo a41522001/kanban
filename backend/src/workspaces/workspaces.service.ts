@@ -1,0 +1,126 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { WorkspacesRepository } from './workspaces.repository';
+import type {
+  WorkspaceDto,
+  WorkspaceListItemDto,
+  WorkspaceMemberDto,
+} from '@kanban/contracts/workspaces';
+import type { FindMembershipResponse } from './workspaces.type';
+import type { FindMembershipByIdResponse } from './workspaces.type';
+import type {
+  Prisma,
+  Workspace,
+  WorkspaceMember,
+} from '@/generated/prisma/client';
+@Injectable()
+export class WorkspacesService {
+  constructor(private readonly workspacesRepository: WorkspacesRepository) {}
+
+  /** 取得工作區資訊 by id */
+  async getById(workspaceId: string): Promise<Workspace | null> {
+    return await this.workspacesRepository.getById(workspaceId);
+  }
+
+  /** 取得使用者加入的工作區 */
+  async getByUserId(userId: string): Promise<WorkspaceListItemDto[]> {
+    const memberships = await this.workspacesRepository.getByUserId(userId);
+    const result = memberships.map(({ role, workspace }) => {
+      return {
+        id: workspace.id,
+        name: workspace.name,
+        createdAt: workspace.createdAt.toISOString(),
+        updatedAt: workspace.updatedAt.toISOString(),
+        currentUserRole: role,
+      };
+    });
+    return result;
+  }
+
+  /** 創建工作區 */
+  async create(userId: string, name: string): Promise<WorkspaceDto> {
+    const result = await this.workspacesRepository.create(userId, name);
+    return {
+      id: result.id,
+      name: result.name,
+      createdAt: result.createdAt.toISOString(),
+      updatedAt: result.updatedAt.toISOString(),
+    };
+  }
+
+  /** 加入成員 */
+  async joinMember(
+    userId: string,
+    workspaceId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<WorkspaceMember> {
+    const result = await this.workspacesRepository.joinMember(
+      userId,
+      workspaceId,
+      tx,
+    );
+    return result;
+  }
+
+  /** 取得單一工作區的所有成員 */
+  async getSingleWorkspaceMember(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMemberDto[]> {
+    const membership = await this.findMembership(userId, workspaceId);
+
+    if (!membership || membership.workspaceArchivedAt) {
+      throw new NotFoundException('找不到工作區或你沒有存取權限');
+    }
+
+    const result =
+      await this.workspacesRepository.getSingleWorkspaceMember(workspaceId);
+    return result.map(({ id, role, user }) => {
+      return {
+        memberId: id,
+        role: role,
+        displayName: user.displayName,
+      };
+    });
+  }
+
+  /** 找尋成員 */
+  async findMembership(
+    userId: string,
+    workspaceId: string,
+  ): Promise<FindMembershipResponse | null> {
+    const result = await this.workspacesRepository.findMembership(
+      userId,
+      workspaceId,
+    );
+    if (result === null) {
+      return null;
+    }
+
+    return {
+      memberId: result.id,
+      memberName: result.user.displayName,
+      role: result.role,
+      workspaceName: result.workspace.name,
+      workspaceArchivedAt: result.workspace.archivedAt,
+    };
+  }
+
+  /** 依 membership ID 找出候選成員，供跨 domain 驗證 Workspace scope。 */
+  async findMembershipById(
+    workspaceMemberId: string,
+  ): Promise<FindMembershipByIdResponse | null> {
+    const result =
+      await this.workspacesRepository.findMembershipById(workspaceMemberId);
+
+    if (!result) {
+      return null;
+    }
+
+    return {
+      memberId: result.id,
+      userId: result.userId,
+      workspaceId: result.workspaceId,
+      workspaceArchivedAt: result.workspace.archivedAt,
+    };
+  }
+}

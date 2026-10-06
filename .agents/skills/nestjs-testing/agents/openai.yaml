@@ -1,0 +1,4 @@
+interface:
+  display_name: "NestJS Testing"
+  short_description: "Write reliable NestJS unit and E2E tests"
+  default_prompt: "Use $nestjs-testing to add or review NestJS unit and E2E tests with clear AAA structure."

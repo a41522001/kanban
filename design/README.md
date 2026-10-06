@@ -1,38 +1,153 @@
-# Flowboard 視覺稿（v2）
+# Flowboard SVG design source
 
-## 檔案
+SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為原生 Figma Frame、Auto Layout、Component、Variant、Variables 與 Styles，不能把 SVG 匯入後當成完成品。
 
-- `kanban-trello-ui.svg`：包含 Login、Signup、Kanban Board、Card Detail 四個 1440 × 900 畫面。
-- `kanban-trello-rwd.svg`：包含 Mobile Login、Mobile Signup、Tablet Board、Mobile Board、Mobile Card Detail。
+## 2026-09-28 功能現況與設計範圍
 
-## 視覺規則
+Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；前端提示、重寄、驗證與錯誤 Dialog 已完成，手機響應式由 Vue 實作，沒有另建手機版 SVG。規格參考見 [驗證信設計與實作](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
 
-這版以「工作筆記／流程軌跡」為方向，不使用漸層，也不以大型浮動白卡片作為主要視覺。
+- Signup 已排信，前端已處理 201 正常入列與部分成功分流，並提供信件驗證頁；使用者已回報前後端流程實測成功。
+- Project members API 回 memberId、displayName、avatarUrl、role，沒有 joinedAt；overview 的加入時間只能作為未來設計，不可直接使用不存在欄位。
+- Card、持久化拖曳與協作狀態是目標設計；目前 Board 已讀 DB Columns，但 cards 為空、拖曳只改本機。
 
-| 用途 | Token | 色碼 |
-| --- | --- | --- |
-| Board base（所有裝置） | Mist | `#E9ECF1` |
-| Auth surface（所有裝置） | Paper | `#F7F8FA` |
-| 導覽與結構色 | Ink | `#29324A` |
-| 主要操作與目前進度 | Signal coral | `#DF6E51` |
-| 成功／進行中 | Soft mint | `#A9D2C8` |
-| 提醒 | Warm amber | `#E6B960` |
-| 補充分類 | Muted violet | `#907ECE` |
+## Source of truth
 
-桌面和手機共用相同的 base token：登入頁為 `#F7F8FA`，看板為 `#E9ECF1`。手機版只拿掉桌面側欄與縮短文字，不會更換色系或改用漸層。
+| Area | Desktop | Tablet | Mobile | Status |
+| --- | --- | --- | --- | --- |
+| Login | `auth-login.svg` | — | `auth-login-mobile.svg` | Current |
+| Signup | `auth-signup.svg` | — | `auth-signup-mobile.svg` | Current |
+| Email verification notice | `auth-email-notice-verification-required.svg` | — | — | Current · Desktop ready |
+| Email verification cooldown | `auth-email-notice-verification-required-cooldown.svg` | — | — | Current · Desktop ready |
+| Email verification loading | `auth-email-verify-loading.svg` | — | — | Current · Desktop ready |
+| Email verification success | `auth-email-verify-success.svg` | — | — | Current · Desktop ready |
+| Workspace project overview | `workspace-overview.svg` | `workspace-overview-tablet.svg` | `workspace-overview-mobile.svg` | Current |
+| Workspace invitation | `workspace-invite-member-dialog.svg` | — | `workspace-invite-member-dialog-mobile.svg` | Current |
+| Project add member | `project-add-member-dialog.svg` | — | `project-add-member-dialog-mobile.svg` | Current |
+| Workspace invitation response | `workspace-invitation-response.svg` | — | `workspace-invitation-response-mobile.svg` | Current |
+| Workspace invitation response states | `workspace-invitation-response-states.svg` | — | — | Current spec page |
+| Notification dropdown | `notification-dropdown.svg` | — | `notification-dropdown-mobile.svg` | Current |
+| Notification states | `notification-dropdown-states.svg` | — | — | Current spec page |
+| Notification read actions | `notification-read-actions-states.svg` | — | — | Current spec page |
+| Notification item interactions | `notification-item-interactions.svg` | — | — | Current spec page |
+| Project member added notification detail | `project-member-added-notification-detail.svg` | — | `project-member-added-notification-detail-mobile.svg` | Current |
+| Board | `board-overview.svg` | `board-overview-tablet.svg` | `board-overview-mobile.svg` | Current |
+| Create card | `create-card-dialog.svg` | — | `create-card-dialog-mobile.svg` | Current |
+| Card detail | `card-detail.svg` | — | `card-detail-mobile.svg` | Current |
+| Drag and collaboration | `board-drag-states.svg` | — | — | Current spec page |
+| System states | `board-system-states.svg` | — | — | Current spec page |
 
-看板的四個欄位保留固定寬度；平板與手機透過水平捲動檢視下一欄，而不是把欄位壓窄。
+## Legacy boundary
 
-## 匯入 Figma
+所有合併多頁稿、舊 `*-rwd.svg` 與整併前的 Workspace v9 稿都已移至 `design/archive/`，只作歷史追溯，不可再作為 Figma Generator 的輸入。獨立的 Project Overview 已整併進 Workspace；`design` 根目錄中的每一個 SVG 都只代表一個畫面或一個規格頁。
 
-1. 開啟目標 Figma Design 檔。
-2. 將 `kanban-trello-ui.svg` 直接拖曳進畫布，或使用 **File → Place image**。
-3. 匯入後取消群組，依照 `desktop-login`、`desktop-signup`、`desktop-board`、`desktop-card-detail` 四組內容分別整理。
-4. 為每組建立 1440 × 900 Frame，再把內容移入對應 Frame。
+## Board v2 contract
 
-## 注意事項
+- Desktop 為 `1440 × 900`，全寬專注模式，沒有 persistent Sidebar。
+- Header 有 Brand、工作區／最近導覽、Create、Avatar。
+- Board heading 有 Breadcrumb、同步狀態、Collaborator avatars、Project members action。
+- Column 寬度固定：Desktop／Tablet `280px`、Mobile `288px`。
+- Tablet 與 Mobile 透過水平捲動瀏覽欄位，並保留 scroll indicator；不可壓縮欄寬。
+- `44 × 44` Card drag handle 與 `40 × 40` Column drag handle 是操作元件，不是裝飾文字。
+- Board 必須包含進度、完成、soft lock、Add card、Add column 等不同卡片／欄位語意。
 
-- SVG 會保留可編輯的向量、文字與群組。
-- SVG 不會自動建立 Figma Variables、Auto Layout、Components 或 prototype interactions。
-- 畫面使用 `Noto Sans TC`；若 Figma 無法取得該字型，可能顯示替代字型。
-- 等 Figma MCP 額度恢復後，可再將這份視覺稿整理成正式元件與 Auto Layout。
+## Workspace project overview contract
+
+- Desktop 使用「專案清單 + 已選取專案成員面板」的 master-detail 結構；選取專案不等同直接進入 Board，主要看板入口需保留為明確操作。
+- Project Card 顯示 `status`、主要看板、更新時間與成員摘要；狀態不只使用顏色，也包含文字 Badge。Project role 不在 overview 顯示，進入專案內部後再呈現。
+- Project Card 的 pin 是目前使用者自己的快捷偏好，不改變 Project 本身狀態或其他成員的排序。置頂與取消置頂必須有可存取名稱、active state 與至少 `40 × 40` 的操作區，且不能與「選取 Project」或「進入 Project」共用同一個隱含 click target。
+- 成員面板列出選取專案的所有成員，現行 API 可支援 `displayName`、`avatarUrl`；`joinedAt` 尚未提供，需待 contract 擴充才顯示。overview 不顯示 Project role 或其他 User 欄位。
+- Tablet／Mobile 不保留雙欄；未展開的 Project Card 只顯示 list API 已提供的 status、名稱、描述與更新時間。點選卡片會展開手風琴，才以 projectId 載入並呈現該 Project 的完整成員資訊；主要看板仍由展開內容中的明確操作進入。
+- Workspace membership 只代表可進入工作區；列表是否顯示 Project 仍以 `ProjectMember` 權限為準。Repository 可載入 Projects 與 Members，但 Service 必須完成目前使用者的權限驗證。
+- Project 狀態包含 `ACTIVE`、`ON_HOLD`、`COMPLETED`；封存是另一個維度，不與 `COMPLETED` 混用。
+
+## Card data contract
+
+資料模型與 `frontend/src/types/board.ts` 對齊：
+
+```text
+Card
+├── title (required)
+├── category? { name, colorKey }
+└── labels[]
+```
+
+類別色彩使用 `frontend/src/constants/cardCategoryColors.ts` 的 14 個限定色：`coral`、`rose`、`orange`、`amber`、`lime`、`mint`、`teal`、`cyan`、`blue`、`indigo`、`lavender`、`violet`、`pink`、`slate`。色彩屬於 Category，不是獨立 Card 欄位；Labels 為可多選 token input。
+
+## Workspace invitation contract
+
+- 邀請入口只提供給工作區 Owner；權限仍由後端作最終判定。
+- Dialog 對應 `shadcn-vue/Dialog` 與 `shadcn-vue/Button`，Email 欄位對應 Flowboard `shared/Input`。
+- 表單只輸入已註冊使用者的 Email，角色固定為 `MEMBER`，不在第一版加入角色選擇器。
+- 「傳送邀請」成功只建立 invitation 與 notification；受邀者接受前不會出現在正式成員列表。
+- Desktop 使用置中 `520px` Dialog；Mobile 保留 `16px` viewport gutter，使用 `358px` inset Dialog，而不是全螢幕頁面。
+- Loading 時停用關閉與送出以避免重複請求；欄位驗證顯示在 Email 下方，商業錯誤以 Toast 呈現並保留輸入值。
+
+## Project add member contract
+
+- 此流程是 Owner 直接新增 Project member，不是需要接受／拒絕的 invitation；UI 使用「新增專案成員」，不使用「邀請」。
+- 第一版一次選取一位 Workspace member，以可搜尋 listbox 呈現，不使用原生單選下拉。成員數增加時仍可掃描姓名、頭像與狀態，Mobile 也保留至少 `44px` 操作高度。
+- 已屬於 Project 的成員在候選清單中顯示目前角色與「已加入」，並停用選取；`P2002` conflict 只作為併發或 stale data 的 fallback，不作為正常 UX 判斷流程。
+- OWNER 不可由此流程指派；可選角色只有 `EDITOR` 與 `VIEWER`，預設 `EDITOR`。新增操作僅對目前 Project OWNER 顯示，Backend 仍作最終授權。
+- Candidate read model 必須提供同一個可比對的 identity 與 membership 狀態。目前 `GET /project/:projectId/memberCandidates` 已回傳 `workspaceMemberId`、`displayName`、`avatarUrl`、`projectRole|null`，新增 command 已接受 `workspaceMemberId`。Workspace／Project DTO 的 `memberId` 分別代表不同 membership，不可混用。
+- Desktop 使用置中 `600px` Dialog；Mobile 使用 `358px` inset Dialog。Loading 時鎖定關閉與送出；成功後關閉 Dialog、刷新 Project members，失敗時保留選取與角色。
+
+## Notification dropdown contract
+
+- Header 使用 `40 × 40` Notification Trigger；有未讀時顯示數字 Badge，Dropdown 開啟時使用 Open variant。
+- Dropdown 對應 `shadcn-vue/DropdownMenuContent` 與 `ScrollArea`，Desktop 寬 `400px`，Mobile 保留 `16px` gutter、寬 `358px`。
+- 列表與未讀數分別使用 `GET /notifications`、`GET /notifications/unreadCount`；單筆與全部已讀分別使用 `PATCH /notifications/read`、`PATCH /notifications/readAll`。
+- 每則未讀通知提供明確的單筆已讀按鈕；Desktop 以 tooltip 補充名稱，Mobile 保留至少 `44 × 44` 的觸控區，不讓整張通知卡隱含執行已讀。
+- 「全部設為已讀」位於 Dropdown header。處理中停用全部已讀操作但保持列表與 Dropdown 開啟；成功後原地更新 unread 樣式、未讀數與 Bell badge。
+- `WORKSPACE_INVITED` 列表項目只依 notification type 與 resource pointer 導流；`workspaceName`、`inviterDisplayName` 與 `role` 由 Workspace Invitation detail API 提供，不存入 notification payload。
+- `PROJECT_MEMBER_ADDED` 列表項目只依 notification type 導流；Project、Workspace、邀請者、role 與 joinedAt 由 `GET /project/notificationDetail/:notificationId` 提供，不存入 notification payload。
+- Unread 與 Read 使用背景、border、文字層級及 unread dot 同時區分，不只依賴顏色。
+- Notification Item 的內容區與已讀按鈕是兩個獨立操作目標；內容區依 Type 開啟對應的 domain UI，已讀按鈕只更新 readAt，不得觸發導頁或資源動作。
+- 通知列表不呈現 invitation 的 PENDING／ACCEPTED／DECLINED 等資源狀態；列表只負責通知摘要與已讀／未讀。
+- Runtime variants 至少包含 Default、Loading、Empty、Error；載入錯誤提供「重新載入」。
+- Socket.IO 已推送 notification:created 摘要，PostgreSQL 與 HTTP read model 仍是通知真相；reconnect 後漏收同步尚待補齊。
+
+## Project member added notification detail contract
+
+- Project OWNER 直接將同一 Workspace 的既有成員加入 Project 後，ProjectMember 與 `PROJECT_MEMBER_ADDED` Notification 在同一 transaction 建立；commit 後才向收件者的 user room 推送 `notification:created`。
+- Notification 使用 `resourceType=PROJECT` 與 `resourceId=projectId`；前端點擊內容後先標記已讀，再以 `notificationId` 呼叫 `GET /project/notificationDetail/:notificationId`，由後端重新驗證收件者、通知 type／resource 與 ProjectMember membership。
+- Dialog 顯示邀請者、Project 名稱、Workspace 名稱、Project role 與 joinedAt。成功狀態提供「前往專案」與「關閉」；前往專案使用 `/projects/:projectId` 進入 `ProjectView`，並保留 `workspaceId` query 作為返回 Workspace 的 context。
+- Desktop 使用 `520 × 544px` 置中 Dialog；Mobile 使用 `358 × 648px` inset Dialog 並保留 `16px` viewport gutter。Mobile 會縮短副標題，避免窄螢幕文字截斷。
+- Dialog 至少涵蓋 Loading、Loaded、Error／Retry 三種 runtime state；API 失敗時保留 Dialog，不直接顯示後端錯誤訊息。
+- detail response 對應 `ProjectMemberAddedNotificationDetail`：`role`、`projectName`、`projectId`、`workspaceName`、`workspaceId`、`inviterName`、`joinedAt`。
+
+## Workspace invitation response contract
+
+- 點擊 WORKSPACE_INVITED 通知內容後關閉 Dropdown，以 notificationId 載入最新資源詳情，再開啟 Workspace Invitation Dialog；前端不得信任或自行提交列表中的 resourceId／Type 作授權依據。
+- Invitation Dialog 屬於 Workspace Invitation domain UI，不屬於 Notification Item。Desktop 使用置中 `520px` Dialog；Mobile 使用 `358px` inset Dialog，並保留 `16px` viewport gutter。
+- 「接受邀請」是唯一主要操作；「婉拒」使用中性 outline，不使用 danger 色，因為它不會刪除既有資料。
+- Desktop 動作高度為 `44px`，Mobile 為 `48px`；送出任一回覆時兩個動作都必須停用，避免 accept／decline 並行競爭。
+- Dialog 支援 Loading、Pending、Responding、Accepted、Declined、Unavailable／Expired；接受成功時重新載入 Workspace 列表並提供「前往工作區」，婉拒後只保留關閉操作。
+- 詳情載入或 API 失敗時保留 Dialog，畫面使用穩定 `ApiCode` 決定文案，不直接顯示後端 message；關閉後焦點回到原通知項目。
+- 回覆狀態不等同已讀狀態；開啟詳情是否自動標記已讀是獨立產品規則，不得把 accept／decline 當成 Notification 本身的狀態。
+
+## Single-page file rule
+
+- Desktop、Tablet、Mobile 必須是不同 SVG 檔案。
+- Login 與 Signup 必須是不同 SVG 檔案。
+- 禁止在同一 SVG 內橫向或縱向排列多個產品畫面。
+- `board-drag-states.svg` 與 `board-system-states.svg` 是狀態規格頁，允許在同一規格頁內展示多個 Variant。
+- `notification-dropdown-states.svg` 是 Notification runtime state 規格頁，允許展示 Loading、Empty、Error 與 Trigger variants。
+- `notification-read-actions-states.svg` 是已讀操作規格頁，允許展示單筆／全部的 Default、Processing、Complete 與 Error recovery。
+- `notification-item-interactions.svg` 是 Notification Item 操作分區與 Type routing 規格頁，允許展示 Desktop／Mobile、Unread／Read 與 interaction anatomy。
+- `workspace-invitation-response-states.svg` 是邀請詳情 Dialog 規格頁，允許展示 Loading、Pending、Responding、Accepted、Declined 與 Unavailable／Expired。
+- 新增裝置版本時使用 `*-tablet.svg`、`*-mobile.svg` 命名，不再使用含混的 `*-rwd.svg`。
+
+## Figma regeneration gate
+
+- Board 不引用 `design/archive/` 內的舊稿。
+- Card Detail 改為 v2 外殼，不直接沿用舊 Board 版型。
+- Create Card 的 14 色順序與前端常數一致。
+- Drag specs 的六種狀態皆有 Component / Variant 對應。
+- 所有新增狀態都有 Desktop 或 Mobile 的明確畫面。
+- Workspace invitation 的 Dialog、Input 與 Button 皆有原生 Figma Component／Instance 對應。
+- Notification Trigger、Notification Item 與 Notification Dropdown 皆有原生 Component Set／Variant 對應。
+- Notification Read Action 需建立 Single／All 與 Default／Processing／Complete／Error variants，並保留 focus、disabled 與 `aria-live` 行為註記。
+- Notification Item 的 content action 與 read action 必須是分離的互動區；Workspace Invitation Response 必須由獨立 Dialog Component Set 組成，不在 Dropdown Item 內放接受／婉拒按鈕。
+- Workspace Project Overview 必須對應 `workspace-overview.svg`、`workspace-overview-tablet.svg`、`workspace-overview-mobile.svg` 三個 Current SVG；Desktop 使用 Project master-detail，Tablet／Mobile 使用 accordion。
+- Workspace 與 Project Overview 不再生成兩套 Screen 或兩套卡片；統一使用 `Project Card` Component Set。
+- Project Add Member 必須建立 `Project Member Candidate`、`Project Role Option`、`Project Add Member Dialog` Component Sets；候選人需涵蓋 Available／Selected／Joined，Dialog 需涵蓋 Default／Loading／Empty／Error／Processing，且 `OWNER` 不得出現在可指派角色。

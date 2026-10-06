@@ -1,0 +1,12 @@
+{
+  "name": "Flowboard Native Design Generator",
+  "id": "1432025617565245116",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  }
+}

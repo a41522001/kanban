@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <filter id="dialog-shadow" x="-15%" y="-12%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#111827" flood-opacity=".24"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}
+      .spec{font-size:14px;font-weight:700;letter-spacing:.1em;fill:#697287}
+      .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;fill:#697287}
+      .title{font-size:24px;font-weight:700}
+      .section{font-size:14px;font-weight:700}
+      .body{font-size:14px}
+      .small{font-size:12px;fill:#697287}
+      .tiny{font-size:11px;fill:#697287}
+      .button{font-size:14px;font-weight:700;fill:#FFF9F4}
+      .button-secondary{font-size:14px;font-weight:700;fill:#29324A}
+      .chip{font-size:12px;font-weight:700}
+    </style>
+    <g id="close-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m5 5 14 14M19 5 5 19"/></g>
+    <g id="chevron-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 10 5 5 5-5"/></g>
+    <g id="check-icon" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4 8-9"/></g>
+    <g id="plus-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></g>
+  </defs>
+
+  <!-- Flowboard / Create card / desktop. All spacings are multiples of 4px. -->
+  <rect width="1440" height="900" fill="#E9ECF1"/>
+  <text x="48" y="44" class="spec">DESKTOP / CREATE CARD DIALOG / 1440 × 900</text>
+
+  <!-- Board context stays visible, but is deliberately subordinate to the task. -->
+  <g id="board-context" transform="translate(48 76)">
+    <rect width="1344" height="776" rx="20" fill="#E9ECF1"/>
+    <path d="M0 20Q0 0 20 0h1304q20 0 20 20v56H0z" fill="#29324A"/>
+    <text x="32" y="36" fill="#F7F8FA" font-size="20" font-weight="700">Flowboard</text>
+    <text x="32" y="112" class="small">Jeffery 的工作區　/　Flowboard 即時協作　/　主要看板</text>
+    <text x="32" y="148" class="title">產品開發看板</text>
+    <g transform="translate(32 188)">
+      <g>
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#DF6E51"/>
+        <text x="32" y="36" class="section">準備開始</text><text x="224" y="36" class="small">03</text>
+        <rect x="12" y="64" width="256" height="104" rx="10" fill="#FFF"/>
+        <rect x="28" y="80" width="48" height="20" rx="10" fill="#FCE5DF"/>
+        <text x="52" y="94" text-anchor="middle" class="tiny" fill="#9F3F2C">企劃</text>
+        <text x="28" y="124" class="body" font-weight="700">規劃工作區首頁資訊架構</text>
+        <text x="28" y="148" class="small">UX · Frontend</text>
+        <rect x="12" y="184" width="256" height="96" rx="10" fill="#FFF"/>
+        <text x="28" y="224" class="body" font-weight="700">建立新增看板 API</text>
+        <text x="28" y="248" class="small">Board · Backend</text>
+        <text x="20" y="316" class="body" fill="#697287">＋ 新增卡片</text>
+      </g>
+      <g transform="translate(296 0)">
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#A9D2C8"/>
+        <text x="32" y="36" class="section">正在進行</text>
+        <rect x="12" y="64" width="256" height="104" rx="10" fill="#FFF"/>
+        <text x="28" y="108" class="body" font-weight="700">建立使用者註冊 API</text>
+        <text x="28" y="132" class="small">Auth · Backend</text>
+      </g>
+      <g transform="translate(592 0)">
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#E6B960"/>
+        <text x="32" y="36" class="section">等待檢視</text>
+      </g>
+      <g transform="translate(888 0)">
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#907ECE"/>
+        <text x="32" y="36" class="section">已完成</text>
+      </g>
+    </g>
+  </g>
+  <rect width="1440" height="900" fill="#29324A" opacity=".62"/>
+
+  <g id="create-card-dialog" filter="url(#dialog-shadow)">
+    <rect x="420" y="56" width="600" height="788" rx="16" fill="#FFFFFF"/>
+
+    <g id="dialog-header" transform="translate(452 88)">
+      <text class="eyebrow">卡片</text>
+      <text y="32" class="title">新增卡片</text>
+      <g transform="translate(512 -8)" color="#697287">
+        <rect width="44" height="44" rx="10" fill="#F7F8FA"/>
+        <use href="#close-icon" transform="translate(10 10)"/>
+      </g>
+    </g>
+    <line x1="420" y1="144" x2="1020" y2="144" stroke="#D7DCE5"/>
+
+    <!-- The insertion rail makes destination explicit before any form entry. -->
+    <g id="target-column" transform="translate(452 164)">
+      <rect width="536" height="52" rx="10" fill="#F7F8FA" stroke="#D7DCE5"/>
+      <rect width="4" height="32" x="12" y="10" rx="2" fill="#DF6E51"/>
+      <text x="32" y="23" class="small">新增至</text>
+      <text x="32" y="42" class="section">準備開始</text>
+      <text x="508" y="32" text-anchor="end" class="small">目前 3 張卡片</text>
+    </g>
+
+    <g id="card-title-field" transform="translate(452 240)">
+      <text class="section">卡片標題</text><text x="70" class="section" fill="#C4573E">＊</text>
+      <rect y="16" width="536" height="52" rx="10" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/>
+      <text x="16" y="49" class="body">建立使用者註冊 API</text>
+      <text y="88" class="tiny">請用一句可執行、方便團隊理解的工作名稱。</text>
+    </g>
+
+    <g id="category-field" transform="translate(452 344)">
+      <text class="section">類別</text><text x="42" class="small">選填</text>
+      <rect y="16" width="536" height="52" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+      <rect x="16" y="30" width="40" height="24" rx="12" fill="#E3F1EC"/>
+      <text x="36" y="46" text-anchor="middle" class="chip" fill="#31665D">後端</text>
+      <text x="72" y="49" class="body">後端</text>
+      <g transform="translate(500 34)" color="#697287"><use href="#chevron-icon"/></g>
+    </g>
+
+    <g id="color-picker" transform="translate(452 432)">
+      <text class="section">類別色彩</text>
+      <text x="84" class="small">選一種色票，文字色會自動配對</text>
+      <!-- 14 preset color keys. The selected mint key has a visible check and outer ring. -->
+      <g transform="translate(0 16)">
+        <g><rect width="44" height="44" rx="10" fill="#FCE5DF"/><circle cx="22" cy="22" r="13" fill="#9F3F2C"/></g>
+        <g transform="translate(52 0)"><rect width="44" height="44" rx="10" fill="#FDE7EE"/><circle cx="22" cy="22" r="13" fill="#92324E"/></g>
+        <g transform="translate(104 0)"><rect width="44" height="44" rx="10" fill="#FFEAD6"/><circle cx="22" cy="22" r="13" fill="#934510"/></g>
+        <g transform="translate(156 0)"><rect width="44" height="44" rx="10" fill="#FFF1D8"/><circle cx="22" cy="22" r="13" fill="#7A4D00"/></g>
+        <g transform="translate(208 0)"><rect width="44" height="44" rx="10" fill="#EDF7DB"/><circle cx="22" cy="22" r="13" fill="#496D17"/></g>
+        <g transform="translate(260 0)"><rect width="44" height="44" rx="10" fill="#FFFFFF" stroke="#29324A" stroke-width="2"/><circle cx="22" cy="22" r="13" fill="#E3F1EC" stroke="#31665D" stroke-width="2"/><g transform="translate(12 12)" color="#31665D"><use href="#check-icon"/></g></g>
+        <g transform="translate(312 0)"><rect width="44" height="44" rx="10" fill="#DEF3F1"/><circle cx="22" cy="22" r="13" fill="#1F6868"/></g>
+        <g transform="translate(364 0)"><rect width="44" height="44" rx="10" fill="#E0F3F9"/><circle cx="22" cy="22" r="13" fill="#216A85"/></g>
+        <g transform="translate(416 0)"><rect width="44" height="44" rx="10" fill="#E4EEFB"/><circle cx="22" cy="22" r="13" fill="#315B8F"/></g>
+        <g transform="translate(468 0)"><rect width="44" height="44" rx="10" fill="#E9EAFF"/><circle cx="22" cy="22" r="13" fill="#45488E"/></g>
+        <g transform="translate(0 52)"><rect width="44" height="44" rx="10" fill="#E9E6F7"/><circle cx="22" cy="22" r="13" fill="#55438F"/></g>
+        <g transform="translate(52 52)"><rect width="44" height="44" rx="10" fill="#F1E6FA"/><circle cx="22" cy="22" r="13" fill="#633C95"/></g>
+        <g transform="translate(104 52)"><rect width="44" height="44" rx="10" fill="#FBE6F1"/><circle cx="22" cy="22" r="13" fill="#923565"/></g>
+        <g transform="translate(156 52)"><rect width="44" height="44" rx="10" fill="#E8EBF0"/><circle cx="22" cy="22" r="13" fill="#465066"/></g>
+      </g>
+    </g>
+
+    <g id="labels-field" transform="translate(452 560)">
+      <text class="section">標籤</text><text x="42" class="small">選填</text>
+      <rect y="16" width="536" height="52" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+      <rect x="12" y="28" width="48" height="28" rx="14" fill="#EEF0F4"/><text x="36" y="47" text-anchor="middle" class="chip">Auth</text>
+      <rect x="68" y="28" width="68" height="28" rx="14" fill="#EEF0F4"/><text x="102" y="47" text-anchor="middle" class="chip">Backend</text>
+      <text x="152" y="48" class="small">輸入後按 Enter 新增</text>
+    </g>
+
+    <line x1="420" y1="660" x2="1020" y2="660" stroke="#D7DCE5"/>
+    <g id="dialog-footer" transform="translate(452 684)">
+      <text y="16" class="tiny">建立後可再補充內容與負責人。</text>
+      <g transform="translate(320 0)">
+        <rect width="96" height="48" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+        <text x="48" y="30" text-anchor="middle" class="button-secondary">取消</text>
+      </g>
+      <g transform="translate(428 0)">
+        <rect width="108" height="48" rx="10" fill="#B94B36"/>
+        <g transform="translate(18 16)" color="#FFF9F4"><use href="#plus-icon"/></g>
+        <text x="70" y="30" text-anchor="middle" class="button">建立</text>
+      </g>
+    </g>
+  </g>
+</svg>

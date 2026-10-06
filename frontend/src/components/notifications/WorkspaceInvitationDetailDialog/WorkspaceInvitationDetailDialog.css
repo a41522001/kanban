@@ -1,0 +1,118 @@
+@reference '../../../styles/index.css';
+
+.workspace-invitation-detail-dialog {
+  @apply relative flex w-[calc(100%-2rem)] max-w-[520px] flex-col gap-0 overflow-hidden rounded-surface border-border bg-surface p-6 shadow-[0_16px_16px_rgba(41,50,74,0.2)];
+}
+
+.workspace-invitation-detail-dialog__accent {
+  @apply absolute inset-x-[-1px] top-[-1px] h-1.5 bg-action-primary;
+}
+
+.workspace-invitation-detail-dialog__header {
+  @apply flex h-12 w-full items-center justify-between gap-3;
+}
+
+.workspace-invitation-detail-dialog__identity {
+  @apply flex min-w-0 items-center gap-3;
+}
+
+.workspace-invitation-detail-dialog__avatar {
+  @apply grid size-10 shrink-0 place-items-center rounded-full bg-action-primary-soft text-sm font-bold text-category-coral;
+}
+
+.workspace-invitation-detail-dialog__avatar--accepted {
+  @apply bg-flow-active text-category-mint;
+}
+.workspace-invitation-detail-dialog__avatar--declined {
+  @apply bg-surface-subtle text-content-secondary;
+}
+.workspace-invitation-detail-dialog__avatar--unavailable,
+.workspace-invitation-detail-dialog__avatar--error {
+  @apply bg-flow-review-soft text-flow-review;
+}
+
+.workspace-invitation-detail-dialog__heading {
+  @apply min-w-0;
+}
+.workspace-invitation-detail-dialog__heading :deep([data-slot='dialog-title']) {
+  @apply text-left text-lg leading-7 font-bold text-content-primary;
+}
+.workspace-invitation-detail-dialog__heading :deep([data-slot='dialog-description']) {
+  @apply text-left text-xs leading-[18px] text-content-secondary;
+}
+
+.workspace-invitation-detail-dialog__close {
+  @apply grid size-8 shrink-0 place-items-center rounded-control text-content-secondary transition-colors hover:bg-surface-subtle hover:text-content-primary focus-visible:ring-3 focus-visible:ring-action-primary/20 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50;
+}
+
+.workspace-invitation-detail-dialog__card {
+  @apply mt-6 flex min-h-[188px] w-full flex-col gap-2 rounded-surface p-[18px];
+}
+.workspace-invitation-detail-dialog__card--loading,
+.workspace-invitation-detail-dialog__card--pending,
+.workspace-invitation-detail-dialog__card--responding {
+  @apply bg-action-primary-soft;
+}
+.workspace-invitation-detail-dialog__card--accepted {
+  @apply bg-flow-active-soft;
+}
+.workspace-invitation-detail-dialog__card--declined {
+  @apply bg-surface-subtle;
+}
+.workspace-invitation-detail-dialog__card--unavailable,
+.workspace-invitation-detail-dialog__card--error {
+  @apply bg-flow-review-soft;
+}
+
+.workspace-invitation-detail-dialog__card-label {
+  @apply text-xs leading-[18px] text-content-secondary;
+}
+.workspace-invitation-detail-dialog__workspace-name {
+  @apply text-lg leading-7 font-bold text-content-primary;
+}
+.workspace-invitation-detail-dialog__body {
+  @apply max-w-[436px] text-xs leading-[18px] text-content-secondary;
+}
+.workspace-invitation-detail-dialog__meta {
+  @apply mt-auto text-xs leading-[18px] text-content-tertiary;
+}
+.workspace-invitation-detail-dialog__skeleton {
+  @apply bg-border;
+}
+.workspace-invitation-detail-dialog__skeleton--title {
+  @apply h-[18px] w-[75%];
+}
+.workspace-invitation-detail-dialog__skeleton--line {
+  @apply h-3 w-[65%];
+}
+.workspace-invitation-detail-dialog__skeleton--line-short {
+  @apply h-3 w-[45%];
+}
+
+.workspace-invitation-detail-dialog__divider {
+  @apply mt-6 h-px w-full bg-border;
+}
+.workspace-invitation-detail-dialog__actions {
+  @apply mt-4 flex w-full gap-3;
+}
+.workspace-invitation-detail-dialog__actions > * {
+  @apply flex-1;
+}
+.workspace-invitation-detail-dialog__done {
+  @apply w-full;
+}
+
+@media (max-width: 640px) {
+  .workspace-invitation-detail-dialog {
+    @apply max-w-[358px] p-6;
+  }
+  .workspace-invitation-detail-dialog__card {
+    @apply min-h-[210px];
+  }
+  .workspace-invitation-detail-dialog__actions {
+    @apply flex-col;
+  }
+  .workspace-invitation-detail-dialog__actions > * {
+    @apply w-full flex-none;
+  }
+}

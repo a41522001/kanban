@@ -1,63 +1,72 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { LoggerModule } from 'nestjs-pino';
+import cookieParser from 'cookie-parser';
 import { envSchema } from './config/env';
+import { loggerFactory } from './config/logger.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { SessionModule } from './session/session.module';
 import { SocketModule } from './socket/socket.module';
 import { AuthModule } from './auth/auth.module';
-import { LoggerModule } from 'nestjs-pino';
-import type { Env } from './config/env';
+import { WorkspacesModule } from './workspaces/workspaces.module';
+import { UserModule } from './user/user.module';
+import { NotificationModule } from './notification/notification.module';
+import { HttpExceptionFilter } from './common/filters/httpException.filter';
+import { createValidationPipe } from './common/pipes/validation.pipe';
+import { WrapResponseInterceptor } from './common/interceptors/wrapResponse.interceptor';
+import { WorkspaceInvitationModule } from './workspaceInvitation/workspaceInvitation.module';
+import { ProjectModule } from './project/project.module';
+import { BoardModule } from './board/board.module';
+import { QueueModule } from './queue/queue.module';
+import { EmailModule } from './email/email.module';
+
+const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath,
       validate: (config) => envSchema.parse(config),
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<Env>) => {
-        const isProduction =
-          configService.getOrThrow('NODE_ENV', { infer: true }) ===
-          'production';
-        return {
-          pinoHttp: {
-            level: isProduction ? 'info' : 'debug',
-
-            // 本機開發時轉成好閱讀的文字；production 保持 JSON。
-            transport: isProduction
-              ? undefined
-              : {
-                  target: 'pino-pretty',
-                  options: {
-                    colorize: true,
-                    singleLine: true,
-                    translateTime: 'SYS:standard',
-                    ignore: 'pid,hostname',
-                  },
-                },
-
-            // auth 專案一開始就要避免敏感資料出現在 log。
-            redact: {
-              paths: [
-                'req.headers.cookie',
-                'req.headers.authorization',
-                'req.body.password',
-                "res.headers['set-cookie']",
-              ],
-              censor: '[REDACTED]',
-            },
-          },
-        };
-      },
+      useFactory: loggerFactory,
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     SessionModule,
     SocketModule,
     AuthModule,
+    WorkspacesModule,
+    UserModule,
+    NotificationModule,
+    WorkspaceInvitationModule,
+    ProjectModule,
+    BoardModule,
+    QueueModule,
+    EmailModule,
   ],
-  controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_PIPE,
+      useFactory: createValidationPipe,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: WrapResponseInterceptor,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(cookieParser()).forRoutes('{*splat}');
+  }
+}

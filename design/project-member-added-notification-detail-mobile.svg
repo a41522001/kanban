@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <defs>
+    <filter id="dialog-shadow" x="-25%" y="-25%" width="150%" height="170%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#182033" flood-opacity=".28"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:10px;fill:#8B95A8}.label{font-size:11px;font-weight:700;letter-spacing:.04em;fill:#697287}.inverse{fill:#F7F8FA}.medium{font-weight:700}.mint{fill:#31665D}.lavender{fill:#55438F}
+    </style>
+    <g id="mark"><rect width="16" height="24" rx="4" fill="#DF6E51"/><rect x="22" y="8" width="16" height="16" rx="4" fill="#A9D2C8"/></g>
+    <g id="x" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></g>
+    <g id="check" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8 3.2 3.2L13 4.5"/></g>
+    <g id="arrow" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h12M9 3l5 5-5 5"/></g>
+    <g id="members" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="5" r="3"/><path d="M1.5 15c.7-3 2.5-4.5 5.5-4.5S11.8 12 12.5 15M13 3.5a3 3 0 0 1 0 5.7M14 11c2 .4 3.2 1.7 3.6 4"/></g>
+  </defs>
+
+  <rect width="390" height="844" rx="20" fill="#E9ECF1"/>
+  <path d="M0 20Q0 0 20 0h350q20 0 20 20v36H0z" fill="#29324A"/>
+  <g transform="translate(20 16)"><use href="#mark" transform="scale(.84)"/><text x="48" y="18" class="h2 inverse">Flowboard</text><circle cx="346" cy="12" r="16" fill="#A9D2C8"/><text x="346" y="17" text-anchor="middle" class="body medium">J</text></g>
+  <g transform="translate(24 84)"><text class="tiny">無限有限公司 / 專案中心</text><text y="42" class="title">Flowboard 即時協作</text><text y="66" class="small">進行中 · 5 位專案成員</text><rect y="98" width="342" height="180" rx="14" fill="#FFFFFF"/><rect width="6" height="180" y="98" rx="3" fill="#DF6E51"/><text x="24" y="136" class="label">最近活動</text><text x="24" y="176" class="body medium">Mina 新增了一位專案成員</text><text x="24" y="200" class="small">剛剛</text></g>
+
+  <rect width="390" height="844" rx="20" fill="#182033" opacity=".52"/>
+
+  <g id="project-member-added-dialog-mobile" transform="translate(16 96)" filter="url(#dialog-shadow)">
+    <rect width="358" height="648" rx="18" fill="#FFFFFF"/>
+    <rect width="358" height="6" rx="3" fill="#A9D2C8"/>
+
+    <circle cx="40" cy="48" r="21" fill="#E3F1EC"/>
+    <g transform="translate(30 38)" color="#31665D"><use href="#members"/></g>
+    <circle cx="54" cy="62" r="9" fill="#31665D" stroke="#FFFFFF" stroke-width="3"/>
+    <g transform="translate(47 55) scale(.9)" color="#FFFFFF"><use href="#check"/></g>
+    <text x="76" y="42" class="title">你已加入專案</text>
+    <text x="76" y="63" class="tiny">現在可以開始參與協作</text>
+    <rect x="306" y="22" width="36" height="36" rx="9" fill="#F7F8FA"/>
+    <g transform="translate(316 32)" color="#697287"><use href="#x"/></g>
+
+    <g transform="translate(16 94)">
+      <rect width="326" height="170" rx="14" fill="#F7FAF9" stroke="#C8E3DB"/>
+      <rect x="16" y="18" width="52" height="52" rx="13" fill="#DF6E51"/>
+      <text x="42" y="51" text-anchor="middle" class="h2 inverse">F</text>
+      <circle cx="65" cy="66" r="14" fill="#907ECE" stroke="#F7FAF9" stroke-width="4"/>
+      <text x="65" y="71" text-anchor="middle" class="tiny inverse medium">M</text>
+      <text x="88" y="31" class="small">Mina 已將你加入</text>
+      <text x="88" y="58" class="h2">Flowboard 即時協作</text>
+      <text x="88" y="80" class="tiny">無限有限公司</text>
+      <line x1="16" y1="102" x2="310" y2="102" stroke="#DDECE7"/>
+      <rect x="16" y="122" width="78" height="26" rx="13" fill="#E3F1EC"/>
+      <circle cx="31" cy="135" r="7" fill="#31665D"/>
+      <g transform="translate(25 129) scale(.75)" color="#FFFFFF"><use href="#check"/></g>
+      <text x="43" y="139" class="tiny mint medium">已加入</text>
+      <rect x="230" y="122" width="80" height="26" rx="13" fill="#E9E6F7"/>
+      <text x="270" y="139" text-anchor="middle" class="tiny lavender medium">EDITOR</text>
+    </g>
+
+    <g transform="translate(16 292)">
+      <text class="label">成員資訊</text>
+      <text y="34" class="small">工作區</text><text x="326" y="34" text-anchor="end" class="body medium">無限有限公司</text>
+      <line y1="52" x2="326" y2="52" stroke="#E9ECF1"/>
+      <text y="82" class="small">專案角色</text><text x="326" y="82" text-anchor="end" class="body medium">編輯者</text>
+      <line y1="100" x2="326" y2="100" stroke="#E9ECF1"/>
+      <text y="130" class="small">加入時間</text><text x="326" y="130" text-anchor="end" class="body medium">9 月 20 日 13:42</text>
+    </g>
+
+    <line x1="16" y1="446" x2="342" y2="446" stroke="#D7DCE5"/>
+    <rect x="16" y="466" width="326" height="48" rx="10" fill="#DF6E51"/>
+    <text x="172" y="496" text-anchor="middle" class="body inverse medium">前往專案</text>
+    <g transform="translate(274 482)" color="#F7F8FA"><use href="#arrow"/></g>
+    <rect x="16" y="526" width="326" height="48" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+    <text x="179" y="556" text-anchor="middle" class="body medium">關閉</text>
+    <text x="179" y="608" text-anchor="middle" class="tiny">稍後仍可從「無限有限公司」再次開啟</text>
+  </g>
+</svg>

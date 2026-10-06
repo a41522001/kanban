@@ -1,0 +1,136 @@
+# Security Checklist
+
+最後靜態核對：2026-09-20。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
+
+## 1. 使用方式
+
+這份文件是開發與上線前的安全檢查表。每個項目必須標記完成、接受風險或建立後續工作，不應只在部署當天快速掃過。
+
+## 2. Authentication 與 Session
+
+- [x] Password 只保存 bcrypt hash，不保存明文。
+- [ ] 限制並驗證 password 長度；注意 bcrypt 只處理前 72 bytes。
+- [ ] Login 與 signup 有 rate limit，並考慮 IP 與帳號兩個維度。
+- [x] Login 失敗統一回覆帳號或密碼錯誤，不洩漏帳號是否存在。
+- [x] 每次成功登入都產生新的高熵 Session ID，不接受 client 指定 ID。
+- [ ] Logout 原子撤銷 Current、Previous Grace 與 ZSET member，並清除 Cookie；目前只刪除請求攜帶的 Hash。
+- [x] Current Session 使用 Redis 絕對到期時間，輪轉後重新取得 7 天效期；普通請求不延長 TTL。
+- [ ] 若產品需要 idle timeout 或 family absolute lifetime，另行設計；目前兩者都沒有。
+- [x] Redis 不保存 Raw Session ID，只保存必要 identity／lifecycle 欄位與 SHA-256 Hash 索引。
+- [x] 每位使用者最多 5 個 Current Sessions；超額登入由原子 Lua 淘汰最早到期的裝置。
+- [x] 輪轉後舊 Session 僅保留 20 秒 Grace，且不能再次輪轉或更新 Cookie。
+- [ ] 變更密碼後可撤銷既有 Session。
+
+## 3. Cookie、CORS 與 CSRF
+
+- [x] Cookie 啟用 HttpOnly。
+- [x] Production Cookie 啟用 Secure。
+- [ ] SameSite 根據最終同站或跨站部署模式確認；程式目前 production 使用 `None`。
+- [ ] Cookie Path、Domain 與 Max-Age 使用最小必要範圍。
+- [ ] CORS origin 使用 allowlist，不以星號搭配 credentials。
+- [ ] 若使用跨站 Cookie，所有 mutation API 有 CSRF token 或等價防護。
+- [ ] HTTP 與 Socket.IO 使用一致的 Origin 與 credentials 策略。
+
+## 4. Validation 與輸入處理
+
+- [x] Global ValidationPipe 啟用 whitelist、transform、forbidNonWhitelisted。
+- [ ] DTO 對 email、password、UUID、字串長度與必要欄位有明確限制。
+- [ ] Nested DTO 使用 ValidateNested 與 Type。
+- [ ] 不直接把 request body 傳給 Prisma，避免 mass assignment。
+- [ ] 檔案、URL、富文字與 Markdown 等輸入另做類型專用驗證。
+- [x] Validation error 的 value 經過遮蔽，不回傳 password、token 等敏感值。
+- [ ] 對大型 payload 設定 body size limit。
+
+## 5. Authorization 與資源隔離
+
+- [x] 目前 protected HTTP controller 從 SessionGuard 取得 userId，不接受 body 內的 userId 作為身分。
+- [x] `GET /workspaces/:workspaceId/members` 已在 Service 檢查呼叫者 membership 與 archivedAt，無存取權回 404（2026-09-08 靜態核對）。
+- [x] 發送 Workspace 邀請已檢查未封存工作區的 OWNER 身分；通知讀取依 Session userId 隔離。
+- [x] 接受／拒絕邀請的條件式更新會綁定 Session userId、invitationId、PENDING status 與 expiresAt，非受邀者不會改變狀態。
+- [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
+- [x] `POST /project` 只允許有效且未封存的 WorkspaceMember 建立 Project，建立者身分由 Session 取得，Project 與 OWNER membership 同 transaction。
+- [x] `POST /project/addMember` 只允許未封存 Project 的 OWNER 操作；目標必須是同 Workspace 的有效成員，角色 DTO 只允許 EDITOR／VIEWER，重複 membership 由資料庫 unique constraint 保護。
+- [x] `PATCH /project/:projectId/pin` 不接受 client userId，只以 Session userId 與 projectId 更新呼叫者自己的 ProjectMember；Service 會拒絕不存在或已封存 Project／Workspace 的 membership。
+- [ ] 補 pin route 的未登入／非成員／封存狀態 HTTP E2E，並驗證使用者不能修改其他成員的 `pinnedAt`。
+- [x] 公開 HTTP／Socket contract 不回傳內部 `User.id`／`userId`；Project member candidate 只公開 `workspaceMemberId`，Service 再明確投影 public DTO 欄位。
+- [ ] 補 Project create／addMember／pin 的未登入、非 OWNER 或非成員、跨 Workspace、他人通知存取、transaction rollback 與真實 P2002 併行 E2E；目前 Service／Controller unit tests 與第一版 happy-path／重複加入 409 E2E 已通過。
+- [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
+- [ ] 查詢 Board snapshot、Column、Card 時透過 `Project → ProjectMember` 驗證權限，並驗證 Column／Card 的 Project scope，避免 BOLA/IDOR。
+- [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
+- [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
+- [ ] 修改、刪除與邀請成員等敏感操作有 audit log。
+- [ ] 被移除的 ProjectMember 必須離開 `project:{projectId}` room，既有 Socket 不能繼續修改資料。
+
+## 6. API 與錯誤處理
+
+- [x] Global HTTP filter 對未知 exception 回 generic 500，不回 stack 或內部細節。
+- [ ] 錯誤有穩定 code，message 可調整但不作為前端邏輯依據。
+- [ ] 401、403、404 的使用策略一致，避免洩漏不該知道的資源存在性。
+- [x] Global Exception Filter 由 `APP_FILTER` 註冊，能處理未知 exception 並回一致格式。
+- [ ] 每個 request 有 requestId，可與 log 對照。
+- [ ] Security headers 由 Helmet 或 reverse proxy 統一設定。
+
+## 7. Socket.IO
+
+- [x] Handshake 由 middleware 驗證 Cookie 與 Redis Session，並把 userId 寫入 `socket.data`。
+- [x] 現有 echo／notification flow 不接受 payload 中的 userId、role 或 resource owner；user room 由 server 組成。
+- [ ] Handshake 必須避免觸發無法回寫 Cookie 的 Session rotation；現行 middleware 直接呼叫 `authenticateSession()` 並忽略 `rotatedSessionId`。
+- [x] Workspace room join 會由 server 依 `socket.data.userId` 驗證 WorkspaceMember 與 archivedAt；client 只能提出 Workspace ID，不能指定 user room。
+- [ ] 每個 mutation event 都重新做 resource authorization；目前 Board／Project Socket commands 尚未實作。
+- [ ] Event payload 有 validation 與大小限制。
+- [ ] Event 有 rate limit 或基本節流策略。
+- [ ] Ack 不暴露內部 exception。
+- [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；接受邀請建立 WorkspaceMember 後的 `workspace:memberChanged` 也在 transaction commit 後 emit。未來 Board／Project commands 仍需各自驗證此規則。
+- [ ] Socket reconnect 後重新加入 Workspace room；目前 room subscription 只在 Workspace View 初次選取／切換時 emit。
+- [ ] Workspace member 被移除後，既有 Socket 必須被強制移出 Workspace room。
+
+## 8. Database 與 Redis
+
+- [ ] Production DB 與 Redis 不直接暴露到公網。
+- [ ] App 使用最小權限的 DB 帳號，不使用 PostgreSQL superuser。
+- [ ] Production migration 使用受控 release step。
+- [ ] Backup 加密並定期做 restore drill。
+- [ ] Redis 啟用密碼或私有網路，並限制可用指令與存取來源。
+- [ ] Foreign key、unique constraint 與 transaction 保護資料完整性。
+- [ ] 敏感資料的 retention 與刪除政策有文件。
+
+## 9. Secrets 與設定
+
+- [ ] .env 已加入 .gitignore，repository 只提交 .env.example。
+- [ ] CI/CD secrets 不寫入 image layer、artifact 或 log。
+- [ ] Production secrets 與 development secrets 完全分離。
+- [ ] Secret rotation 有操作流程，不依賴修改原始碼。
+- [x] 啟動時以 Zod 驗證必要環境變數，缺少時 fail fast。
+- [x] Session 是高熵 opaque ID + server-side Redis record，不使用簽章用 Session secret；此架構不需要配置 Session secret。
+
+## 10. Logging 與個資
+
+- [ ] 不記錄 password、passwordHash、Cookie、Session ID、Authorization header。
+- [ ] Email 等識別資料只在必要情境記錄，並考慮遮蔽或 hash。
+- [ ] Structured log 有 level、timestamp、requestId、event、duration。
+- [ ] Log retention、讀取權限與刪除週期明確。
+- [ ] Authentication、authorization 與管理操作有安全事件 log。
+- [ ] Log injection 字元與過長輸入受到限制。
+
+## 11. Dependency、Container 與主機
+
+- [ ] pnpm lockfile 提交版本控制，CI 使用 frozen lockfile。
+- [ ] 定期執行 dependency audit 並處理高風險漏洞。
+- [ ] Docker image 使用固定版本，不依賴 floating latest。
+- [ ] Container 以 non-root user 執行。
+- [ ] Image 不包含 .env、測試資料或 development dependencies。
+- [ ] 只暴露 Nginx 對外 port，Backend、PostgreSQL、Redis 位於內部 network。
+- [ ] VPS 啟用防火牆、SSH key、停用密碼登入並定期更新。
+- [ ] TLS 憑證自動續期並監控失敗。
+
+## 12. 上線前阻擋條件
+
+以下任一項未完成時，不應公開上線：
+
+- Production secrets 仍使用範例值或已提交 Git。
+- Login 沒有 rate limit。
+- Cookie、CORS、CSRF 策略未確定。
+- Board/Card 存取沒有 server-side authorization。
+- Database 或 Redis 直接暴露公網。
+- 無可驗證的 PostgreSQL backup 與 restore 流程。
+- Exception response 可能洩漏 stack trace 或資料庫細節。

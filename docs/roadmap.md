@@ -10,7 +10,7 @@
 Vue 3 browser WebSocket
 → Express + ws
 → Socket.IO
-→ JWT、room、ack、冪等與 Kanban 狀態同步
+→ Redis Session Cookie、room、ack、冪等與 Kanban 狀態同步
 ```
 
 每週約投入 5 小時，不設定完成期限。
@@ -36,25 +36,27 @@ Vue 3 browser WebSocket
 4. Presence / online count。
 5. Application-level heartbeat。
 6. Basic reconnect。
+7. Runtime validation。
+8. Heartbeat timeout。
 
 ### Native 收尾
 
-7. Runtime validation。
-8. Heartbeat timeout。
 9. Exponential backoff、jitter、max retries。
 10. Backpressure 概念與小實驗。
 
-完成第 10 章後停止擴張 Native Lab，進入 Socket.IO。
+專案已先進入 Socket.IO／Flowboard 主線；Native 第 9、10 章保留為獨立收尾，不再阻塞 Kanban vertical slices。
 
 ## Phase 2：Socket.IO 協作 Kanban
+
+目前進度（2026-09-21）：步驟 1、2 已完成第一版，Workspace room 與 Project create／list／members／addMember／notification detail／pin 已串接。Project 頁使用 `ProjectView` 與 `/projects/:projectId`。Project 已確立為 Board aggregate root，不建立 Board table；Project `version`／`boardRevision`、BoardColumn schema／migration、shared colorKey whitelist 與建立時的四個預設 Columns 已完成。13 個 migrations 的隔離 E2E、Project／BoardColumn scoped tests 與 Frontend type-check 已通過；預設四欄直接 assertion 與 pin HTTP E2E 尚待補。下一個 domain 可交付點是 BoardColumn commands 與拖曳排序，再進入 Card schema、Socket command、ack、idempotency 與 concurrency。
 
 題材：多人協作 Kanban。
 
 核心順序：
 
 1. 用 Socket.IO 重建最小連線與 typed events。
-2. JWT access token handshake authentication。
-3. Board room 與 server-side authorization。
+2. HttpOnly Session Cookie handshake authentication；HTTP 與 Socket.IO 共用 Redis Session。
+3. Project Board room `project:{projectId}` 與 server-side authorization。
 4. Card create / move / edit 的 acknowledgement。
 5. Timeout、retry、command ID 與 idempotency。
 6. PostgreSQL transaction 與 optimistic concurrency。

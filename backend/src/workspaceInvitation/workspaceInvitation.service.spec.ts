@@ -1,0 +1,1050 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { WorkspaceInvitationService } from './workspaceInvitation.service';
+import { WorkspacesService } from '@/workspaces/workspaces.service';
+import { UserService } from '@/user/user.service';
+import { NotificationService } from '@/notification/notification.service';
+import { PrismaService } from '@/prisma/prisma.service';
+import { WorkspaceInvitationRepository } from './workspaceInvitation.repository';
+import { FindMembershipResponse } from '@/workspaces/workspaces.type';
+import type {
+  Prisma,
+  User,
+  Workspace,
+  WorkspaceInvitation,
+} from '@/generated/prisma/client';
+import { DateTime } from 'luxon';
+import { SocketService } from '@/socket/socket.service';
+
+describe('WorkspaceInvitationService', () => {
+  let workspaceInvitationService: WorkspaceInvitationService;
+  let workspacesService: WorkspacesService;
+  let userService: UserService;
+  let notificationService: NotificationService;
+  let workspaceInvitationRepository: WorkspaceInvitationRepository;
+  let prismaService: PrismaService;
+  let socketService: SocketService;
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        WorkspaceInvitationService,
+        {
+          provide: WorkspacesService,
+          useValue: {
+            findMembership: jest.fn(),
+            getById: jest.fn(),
+            joinMember: jest.fn(),
+          },
+        },
+        {
+          provide: UserService,
+          useValue: {
+            getByEmail: jest.fn(),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: {
+            createNotification: jest.fn(),
+            toPublicNotification: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn(),
+          },
+        },
+        {
+          provide: WorkspaceInvitationRepository,
+          useValue: {
+            getById: jest.fn(),
+            markDeclined: jest.fn(),
+            expirePendingInvitations: jest.fn(),
+          },
+        },
+        {
+          provide: SocketService,
+          useValue: {
+            emitNotificationCreated: jest.fn(),
+            emitWorkspaceMemberChanged: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    workspaceInvitationService = module.get<WorkspaceInvitationService>(
+      WorkspaceInvitationService,
+    );
+    workspacesService = module.get<WorkspacesService>(WorkspacesService);
+    userService = module.get<UserService>(UserService);
+    notificationService = module.get<NotificationService>(NotificationService);
+    workspaceInvitationRepository = module.get<WorkspaceInvitationRepository>(
+      WorkspaceInvitationRepository,
+    );
+    prismaService = module.get<PrismaService>(PrismaService);
+    socketService = module.get<SocketService>(SocketService);
+  });
+
+  it('should be defined', () => {
+    expect(workspaceInvitationService).toBeDefined();
+    expect(workspacesService).toBeDefined();
+    expect(userService).toBeDefined();
+    expect(notificationService).toBeDefined();
+    expect(workspaceInvitationRepository).toBeDefined();
+  });
+
+  /** 取得工作區所有成員的邀請*/
+  describe('getMemberInvitationByWorkspace', () => {});
+
+  /** 尋找Status為 PENDING的資料 by workspaceId & invitee */
+  describe('findPendingByWorkspaceAndInvitee', () => {});
+
+  /** 標記邀請為過期(全部) */
+  describe('expirePendingInvitations', () => {
+    it('更改成功2筆', async () => {
+      const expirePendingInvitationsSpy = jest
+        .spyOn(workspaceInvitationRepository, 'expirePendingInvitations')
+        .mockResolvedValueOnce({ count: 2 });
+      const now = new Date('2026-09-09T00:00:00.000Z');
+      const result =
+        await workspaceInvitationService.expirePendingInvitations(now);
+      expect(result).toEqual(2);
+      expect(expirePendingInvitationsSpy).toHaveBeenCalledTimes(1);
+      expect(expirePendingInvitationsSpy).toHaveBeenCalledWith(now);
+    });
+  });
+
+  /** 接受邀請並加入成員 */
+  describe('acceptedInvitationAndCreateMember', () => {
+    const userId = 'userId';
+    const invitationId = 'invitationId';
+    const inviteeUserId = 'inviteeUserId';
+    const inviterUserId = 'inviterUserId';
+    const workspaceId = 'workspaceId';
+    const now = new Date('2026-09-09T00:00:00.000Z');
+    const expireAt = DateTime.fromJSDate(now).plus({ days: 7 }).toJSDate();
+    let invitation: WorkspaceInvitation | null;
+    let workspace: Workspace | null;
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+      invitation = {
+        id: invitationId,
+        workspaceId,
+        inviteeUserId,
+        inviterUserId,
+        role: 'MEMBER',
+        status: 'PENDING',
+        expiresAt: expireAt,
+        respondedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      workspace = {
+        id: workspaceId,
+        name: '測試工作區',
+        createdAt: now,
+        updatedAt: now,
+        createdById: 'testId',
+        archivedAt: null,
+      };
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('找不到此邀請', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(null);
+      await expect(
+        workspaceInvitationService.acceptedInvitationAndCreateMember(
+          userId,
+          invitationId,
+        ),
+      ).rejects.toThrow('找不到此邀請');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+    });
+
+    it('此使用者已是工作區成員', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce({
+          memberId: '1',
+          memberName: '1',
+          role: 'MEMBER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        });
+      await expect(
+        workspaceInvitationService.acceptedInvitationAndCreateMember(
+          userId,
+          invitationId,
+        ),
+      ).rejects.toThrow('此使用者已是工作區成員');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+    });
+
+    it('此工作區已被封存', async () => {
+      workspace!.archivedAt = now;
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const getByIdWorkspaceServiceSpy = jest
+        .spyOn(workspacesService, 'getById')
+        .mockResolvedValueOnce(workspace);
+      await expect(
+        workspaceInvitationService.acceptedInvitationAndCreateMember(
+          userId,
+          invitationId,
+        ),
+      ).rejects.toThrow('此工作區已被封存');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(getByIdWorkspaceServiceSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdWorkspaceServiceSpy).toHaveBeenCalledWith(workspaceId);
+    });
+
+    it('邀請已失效或狀態已變更', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const getByIdWorkspaceServiceSpy = jest
+        .spyOn(workspacesService, 'getById')
+        .mockResolvedValueOnce(workspace);
+      const markAcceptedSpy = jest
+        .spyOn(workspaceInvitationService, 'markAccepted')
+        .mockResolvedValueOnce(0);
+      const tx = {} as Prisma.TransactionClient;
+      const transactionSpy = jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          if (typeof callback !== 'function') {
+            throw new Error('預期使用 interactive transaction');
+          }
+
+          return callback(tx);
+        });
+
+      await expect(
+        workspaceInvitationService.acceptedInvitationAndCreateMember(
+          userId,
+          invitationId,
+        ),
+      ).rejects.toThrow('邀請已失效或狀態已變更');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(getByIdWorkspaceServiceSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdWorkspaceServiceSpy).toHaveBeenCalledWith(workspaceId);
+      expect(markAcceptedSpy).toHaveBeenCalledTimes(1);
+      expect(markAcceptedSpy).toHaveBeenCalledWith(
+        invitationId,
+        userId,
+        now,
+        tx,
+      );
+      expect(transactionSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('成功接受邀請', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const getByIdWorkspaceServiceSpy = jest
+        .spyOn(workspacesService, 'getById')
+        .mockResolvedValueOnce(workspace);
+      const markAcceptedSpy = jest
+        .spyOn(workspaceInvitationService, 'markAccepted')
+        .mockResolvedValueOnce(1);
+      const tx = {} as Prisma.TransactionClient;
+      const transactionSpy = jest
+        .spyOn(prismaService, '$transaction')
+        .mockImplementation(async (callback) => {
+          if (typeof callback !== 'function') {
+            throw new Error('預期使用 interactive transaction');
+          }
+
+          return callback(tx);
+        });
+
+      const joinMemberSpy = jest.spyOn(workspacesService, 'joinMember');
+      const emitWorkspaceMemberChangedSpy = jest.spyOn(
+        socketService,
+        'emitWorkspaceMemberChanged',
+      );
+      await workspaceInvitationService.acceptedInvitationAndCreateMember(
+        userId,
+        invitationId,
+      );
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(getByIdWorkspaceServiceSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdWorkspaceServiceSpy).toHaveBeenCalledWith(workspaceId);
+      expect(markAcceptedSpy).toHaveBeenCalledTimes(1);
+      expect(markAcceptedSpy).toHaveBeenCalledWith(
+        invitationId,
+        userId,
+        now,
+        tx,
+      );
+      expect(transactionSpy).toHaveBeenCalledTimes(1);
+      expect(joinMemberSpy).toHaveBeenCalledTimes(1);
+      expect(joinMemberSpy).toHaveBeenCalledWith(userId, workspaceId, tx);
+      expect(emitWorkspaceMemberChangedSpy).toHaveBeenCalledTimes(1);
+      expect(emitWorkspaceMemberChangedSpy).toHaveBeenCalledWith(workspaceId);
+    });
+  });
+
+  /** 拒絕邀請 */
+  describe('declineInvitation', () => {
+    const userId = 'userId';
+    const invitationId = 'invitationId';
+    const inviteeUserId = 'inviteeUserId';
+    const inviterUserId = 'inviterUserId';
+    const workspaceId = 'workspaceId';
+    const now = new Date('2026-09-09T00:00:00.000Z');
+    const expireAt = DateTime.fromJSDate(now).plus({ days: 7 }).toJSDate();
+    let invitation: WorkspaceInvitation | null;
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+      invitation = {
+        id: invitationId,
+        workspaceId,
+        inviteeUserId,
+        inviterUserId,
+        role: 'MEMBER',
+        status: 'PENDING',
+        expiresAt: expireAt,
+        respondedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('找不到此邀請', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(null);
+      await expect(
+        workspaceInvitationService.declineInvitation(userId, invitationId),
+      ).rejects.toThrow('找不到此邀請');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+    });
+
+    it('此使用者已是工作區成員', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce({
+          memberId: '1',
+          memberName: '1',
+          role: 'MEMBER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        });
+      await expect(
+        workspaceInvitationService.declineInvitation(userId, invitationId),
+      ).rejects.toThrow('此使用者已是工作區成員');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+    });
+
+    it('邀請已失效或狀態已變更', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const markDeclinedSpy = jest
+        .spyOn(workspaceInvitationService, 'markDeclined')
+        .mockResolvedValueOnce(0);
+
+      await expect(
+        workspaceInvitationService.declineInvitation(userId, invitationId),
+      ).rejects.toThrow('邀請已失效或狀態已變更');
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(markDeclinedSpy).toHaveBeenCalledTimes(1);
+      expect(markDeclinedSpy).toHaveBeenCalledWith(invitationId, userId, now);
+    });
+
+    it('成功拒絕邀請', async () => {
+      const getByIdSpy = jest
+        .spyOn(workspaceInvitationRepository, 'getById')
+        .mockResolvedValueOnce(invitation);
+      const findMembershipSpy = jest
+        .spyOn(workspacesService, 'findMembership')
+        .mockResolvedValueOnce(null);
+      const markDeclinedSpy = jest
+        .spyOn(workspaceInvitationService, 'markDeclined')
+        .mockResolvedValueOnce(1);
+      await workspaceInvitationService.declineInvitation(userId, invitationId);
+      expect(getByIdSpy).toHaveBeenCalledTimes(1);
+      expect(getByIdSpy).toHaveBeenCalledWith(invitationId);
+      expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+      expect(findMembershipSpy).toHaveBeenCalledWith(userId, workspaceId);
+      expect(markDeclinedSpy).toHaveBeenCalledTimes(1);
+      expect(markDeclinedSpy).toHaveBeenCalledWith(invitationId, userId, now);
+    });
+  });
+
+  /** 邀請成員 */
+  describe('inviteMember', () => {
+    describe('你沒有邀請此工作區成員的權限ERROR', () => {
+      const inviterUserId = 'inviterUserId';
+      const workspaceId = 'workspaceId';
+      const inviteeEmail = 'invitee@gmail.com';
+      let member: FindMembershipResponse | null;
+      beforeEach(() => {
+        member = {
+          memberId: '1',
+          memberName: '邀請人',
+          role: 'MEMBER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        };
+      });
+
+      it('邀請人不在此工作區', async () => {
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValue(null);
+        const getByEmailSpy = jest.spyOn(userService, 'getByEmail');
+        const transactionSpy = jest.spyOn(prismaService, '$transaction');
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('你沒有邀請此工作區成員的權限');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+        expect(findMembershipSpy).toHaveBeenCalledWith(
+          inviterUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).not.toHaveBeenCalled();
+        expect(transactionSpy).not.toHaveBeenCalled();
+      });
+
+      it('邀請人非OWNER', async () => {
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValue(member);
+        const getByEmailSpy = jest.spyOn(userService, 'getByEmail');
+        const transactionSpy = jest.spyOn(prismaService, '$transaction');
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('你沒有邀請此工作區成員的權限');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+        expect(findMembershipSpy).toHaveBeenCalledWith(
+          inviterUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).not.toHaveBeenCalled();
+        expect(transactionSpy).not.toHaveBeenCalled();
+      });
+
+      it('工作區已封存', async () => {
+        member!.role = 'OWNER';
+        member!.workspaceArchivedAt = new Date('2026-09-09T12:00:00.000Z');
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValue(member);
+        const getByEmailSpy = jest.spyOn(userService, 'getByEmail');
+        const transactionSpy = jest.spyOn(prismaService, '$transaction');
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('你沒有邀請此工作區成員的權限');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+        expect(findMembershipSpy).toHaveBeenCalledWith(
+          inviterUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).not.toHaveBeenCalled();
+        expect(transactionSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('只允許邀請已註冊使用者', () => {
+      const inviterUserId = 'inviterUserId';
+      const workspaceId = 'workspaceId';
+      const inviteeEmail = 'invitee@gmail.com';
+      let member: FindMembershipResponse | null;
+      const invitee = {
+        id: 'inviterUserId',
+        email: 'inviter@gmail.com',
+        displayName: 'inviter',
+        passwordHash: 'inviterHashPassword',
+        authProvider: 'LOCAL' as const,
+        emailVerifiedAt: new Date(),
+        googleSub: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      beforeEach(() => {
+        member = {
+          memberId: '1',
+          memberName: '邀請人',
+          role: 'OWNER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        };
+      });
+
+      it('此帳號不存在', async () => {
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValue(member);
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(null);
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('此帳號不存在');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+        expect(findMembershipSpy).toHaveBeenCalledWith(
+          inviterUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+      });
+
+      it('無法邀請自己', async () => {
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValue(member);
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(invitee);
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('無法邀請自己');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(1);
+        expect(findMembershipSpy).toHaveBeenCalledWith(
+          inviterUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+      });
+
+      it('受邀者已是工作區成員時應拒絕', async () => {
+        const existingMember: FindMembershipResponse = {
+          memberId: '1',
+          memberName: '受邀者',
+          role: 'MEMBER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        };
+        const registeredInvitee = {
+          ...invitee,
+          id: 'inviteeUserId',
+          email: inviteeEmail,
+          displayName: 'invitee',
+        };
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValueOnce(member)
+          .mockResolvedValueOnce(existingMember);
+
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(registeredInvitee);
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('此使用者已是工作區成員');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(2);
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          1,
+          inviterUserId,
+          workspaceId,
+        );
+
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          2,
+          registeredInvitee.id,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+      });
+    });
+
+    describe('查看邀請是否存在或過期', () => {
+      const inviterUserId = 'inviterUserId';
+      const inviteeUserId = 'inviteeUserId';
+      const inviteeEmail = 'invitee@gmail.com';
+      const workspaceId = 'workspaceId';
+      let inviter: FindMembershipResponse | null;
+      let invitee: User | null;
+      let pendingInvitation: WorkspaceInvitation | null;
+      const now = new Date('2026-09-09T00:00:00.000Z');
+      beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(now);
+        inviter = {
+          memberId: '1',
+          memberName: 'inviter',
+          role: 'OWNER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        };
+        invitee = {
+          id: inviteeUserId,
+          email: inviteeEmail,
+          displayName: 'invitee',
+          passwordHash: 'inviteeHashPassword',
+          authProvider: 'LOCAL',
+          emailVerifiedAt: now,
+          googleSub: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        pendingInvitation = {
+          inviterUserId: inviterUserId,
+          workspaceId: workspaceId,
+          inviteeUserId: inviteeUserId,
+          id: '1',
+          createdAt: now,
+          updatedAt: now,
+          role: 'MEMBER',
+          status: 'PENDING',
+          expiresAt: now,
+          respondedAt: null,
+        };
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('已經邀請過此使用者(未過期)', async () => {
+        const expiredExpiresAt = DateTime.fromJSDate(now)
+          .plus({ seconds: 1 })
+          .toJSDate();
+        pendingInvitation!.expiresAt = expiredExpiresAt;
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValueOnce(inviter)
+          .mockResolvedValueOnce(null);
+
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(invitee);
+
+        const findPendingByWorkspaceAndInviteeSpy = jest
+          .spyOn(workspaceInvitationService, 'findPendingByWorkspaceAndInvitee')
+          .mockResolvedValue(pendingInvitation);
+
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('已經邀請過此使用者');
+
+        expect(findMembershipSpy).toHaveBeenCalledTimes(2);
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          1,
+          inviterUserId,
+          workspaceId,
+        );
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          2,
+          inviteeUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledTimes(1);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledWith(
+          workspaceId,
+          inviteeUserId,
+        );
+      });
+
+      it('已過期但更新狀態發生問題', async () => {
+        const expiredExpiresAt = DateTime.fromJSDate(now)
+          .minus({ seconds: 1 })
+          .toJSDate();
+        pendingInvitation!.expiresAt = expiredExpiresAt;
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValueOnce(inviter)
+          .mockResolvedValueOnce(null);
+
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(invitee);
+
+        const findPendingByWorkspaceAndInviteeSpy = jest
+          .spyOn(workspaceInvitationService, 'findPendingByWorkspaceAndInvitee')
+          .mockResolvedValue(pendingInvitation);
+        const markExpiredSpy = jest
+          .spyOn(workspaceInvitationService, 'markExpired')
+          .mockResolvedValueOnce(0);
+        await expect(
+          workspaceInvitationService.inviteMember(
+            inviterUserId,
+            workspaceId,
+            inviteeEmail,
+          ),
+        ).rejects.toThrow('邀請狀態已發生變更，請重新操作');
+        expect(findMembershipSpy).toHaveBeenCalledTimes(2);
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          1,
+          inviterUserId,
+          workspaceId,
+        );
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          2,
+          inviteeUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledTimes(1);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledWith(
+          workspaceId,
+          inviteeUserId,
+        );
+        expect(markExpiredSpy).toHaveBeenCalledTimes(1);
+        expect(markExpiredSpy).toHaveBeenCalledWith(pendingInvitation!.id, now);
+      });
+    });
+
+    describe('邀請成功', () => {
+      const inviterUserId = 'inviterUserId';
+      const inviteeUserId = 'inviteeUserId';
+      const inviteeEmail = 'invitee@gmail.com';
+      const workspaceId = 'workspaceId';
+      let inviter: FindMembershipResponse | null;
+      let invitee: User | null;
+      let pendingInvitation: WorkspaceInvitation | null;
+      const now = new Date('2026-09-09T00:00:00.000Z');
+      beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(now);
+        inviter = {
+          memberId: '1',
+          memberName: 'inviter',
+          role: 'OWNER',
+          workspaceName: '測試工作區',
+          workspaceArchivedAt: null,
+        };
+        invitee = {
+          id: inviteeUserId,
+          email: inviteeEmail,
+          displayName: 'invitee',
+          passwordHash: 'inviteeHashPassword',
+          authProvider: 'LOCAL',
+          emailVerifiedAt: now,
+          googleSub: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        pendingInvitation = {
+          inviterUserId: inviterUserId,
+          workspaceId: workspaceId,
+          inviteeUserId: inviteeUserId,
+          id: '1',
+          createdAt: now,
+          updatedAt: now,
+          role: 'MEMBER',
+          status: 'PENDING',
+          expiresAt: now,
+          respondedAt: null,
+        };
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('成功創建邀請(原有的邀請已過期)', async () => {
+        const expiredExpiresAt = DateTime.fromJSDate(now)
+          .minus({ seconds: 1 })
+          .toJSDate();
+        const newExpiresAt = DateTime.fromJSDate(now)
+          .plus({ days: 7 })
+          .toJSDate();
+        const invitation: WorkspaceInvitation = {
+          role: 'MEMBER',
+          id: '2',
+          createdAt: now,
+          updatedAt: now,
+          inviteeUserId: inviteeUserId,
+          workspaceId: workspaceId,
+          inviterUserId: inviterUserId,
+          status: 'PENDING',
+          expiresAt: DateTime.fromJSDate(now).plus({ days: 7 }).toJSDate(),
+          respondedAt: null,
+        };
+
+        pendingInvitation!.expiresAt = expiredExpiresAt;
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValueOnce(inviter)
+          .mockResolvedValueOnce(null);
+
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(invitee);
+
+        const findPendingByWorkspaceAndInviteeSpy = jest
+          .spyOn(workspaceInvitationService, 'findPendingByWorkspaceAndInvitee')
+          .mockResolvedValue(pendingInvitation);
+        const markExpiredSpy = jest
+          .spyOn(workspaceInvitationService, 'markExpired')
+          .mockResolvedValueOnce(1);
+        const tx = {} as Prisma.TransactionClient;
+        const transactionSpy = jest
+          .spyOn(prismaService, '$transaction')
+          .mockImplementation(async (callback) => {
+            if (typeof callback !== 'function') {
+              throw new Error('預期使用 interactive transaction');
+            }
+
+            return callback(tx);
+          });
+        const createInvitationSpy = jest
+          .spyOn(workspaceInvitationService, 'createInvitation')
+          .mockResolvedValue(invitation);
+        const createNotificationSpy = jest.spyOn(
+          notificationService,
+          'createNotification',
+        );
+        const emitNotificationCreatedSpy = jest.spyOn(
+          socketService,
+          'emitNotificationCreated',
+        );
+        const result = await workspaceInvitationService.inviteMember(
+          inviterUserId,
+          workspaceId,
+          inviteeEmail,
+        );
+
+        expect(result.workspaceId).toEqual(workspaceId);
+        expect(result.inviteeUserId).toEqual(inviteeUserId);
+        expect(result.inviterUserId).toEqual(inviterUserId);
+        expect(result.role).toEqual('MEMBER');
+        expect(result.status).toEqual('PENDING');
+        expect(result.expiresAt).toEqual(newExpiresAt);
+        expect(findMembershipSpy).toHaveBeenCalledTimes(2);
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          1,
+          inviterUserId,
+          workspaceId,
+        );
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          2,
+          inviteeUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledTimes(1);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledWith(
+          workspaceId,
+          inviteeUserId,
+        );
+        expect(markExpiredSpy).toHaveBeenCalledTimes(1);
+        expect(markExpiredSpy).toHaveBeenCalledWith(pendingInvitation!.id, now);
+        expect(transactionSpy).toHaveBeenCalledTimes(1);
+        expect(createInvitationSpy).toHaveBeenCalledTimes(1);
+        expect(createInvitationSpy).toHaveBeenCalledWith(
+          {
+            workspaceId,
+            inviteeUserId,
+            inviterUserId,
+            expiresAt: newExpiresAt,
+          },
+          tx,
+        );
+        expect(createNotificationSpy).toHaveBeenCalledTimes(1);
+        expect(createNotificationSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recipientUserId: inviteeUserId,
+            actorUserId: inviterUserId,
+            type: 'WORKSPACE_INVITED',
+            resourceType: 'WORKSPACE_INVITATION',
+            resourceId: invitation.id,
+          }),
+          tx,
+        );
+        expect(emitNotificationCreatedSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('成功創建邀請(無PENDING邀請)', async () => {
+        const expiredExpiresAt = DateTime.fromJSDate(now)
+          .minus({ seconds: 1 })
+          .toJSDate();
+        const newExpiresAt = DateTime.fromJSDate(now)
+          .plus({ days: 7 })
+          .toJSDate();
+        pendingInvitation!.expiresAt = expiredExpiresAt;
+        const invitation: WorkspaceInvitation = {
+          role: 'MEMBER',
+          id: '2',
+          createdAt: now,
+          updatedAt: now,
+          inviteeUserId: inviteeUserId,
+          workspaceId: workspaceId,
+          inviterUserId: inviterUserId,
+          status: 'PENDING',
+          expiresAt: newExpiresAt,
+          respondedAt: null,
+        };
+        const findMembershipSpy = jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValueOnce(inviter)
+          .mockResolvedValueOnce(null);
+
+        const getByEmailSpy = jest
+          .spyOn(userService, 'getByEmail')
+          .mockResolvedValue(invitee);
+
+        const findPendingByWorkspaceAndInviteeSpy = jest
+          .spyOn(workspaceInvitationService, 'findPendingByWorkspaceAndInvitee')
+          .mockResolvedValue(null);
+        const markExpiredSpy = jest.spyOn(
+          workspaceInvitationService,
+          'markExpired',
+        );
+        const tx = {} as Prisma.TransactionClient;
+        const transactionSpy = jest
+          .spyOn(prismaService, '$transaction')
+          .mockImplementation(async (callback) => {
+            if (typeof callback !== 'function') {
+              throw new Error('預期使用 interactive transaction');
+            }
+
+            return callback(tx);
+          });
+        const createInvitationSpy = jest
+          .spyOn(workspaceInvitationService, 'createInvitation')
+          .mockResolvedValue(invitation);
+        const createNotificationSpy = jest.spyOn(
+          notificationService,
+          'createNotification',
+        );
+        const emitNotificationCreatedSpy = jest.spyOn(
+          socketService,
+          'emitNotificationCreated',
+        );
+        const result = await workspaceInvitationService.inviteMember(
+          inviterUserId,
+          workspaceId,
+          inviteeEmail,
+        );
+        expect(result.workspaceId).toEqual(workspaceId);
+        expect(result.inviteeUserId).toEqual(inviteeUserId);
+        expect(result.inviterUserId).toEqual(inviterUserId);
+        expect(result.role).toEqual('MEMBER');
+        expect(result.status).toEqual('PENDING');
+        expect(result.expiresAt).toEqual(newExpiresAt);
+        expect(findMembershipSpy).toHaveBeenCalledTimes(2);
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          1,
+          inviterUserId,
+          workspaceId,
+        );
+        expect(findMembershipSpy).toHaveBeenNthCalledWith(
+          2,
+          inviteeUserId,
+          workspaceId,
+        );
+        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
+        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledTimes(1);
+        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledWith(
+          workspaceId,
+          inviteeUserId,
+        );
+        expect(markExpiredSpy).toHaveBeenCalledTimes(0);
+        expect(transactionSpy).toHaveBeenCalledTimes(1);
+        expect(createInvitationSpy).toHaveBeenCalledTimes(1);
+        expect(createInvitationSpy).toHaveBeenCalledWith(
+          {
+            workspaceId,
+            inviteeUserId,
+            inviterUserId,
+            expiresAt: newExpiresAt,
+          },
+          tx,
+        );
+        expect(createNotificationSpy).toHaveBeenCalledTimes(1);
+        expect(createNotificationSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            recipientUserId: inviteeUserId,
+            actorUserId: inviterUserId,
+            type: 'WORKSPACE_INVITED',
+            resourceType: 'WORKSPACE_INVITATION',
+            resourceId: invitation.id,
+          }),
+          tx,
+        );
+        expect(emitNotificationCreatedSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+});

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Figma Plugin Native Design"
+  short_description: "Turn visual sources into native Figma systems with a plugin"
+  default_prompt: "Use $figma-plugin-native-design to turn the provided visual references and product sources into a native Figma design system and views through a Development Plugin."

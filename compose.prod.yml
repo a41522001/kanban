@@ -1,0 +1,48 @@
+name: kanban-prod
+services:
+  frontend:
+    image: ghcr.io/a41522001/kanban-frontend:latest
+    depends_on: 
+      - backend
+    ports:
+      - "80:80"
+
+  backend:
+    image: ghcr.io/a41522001/kanban-backend:latest
+    depends_on: 
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: ./backend/.env.prod
+
+  worker:
+    image: ghcr.io/a41522001/kanban-backend:latest
+    command: ["node", "backend/dist/src/worker/main.js"]
+    env_file: ./backend/.env.prod
+    depends_on:
+      redis:
+        condition: service_healthy
+        
+  postgres:
+    image: postgres:18.1
+    volumes:
+      - kanban-postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+    env_file:  ./backend/.env.prod
+
+  redis:
+    image: redis:8.8-alpine
+    volumes:
+      - kanban-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  kanban-postgres:
+  kanban-redis:

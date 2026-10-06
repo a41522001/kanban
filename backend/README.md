@@ -1,98 +1,47 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Flowboard Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS + Prisma／PostgreSQL + Redis + Socket.IO。以下指令都從 monorepo 根目錄執行，完整環境設定見[根 README](../README.md)。
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 模組
 
-## Description
+- `auth`／`user`：註冊、密碼驗證、登入與 public user。
+- `session`：Cookie Session 驗證、輪轉與撤銷；Redis Repository／Lua 負責原子操作。
+- `workspaces`：建立 Workspace 與 Owner membership、列表、成員授權查詢，以及提供 membership 查詢給其他 domain service。
+- `workspaceInvitation`：發送、接受與拒絕邀請，查詢 PENDING、條件式狀態更新與邀請 HTTP Controller；Owner 取消邀請尚未實作。
+- `notification`：public read model、未讀數與內部建立通知。
+- `socket`：掛在 HTTP server 的 Socket.IO service；以 HttpOnly Session Cookie 驗證 handshake、將 userId 寫入 `socket.data`，管理 user room 與 Workspace room，並提供 transaction commit 後的 `notification:created`／`workspace:memberChanged` 推播。
+- `project`：已註冊於 AppModule；提供建立 Project、Project list、Project members、member candidates、addMember、member-added notification detail 與目前使用者的 Project 置頂／取消置頂 endpoints。建立 Project 與 OWNER membership、加入成員與通知都使用 transaction；`pinnedAt` 儲存在 ProjectMember，屬於每位使用者自己的列表偏好。
+- `board`：已註冊於 AppModule 的後續功能骨架。Project 本身是 Board aggregate root，不建立 Board table；目前 `BoardColumn` schema／migration 與建立 Project 時的四個預設 Columns 已完成，snapshot／Card／Socket commands 尚未實作。
+- `common`：ValidationPipe、AppException、Filter、response interceptor 與 Cookie 工具。
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+主要分層為 Controller → Service → Repository。邀請流程由 `WorkspaceInvitationController → WorkspaceInvitationService` 協調；Invitation Service 單向依賴 WorkspacesService 取得 membership 資訊，並使用同一 Prisma TransactionClient 寫入 Invitation 與 Notification。WorkspacesService 不再依賴 WorkspaceInvitationService。
 
-## Project setup
+建立 Project 的預設 Columns 是 Project aggregate invariant，因此 `ProjectModule` 不依賴 `BoardModule`；`ProjectRepository` 直接以 Prisma nested write 建立 `boardColumns`。未來 `BoardModule` 若需要 membership／Project metadata，應抽取可共用的 Project access policy 或單向依賴 Project 的公開 service，避免 ProjectModule ↔ BoardModule 循環依賴。
 
-```bash
-$ npm install
+## 指令
+
+```sh
+pnpm --filter backend exec prisma generate
+pnpm --filter backend exec prisma migrate deploy
+pnpm dev:backend
+pnpm debug:backend
+pnpm --filter backend build
+pnpm test:backend
+pnpm test:backend:cov
+pnpm test:backend:e2e
 ```
 
-## Compile and run the project
+先依根 README 啟動資料庫並建立 env。開發新 schema 時另產生可審閱的 migration；上述 `migrate deploy` 只套用既有 migration。Prisma config 依 `E2E_ENV=true` 選擇 `.env.e2e`，其餘使用 `.env`。
 
-```bash
-# development
-$ npm run start
+Build／start／test 的 pre scripts 會先建置共用 contracts。Production entry 為 `node dist/src/main.js`；目前 Compose 不包含 backend deployment。
 
-# watch mode
-$ npm run start:dev
+## API 與限制
 
-# production mode
-$ npm run start:prod
-```
+預設 HTTP port 4001；Swagger 位於 `/api/docs`。API 沒有全域 `/api` 前綴。Workspace／Notification／userInfo 使用 SessionGuard；logout 無 Guard，會嘗試撤銷傳入 Cookie 並在 finally 清除 Cookie。
 
-## Run tests
+- [現行 HTTP API](../docs/http-api.md)
+- [邀請與通知 transaction、併發限制](../docs/workspace-invitation-notification.md)
+- [Session 架構](../docs/session-architecture.md)
+- [測試範圍與未完成項目](../docs/testing-strategy.md)
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+文件最後核對：2026-09-21。2026-09-20 的完整 Backend baseline 為 19 suites／114 tests 與既有 coverage；2026-09-21 Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests、contracts／Backend build 與隔離 E2E 4 suites／9 tests 通過，13 個 migrations 可從空資料庫套用。Project create E2E 已經過含 BoardColumn 的 nested write，但仍需補預設四欄內容／順序的直接 assertion 與 rollback test。Pin endpoint 亦尚缺 HTTP E2E 與 endpoint-specific Swagger response metadata。

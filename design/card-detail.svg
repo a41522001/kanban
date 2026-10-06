@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="card-shadow" x="-14%" y="-14%" width="128%" height="136%"><feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#29324A" flood-opacity=".10"/></filter>
+    <style>
+      text { font-family: 'Noto Sans TC', Arial, sans-serif; fill: #29324A; } .spec { font-size: 12px; font-weight: 700; fill: #697287; letter-spacing: .8px; } .tiny { font-size: 12px; fill: #697287; } .small { font-size: 14px; fill: #697287; } .body { font-size: 16px; } .label { font-size: 14px; font-weight: 700; } .title { font-size: 28px; font-weight: 700; } .h2 { font-size: 20px; font-weight: 700; } .inverse { fill: #F7F8FA; }
+    </style>
+  </defs>
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="48" class="spec">CARD DETAIL / CURRENT / 1440 × 900</text>
+  <g id="desktop-card-detail-current">
+    <rect x="40" y="80" width="1440" height="900" rx="20" fill="#E9ECF1"/>
+    <path d="M40 100q0-20 20-20h1400q20 0 20 20v44H40z" fill="#29324A"/>
+    <g id="top-navigation" transform="translate(72 100)">
+      <rect width="18" height="24" rx="4" fill="#DF6E51"/><rect x="24" y="8" width="18" height="16" rx="4" fill="#A9D2C8"/>
+      <text x="56" y="20" class="h2 inverse">Flowboard</text><text x="180" y="20" class="small inverse">工作區</text><text x="256" y="20" class="small inverse">最近</text>
+      <rect x="1248" y="-8" width="40" height="40" rx="10" fill="#44506A"/><text x="1268" y="20" text-anchor="middle" class="h2 inverse">+</text>
+      <circle cx="1328" cy="12" r="16" fill="#A9D2C8"/><text x="1328" y="17" text-anchor="middle" class="tiny" font-weight="700">J</text>
+    </g>
+    <g id="detail-heading" transform="translate(72 172)">
+      <text class="tiny">Jeffery 的工作區　/　Flowboard 即時協作　/　主要看板　/　正在進行</text>
+      <text y="42" class="title">卡片詳情</text><text y="70" class="small">即時同步中 · 變更會在所有成員的看板中更新</text>
+    </g>
+    <g id="detail-layout" transform="translate(72 276)">
+      <g id="card-content" filter="url(#card-shadow)">
+        <rect width="824" height="656" rx="16" fill="#FFF"/>
+        <g id="card-header" transform="translate(32 32)">
+          <rect width="64" height="24" rx="12" fill="#E3F1EC"/><text x="32" y="17" text-anchor="middle" class="tiny" fill="#31665D">後端</text>
+          <text y="72" class="title">Session Cookie 驗證流程</text><text y="104" class="small">位於「正在進行」 · 建立於今天 10:42</text>
+          <line y1="136" x2="760" y2="136" stroke="#D7DCE5"/>
+        </g>
+        <g id="description" transform="translate(32 200)"><text class="label">描述</text><text y="32" class="body">使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。</text><text y="58" class="body">完成後由 Socket handshake middleware 驗證登入狀態。</text></g>
+        <g id="checklist" transform="translate(32 312)"><text class="label">Checklist</text>
+          <g transform="translate(0 28)"><rect width="24" height="24" rx="6" fill="#E3F1EC"/><text x="12" y="18" text-anchor="middle" class="tiny" fill="#31665D">✓</text><text x="40" y="18" class="body">Session repository 完成</text></g>
+          <g transform="translate(0 68)"><rect width="24" height="24" rx="6" fill="#E3F1EC"/><text x="12" y="18" text-anchor="middle" class="tiny" fill="#31665D">✓</text><text x="40" y="18" class="body">Cookie 設定完成</text></g>
+          <g transform="translate(0 108)"><rect width="24" height="24" rx="6" fill="#FFF" stroke="#CDD3DE"/><text x="40" y="18" class="body">Socket handshake 驗證</text></g>
+        </g>
+        <g id="activity" transform="translate(32 496)"><text class="label">活動紀錄</text><text y="32" class="small">Jeffery 將卡片移至「正在進行」 · 3 分鐘前</text><text y="58" class="small">Mia 完成 Cookie 設定 · 12 分鐘前</text></g>
+      </g>
+      <g id="card-sidebar" transform="translate(856 0)">
+        <rect width="520" height="656" rx="16" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <g transform="translate(28 28)"><text class="h2">卡片操作</text>
+          <rect y="48" width="464" height="52" rx="10" fill="#29324A"/><text x="20" y="81" class="label inverse">↔　移動至…</text>
+          <rect y="112" width="464" height="52" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="20" y="145" class="label">◷　設定到期日</text>
+          <rect y="176" width="464" height="52" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="20" y="209" class="label">＋　新增成員</text>
+          <line y1="260" x2="464" y2="260" stroke="#D7DCE5"/><rect y="284" width="464" height="52" rx="10" fill="#FCE5DF"/><text x="20" y="317" class="label" fill="#9F3F2C">封存卡片</text>
+          <text y="388" class="label">卡片資訊</text><text y="420" class="small">類別　後端（薄荷綠）</text><text y="448" class="small">標籤　Auth　Backend</text><text y="476" class="small">版本　v12</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

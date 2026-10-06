@@ -1,0 +1,16 @@
+{
+  "name": "flowboard-figma-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local Figma Development Plugin that rebuilds the Flowboard SVG references as editable native Figma design.",
+  "scripts": {
+    "build": "npm run typecheck && esbuild src/code.ts --bundle --outfile=dist/code.js --target=es2017 && node scripts/copy-ui.mjs",
+    "typecheck": "tsc --noEmit",
+    "watch": "esbuild src/code.ts --bundle --outfile=dist/code.js --target=es2017 --watch"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.116.0",
+    "esbuild": "^0.25.10",
+    "typescript": "^5.9.3"
+  }
+}
