@@ -1,6 +1,6 @@
 # 學習與實作進度
 
-最後靜態檢視：2026-09-28。以目前原始碼核對驗證信前後端流程；本輪只更新文件，歷史 build／測試結果保留於下方。
+最後更新：2026-10-06。新增 Docker 化與 CI/CD MVP 部署紀錄；其餘項目沿用 2026-09-28 的靜態核對，歷史 build／測試結果保留於下方。
 
 ## Native WebSocket
 
@@ -42,6 +42,18 @@
 | BoardColumn／Card domain | Columns 讀取與新增已實作，尚有授權缺口 | GET /board/:projectId 已由前端使用，但未檢查 Project membership；addColumn 已寫 DB／revision。moveColumn 仍佔位，前端拖曳只改本機；完整 snapshot、Card 與協作未完成 |
 | Ack、retry、idempotency、concurrency | 尚未開始 | Socket command 階段導入 |
 | Recovery／resync | 尚未開始 | Board revision 與 snapshot/replay |
+| Docker 化與 Production compose | 已完成 MVP | frontend（Nginx）、backend、worker、postgres、redis 五個容器；backend 啟動前自動 migration；REST 改為 `/v1/api` 前綴。詳見[部署現況](deployment-plan.md#0-目前實作現況cicd-mvp) |
+| CI/CD | 已完成 MVP | ci.yml 測試 `dev`／`feature/*`；cd.yml 於 main 呼叫 CI → 推 GHCR（`latest` + commit SHA）→ SSH 部署到 GCP VM。網域、HTTPS 與登入 Cookie 尚未完成 |
+
+## 2026-10-06 Docker 化與 CI/CD MVP
+
+- 新增 `backend/Dockerfile`、`frontend/Dockerfile`、`frontend/nginx.conf`、`compose.prod.yml`、`.dockerignore` 與 `.github/workflows/cd.yml`；ci.yml 移除 `main` 並加入 `workflow_call`，避免 main 重複執行測試。
+- Backend 加入 `setGlobalPrefix('v1/api')`；前端 `socket.ts` 改讀 `VITE_SOCKET_URL`，避免把 `/v1/api` 誤當 Socket.IO namespace。
+- 2026-10-05 本機驗證：兩個 image build 成功；API／Worker 入口可載入所有模組；`nginx -t` 通過；以臨時 PostgreSQL 執行 `npx --no prisma migrate deploy`，14 個 migrations 全數套用。
+- 2026-10-06 部署到 GCP VM：外部檢查 `/` 200、`/v1/api/user/userInfo` 401 envelope、Socket.IO polling handshake 200；使用者回報 production 驗證信可收信（修正 `SMTP_PORT=465` 與 `MAIL_FROM` 後）。
+- Image SHA tag 與 `IMAGE_TAG` 部署已實作，VM 端版本核對尚未記錄。
+- 已知限制：以 `http://IP` 存取時 secure Cookie 不會被儲存，登入無法使用，需完成網域與 HTTPS；VM 使用臨時 IP；容器未設定 restart policy。
+- E2E 測試直接打無前綴路徑（例如 `/auth/signup`），因為 global prefix 只在 `main.ts` 設定、未進 `configureApp`，測試與 production 路由前綴不一致。
 
 ## 2026-09-28 驗證信前後端完成
 
@@ -91,7 +103,7 @@
 - 根目錄新增 `.nvmrc` 固定 Node 24.13.0；CI 改為讀取此檔案，並移除與 `packageManager` 重複且會觸發 pnpm 警告的 `devEngines.packageManager` 設定。
 - 2026-09-08 執行 `pnpm --filter backend exec tsc -p tsconfig.build.json --noEmit` 通過；僅有目前 Node／pnpm 版本與 package 宣告不一致的警告。
 - 2026-09-08 執行 `pnpm --filter frontend type-check` 與根目錄 `pnpm build` 通過；Vite production build 完成，backend Nest build 完成。
-- CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。
+- CI 目前配置後端 E2E 與 unit tests，未配置前端 tests、type-check、lint 或 build；本次未查詢 CI 執行結果。2026-10-06 起 cd.yml 會 build frontend image，其中包含 `vue-tsc` type-check 與 Vite build，但只在 main 執行。
 - 上述較早的 2026-09-04／09-08／09-11／09-12／09-15／09-16／09-19 結果是歷史紀錄；完整 build／unit／coverage baseline 仍以 2026-09-20 為準，13 migrations 的隔離 E2E、Project／BoardColumn scoped tests 與 Frontend type-check 則以 2026-09-21 紀錄為準。
 - 進度只在實際跑過對應指令後標記完成，不以「已有 spec 檔」代替通過結果。
 
@@ -107,6 +119,7 @@
 8. 補 Socket.IO handshake 的 Session rotation／過期策略、`connect_error` 處理與 Origin／連線 lifecycle 測試。
 9. 補 Workspace room 的 reconnect rejoin、快速切換競速、membership 移除後清理與真實 client integration tests。
 10. 補通知 Socket.IO 的 reconnect／漏收 HTTP resync、跨分頁同步與真實 client integration tests。
+11. 部署：VM 改用靜態 IP、購買網域並設定 HTTPS，完成後驗證 production 登入；compose 加入 `restart: unless-stopped`；在 VM 核對 `IMAGE_TAG` 與實際執行版本。
 
 ## 已知限制
 
