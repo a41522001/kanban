@@ -1,14 +1,14 @@
 name: kanban-prod
 services:
   frontend:
-    image: ghcr.io/a41522001/kanban-frontend:latest
+    image: ghcr.io/a41522001/kanban-frontend:${IMAGE_TAG:-latest}
     depends_on: 
       - backend
     ports:
       - "80:80"
 
   backend:
-    image: ghcr.io/a41522001/kanban-backend:latest
+    image: ghcr.io/a41522001/kanban-backend:${IMAGE_TAG:-latest}
     depends_on: 
       postgres:
         condition: service_healthy
@@ -17,7 +17,7 @@ services:
     env_file: ./backend/.env.prod
 
   worker:
-    image: ghcr.io/a41522001/kanban-backend:latest
+    image: ghcr.io/a41522001/kanban-backend:${IMAGE_TAG:-latest}
     command: ["node", "backend/dist/src/worker/main.js"]
     env_file: ./backend/.env.prod
     depends_on:
