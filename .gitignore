@@ -27,3 +27,7 @@ backend/src/generated/prisma/
 /backend/.claude/
 /backend/.agents/
 !.env.e2e.example
+
+# Avatar 本機儲存（使用者上傳圖片，禁止提交）
+backend/storage/
+backend/storage-e2e/

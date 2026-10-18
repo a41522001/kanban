@@ -29,6 +29,11 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
+      // 底線開頭的參數代表「介面要求但此實作不使用」，不視為錯誤。
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },

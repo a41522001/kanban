@@ -22,6 +22,7 @@ import { ProjectModule } from './project/project.module';
 import { BoardModule } from './board/board.module';
 import { QueueModule } from './queue/queue.module';
 import { EmailModule } from './email/email.module';
+import { AvatarModule } from './avatar/avatar.module';
 
 const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
@@ -49,6 +50,7 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
     BoardModule,
     QueueModule,
     EmailModule,
+    AvatarModule,
   ],
   providers: [
     {

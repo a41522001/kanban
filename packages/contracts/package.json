@@ -53,6 +53,11 @@
       "types": "./dist/esm/board.d.ts",
       "import": "./dist/esm/board.js",
       "require": "./dist/cjs/board.cjs"
+    },
+    "./avatar": {
+      "types": "./dist/esm/avatar.d.ts",
+      "import": "./dist/esm/avatar.js",
+      "require": "./dist/cjs/avatar.cjs"
     }
   },
   "devDependencies": {

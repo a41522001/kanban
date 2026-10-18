@@ -4,4 +4,5 @@ export const redisKeys = {
   dragSession: (projectId: string) => `lock:projectDragSession:${projectId}`,
   verifyEmail: (token: string) => `verify:email:${token}`,
   rateLimitEmailVerify: (email: string) => `rateLimit:emailVerify:${email}`,
+  rateLimitAvatarUpload: (userId: string) => `rateLimit:avatarUpload:${userId}`,
 };
