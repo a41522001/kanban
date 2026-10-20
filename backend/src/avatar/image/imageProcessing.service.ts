@@ -7,6 +7,7 @@ import {
   type AvatarSizeKey,
 } from '../avatar.constants';
 import sharp from 'sharp';
+import { InvalidAvatarImageException } from '@/common/exceptions/avatar.exception';
 
 /** validate 通過後回傳的原圖資訊。 */
 export interface AvatarImageMetadata {
@@ -29,12 +30,6 @@ const isAllowedFormat = (
   (ALLOWED_FORMATS as readonly string[]).includes(format ?? '');
 
 /**
- * 圖片內容不合格：解碼失敗、格式不符、動圖、尺寸或像素超限。
- * 由 controller 轉成 400 / AvatarInvalidImage；訊息只供 log 與測試，不直接回給前端。
- */
-export class InvalidAvatarImageError extends Error {}
-
-/**
  * Avatar 圖片驗證與轉檔。
  * 只負責 Sharp 圖片處理，不注入 Prisma 或 Storage，方便以 fixture 單元測試。
  */
@@ -46,7 +41,7 @@ export class ImageProcessingService {
    *
    * @param input 上傳的原始檔案內容。
    * @returns 真實格式與寬高。
-   * @throws {InvalidAvatarImageError} 無法解析、格式不支援、動圖、寬高或總像素超限。
+   * @throws {InvalidAvatarImageException} 無法解析、格式不支援、動圖、寬高或總像素超限。
    */
   async validate(input: Buffer): Promise<AvatarImageMetadata> {
     let metadata: sharp.Metadata;
@@ -56,23 +51,23 @@ export class ImageProcessingService {
         limitInputPixels: AVATAR_MAX_PIXELS,
       }).metadata();
     } catch {
-      throw new InvalidAvatarImageError('無法解析圖片');
+      throw new InvalidAvatarImageException('無法解析圖片');
     }
 
     const { format, width, height, pages } = metadata;
 
     if (!isAllowedFormat(format)) {
-      throw new InvalidAvatarImageError('不支援的圖片格式');
+      throw new InvalidAvatarImageException('不支援的圖片格式');
     }
     // 靜態圖的 pages 為 undefined；大於 1 代表動態 WebP 等多頁格式。
     if (pages && pages > 1) {
-      throw new InvalidAvatarImageError('不支援動圖');
+      throw new InvalidAvatarImageException('不支援動圖');
     }
     if (!width || width > AVATAR_MAX_DIMENSION) {
-      throw new InvalidAvatarImageError('寬度超越上限');
+      throw new InvalidAvatarImageException('寬度超越上限');
     }
     if (!height || height > AVATAR_MAX_DIMENSION) {
-      throw new InvalidAvatarImageError('高度超越上限');
+      throw new InvalidAvatarImageException('高度超越上限');
     }
 
     return { format, width, height };
@@ -85,7 +80,7 @@ export class ImageProcessingService {
    * @param input 原始檔案內容；Worker 可能未先呼叫 validate，因此這裡也限制總像素。
    * @param size 尺寸 key（sm／md／lg），對應像素見 AVATAR_SIZES。
    * @returns WebP 檔案內容。
-   * @throws {InvalidAvatarImageError} 解碼或轉檔失敗（例如檔案被截斷、總像素超限）。
+   * @throws {InvalidAvatarImageException} 解碼或轉檔失敗（例如檔案被截斷、總像素超限）。
    */
   async render(input: Buffer, size: AvatarSizeKey): Promise<Buffer> {
     const px = AVATAR_SIZES[size];
@@ -98,7 +93,7 @@ export class ImageProcessingService {
         .webp({ quality: AVATAR_WEBP_QUALITY })
         .toBuffer();
     } catch {
-      throw new InvalidAvatarImageError('圖片解碼或轉檔失敗');
+      throw new InvalidAvatarImageException('圖片解碼或轉檔失敗');
     }
   }
 }

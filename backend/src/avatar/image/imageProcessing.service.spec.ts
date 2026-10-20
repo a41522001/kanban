@@ -1,8 +1,8 @@
 import sharp from 'sharp';
-import {
-  ImageProcessingService,
-  InvalidAvatarImageError,
-} from './imageProcessing.service';
+import { HttpStatus } from '@nestjs/common';
+import { ApiCode } from '@kanban/contracts/api';
+import { InvalidAvatarImageException } from '@/common/exceptions/avatar.exception';
+import { ImageProcessingService } from './imageProcessing.service';
 
 // 測試圖片全部用 Sharp 即時產生，不在 repo 放二進位 fixture。
 type Color = { r: number; g: number; b: number };
@@ -58,6 +58,41 @@ describe('ImageProcessingService', () => {
     service = new ImageProcessingService();
   });
 
+  describe('InvalidAvatarImageException', () => {
+    it('不合格圖片由全域 Filter 直接轉成 400 / AvatarInvalidImage', async () => {
+      // Arrange
+      const input = Buffer.from('not an image');
+
+      // Act
+      const error = await service
+        .validate(input)
+        .catch((caught: unknown) => caught);
+
+      // Assert
+      expect(error).toBeInstanceOf(InvalidAvatarImageException);
+      const exception = error as InvalidAvatarImageException;
+      expect(exception.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      expect(exception.code).toBe(ApiCode.AvatarInvalidImage);
+    });
+
+    it('截斷的圖片在 render 解碼時同樣回 400 / AvatarInvalidImage', async () => {
+      // Arrange
+      const png = await solid(64, 64).png().toBuffer();
+      const truncated = png.subarray(0, Math.floor(png.length / 2));
+
+      // Act
+      const error = await service
+        .render(truncated, 'md')
+        .catch((caught: unknown) => caught);
+
+      // Assert
+      expect(error).toBeInstanceOf(InvalidAvatarImageException);
+      expect((error as InvalidAvatarImageException).getStatus()).toBe(
+        HttpStatus.BAD_REQUEST,
+      );
+    });
+  });
+
   describe('validate', () => {
     it.each([
       ['jpeg', () => solid(200, 100).jpeg().toBuffer()],
@@ -82,7 +117,7 @@ describe('ImageProcessingService', () => {
       const act = service.validate(input);
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
 
     it('動態 WebP（多頁）應拒絕', async () => {
@@ -100,7 +135,7 @@ describe('ImageProcessingService', () => {
       const act = service.validate(input);
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
 
     it.each([
@@ -114,7 +149,7 @@ describe('ImageProcessingService', () => {
       const act = service.validate(input);
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
 
     it('寬高都在 8000 以內但總像素超過上限應拒絕', async () => {
@@ -125,7 +160,7 @@ describe('ImageProcessingService', () => {
       const act = service.validate(input);
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
 
     it('不是圖片的內容應拒絕', async () => {
@@ -133,7 +168,7 @@ describe('ImageProcessingService', () => {
       const act = service.validate(Buffer.from('not an image'));
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
   });
 
@@ -243,7 +278,7 @@ describe('ImageProcessingService', () => {
       const act = service.render(truncated, 'md');
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
 
     it('總像素超過上限應拒絕（Worker 可能未先呼叫 validate）', async () => {
@@ -254,7 +289,7 @@ describe('ImageProcessingService', () => {
       const act = service.render(input, 'md');
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
 
     it('不是圖片的內容應拒絕', async () => {
@@ -262,7 +297,7 @@ describe('ImageProcessingService', () => {
       const act = service.render(Buffer.from('not an image'), 'md');
 
       // Assert
-      await expect(act).rejects.toThrow(InvalidAvatarImageError);
+      await expect(act).rejects.toThrow(InvalidAvatarImageException);
     });
   });
 });

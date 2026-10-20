@@ -39,7 +39,7 @@
 | 3 | **開發環境專用**的 `/media` static serving（只放行 `.webp`、`nosniff`、immutable cache）；正式環境不掛載 | 瀏覽器開啟回傳網址看到圖片；Bruno `GetAvatarImage` 通過 | ✅ 2026-10-19：`main.ts` 於 `NODE_ENV=development` 時掛載；200 且帶 `Content-Type: image/webp`、`nosniff`、`Cache-Control: public, max-age=31536000, immutable`；資料夾、不存在檔案與 `../` 路徑皆回 404 |
 | 4 | `PublicUser.avatar`，`userInfo` 回傳頭像 | 重新取得 userInfo 帶回 avatar | ✅ 2026-10-19：`UserRepository.getById` include avatar，`getUserInfo` 只投影三個 URL，無頭像回 null；UserService 5 個測試涵蓋無頭像、PENDING、COMPLETED、不外露 userId |
 | 5 | 前端：共用 `Avatar.vue`、`AvatarSettingsDialog`、`vue-advanced-cropper`（AI 撰寫）。流程：先畫 `design/` SVG → 使用者確認 → Figma Plugin 產生原生設計稿 → 前端依 Figma 實作 | 網頁上可裁切、上傳並顯示 | ✅ 2026-10-20：SVG 已確認；Figma v15 已由使用者執行並確認。前端完成 `shared/Avatar`（32/40/64/128、@error fallback）、`account/AvatarSettingsDialog`（Idle／Crop／Error／RateLimited 倒數／Uploading／Removing）、`services/avatar.ts`（30 秒 timeout）、`userStore.setAvatar`、UserMenu「更換頭像」。Vitest 35 個新／更新測試通過，vue-tsc、ESLint、oxlint、vite build 通過。使用者已在瀏覽器實測上傳與顯示；移除頭像需等步驟 7 的 DELETE 完成，目前會顯示失敗文案 |
-| 6 | 錯誤處理：缺檔 400、MIME 415、過大 413、無法解碼 400、寫檔失敗 503 | Bruno 傳錯誤檔案看到對應狀態碼 | ⬜ |
+| 6 | 錯誤處理：缺檔 400、MIME 415、過大 413、無法解碼 400、寫檔失敗 503 | Bruno 傳錯誤檔案看到對應狀態碼 | ✅ 2026-10-20：6-1 完成，`InvalidAvatarImageException extends AppException`（`common/exceptions/avatar.exception.ts`）由全域 Filter 直接回 400／6001，假圖片實測通過。6-2 完成，Multer `fileFilter` 以 `AVATAR_ALLOWED_MIME_TYPES` 檢查 declared MIME，不符丟 `UnsupportedAvatarTypeException`（NestJS 對 `HttpException` 原樣拋出），Bruno 上傳 `text/plain` 回 415／6003，正常 PNG 仍回 200。6-3 完成，後端不改：Bruno 上傳 6 MiB 檔案回 413／4000（RequestError），規格由 6002 修訂為 4000，見 §4 錯誤表。6-4 完成，`write` 或 `upsertCurrent` 失敗時記 log（含 `err`、`uploadId`）並丟 `AvatarStorageUnavailableException`（503／6005）；upsert 失敗會刪除剛寫入的資料夾，刪除失敗只記 log，不蓋掉 503。無法用 Bruno 自然重現，改由 `avatar.service.spec.ts` 4 個單元測試驗證 |
 | 7 | `DELETE /user/avatar`，以及換頭像時刪除舊資料夾 | 磁碟只留最新一份 | ⬜ |
 | 8 | 上傳次數限制 Guard | 第 6 次回 429 與 `retryAfterSeconds` | ⬜ |
 | 9 | 背景 Worker 產生 sm／lg（含 Redis 連線調整 §9） | 上傳後數秒內 `smallUrl`／`largeUrl` 被補上 | ⬜ |
@@ -271,7 +271,7 @@ export interface AvatarImageSet {
 | 400 | ValidationError（1000） | 缺少 `avatar`、多檔、未知欄位 |
 | 400 | AvatarInvalidImage（6001） | Sharp 無法解碼、真實格式不符、動圖、尺寸或像素超限 |
 | 401 | Unauthenticated（2003） | Session 失效 |
-| 413 | AvatarFileTooLarge（6002） | 超過 5 MiB，包含串流途中超限 |
+| 413 | ~~AvatarFileTooLarge（6002）~~ **2026-10-20 修訂：RequestError（4000）** | 超過 5 MiB，包含串流途中超限。Multer 的 `LIMIT_FILE_SIZE` 由 NestJS 轉成 `PayloadTooLargeException`，全域 Filter 對非 `AppException` 的 `HttpException` 一律回 4000「請求失敗」；前端以狀態碼 413 判斷檔案過大，因此不另外轉換 |
 | 415 | AvatarUnsupportedType（6003） | declared MIME 不在允許清單 |
 | 429 | AvatarRateLimited（6004） | 每分鐘超過 5 次；`data.retryAfterSeconds` |
 | 503 | AvatarStorageUnavailable（6005） | 寫檔或 DB 暫時失敗 |

@@ -15,6 +15,7 @@ import { ApiConsumes, ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { ApiCode, type ApiResult } from '@kanban/contracts/api';
 import {
+  AVATAR_ALLOWED_MIME_TYPES,
   AVATAR_MAX_FILE_BYTES,
   type AvatarImageSet,
 } from '@kanban/contracts/avatar';
@@ -22,6 +23,7 @@ import { SessionGuard } from '@/session/session.guard';
 import { AvatarService } from './avatar.service';
 import { AvatarRateLimitGuard } from './avatarRateLimit.guard';
 import { AppException } from '@/common/exceptions/app.exception';
+import { UnsupportedAvatarTypeException } from '@/common/exceptions/avatar.exception';
 
 @ApiTags('Avatar')
 @ApiCookieAuth()
@@ -32,10 +34,7 @@ export class AvatarController {
 
   // 未指定 storage 時 Multer 使用記憶體，file.buffer 即為上傳內容。
   // TODO：
-  //  - declared MIME 不在 AVATAR_ALLOWED_MIME_TYPES → 415 / AvatarUnsupportedType（可用 fileFilter）
-  //  - 缺檔案 → 400 / ValidationError
   //  - Multer 超過大小（Nest 轉成 PayloadTooLargeException）→ 413 / AvatarFileTooLarge
-  //  - InvalidAvatarImageError → 400 / AvatarInvalidImage
   /** 上傳頭像，回傳同步產生的 md 尺寸 */
   @Post()
   @HttpCode(HttpStatus.OK)
@@ -44,6 +43,20 @@ export class AvatarController {
   @UseInterceptors(
     FileInterceptor('avatar', {
       limits: { fileSize: AVATAR_MAX_FILE_BYTES, files: 1, fields: 0 },
+      fileFilter(req, file, callback) {
+        if (
+          (AVATAR_ALLOWED_MIME_TYPES as readonly string[]).includes(
+            file.mimetype,
+          )
+        ) {
+          callback(null, true);
+        } else {
+          callback(
+            new UnsupportedAvatarTypeException('不支援的檔案類型'),
+            false,
+          );
+        }
+      },
     }),
   )
   async upload(
