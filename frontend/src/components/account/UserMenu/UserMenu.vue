@@ -6,15 +6,22 @@
         class="rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20"
         :aria-label="t('userMenu.open')"
       >
-        <Avatar :name="user.displayName" />
+        <Avatar :name="user.displayName" :src="smallAvatarUrl" :size="32" />
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" class="w-72">
-      <DropdownMenuLabel class="px-3 py-2">
-        <p class="truncate text-sm font-semibold text-content-primary">{{ user.displayName }}</p>
-        <p class="mt-0.5 truncate text-xs font-normal text-content-secondary">{{ user.email }}</p>
+      <DropdownMenuLabel class="flex items-center gap-3 px-3 py-2">
+        <Avatar :name="user.displayName" :src="smallAvatarUrl" :size="40" />
+        <span class="min-w-0">
+          <p class="truncate text-sm font-semibold text-content-primary">{{ user.displayName }}</p>
+          <p class="mt-0.5 truncate text-xs font-normal text-content-secondary">{{ user.email }}</p>
+        </span>
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
+      <DropdownMenuItem @select="isAvatarDialogOpen = true">
+        <ImageIcon :size="16" aria-hidden="true" />
+        {{ t('userMenu.changeAvatar') }}
+      </DropdownMenuItem>
       <DropdownMenuItem disabled>
         <Settings :size="16" aria-hidden="true" />
         {{ t('userMenu.accountSettings') }}
@@ -26,13 +33,14 @@
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
+  <AvatarSettingsDialog v-model:open="isAvatarDialogOpen" />
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { LogOut, Settings } from 'lucide-vue-next';
+import { Image as ImageIcon, LogOut, Settings } from 'lucide-vue-next';
 import type { PublicUser } from '@kanban/contracts/user';
 import {
   DropdownMenu,
@@ -43,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Avatar from '@/components/shared/Avatar/Avatar.vue';
+import AvatarSettingsDialog from '@/components/account/AvatarSettingsDialog/AvatarSettingsDialog.vue';
 import { logoutApi } from '@/services/auth';
 import { useNotificationStore } from '@/stores/notification';
 import { useProjectStore } from '@/stores/project';
@@ -53,9 +62,15 @@ interface Props {
   user: PublicUser;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const { t } = useI18n();
+const isAvatarDialogOpen = ref(false);
+// 32/40px displays use the 64px variant, falling back to 128px until the worker finishes.
+const smallAvatarUrl = computed(() => {
+  const avatar = props.user.avatar;
+  return avatar ? (avatar.smallUrl ?? avatar.mediumUrl) : null;
+});
 const router = useRouter();
 const notificationStore = useNotificationStore();
 const projectStore = useProjectStore();

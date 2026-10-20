@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
+import type { AvatarImageSet } from '@kanban/contracts/avatar';
 import type { PublicUser } from '@kanban/contracts/user';
 import { getUserInfoApi } from '@/services/user';
 
@@ -40,11 +41,19 @@ export const useUserStore = defineStore('userStore', () => {
     hasCheckedSession.value = false;
   };
 
+  /** Applies an avatar change from an upload/remove response without refetching userInfo. */
+  const setAvatar = (avatar: AvatarImageSet | null) => {
+    if (user.value) {
+      user.value = { ...user.value, avatar };
+    }
+  };
+
   return {
     user,
     hasUser,
     hasCheckedSession,
     initializeUser,
     resetUser,
+    setAvatar,
   };
 });

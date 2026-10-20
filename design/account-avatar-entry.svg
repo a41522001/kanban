@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#29324A" flood-opacity=".14"/></filter>
+    <linearGradient id="photo-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8B8AB"/>
+      <stop offset="1" stop-color="#FFF1D8"/>
+    </linearGradient>
+    <clipPath id="c32"><circle cx="16" cy="16" r="16"/></clipPath>
+    <clipPath id="c40"><circle cx="20" cy="20" r="20"/></clipPath>
+    <clipPath id="c64"><circle cx="32" cy="32" r="32"/></clipPath>
+    <clipPath id="c128"><circle cx="64" cy="64" r="64"/></clipPath>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.inverse{fill:#F7F8FA}.medium{font-weight:700}.mono{font-family:"JetBrains Mono",Consolas,monospace;font-size:12px;fill:#44506A}
+    </style>
+    <g id="image" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="m14.5 11-3.5-3.5-6.5 6"/></g>
+    <g id="settings" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></g>
+    <g id="logout" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h3M10.5 11.5 14 8l-3.5-3.5M14 8H6"/></g>
+    <g id="plus" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></g>
+    <!-- Sample photo: stands in for the user's uploaded image -->
+    <g id="photo">
+      <rect width="600" height="420" fill="url(#photo-sky)"/>
+      <circle cx="460" cy="96" r="44" fill="#FFF9F4" opacity=".8"/>
+      <path d="M0 300 140 210 250 270 380 190 600 300v120H0z" fill="#6EA99E"/>
+      <path d="M0 350 180 290 330 340 470 300 600 350v70H0z" fill="#31665D"/>
+      <circle cx="300" cy="182" r="58" fill="#E6B960"/>
+      <path d="M200 420c0-120 44-186 100-186s100 66 100 186z" fill="#DF6E51"/>
+    </g>
+    <g id="avatar-32"><g clip-path="url(#c32)"><use href="#photo" transform="translate(-20.9 -9.85) scale(.1231)"/></g></g>
+    <g id="avatar-40"><g clip-path="url(#c40)"><use href="#photo" transform="translate(-26.2 -12.3) scale(.1538)"/></g></g>
+    <g id="avatar-64"><g clip-path="url(#c64)"><use href="#photo" transform="translate(-41.8 -19.7) scale(.2462)"/></g></g>
+    <g id="avatar-128"><g clip-path="url(#c128)"><use href="#photo" transform="translate(-83.7 -39.4) scale(.4923)"/></g></g>
+  </defs>
+
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="52" class="spec">ACCOUNT / AVATAR ENTRY &amp; SHARED AVATAR</text>
+  <text x="40" y="84" class="body" fill="#697287">Header 的 Avatar 開啟 UserMenu；「更換頭像」開啟 AvatarSettingsDialog。共用 Avatar 元件統一處理圖片與首字 fallback。</text>
+
+  <!-- UserMenu entry -->
+  <g id="user-menu" transform="translate(40 132)">
+    <text y="-16" class="title">UserMenu · 開啟</text>
+    <rect width="680" height="64" rx="16" fill="#29324A"/>
+    <rect x="556" y="12" width="40" height="40" rx="10" fill="#44506A"/>
+    <g transform="translate(568 24)" color="#F7F8FA"><use href="#plus"/></g>
+    <circle cx="632" cy="32" r="20" fill="none" stroke="#DF6E51" stroke-width="3" opacity=".45"/>
+    <use href="#avatar-32" transform="translate(616 16)"/>
+
+    <g transform="translate(372 76)" filter="url(#shadow)">
+      <rect width="288" height="264" rx="12" fill="#FFFFFF" stroke="#D7DCE5"/>
+      <use href="#avatar-40" transform="translate(12 14)"/>
+      <text x="64" y="30" class="body medium">Jeffery</text>
+      <text x="64" y="48" class="small">111@111.com</text>
+      <line x1="0" y1="70" x2="288" y2="70" stroke="#D7DCE5"/>
+      <rect x="6" y="78" width="276" height="40" rx="8" fill="#F7F8FA"/>
+      <g transform="translate(18 90)" color="#29324A"><use href="#image"/></g>
+      <text x="44" y="103" class="body">更換頭像</text>
+      <g transform="translate(18 138)" color="#BFC7D7"><use href="#settings"/></g>
+      <text x="44" y="151" class="body" fill="#BFC7D7">帳號設定</text>
+      <line x1="0" y1="174" x2="288" y2="174" stroke="#D7DCE5"/>
+      <g transform="translate(18 194)" color="#A9432E"><use href="#logout"/></g>
+      <text x="44" y="207" class="body" fill="#A9432E">登出</text>
+      <text x="12" y="248" class="tiny">寬度 288（w-72）；項目高度 40，可鍵盤操作</text>
+    </g>
+
+    <text y="400" class="h2">入口規則</text>
+    <text y="428" class="body">• Header Trigger 改用共用 Avatar（32px），有頭像顯示圖片，沒有顯示首字。</text>
+    <text y="454" class="body">• Menu 標頭使用 40px Avatar，與名稱、Email 同列。</text>
+    <text y="480" class="body">• 新增「更換頭像」為可用項目，位於「帳號設定」上方；「帳號設定」維持 disabled。</text>
+    <text y="506" class="body">• 選取後關閉 Menu 再開啟 Dialog；Dialog 關閉時焦點回到 Header Avatar。</text>
+  </g>
+
+  <!-- Shared Avatar component -->
+  <g id="shared-avatar" transform="translate(800 132)">
+    <text y="-16" class="title">shared/Avatar · Variants</text>
+    <rect width="680" height="560" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+
+    <text x="32" y="48" class="small medium">SIZE（prop: 32 / 40 / 64 / 128）</text>
+    <text x="200" y="48" class="small medium">IMAGE</text>
+    <text x="360" y="48" class="small medium">FALLBACK</text>
+    <text x="500" y="48" class="small medium">URL</text>
+    <line x1="32" y1="64" x2="648" y2="64" stroke="#D7DCE5"/>
+
+    <text x="32" y="104" class="h2">32 px</text>
+    <text x="32" y="124" class="tiny">Header、成員清單</text>
+    <use href="#avatar-32" transform="translate(200 92)"/>
+    <circle cx="376" cy="108" r="16" fill="#A9D2C8"/><text x="376" y="113" text-anchor="middle" class="body medium">J</text>
+    <text x="500" y="104" class="mono">smallUrl</text>
+    <text x="500" y="122" class="mono">?? mediumUrl</text>
+
+    <line x1="32" y1="148" x2="648" y2="148" stroke="#EEF0F4"/>
+    <text x="32" y="192" class="h2">40 px</text>
+    <text x="32" y="212" class="tiny">UserMenu 標頭</text>
+    <use href="#avatar-40" transform="translate(200 176)"/>
+    <circle cx="380" cy="196" r="20" fill="#A9D2C8"/><text x="380" y="202" text-anchor="middle" class="h2">J</text>
+    <text x="500" y="192" class="mono">smallUrl</text>
+    <text x="500" y="210" class="mono">?? mediumUrl</text>
+
+    <line x1="32" y1="240" x2="648" y2="240" stroke="#EEF0F4"/>
+    <text x="32" y="292" class="h2">64 px</text>
+    <text x="32" y="312" class="tiny">候選人、通知詳情</text>
+    <use href="#avatar-64" transform="translate(200 264)"/>
+    <circle cx="392" cy="296" r="32" fill="#A9D2C8"/><text x="392" y="305" text-anchor="middle" class="title">J</text>
+    <text x="500" y="296" class="mono">mediumUrl</text>
+
+    <line x1="32" y1="344" x2="648" y2="344" stroke="#EEF0F4"/>
+    <text x="32" y="420" class="h2">128 px</text>
+    <text x="32" y="440" class="tiny">頭像設定預覽</text>
+    <use href="#avatar-128" transform="translate(200 368)"/>
+    <circle cx="424" cy="432" r="64" fill="#A9D2C8"/><text x="424" y="449" text-anchor="middle" style="font-size:48px;font-weight:700">J</text>
+    <text x="512" y="424" class="mono">largeUrl</text>
+    <text x="512" y="442" class="mono">?? mediumUrl</text>
+
+    <rect x="32" y="516" width="616" height="24" rx="6" fill="#F7F8FA"/>
+    <text x="44" y="533" class="tiny">圖片載入失敗（@error）自動回退為首字；alt 使用 displayName；網址只含 uploadId，不含 userId</text>
+  </g>
+
+  <text x="800" y="740" class="h2">Fallback 規則</text>
+  <text x="800" y="768" class="body">• avatar 為 null、URL 為空或圖片載入失敗時，顯示 displayName 的第一個字（大寫）。</text>
+  <text x="800" y="794" class="body">• 首字底色使用 mint #A9D2C8，與目前 Header Avatar 一致。</text>
+  <text x="800" y="820" class="body">• 圖片使用 object-cover 填滿圓形；不顯示外框，清單中與背景對比不足時才加 1px border。</text>
+  <text x="800" y="846" class="body">• 其他成員看到新頭像的時機為下次 refetch，v1 不做即時推播。</text>
+</svg>

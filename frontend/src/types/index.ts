@@ -20,4 +20,6 @@ export interface ApiOption<T> {
   data?: T;
   method: HTTPMethod;
   headers?: RawAxiosRequestHeaders;
+  /** Overrides the default 10s timeout, e.g. for file uploads. */
+  timeout?: number;
 }

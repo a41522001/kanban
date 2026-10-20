@@ -13,7 +13,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import type { ApiResult } from '@kanban/contracts/api';
+import { ApiCode, type ApiResult } from '@kanban/contracts/api';
 import {
   AVATAR_MAX_FILE_BYTES,
   type AvatarImageSet,
@@ -21,10 +21,11 @@ import {
 import { SessionGuard } from '@/session/session.guard';
 import { AvatarService } from './avatar.service';
 import { AvatarRateLimitGuard } from './avatarRateLimit.guard';
+import { AppException } from '@/common/exceptions/app.exception';
 
 @ApiTags('Avatar')
 @ApiCookieAuth()
-@Controller('user/me/avatar')
+@Controller('user/avatar')
 @UseGuards(SessionGuard)
 export class AvatarController {
   constructor(private readonly avatarService: AvatarService) {}
@@ -39,17 +40,27 @@ export class AvatarController {
   @Post()
   @HttpCode(HttpStatus.OK)
   @ApiConsumes('multipart/form-data')
-  @UseGuards(AvatarRateLimitGuard)
+  // @UseGuards(AvatarRateLimitGuard)
   @UseInterceptors(
     FileInterceptor('avatar', {
       limits: { fileSize: AVATAR_MAX_FILE_BYTES, files: 1, fields: 0 },
     }),
   )
-  upload(
+  async upload(
     @Req() req: Request,
     @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<ApiResult<AvatarImageSet>> {
-    throw new NotImplementedException();
+    if (file === undefined) {
+      throw new AppException({
+        code: ApiCode.ValidationError,
+        message: '未上傳檔案',
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+    const result = await this.avatarService.upload(req.userId!, file.buffer);
+    return {
+      data: result,
+    };
   }
 
   /** 移除頭像（冪等） */

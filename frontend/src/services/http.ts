@@ -47,12 +47,14 @@ const api = async <TResponse, TRequest = undefined>({
   data,
   method,
   headers,
+  timeout,
 }: ApiOption<TRequest>) => {
   const res = await apiClient.request<TResponse>({
     url,
     method: method.toUpperCase(),
     data,
     headers,
+    timeout,
   });
   return res;
 };

@@ -13,6 +13,7 @@ const mockedGetUserInfoApi = vi.mocked(getUserInfoApi);
 const user: PublicUser = {
   email: 'jeffery@example.com',
   displayName: 'Jeffery',
+  avatar: null,
 };
 
 const userInfoResponse: ApiResponse<PublicUser> = {
@@ -82,5 +83,39 @@ describe('user store', () => {
 
     expect(mockedGetUserInfoApi).toHaveBeenCalledTimes(2);
     expect(store.hasUser).toBe(true);
+  });
+
+  it('setAvatar 直接套用上傳結果，不重新請求使用者資訊', async () => {
+    mockedGetUserInfoApi.mockResolvedValue(userInfoResponse);
+    const store = useUserStore();
+    await store.initializeUser();
+    const avatar = { smallUrl: null, mediumUrl: 'http://localhost/md.webp', largeUrl: null };
+
+    store.setAvatar(avatar);
+
+    expect(store.user?.avatar).toEqual(avatar);
+    expect(store.user?.displayName).toBe(user.displayName);
+    expect(mockedGetUserInfoApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('setAvatar(null) 移除頭像', async () => {
+    mockedGetUserInfoApi.mockResolvedValue({
+      ...userInfoResponse,
+      data: { ...user, avatar: { smallUrl: null, mediumUrl: 'http://localhost/md.webp', largeUrl: null } },
+    });
+    const store = useUserStore();
+    await store.initializeUser();
+
+    store.setAvatar(null);
+
+    expect(store.user?.avatar).toBeNull();
+  });
+
+  it('未登入時 setAvatar 不會建立使用者', () => {
+    const store = useUserStore();
+
+    store.setAvatar({ smallUrl: null, mediumUrl: 'http://localhost/md.webp', largeUrl: null });
+
+    expect(store.user).toBeNull();
   });
 });

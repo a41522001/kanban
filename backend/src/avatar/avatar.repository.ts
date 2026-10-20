@@ -1,4 +1,4 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { Avatar } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 
@@ -13,21 +13,26 @@ export interface UpsertCurrentAvatarData {
 export class AvatarRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
-  /** 取得使用者目前的頭像 */
-  findByUserId(userId: string): Promise<Avatar | null> {
-    throw new NotImplementedException();
-  }
-
-  // TODO: upsert；新上傳要換 uploadId、mediumUrl，並把 smallUrl／largeUrl 設 null、
-  //       variantStatus=PENDING、variantAttempts=0。
   /** 設定使用者目前的頭像為新上傳 */
-  upsertCurrent(data: UpsertCurrentAvatarData): Promise<Avatar> {
-    throw new NotImplementedException();
-  }
-
-  // TODO: deleteMany 以保持冪等；不刪檔，交給孤兒清理。
-  /** 移除使用者頭像 */
-  deleteByUserId(userId: string): Promise<void> {
-    throw new NotImplementedException();
+  async upsertCurrent(data: UpsertCurrentAvatarData): Promise<Avatar> {
+    const avatar = await this.prismaService.avatar.upsert({
+      where: {
+        userId: data.userId,
+      },
+      create: {
+        userId: data.userId,
+        uploadId: data.uploadId,
+        mediumUrl: data.mediumUrl,
+      },
+      update: {
+        uploadId: data.uploadId,
+        mediumUrl: data.mediumUrl,
+        smallUrl: null,
+        largeUrl: null,
+        variantStatus: 'PENDING',
+        variantAttempts: 0,
+      },
+    });
+    return avatar;
   }
 }

@@ -26,9 +26,11 @@ npm run watch
 2. 在 Canvas 按右鍵，選擇 `Plugins` → `Development` → `Import plugin from manifest…`。
 3. 選取 `/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin/manifest.json`。
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
-5. 本次驗證信畫面按 `Email Verification · 4 desktop screens`；它只更新驗證信區塊。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
+5. 本次頭像設定畫面按 `Avatar Settings · dialog, states, entry`；它只更新頭像區塊。驗證信畫面按 `Email Verification · 4 desktop screens`。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
 
-目前 UI 版本標記為 `v14`。新增 `Email Verification · 4 desktop screens` 按鈕，更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components`、`03 · Screens` 裡的驗證信區塊；不重建登入、註冊或其他功能畫面。`Generate All` 也包含這四個狀態。
+目前 UI 版本標記為 `v15`。新增 `Avatar Settings · dialog, states, entry` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Avatar Settings components` 區塊與 `03 · Screens` 的 `Account / Avatar Settings` 區塊；需要既有的 Button 與 Project Card components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
+
+v14 曾新增驗證信畫面。新增 `Email Verification · 4 desktop screens` 按鈕，更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components`、`03 · Screens` 裡的驗證信區塊；不重建登入、註冊或其他功能畫面。`Generate All` 也包含這四個狀態。
 
 v13 曾新增其他既有畫面。Workspace 與 Project Overview 已整併為唯一的 `Workspace Project Overview`：Desktop 使用 `Default`／`Selected` master-detail；Tablet／Mobile 使用 `Default`／`Expanded` accordion。未展開卡片只使用 Project list API 資料，展開後才載入成員詳情，並提供「管理成員」與「進入專案」；前端對應 route 為 `/projects/:projectId`，Board 內容目前仍由 `ProjectView` 內的本機假資料呈現。
 
@@ -44,6 +46,27 @@ v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Mem
 
 2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。已確認 `Project Member Added Notification Detail Dialog` 有 Desktop／Mobile 兩個 variants，兩個 Screen 均使用 Instances，並完成 runtime／visual check。
 
+
+## v15 Avatar Settings source-to-output manifest
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/avatar-settings-dialog.svg` | Desktop `1440 × 900`，Crop | `03 · Screens` → `Account / Avatar Settings` → `Avatar Settings / Desktop / 1440×900`（Workspace backdrop + scrim + `Avatar Settings Dialog` Instance） |
+| `../design/avatar-settings-dialog-mobile.svg` | Mobile `390 × 844`，Crop | 同上 → `Avatar Settings / Mobile / 390×844` |
+| `../design/avatar-settings-dialog-states.svg` | Desktop 規格頁，6 states | 同上 → `Avatar Settings / States`，使用 `Viewport=Desktop` 的 IdleWithAvatar／IdleEmpty／Uploading／Error／RateLimited／Removing Instances |
+| `../design/account-avatar-entry.svg` | 規格頁 | 同上 → `Account / Avatar Entry & Shared Avatar / 1440×900`，使用 `User Menu` 與 `Shared Avatar` Instances |
+
+`02 · Components` → `Avatar Settings components` 新增：
+
+- `Shared Avatar`：`Size=32|40|64|128` × `Content=Image|Initial`。尺寸以像素命名，避免與圖片檔 `sm`／`md`／`lg` 混淆。
+- `Avatar Cropper`：`Viewport=Desktop|Mobile`（456×320／326×300），圓形 stencil、框外 scrim、四個 handle。
+- `Avatar Zoom Control`：`Viewport=Desktop|Mobile`，`−`／`+` 與滑桿。
+- `Avatar Settings Dialog`：`Viewport=Desktop` × 7 states（Crop、IdleWithAvatar、IdleEmpty、Uploading、Error、RateLimited、Removing）與 `Viewport=Mobile, State=Crop`。
+- `User Menu`：新增可用的「更換頭像」，「帳號設定」維持 disabled。
+
+範例照片以原生 Vector 呈現，代表使用者上傳的圖片，不是產品插圖。
+
+2026-10-19：v15 通過 TypeScript typecheck 與 production build，並由使用者在 Figma Desktop 執行。首次執行時 Dialog、States 頁與 User Menu 因 `resize()` 將 Auto Layout 改為固定高度而被裁切；修正為 resize 後恢復 Hug 並重新執行後，使用者確認畫面正確。
 
 ## v14 Email Verification source-to-output manifest
 

@@ -1,0 +1,121 @@
+@reference '../../../styles/index.css';
+
+.avatar-settings {
+  @apply max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[520px] gap-5 overflow-y-auto rounded-frame border-border bg-surface p-4 shadow-card sm:p-8;
+}
+
+.avatar-settings__header {
+  @apply relative gap-2 pr-12 text-left;
+}
+
+.avatar-settings__title {
+  @apply text-[1.375rem] leading-8 font-bold tracking-tight text-content-primary sm:text-2xl;
+}
+
+.avatar-settings__description {
+  @apply text-sm leading-6 text-content-secondary;
+}
+
+.avatar-settings__close {
+  @apply absolute -top-1 -right-1 grid size-10 cursor-pointer place-items-center rounded-control bg-surface-subtle text-content-secondary transition-[background-color,color,box-shadow] duration-150 hover:bg-board-page hover:text-content-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.avatar-settings__cropper-frame {
+  @apply relative h-[300px] overflow-hidden rounded-surface bg-content-primary sm:h-80;
+}
+
+.avatar-settings__cropper {
+  @apply size-full;
+}
+
+.avatar-settings__cropper-veil {
+  @apply absolute inset-0 grid place-items-center bg-surface/55;
+}
+
+.avatar-settings__spinner {
+  @apply animate-spin text-content-primary;
+}
+
+.avatar-settings__zoom {
+  @apply flex items-center gap-4;
+}
+
+.avatar-settings__icon-button {
+  @apply grid size-11 shrink-0 cursor-pointer place-items-center rounded-control bg-surface-subtle text-content-primary transition-[background-color,box-shadow] duration-150 hover:bg-board-page focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 disabled:cursor-not-allowed disabled:opacity-50 sm:size-10;
+}
+
+.avatar-settings__slider {
+  @apply h-5 min-w-0 flex-1 cursor-pointer accent-action-primary disabled:cursor-not-allowed;
+}
+
+.avatar-settings__preview {
+  @apply flex items-center gap-4;
+}
+
+.avatar-settings__preview-label {
+  @apply hidden text-xs text-content-secondary sm:inline;
+}
+
+.avatar-settings__preview-image {
+  @apply shrink-0 overflow-hidden rounded-full border border-border;
+}
+
+.avatar-settings__hint {
+  @apply text-xs leading-5 text-content-secondary;
+}
+
+.avatar-settings__notice {
+  @apply flex items-start gap-3 rounded-surface px-4 py-3.5 [&>svg]:mt-0.5 [&>svg]:shrink-0;
+}
+
+.avatar-settings__notice--error {
+  @apply bg-action-primary-soft text-category-coral;
+}
+
+.avatar-settings__notice--warning {
+  @apply items-center bg-flow-review-soft text-category-amber;
+}
+
+.avatar-settings__notice-title {
+  @apply text-sm leading-5 font-bold;
+}
+
+.avatar-settings__notice-detail {
+  @apply mt-0.5 text-xs leading-5;
+}
+
+.avatar-settings__footer {
+  @apply grid grid-cols-2 gap-3 border-t border-border pt-5 sm:flex sm:flex-row sm:items-center sm:justify-end;
+}
+
+.avatar-settings__footer--end {
+  @apply sm:justify-end;
+}
+
+.avatar-settings__action {
+  @apply h-12 w-full sm:h-11 sm:w-auto;
+}
+
+.avatar-settings__upload {
+  @apply col-span-2 sm:col-span-1 sm:min-w-27;
+}
+
+.avatar-settings__rechoose {
+  @apply h-12 w-full border border-border text-content-secondary sm:mr-auto sm:h-11 sm:w-auto sm:border-transparent;
+}
+
+.avatar-settings__current {
+  @apply flex flex-col items-center gap-4 py-2;
+}
+
+.avatar-settings__idle-actions {
+  @apply flex flex-col gap-3;
+}
+
+.avatar-settings__block-action {
+  @apply h-12 w-full sm:h-11;
+}
+
+.avatar-settings__remove {
+  @apply text-category-coral;
+}
