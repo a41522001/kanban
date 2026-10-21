@@ -1,0 +1,21 @@
+meta {
+  name: MemberAddedNotificationDetail
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/project/notificationDetail/{{notificationId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 「被加入 Project」通知詳細資訊
+
+  - Route: `GET /v1/api/project/notificationDetail/:notificationId`
+  - Auth: 有效 Session，且為該通知的收件者
+  - 成功：200 / `ProjectMemberAddedNotificationDetail`
+
+  `notificationId` 要是 `type = PROJECT_MEMBER_ADDED` 的通知，請以被加入者的帳號執行 `Notifications/ListNotifications` 後填入。
+}

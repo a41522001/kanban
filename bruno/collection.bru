@@ -1,0 +1,39 @@
+auth {
+  mode: none
+}
+
+script:pre-request {
+  // Send the session cookie captured from previous responses
+  const sessionId = bru.getEnvVar('sessionId');
+  if (sessionId && !req.getHeader('Cookie')) {
+    req.setHeader('Cookie', `sessionId=${sessionId}`);
+  }
+}
+
+script:post-response {
+  // Capture sessionId from Set-Cookie (login, session rotation, logout)
+  const raw = res.getHeader('set-cookie');
+  const cookies = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  for (const cookie of cookies) {
+    const match = /^sessionId=([^;]*)/.exec(cookie);
+    if (match) {
+      bru.setEnvVar('sessionId', match[1]);
+    }
+  }
+}
+
+docs {
+  Kanban（Flowboard）NestJS API
+
+  1. 選擇環境 `Local`，確認後端已啟動（`pnpm dev:backend`；寄驗證信需另外啟動 `pnpm dev:worker`）。
+  2. 先執行 `Auth/Login`。後端以 HttpOnly Cookie `sessionId` 維持登入；collection 的 post-response script 會把 Set-Cookie 中的 sessionId 存進環境變數 `sessionId`，pre-request script 再自動帶到每個請求。
+  3. Session 每 15 分鐘輪轉一次，輪轉時 Set-Cookie 會帶新值，script 會自動更新。
+  4. 部分請求的 post-response script 會用 `bru.setVar` 把回傳的 id 存成 runtime 變數（workspaceId、projectId、notificationId、avatarMediumUrl 等），方便串接後續請求。runtime 變數只存在記憶體、不寫入環境檔，因此不會造成 git 變更；重新開啟 Bruno 後需重跑建立或列表請求取得 id。
+
+  共通約定：
+
+  - Base URL 含全域前綴 `/v1/api`。
+  - 回應格式 `{ code, data, message, time, error }`；`code = 1` 為成功。
+  - DTO 開啟 whitelist + forbidNonWhitelisted，多送欄位會回 400。
+  - `ParseUUIDPipe` 格式錯誤回 400 / RequestError (4000)；DTO 的 `@IsUUID('4')` 錯誤回 400 / ValidationError (1000)。
+}

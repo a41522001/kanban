@@ -1,0 +1,29 @@
+meta {
+  name: ListMemberCandidates
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/project/{{projectId}}/memberCandidates
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const candidates = res.getBody()?.data ?? [];
+  const target = candidates.find((candidate) => !candidate.projectRole) ?? candidates[0];
+  if (target?.workspaceMemberId) {
+    bru.setVar('workspaceMemberId', target.workspaceMemberId);
+  }
+}
+
+docs {
+  # 可加入 Project 的候選人
+
+  - Route: `GET /v1/api/project/:projectId/memberCandidates`
+  - Auth: 有效 Session，且為工作區 OWNER
+  - 成功：200 / `MemberCandidate[]`（`workspaceMemberId`、`displayName`、`projectRole`）
+
+  已加入 Project 的成員 `projectRole` 有值。自動把第一個尚未加入者的 `workspaceMemberId` 存進 runtime 變數。
+}

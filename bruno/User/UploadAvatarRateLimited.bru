@@ -1,0 +1,45 @@
+meta {
+  name: UploadAvatarRateLimited
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/user/avatar
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  avatar: @file(fixtures/not-an-image.png) @contentType(image/png)
+}
+
+tests {
+  test('回應 429', () => {
+    expect(res.getStatus()).to.equal(429);
+  });
+
+  test('code 為 AvatarRateLimited (6004)', () => {
+    expect(res.getBody().code).to.equal(6004);
+  });
+
+  test('data.retryAfterSeconds 介於 0 到 60 秒', () => {
+    const seconds = res.getBody().data.retryAfterSeconds;
+    expect(seconds).to.be.a('number');
+    expect(seconds).to.be.within(0, 60);
+  });
+}
+
+docs {
+  # 上傳頭像：超過次數限制（錯誤案例）
+
+  - Route: `POST /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - 預期：429 / AvatarRateLimited (6004)，`data.retryAfterSeconds` 為剩餘秒數
+
+  每位使用者每 60 秒最多上傳 5 次（Redis key `rateLimit:avatarUpload:<userId>`，`INCR` + `EXPIRE NX`）。`AvatarRateLimitGuard` 在 Multer 讀取 body 之前執行，失敗的上傳（400／413／415）也會計入次數。
+
+  驗證方式：60 秒內先跑 5 次任何上傳請求（例如 `UploadAvatar`），再跑這支。這支故意上傳假圖片：若沒有被限制擋下，會回 400 而不是 429，一眼就能看出 Guard 沒生效。
+
+  2026-10-21 avatar 規格 §0.2 步驟 8。
+}

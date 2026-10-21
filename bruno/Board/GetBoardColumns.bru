@@ -1,0 +1,21 @@
+meta {
+  name: GetBoardColumns
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/board/{{projectId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 取得看板欄位
+
+  - Route: `GET /v1/api/board/:projectId`
+  - Auth: 有效 Session
+  - 成功：200 / 未封存的 BoardColumn 陣列，依 `position` 排序
+
+  ⚠️ 已知缺口：目前沒有檢查 Project membership，任何登入者知道 projectId 就能讀取。
+}

@@ -1,0 +1,21 @@
+meta {
+  name: GetInvitationDetail
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/workspaceInvitation/{{invitationId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 邀請詳細資訊
+
+  - Route: `GET /v1/api/workspaceInvitation/:workspaceInvitationId`
+  - Auth: 有效 Session，且為該邀請的受邀者
+  - 成功：200 / `WorkspaceInvitationDetail`
+
+  `invitationId` 可從受邀者的通知列表（`Notifications/ListNotifications`）中 `type = WORKSPACE_INVITED` 的 `resourceId` 取得。非受邀者或工作區已封存時回 404 / ResourceNotFound。
+}

@@ -1,0 +1,31 @@
+meta {
+  name: PinProject
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/project/{{projectId}}/pin
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "pinned": true
+  }
+}
+
+docs {
+  # 置頂／取消置頂
+
+  - Route: `PATCH /v1/api/project/:projectId/pin`
+  - Auth: 有效 Session，且為 Project 成員
+  - 成功：200
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | pinned | `boolean` | true 寫入置頂時間，false 取消置頂 |
+
+  置頂狀態屬於目前使用者自己，不影響其他成員。
+}

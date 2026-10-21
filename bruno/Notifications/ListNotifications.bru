@@ -1,0 +1,36 @@
+meta {
+  name: ListNotifications
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/notifications
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const items = res.getBody()?.data?.items ?? [];
+  if (items[0]?.id) {
+    bru.setVar('notificationId', items[0].id);
+  }
+  const invitation = items.find((item) => item.type === 'WORKSPACE_INVITED');
+  if (invitation?.resourceId) {
+    bru.setVar('invitationId', invitation.resourceId);
+  }
+}
+
+docs {
+  # 通知列表
+
+  - Route: `GET /v1/api/notifications`
+  - Auth: 有效 Session
+  - 成功：200 / `FindByRecipientResponse`（`items: PublicNotification[]`）
+
+  目前沒有 query 參數，預設回最新 20 筆。
+
+  自動存 runtime 變數：
+  - `notificationId`：第一筆通知的 id
+  - `invitationId`：第一筆 `WORKSPACE_INVITED` 通知的 `resourceId`
+}

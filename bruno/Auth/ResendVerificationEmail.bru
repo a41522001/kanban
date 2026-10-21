@@ -1,0 +1,33 @@
+meta {
+  name: ResendVerificationEmail
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/auth/resend-verification-email
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{email}}"
+  }
+}
+
+docs {
+  # 重寄驗證信
+
+  - Route: `POST /v1/api/auth/resend-verification-email`
+  - Auth: 公開
+  - 成功：202 / `{ retryAfterSeconds }`
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | email | `string` | Email 格式，自動 trim + 小寫 |
+
+  - 所有 Email 都套用冷卻（預設 60 秒）；冷卻中回 429 / EmailVerificationCooldown (2006)，`data.retryAfterSeconds`。
+  - 只有未驗證的 LOCAL 帳號才會實際入列寄信；其他情況同樣回 202，不洩漏帳號是否存在。
+  - 入列失敗回 503 / VerificationEmailQueueFailed (2008)。
+}

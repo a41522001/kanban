@@ -1,0 +1,21 @@
+meta {
+  name: Logout
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/logout
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 登出
+
+  - Route: `POST /v1/api/auth/logout`
+  - Auth: 不套 SessionGuard，可帶 Cookie
+  - 成功：200，message「登出成功」
+
+  撤銷本次 Cookie 對應的 Session、斷開該 Session 的 Socket，並一律清除 Cookie。清除後 collection script 會把環境變數 `sessionId` 設為空字串。
+}

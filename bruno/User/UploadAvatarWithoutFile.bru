@@ -1,0 +1,31 @@
+meta {
+  name: UploadAvatarWithoutFile
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/user/avatar
+  body: none
+  auth: inherit
+}
+
+tests {
+  test('回應 400', () => {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test('code 為 ValidationError (1000)', () => {
+    expect(res.getBody().code).to.equal(1000);
+  });
+}
+
+docs {
+  # 上傳頭像：缺少檔案（錯誤案例）
+
+  - Route: `POST /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - 預期：400 / ValidationError (1000)，message「未上傳檔案」
+
+  不帶任何 body，確認 controller 在 `file` 為 undefined 時擋下請求。
+}

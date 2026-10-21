@@ -1,0 +1,29 @@
+meta {
+  name: MarkRead
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/notifications/read
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "notificationId": "{{notificationId}}"
+  }
+}
+
+docs {
+  # 單筆標為已讀
+
+  - Route: `PATCH /v1/api/notifications/read`
+  - Auth: 有效 Session，且為通知的收件者
+  - 成功：200；已讀過的通知不會改寫首次已讀時間
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | notificationId | `string` | UUID v4 |
+}

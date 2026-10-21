@@ -1,0 +1,37 @@
+meta {
+  name: UploadAvatarInvalidImage
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/user/avatar
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  avatar: @file(fixtures/not-an-image.png) @contentType(image/png)
+}
+
+tests {
+  test('回應 400', () => {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test('code 為 AvatarInvalidImage (6001)', () => {
+    expect(res.getBody().code).to.equal(6001);
+  });
+}
+
+docs {
+  # 上傳頭像：假圖片（錯誤案例）
+
+  - Route: `POST /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - 預期：400 / AvatarInvalidImage (6001)
+
+  `fixtures/not-an-image.png` 是一個副檔名為 `.png`、宣告 MIME 為 `image/png` 的文字檔。它能通過 Multer 的 MIME 檢查，但 Sharp 解碼時會失敗，`ImageProcessingService` 丟出 `InvalidAvatarImageException`，由全域 Filter 轉成 400。
+
+  2026-10-20 avatar 規格 §0.2 步驟 6-1 完成。
+}

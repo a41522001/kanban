@@ -1,0 +1,19 @@
+meta {
+  name: ListProjectMembers
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/project/{{projectId}}/members
+  body: none
+  auth: inherit
+}
+
+docs {
+  # Project 成員
+
+  - Route: `GET /v1/api/project/:projectId/members`
+  - Auth: 有效 Session，且為 Project 成員
+  - 成功：200 / `ProjectMemberDto[]`
+}

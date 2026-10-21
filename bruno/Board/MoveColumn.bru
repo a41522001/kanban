@@ -1,0 +1,38 @@
+meta {
+  name: MoveColumn
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/board/moveColumn
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "projectId": "{{projectId}}",
+    "columnId": "",
+    "beforeColumnId": null,
+    "afterColumnId": null,
+    "expectedBoardRevision": "0"
+  }
+}
+
+docs {
+  # 移動看板欄位（未實作）
+
+  - Route: `PATCH /v1/api/board/moveColumn`
+  - Auth: 有效 Session
+
+  | 欄位 | 型別 | 說明 |
+  |---|---|---|
+  | projectId | `string` | Project id |
+  | columnId | `string` | 要移動的欄位 |
+  | beforeColumnId | `string \| null` | 移動後前一欄 |
+  | afterColumnId | `string \| null` | 移動後後一欄 |
+  | expectedBoardRevision | `string` | 樂觀鎖用的 board revision |
+
+  ⚠️ 目前 handler 是空殼，而且 `MoveBoardColumnDto` 沒有任何 class-validator decorator；在 forbidNonWhitelisted 下，帶任何欄位的 body 都會回 400。
+}

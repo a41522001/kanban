@@ -1,0 +1,21 @@
+meta {
+  name: VerifyEmail
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/auth/verify/{{verifyToken}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 驗證信箱
+
+  - Route: `PATCH /v1/api/auth/verify/:token`
+  - Auth: 公開
+  - 成功：200 / null；消耗 token，不建立 Session。
+
+  先把驗證信連結 `/verifyEmail/<token>` 中的 token 填入環境變數 `verifyToken`。token 無效、過期或已使用時回錯誤；同一個 token 成功後不可再次使用。
+}

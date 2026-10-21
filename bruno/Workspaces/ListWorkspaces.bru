@@ -1,0 +1,28 @@
+meta {
+  name: ListWorkspaces
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/workspaces
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const id = res.getBody()?.data?.[0]?.id;
+  if (id && !bru.getVar('workspaceId')) {
+    bru.setVar('workspaceId', id);
+  }
+}
+
+docs {
+  # 列出我的工作區
+
+  - Route: `GET /v1/api/workspaces`
+  - Auth: 有效 Session
+  - 成功：200 / `WorkspaceListItemDto[]`
+
+  runtime 變數 `workspaceId` 為空時，自動填入第一筆的 id。
+}

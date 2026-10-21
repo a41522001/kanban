@@ -1,0 +1,35 @@
+meta {
+  name: AddMember
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/project/addMember
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "projectId": "{{projectId}}",
+    "workspaceMemberId": "{{workspaceMemberId}}",
+    "role": "EDITOR"
+  }
+}
+
+docs {
+  # 加入 Project 成員
+
+  - Route: `POST /v1/api/project/addMember`
+  - Auth: 有效 Session，且為工作區 OWNER
+  - 成功：201
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | projectId | `string` | UUID v4 |
+  | workspaceMemberId | `string` | UUID v4，同工作區的成員 |
+  | role | `string` | `EDITOR` 或 `VIEWER` |
+
+  重複加入回 409。成功時會建立 `PROJECT_MEMBER_ADDED` 通知並以 Socket 推送。
+}
