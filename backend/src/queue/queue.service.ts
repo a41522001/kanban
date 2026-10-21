@@ -39,6 +39,5 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     // QueueEvents 也持有 Redis 連線，關閉事件監聽後再結束 Queue。
     await this.emailQueueEvent?.close();
     await this.emailQueue?.close();
-    await this.redisService.destroyBullMqConnection();
   }
 }

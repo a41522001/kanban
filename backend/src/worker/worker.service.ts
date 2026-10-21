@@ -33,7 +33,6 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.emailWorker?.close();
-    await this.redisService.destroyBullMqConnection();
   }
 
   async handleSendVerificationEmail(data: SendVerificationEmailData) {

@@ -1,4 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env';
 import { createClient, RedisClientType } from 'redis';
@@ -12,7 +17,9 @@ type AppRedisClient = RedisClientType<
   SessionScripts
 >;
 @Injectable()
-export class RedisService implements OnModuleInit, OnModuleDestroy {
+export class RedisService
+  implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown
+{
   private readonly client: AppRedisClient;
   private readonly mqRedisClient: IRedisClient;
   constructor(configService: ConfigService<Env>) {
@@ -39,6 +46,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       console.error('Redis error:', error);
     });
   }
+
+  async onApplicationShutdown() {
+    await this.mqRedisClient.quit();
+  }
+
   async onModuleInit(): Promise<void> {
     if (!this.client.isOpen) {
       await this.client.connect();
@@ -57,9 +69,5 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   createBullMQConnection(): IRedisClient {
     return this.mqRedisClient;
-  }
-
-  async destroyBullMqConnection(): Promise<void> {
-    await this.mqRedisClient.quit();
   }
 }

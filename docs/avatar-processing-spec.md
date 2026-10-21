@@ -42,7 +42,7 @@
 | 6 | 錯誤處理：缺檔 400、MIME 415、過大 413、無法解碼 400、寫檔失敗 503 | Bruno 傳錯誤檔案看到對應狀態碼 | ✅ 2026-10-20：6-1 完成，`InvalidAvatarImageException extends AppException`（`common/exceptions/avatar.exception.ts`）由全域 Filter 直接回 400／6001，假圖片實測通過。6-2 完成，Multer `fileFilter` 以 `AVATAR_ALLOWED_MIME_TYPES` 檢查 declared MIME，不符丟 `UnsupportedAvatarTypeException`（NestJS 對 `HttpException` 原樣拋出），Bruno 上傳 `text/plain` 回 415／6003，正常 PNG 仍回 200。6-3 完成，後端不改：Bruno 上傳 6 MiB 檔案回 413／4000（RequestError），規格由 6002 修訂為 4000，見 §4 錯誤表。6-4 完成，`write` 或 `upsertCurrent` 失敗時記 log（含 `err`、`uploadId`）並丟 `AvatarStorageUnavailableException`（503／6005）；upsert 失敗會刪除剛寫入的資料夾，刪除失敗只記 log，不蓋掉 503。無法用 Bruno 自然重現，改由 `avatar.service.spec.ts` 4 個單元測試驗證 |
 | 7 | `DELETE /user/avatar`，以及換頭像時刪除舊資料夾 | 磁碟只留最新一份 | ✅ 2026-10-21：7-1 完成，`remove` 先 `findByUserId`，沒有頭像直接回 200；有則 `deleteMany` 後刪除 `avatars/<uploadId>/`，`count` 為 0（已被其他請求刪除）時不刪檔，刪檔失敗只記 log。Bruno 上傳→刪除→資料夾消失→`userInfo.avatar` 為 null→再刪仍 200 全部通過；單元測試 4 個。7-2 完成，`upload` 在 upsert 前以 `findByUserId` 取得舊 `uploadId`（與 upsert 同一個 try，失敗回 503 並刪新資料夾），upsert 成功後才刪舊資料夾，失敗只記 log 仍回 200；Bruno 連續上傳兩次後只剩一個資料夾，單元測試 5 個 |
 | 8 | 上傳次數限制 Guard | 第 6 次回 429 與 `retryAfterSeconds` | ✅ 2026-10-21：`AvatarRateLimitGuard` 以 `INCR` + `EXPIRE <window> NX`（每次都呼叫，補上可能遺失的過期時間，取代原本「count 為 1 才 EXPIRE」），超過 `AVATAR_UPLOAD_LIMIT` 丟 429／6004，`data.retryAfterSeconds = max(0, TTL)`；以 `@UseGuards` 掛在 upload，排在 class 層的 SessionGuard 之後、Multer 之前。Bruno 第 6 次回 429；單元測試 5 個 |
-| 9 | 背景 Worker 產生 sm／lg（含 Redis 連線調整 §9） | 上傳後數秒內 `smallUrl`／`largeUrl` 被補上 | ⬜ |
+| 9 | 背景 Worker 產生 sm／lg（含 Redis 連線調整 §9）。拆成 9-1 Redis 連線調整、9-2 API 寫原圖並入列、9-3 Worker 處理 job、9-4 失敗處理，規格見 §0.3 | 上傳後數秒內 `smallUrl`／`largeUrl` 被補上 | 🔄 2026-10-21：§0.3 規格已由使用者逐項確認（grill Q1–Q14）。9-1 完成：`RedisService.onApplicationShutdown` 關閉 `mqRedisClient`，移除 `destroyBullMqConnection()`；暫時關閉 `devAutoVerifyEmail` 註冊新帳號，worker 收到 job 並寄信成功、API 收到 `completed`；以腳本直接呼叫 `app.close()` 確認順序為 `WorkerService.onModuleDestroy` → `RedisService.onModuleDestroy` → `RedisService.onApplicationShutdown`，無錯誤、exit code 0。9-2 待做 |
 | 10 | 成員、候選人、通知 read model 加回頭像 | 成員清單顯示頭像 | ⬜ |
 | 11 | **Cloud Storage**：`GcsStorageService` 實作 `StorageService`（物件上傳本身即原子，不需 `.part`；`deleteDir` 以前綴刪除；寫入時設定 `Cache-Control: public, max-age=31536000, immutable`），`StorageModule` 依環境變數選擇 local／gcs；建立 media（公開）與 temp（私有＋1 天生命週期）兩個 bucket；VM 服務帳號授權；Cloudflare `media.<網域>` 指向 media bucket | 正式設定下上傳後，`https://media.<網域>/...` 可讀取圖片；temp 原圖不可公開讀取 | ⬜ |
 | 12 | 部署：`.env.prod` 加入儲存與 bucket 設定；backend 與 worker 都使用 GCS，**不需共用 volume**，Nginx 不需 `/media` | 部署到 VM 後可上傳、顯示，Worker 補上 sm／lg | ⬜ |
@@ -51,16 +51,38 @@
 
 既有骨架 `avatar.controller.ts`、`avatar.service.ts`、`avatar.repository.ts`、`avatarRateLimit.guard.ts` 含有多個後續步驟的 TODO，由使用者在步驟 2 起依當下需要重寫，可參考但不必照用。`TEMP_STORAGE` 到步驟 9 才使用。
 
-### 0.3 步驟 9 再確認的 Worker 細節（提案）
+### 0.3 步驟 9 的 Worker 規格（2026-10-21 已確認）
 
-以下在 2026-10-19 討論時提出，尚未由使用者逐項確認，進行步驟 9 時再確認：
+2026-10-19 提出的提案，已於 2026-10-21 由使用者以 grill 逐項確認（Q1–Q14）。§5 與本節不一致時，以本節為準。
 
-- Job 資料只放 `{ userId, uploadId }`，不放圖片內容、路徑或網址。
-- 處理中被新上傳取代時，舊 job 的條件式寫回為 0 筆；此時 Worker 刪除自己的 `avatars/<uploadId>/`，避免寫檔時重新建立的資料夾成為孤兒。
-- 暫時性錯誤交給 BullMQ 重試（3 次、指數退避）；原圖遺失或解碼失敗丟 `UnrecoverableError`。最終失敗標記 `FAILED` 並刪除 temp 原圖，前端繼續使用 md。正式環境中，即使刪除失敗或沒有執行，temp bucket 的生命週期規則也會在 1 天後清除原圖。
-- `queue.add` 失敗只記 log、API 仍回 200；該頭像停在 PENDING 且無 sm／lg（不做補入列排程的代價），重新上傳即恢復。留下的 temp 原圖在正式環境由生命週期規則清除，開發環境則保留在本機。
-- `DELETE` 先刪 DB，成功後刪除 media 與 temp 的資料夾。
-- `variantAttempts` 欄位保留但暫不使用。
+**架構**
+
+- （Q1）新增 `avatar` queue，放在既有 worker process（`worker/main.ts`），寫成獨立的 `AvatarWorkerService`，不併入 Email 的 `WorkerService`。理想上應拆成獨立 process，避免 Sharp 吃 CPU 拖慢寄信；目前選擇同一個 process 以簡化部署，日後拆分時只需新增 entry 與 module。
+- （Q6）BullMQ 共用的 `mqRedisClient` 由建立它的 `RedisService` 在 `onModuleDestroy` 關閉，並防止重複關閉；Queue／Worker／QueueEvents 只 `close()` 自己。必須在新增 avatar queue 之前完成（9-1）。
+- （Q13）`concurrency` 為常數 `AVATAR_WORKER_CONCURRENCY = 2`（`avatar.constants.ts`），不做成環境變數。
+
+**入列（API）**
+
+- （Q2）Job 資料只放 `{ userId, uploadId }`，不放圖片內容、路徑或網址；Worker 以 `uploadId` 自行組出 storage key。
+- （Q3）上傳流程：validate → render md → 寫入 media md 與 temp 原圖（`avatars/<uploadId>/original`）→ 查舊頭像＋upsert → 入列 → 刪舊資料夾。原圖寫入失敗與 md 寫入失敗相同，回 503 並刪除已寫入的檔案。
+- （Q4）`queue.add` 失敗只記 log，API 仍回 200；該頭像停在 PENDING、只有 md（不做補入列排程的代價），重新上傳即恢復。
+- （Q5）jobId 為 `avatar-variants-<uploadId>`。去重來自 `uploadId`；前綴只為了可讀性，以及日後同一 queue 新增其他 job 時不衝突。`variantAttempts` 欄位保留但不使用。Email queue 維持自動流水號 jobId（重寄必須能再次入列，不可用固定 jobId）。
+- （Q14）job options：`attempts: 3`、`backoff: { type: 'exponential', delay: 2000 }`、`removeOnComplete: { age: 86400 }`、`removeOnFail: { age: 604800 }`。
+
+**處理（Worker）**
+
+- （Q7）開始處理前查 `Avatar where userId`；row 不存在或 `uploadId` 不符（已刪除或被取代），直接結束，不產生 sm／lg。
+- （Q8）暫時性錯誤（DB、寫檔）交給 BullMQ 重試 3 次（2／4／8 秒）；原圖遺失或解碼失敗丟 `UnrecoverableError`，不重試。
+- （Q10）最終失敗（重試用盡或 `UnrecoverableError`）時，以 `updateMany where { userId, uploadId, variantStatus: PENDING }` 標記 `FAILED`；前端不處理，繼續使用 md。
+- （Q11）條件式寫回結果為 0 筆（處理途中被取代或刪除）時，Worker 刪除自己的 media `avatars/<uploadId>/`，避免寫入 sm／lg 時重新建立的資料夾成為孤兒。
+- （Q12）temp 原圖的刪除，失敗皆只記 log：
+  - Worker：處理成功、最終失敗、被取代或被刪除時，刪除自己的 temp `avatars/<uploadId>/`。
+  - API：上傳新頭像（7-2）與刪除頭像（7-1）時，連同 media 一併刪除舊的 temp 資料夾。
+  - 正式環境的 temp bucket 有 1 天生命週期規則作為保險；開發環境漏刪的檔案會留在本機。
+
+**前端**
+
+- （Q9）不輪詢 sm／lg；下次取得 `userInfo` 時自然拿到。顯示時使用 `smallUrl ?? mediumUrl`。
 
 > **2026-09-30 過渡狀態**：`avatars` schema 與 migration `20260930153339_add_avatar_model` 已建立，`users.avatar_url` 已移除。在上傳功能完成前，所有公開 contract（`PublicUser`、Workspace／Project 成員、候選人）與通知 read model 都**暫時不含頭像欄位**，後端測試也已移除相關斷言。前端 `ProjectMembers`、`ProjectAddMemberDialog` 只顯示首字佔位，並以 `TODO(avatar)` 標記。§4.2 的欄位會在實作階段連同後端測試一起加回。
 
@@ -282,10 +304,10 @@ Multer 的 `LIMIT_FILE_SIZE`、`LIMIT_UNEXPECTED_FILE` 等錯誤必須轉成上�
 
 ### 5.1 Queue 與部署
 
-- Queue：`avatar`；job name：`generate-avatar-variants`；jobId：`avatar-variants-<uploadId>-<variantAttempts>`。jobId 不可含 `:`。
+- Queue：`avatar`；job name：`generate-avatar-variants`；jobId：~~`avatar-variants-<uploadId>-<variantAttempts>`~~ **2026-10-21 修訂：`avatar-variants-<uploadId>`，見 §0.3 Q5**。jobId 不可含 `:`。
 - payload：`{ userId, uploadId }`。不放 buffer、路徑或 URL。
 - job options：`attempts: 3`、`backoff: { type: 'exponential', delay: 2000 }`、`removeOnComplete: { age: 86400 }`、`removeOnFail: { age: 604800 }`。
-- 放在既有 worker process（`backend/src/worker/main.ts`），新增獨立的 `Worker` instance，`concurrency = AVATAR_WORKER_CONCURRENCY`（預設 2），與 Email worker 分開。
+- 放在既有 worker process（`backend/src/worker/main.ts`），新增獨立的 `Worker` instance，`concurrency = AVATAR_WORKER_CONCURRENCY`（~~預設 2~~ **2026-10-21 修訂：常數 2，不做成環境變數**），與 Email worker 分開。
 - API 與 worker 必須看得到同一個 `AVATAR_TEMP_ROOT` 與 `AVATAR_STORAGE_ROOT`。本機開發為同一台機器，不需要額外設定。
 
 ### 5.2 Job 流程
@@ -304,8 +326,8 @@ Multer 的 `LIMIT_FILE_SIZE`、`LIMIT_UNEXPECTED_FILE` 等錯誤必須轉成上�
    })
    ```
 
-   `count === 0` 代表已被取代、刪除或已完成，不視為錯誤。
-7. 刪除 temp 原圖（best-effort，失敗由清理排程補做）。
+   `count === 0` 代表已被取代、刪除或已完成，不視為錯誤。**2026-10-21 修訂：此時刪除自己的 media `avatars/<uploadId>/`，見 §0.3 Q11。**
+7. 刪除 temp 原圖（best-effort，~~失敗由清理排程補做~~ **2026-10-21 修訂：失敗只記 log，正式環境由 temp bucket 生命週期規則清除**）。步驟 1 直接結束與步驟 8 最終失敗時也要刪除，見 §0.3 Q12。
 8. 最終失敗：在 Worker 的 `failed` 事件中，若 `job.attemptsMade >= attempts` 或錯誤為 `UnrecoverableError`，執行 `updateMany where { userId, uploadId, variantStatus: PENDING }` 設為 `FAILED`。
 
 錯誤分類：解碼失敗、原圖遺失屬於不可恢復錯誤，丟 `UnrecoverableError`；寫檔 IO、DB 暫時失敗則交給 BullMQ 重試。
@@ -393,7 +415,8 @@ interface StorageService {
 
 調整方式：
 
-- 由 `RedisService` 在自己的 `onModuleDestroy` 關閉 `mqRedisClient`，並防止重複關閉。
+- 由 `RedisService` 關閉 `mqRedisClient`。**2026-10-21 實作：放在 `onApplicationShutdown`**。`app.close()` 的順序為 `onModuleDestroy`（全部 module）→ `beforeApplicationShutdown` → `onApplicationShutdown`（`@nestjs/core/nest-application-context.js` 的 `close()`），放在最後一階段，不論 module 順序都保證 Queue／Worker 已經關閉。（註：global module 的 distance 為 `Number.MAX_VALUE`，但 destroy／shutdown 系列 hook 會把排序 `reverse()`，global module 其實是**最後**執行，因此原本放在 `onModuleDestroy` 也可行；選用 `onApplicationShutdown` 是為了不依賴 module 排序。）
+- 只有 `RedisService` 會關閉這條連線，不需要防重複關閉的旗標。BullMQ 收到現成的 client 時會標記為 `shared`（`bullmq/dist/cjs/utils/create-backend.js`），`close()` 不會 `quit()` 它；Worker 的 blocking 連線由 BullMQ 自行 `duplicate()` 並負責關閉。
 - Queue／Worker／QueueEvents 只負責 `close()` 自己，不再呼叫 `destroyBullMqConnection()`。
 
 這項修正會同時影響 Email queue，必須和既有 Email 行為一起測試。
