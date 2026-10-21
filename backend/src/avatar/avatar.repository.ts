@@ -35,4 +35,24 @@ export class AvatarRepository {
     });
     return avatar;
   }
+
+  /** 尋找使用者的Avatar */
+  async findByUserId(userId: string): Promise<Avatar | null> {
+    const avatar = await this.prismaService.avatar.findUnique({
+      where: {
+        userId,
+      },
+    });
+    return avatar;
+  }
+
+  /** 刪除avatar */
+  async deleteByUserId(userId: string): Promise<number> {
+    const result = await this.prismaService.avatar.deleteMany({
+      where: {
+        userId,
+      },
+    });
+    return result.count;
+  }
 }

@@ -3,7 +3,6 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
-  NotImplementedException,
   Post,
   Req,
   UploadedFile,
@@ -39,7 +38,7 @@ export class AvatarController {
   @Post()
   @HttpCode(HttpStatus.OK)
   @ApiConsumes('multipart/form-data')
-  // @UseGuards(AvatarRateLimitGuard)
+  @UseGuards(AvatarRateLimitGuard)
   @UseInterceptors(
     FileInterceptor('avatar', {
       limits: { fileSize: AVATAR_MAX_FILE_BYTES, files: 1, fields: 0 },
@@ -79,7 +78,10 @@ export class AvatarController {
   /** 移除頭像（冪等） */
   @Delete()
   @HttpCode(HttpStatus.OK)
-  remove(@Req() req: Request): Promise<ApiResult<null>> {
-    throw new NotImplementedException();
+  async remove(@Req() req: Request): Promise<ApiResult<null>> {
+    await this.avatarService.remove(req.userId!);
+    return {
+      data: null,
+    };
   }
 }
