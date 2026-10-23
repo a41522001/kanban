@@ -17,5 +17,6 @@ import { QueueModule } from '@/queue/queue.module';
     ImageProcessingService,
     AvatarRateLimitGuard,
   ],
+  exports: [],
 })
 export class AvatarModule {}

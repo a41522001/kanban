@@ -55,4 +55,44 @@ export class AvatarRepository {
     });
     return result.count;
   }
+
+  /** Worker 產生 sm／lg 後寫回；只更新仍是這次上傳且狀態為 PENDING 的頭像，回傳更新筆數。 */
+  /** Worker 最終失敗時標記；只更新仍是這次上傳且狀態為 PENDING 的頭像，回傳更新筆數。 */
+  async markVariantsFailed(data: {
+    userId: string;
+    uploadId: string;
+  }): Promise<number> {
+    const result = await this.prismaService.avatar.updateMany({
+      where: {
+        userId: data.userId,
+        uploadId: data.uploadId,
+        variantStatus: 'PENDING',
+      },
+      data: {
+        variantStatus: 'FAILED',
+      },
+    });
+    return result.count;
+  }
+
+  async completeVariants(data: {
+    userId: string;
+    uploadId: string;
+    smallUrl: string;
+    largeUrl: string;
+  }): Promise<number> {
+    const result = await this.prismaService.avatar.updateMany({
+      where: {
+        userId: data.userId,
+        uploadId: data.uploadId,
+        variantStatus: 'PENDING',
+      },
+      data: {
+        smallUrl: data.smallUrl,
+        largeUrl: data.largeUrl,
+        variantStatus: 'COMPLETED',
+      },
+    });
+    return result.count;
+  }
 }
