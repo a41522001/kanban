@@ -1,5 +1,8 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import type { SendVerificationEmailData } from '@/types/queue';
+import type {
+  SendVerificationEmailData,
+  GenerateAvatarVariantsData,
+} from '@/types/queue';
 import { Worker } from 'bullmq';
 import { RedisService } from '@/redis/redis.service';
 import { EmailService } from '@/email/email.service';
@@ -14,6 +17,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService<Env>,
   ) {}
   private emailWorker!: Worker<SendVerificationEmailData>;
+  private avatarWorker!: Worker<GenerateAvatarVariantsData>;
   onModuleInit() {
     this.emailWorker = new Worker<SendVerificationEmailData>(
       'email',
@@ -25,6 +29,13 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
           await this.handleSendVerificationEmail(job.data);
         }
       },
+      {
+        connection: this.redisService.createBullMQConnection(),
+      },
+    );
+    this.avatarWorker = new Worker<GenerateAvatarVariantsData>(
+      'avatar',
+      async () => {},
       {
         connection: this.redisService.createBullMQConnection(),
       },

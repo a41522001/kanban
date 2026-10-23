@@ -3,3 +3,7 @@ export type SendVerificationEmailData = {
   email: string;
   token: string;
 };
+export type GenerateAvatarVariantsData = {
+  userId: string;
+  uploadId: string;
+};

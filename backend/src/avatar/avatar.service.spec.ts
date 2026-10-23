@@ -3,7 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ApiCode } from '@kanban/contracts/api';
 import { AvatarStorageUnavailableException } from '@/common/exceptions/avatar.exception';
 import type { Avatar } from '@/generated/prisma/client';
-import { MEDIA_STORAGE } from '@/storage/storage.tokens';
+import { QueueService } from '@/queue/queue.service';
+import { MEDIA_STORAGE, TEMP_STORAGE } from '@/storage/storage.tokens';
 import type { StorageService } from '@/storage/storage.types';
 import { AvatarRepository } from './avatar.repository';
 import { AvatarService } from './avatar.service';
@@ -13,6 +14,7 @@ const userId = '6b3a1c4e-2f0d-4a8b-9c7e-1d2f3a4b5c6d';
 const input = Buffer.from('original');
 const mediumWebp = Buffer.from('medium-webp');
 const existingUploadId = '9f8e7d6c-5b4a-4321-8fed-cba987654321';
+const existingDir = `avatars/${existingUploadId}/`;
 
 /** 使用者目前已有的頭像（upload 時為舊頭像，remove 時為要刪除的頭像）。 */
 const createAvatar = (): Avatar => ({
@@ -39,8 +41,11 @@ describe('AvatarService', () => {
   let upsertCurrent: jest.MockedFunction<AvatarRepository['upsertCurrent']>;
   let findByUserId: jest.MockedFunction<AvatarRepository['findByUserId']>;
   let deleteByUserId: jest.MockedFunction<AvatarRepository['deleteByUserId']>;
-  let write: jest.MockedFunction<StorageService['write']>;
-  let deleteDir: jest.MockedFunction<StorageService['deleteDir']>;
+  let mediaWrite: jest.MockedFunction<StorageService['write']>;
+  let mediaDeleteDir: jest.MockedFunction<StorageService['deleteDir']>;
+  let tempWrite: jest.MockedFunction<StorageService['write']>;
+  let tempDeleteDir: jest.MockedFunction<StorageService['deleteDir']>;
+  let addAvatarQueue: jest.MockedFunction<QueueService['addAvatarQueue']>;
   let loggerError: jest.SpyInstance;
 
   /** 取得 upload 丟出的錯誤，方便同時檢查型別、狀態碼與 code。 */
@@ -53,11 +58,31 @@ describe('AvatarService', () => {
     throw new Error('Expected upload to throw');
   };
 
-  /** 從 write 的第一次呼叫取出 storage key 與 uploadId。 */
-  const getWrittenKey = (): { key: string; uploadId: string } => {
-    const [key] = write.mock.calls[0];
-    return { key, uploadId: key.split('/')[1] };
+  /** 從 media 的第一次寫入取出 md 的 key、uploadId 與資料夾。 */
+  const getUpload = (): { key: string; uploadId: string; dir: string } => {
+    const [key] = mediaWrite.mock.calls[0];
+    const uploadId = key.split('/')[1];
+    return { key, uploadId, dir: `avatars/${uploadId}/` };
   };
+
+  /** media 與 temp 都刪除了同一個資料夾，且各只刪一次。 */
+  const expectBothDirsDeleted = (dir: string): void => {
+    expect(mediaDeleteDir).toHaveBeenCalledTimes(1);
+    expect(mediaDeleteDir).toHaveBeenCalledWith(dir);
+    expect(tempDeleteDir).toHaveBeenCalledTimes(1);
+    expect(tempDeleteDir).toHaveBeenCalledWith(dir);
+  };
+
+  const createStorageMock = (
+    write: jest.MockedFunction<StorageService['write']>,
+    deleteDir: jest.MockedFunction<StorageService['deleteDir']>,
+  ) => ({
+    write,
+    read: jest.fn(),
+    deleteDir,
+    listDirs: jest.fn(),
+    getPublicUrl: (key: string) => `/media/${key}`,
+  });
 
   beforeEach(async () => {
     // Silence expected error logs and let tests assert on them.
@@ -67,8 +92,11 @@ describe('AvatarService', () => {
     upsertCurrent = jest.fn().mockResolvedValue(undefined);
     findByUserId = jest.fn().mockResolvedValue(null);
     deleteByUserId = jest.fn().mockResolvedValue(1);
-    write = jest.fn().mockResolvedValue(undefined);
-    deleteDir = jest.fn().mockResolvedValue(undefined);
+    mediaWrite = jest.fn().mockResolvedValue(undefined);
+    mediaDeleteDir = jest.fn().mockResolvedValue(undefined);
+    tempWrite = jest.fn().mockResolvedValue(undefined);
+    tempDeleteDir = jest.fn().mockResolvedValue(undefined);
+    addAvatarQueue = jest.fn().mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,13 +118,15 @@ describe('AvatarService', () => {
         },
         {
           provide: MEDIA_STORAGE,
-          useValue: {
-            write,
-            read: jest.fn(),
-            deleteDir,
-            listDirs: jest.fn(),
-            getPublicUrl: (key: string) => `/media/${key}`,
-          },
+          useValue: createStorageMock(mediaWrite, mediaDeleteDir),
+        },
+        {
+          provide: TEMP_STORAGE,
+          useValue: createStorageMock(tempWrite, tempDeleteDir),
+        },
+        {
+          provide: QueueService,
+          useValue: { addAvatarQueue },
         },
       ],
     }).compile();
@@ -112,9 +142,9 @@ describe('AvatarService', () => {
     it('寫入 md 檔並 upsert 後回傳 mediumUrl，small/large 為 null', async () => {
       const result = await avatarService.upload(userId, input);
 
-      const { key, uploadId } = getWrittenKey();
+      const { key, uploadId } = getUpload();
       expect(key).toMatch(/^avatars\/[0-9a-f-]{36}\/md\.webp$/);
-      expect(write).toHaveBeenCalledWith(key, mediumWebp, 'image/webp');
+      expect(mediaWrite).toHaveBeenCalledWith(key, mediumWebp, 'image/webp');
       expect(upsertCurrent).toHaveBeenCalledWith({
         userId,
         uploadId,
@@ -127,77 +157,110 @@ describe('AvatarService', () => {
       });
     });
 
-    it('寫檔失敗時丟 503 / AvatarStorageUnavailable，且不 upsert', async () => {
-      write.mockRejectedValue(new Error('ENOSPC'));
+    it('原圖寫入 temp，key 不含副檔名，content type 使用 Sharp 判斷的真實格式', async () => {
+      await avatarService.upload(userId, input);
+
+      const { uploadId } = getUpload();
+      expect(tempWrite).toHaveBeenCalledWith(
+        `avatars/${uploadId}/original`,
+        input,
+        'image/png',
+      );
+      // The original must never be written to public media storage.
+      expect(mediaWrite).toHaveBeenCalledTimes(1);
+    });
+
+    it('寫入 md 失敗時丟 503，不寫原圖、不 upsert，並清除兩邊的資料夾', async () => {
+      mediaWrite.mockRejectedValue(new Error('ENOSPC'));
+
+      const error = await catchUploadError();
+
+      expectStorageUnavailable(error);
+      expect(tempWrite).not.toHaveBeenCalled();
+      expect(upsertCurrent).not.toHaveBeenCalled();
+      expectBothDirsDeleted(getUpload().dir);
+      expect(loggerError).toHaveBeenCalledTimes(1);
+    });
+
+    it('寫入原圖失敗時丟 503，不 upsert，並清除已寫入的 md', async () => {
+      tempWrite.mockRejectedValue(new Error('ENOSPC'));
 
       const error = await catchUploadError();
 
       expectStorageUnavailable(error);
       expect(upsertCurrent).not.toHaveBeenCalled();
+      expectBothDirsDeleted(getUpload().dir);
       expect(loggerError).toHaveBeenCalledTimes(1);
     });
 
-    it('upsert 失敗時丟 503，並刪除剛寫入的資料夾', async () => {
+    it('upsert 失敗時丟 503，並清除兩邊剛寫入的資料夾', async () => {
       upsertCurrent.mockRejectedValue(new Error('DB down'));
 
       const error = await catchUploadError();
 
       expectStorageUnavailable(error);
-      const { uploadId } = getWrittenKey();
-      expect(deleteDir).toHaveBeenCalledWith(`avatars/${uploadId}/`);
+      expectBothDirsDeleted(getUpload().dir);
       expect(loggerError).toHaveBeenCalledTimes(1);
     });
 
     it('upsert 與刪檔都失敗時仍丟 503，不被刪檔錯誤蓋掉', async () => {
       upsertCurrent.mockRejectedValue(new Error('DB down'));
-      deleteDir.mockRejectedValue(new Error('EPERM'));
+      mediaDeleteDir.mockRejectedValue(new Error('EPERM'));
+      tempDeleteDir.mockRejectedValue(new Error('EPERM'));
 
       const error = await catchUploadError();
 
       expectStorageUnavailable(error);
-      expect(loggerError).toHaveBeenCalledTimes(2);
+      // upsert failure + one log per storage that failed to clean up
+      expect(loggerError).toHaveBeenCalledTimes(3);
     });
 
-    it('查詢舊頭像失敗時丟 503，不 upsert，並刪除剛寫入的資料夾', async () => {
+    it('media 刪除失敗時仍會繼續刪除 temp', async () => {
+      upsertCurrent.mockRejectedValue(new Error('DB down'));
+      mediaDeleteDir.mockRejectedValue(new Error('EPERM'));
+
+      await catchUploadError();
+
+      expect(tempDeleteDir).toHaveBeenCalledWith(getUpload().dir);
+    });
+
+    it('查詢舊頭像失敗時丟 503，不 upsert，並清除兩邊剛寫入的資料夾', async () => {
       findByUserId.mockRejectedValue(new Error('DB down'));
 
       const error = await catchUploadError();
 
       expectStorageUnavailable(error);
       expect(upsertCurrent).not.toHaveBeenCalled();
-      const { uploadId } = getWrittenKey();
-      expect(deleteDir).toHaveBeenCalledWith(`avatars/${uploadId}/`);
+      expectBothDirsDeleted(getUpload().dir);
     });
 
     it('第一次上傳（沒有舊頭像）時不刪任何資料夾', async () => {
       await avatarService.upload(userId, input);
 
-      expect(deleteDir).not.toHaveBeenCalled();
+      expect(mediaDeleteDir).not.toHaveBeenCalled();
+      expect(tempDeleteDir).not.toHaveBeenCalled();
     });
 
-    it('有舊頭像時，upsert 成功後只刪除舊資料夾', async () => {
+    it('有舊頭像時，upsert 成功後只刪除兩邊的舊資料夾', async () => {
       findByUserId.mockResolvedValue(createAvatar());
 
       await avatarService.upload(userId, input);
 
-      expect(deleteDir).toHaveBeenCalledTimes(1);
-      expect(deleteDir).toHaveBeenCalledWith(`avatars/${existingUploadId}/`);
+      expectBothDirsDeleted(existingDir);
       // Old files must be removed only after the DB points to the new upload.
       expect(upsertCurrent.mock.invocationCallOrder[0]).toBeLessThan(
-        deleteDir.mock.invocationCallOrder[0],
+        mediaDeleteDir.mock.invocationCallOrder[0],
       );
     });
 
     it('刪除舊資料夾失敗時仍回傳成功，且不刪新資料夾', async () => {
       findByUserId.mockResolvedValue(createAvatar());
-      deleteDir.mockRejectedValue(new Error('EPERM'));
+      mediaDeleteDir.mockRejectedValue(new Error('EPERM'));
 
       const result = await avatarService.upload(userId, input);
 
-      const { key } = getWrittenKey();
-      expect(result.mediumUrl).toBe(`/media/${key}`);
-      expect(deleteDir).toHaveBeenCalledTimes(1);
-      expect(deleteDir).toHaveBeenCalledWith(`avatars/${existingUploadId}/`);
+      expect(result.mediumUrl).toBe(`/media/${getUpload().key}`);
+      expectBothDirsDeleted(existingDir);
       expect(loggerError).toHaveBeenCalledTimes(1);
     });
 
@@ -207,29 +270,56 @@ describe('AvatarService', () => {
 
       await catchUploadError();
 
-      const { uploadId } = getWrittenKey();
-      expect(deleteDir).toHaveBeenCalledTimes(1);
-      expect(deleteDir).toHaveBeenCalledWith(`avatars/${uploadId}/`);
+      expectBothDirsDeleted(getUpload().dir);
+    });
+
+    it('upsert 成功後以 userId 與 uploadId 入列', async () => {
+      await avatarService.upload(userId, input);
+
+      const { uploadId } = getUpload();
+      expect(addAvatarQueue).toHaveBeenCalledWith({ userId, uploadId });
+      // The worker checks the DB first, so the row must exist before the job.
+      expect(upsertCurrent.mock.invocationCallOrder[0]).toBeLessThan(
+        addAvatarQueue.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('入列失敗時只記 log，仍回傳 md（不丟錯）', async () => {
+      addAvatarQueue.mockRejectedValue(new Error('Redis down'));
+
+      const result = await avatarService.upload(userId, input);
+
+      expect(result.mediumUrl).toBe(`/media/${getUpload().key}`);
+      expect(mediaDeleteDir).not.toHaveBeenCalled();
+      expect(tempDeleteDir).not.toHaveBeenCalled();
+      expect(loggerError).toHaveBeenCalledTimes(1);
+    });
+
+    it('upsert 失敗時不入列', async () => {
+      upsertCurrent.mockRejectedValue(new Error('DB down'));
+
+      await catchUploadError();
+
+      expect(addAvatarQueue).not.toHaveBeenCalled();
     });
   });
 
   describe('remove', () => {
-    const uploadId = existingUploadId;
-
-    it('有頭像時刪除 DB row 與該 uploadId 的資料夾', async () => {
+    it('有頭像時刪除 DB row 與兩邊的資料夾', async () => {
       findByUserId.mockResolvedValue(createAvatar());
 
       await avatarService.remove(userId);
 
       expect(deleteByUserId).toHaveBeenCalledWith(userId);
-      expect(deleteDir).toHaveBeenCalledWith(`avatars/${uploadId}/`);
+      expectBothDirsDeleted(existingDir);
     });
 
     it('沒有頭像時直接結束，不刪 DB 也不刪檔（冪等）', async () => {
       await expect(avatarService.remove(userId)).resolves.toBeUndefined();
 
       expect(deleteByUserId).not.toHaveBeenCalled();
-      expect(deleteDir).not.toHaveBeenCalled();
+      expect(mediaDeleteDir).not.toHaveBeenCalled();
+      expect(tempDeleteDir).not.toHaveBeenCalled();
     });
 
     it('DB row 已被其他請求刪除（count 為 0）時不刪檔', async () => {
@@ -238,15 +328,17 @@ describe('AvatarService', () => {
 
       await avatarService.remove(userId);
 
-      expect(deleteDir).not.toHaveBeenCalled();
+      expect(mediaDeleteDir).not.toHaveBeenCalled();
+      expect(tempDeleteDir).not.toHaveBeenCalled();
     });
 
     it('刪資料夾失敗時只記 log，不丟錯', async () => {
       findByUserId.mockResolvedValue(createAvatar());
-      deleteDir.mockRejectedValue(new Error('EPERM'));
+      mediaDeleteDir.mockRejectedValue(new Error('EPERM'));
 
       await expect(avatarService.remove(userId)).resolves.toBeUndefined();
 
+      expect(tempDeleteDir).toHaveBeenCalledWith(existingDir);
       expect(loggerError).toHaveBeenCalledTimes(1);
     });
   });
