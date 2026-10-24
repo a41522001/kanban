@@ -1,6 +1,90 @@
 # Kanban Avatar 功能規格與實作計畫
 
-日期：2026-09-29。狀態：**設計定案，尚未實作**。
+日期：2026-09-29。最後修訂：2026-10-19。狀態：**實作中**（schema、Storage、ImageProcessing 已完成；其餘依 §0 的步驟逐步進行）。
+
+## 0. 2026-10-19 修訂與實作步驟
+
+本節優先於下方各節；與本節衝突的內容以本節為準，並已在原處標註。
+
+### 0.1 已確認的決定
+
+| 項目 | 決定 | 理由 |
+| --- | --- | --- |
+| 範圍 | 上傳時**同步**產生 md（128px）並回傳；**背景 Worker** 產生 sm（64px）與 lg（256px），含 BullMQ 重試與條件式寫回 | 使用者上傳後畫面立即有圖；保留 Worker 作為練習 |
+| 維護排程 | **不做**補入列排程與孤兒清理排程（§6 延後） | 屬於維運，與 Worker 核心觀念關係不大；主流程完成後再評估 |
+| 舊檔處理 | 上傳新頭像時，在 DB upsert **成功之後**刪除舊的 `avatars/<舊 uploadId>/`；失敗只記 log | 先刪舊檔再寫 DB 失敗，會同時失去新舊頭像 |
+| 網址 | 每次上傳產生新的隨機 `uploadId`，路徑 `avatars/<uploadId>/<sm\|md\|lg>.webp` | 網址每次不同，可長期 immutable 快取；Worker 以 uploadId 判斷 job 是否為最新上傳 |
+| **userId 不外露** | 對外的網址與 API 回應**不可出現 userId** 或可推算出 userId 的值 | uploadId 由 `randomUUID()` 產生，與 userId 無關；userId 只出現在 Redis 內部的 job 資料 |
+| 儲存位置 | **開發用本機磁碟**（`LocalStorageService`），**正式環境用 GCP Cloud Storage**（`GcsStorageService`），以環境變數切換；`AvatarService` 與 Worker 只依賴 `StorageService` 介面 | 本機開發不需網路與憑證；正式環境 backend 與 worker 是兩個容器，必須共用雲端儲存。專案的雲端服務一律使用 GCP，VM 以附帶的服務帳號存取 GCS，不需金鑰檔 |
+| Bucket | 兩個：`media`（公開讀取，sm／md／lg）與 `temp`（私有，原圖）；`temp` 設定生命週期規則，**超過 1 天自動刪除** | GCS 建議以整個 bucket 統一設定權限，無法同一 bucket 部分公開；原圖不可公開。生命週期規則在正式環境取代 temp 的孤兒清理排程，`queue.add` 失敗、Worker 最終失敗或中途當機留下的原圖都會自動清除 |
+| CDN | **Cloudflare 免費方案**；正式圖片網址為 `https://media.<網域>/avatars/<uploadId>/md.webp`（網域已於 Cloudflare 購買） | Cloud CDN 需搭配外部負載平衡器，有每月固定費用；Cloudflare 免費且已用於 DNS。網址綁定自有網域，之後更換 CDN 或儲存服務只需改 DNS，DB 不需 migration |
+| DB 存完整網址 | 開發：`http://localhost:4001/media/avatars/...`；正式：`https://media.<網域>/avatars/...`。`AVATAR_PUBLIC_BASE_URL` 維持 `z.url()` 驗證 | 兩個環境都不會遇到換網域問題，取代原先「存相對路徑」的決定 |
+| 待實作時確認 | Cloudflare 連到 GCS bucket 的方式（bucket 命名是否需等於網域、網域擁有權驗證、HTTPS 設定）在步驟 11 對照 GCP 與 Cloudflare 官方文件決定 | 細節尚未查證，不影響本機開發的步驟 3–10 |
+| 三層檢查 | 前端（體驗）→ Multer declared MIME 與 5 MiB → Sharp 實際解碼 | 前兩層可被繞過，只有 Sharp 可信；`validate` 只讀檔頭，損壞檔到 `render` 才失敗，也要回 400 |
+| 上傳次數限制 | 每人每分鐘 5 次，Redis `INCR` + 首次 `EXPIRE 60`，做成 Guard，排在 SessionGuard 之後、Multer 之前 | 超過限制時不讀取檔案內容 |
+| 設定 | 目前只有 `AVATAR_STORAGE_ROOT`、`AVATAR_TEMP_ROOT`、`AVATAR_PUBLIC_BASE_URL` 是環境變數；其餘為 `backend/src/avatar/avatar.constants.ts` 與 `packages/contracts/avatar.ts` 的常數。步驟 11 將新增儲存切換開關與兩個 bucket 名稱的環境變數 | 取代 §8 |
+| 路由名稱 | 由 `/user/me/avatar` 改為 `/user/avatar` | 專案不提供以 userId 指定使用者的路由，`me` 沒有需要區分的對象；與既有 `/user/userInfo` 風格一致 |
+| 路由前綴 | API 為 `/v1/api/user/avatar`；開發環境的 `/media` 由 static middleware 提供，不屬於 controller 路由；正式環境不提供 `/media` | 取代 §4.1「沒有前綴」 |
+
+### 0.2 實作步驟
+
+每一步只加入一個新概念，完成後以 Bruno（2026-10-21 起移入 repo：`bruno/User`）或瀏覽器驗證。後端程式由使用者撰寫，前端與測試可由 AI 撰寫。
+
+| 步驟 | 內容 | 驗證 | 狀態 |
+| --- | --- | --- | --- |
+| 0 | schema、migration `20260930153339_add_avatar_model`、移除 `users.avatar_url` | `prisma migrate status` | ✅ |
+| 1 | `LocalStorageService`、`ImageProcessingService` 與測試 | storage 21、image 19 個測試通過（2026-10-19 Windows 重跑） | ✅ |
+| 1.5 | 讀懂 `ImageProcessingService`（AI 撰寫，使用者尚未逐行理解） | 能說明 validate 與 render 各自做什麼 | ✅ 2026-10-19 |
+| 2 | **最小上傳**：Multer 接收 → validate → render md → 寫入 media → upsert Avatar → 回傳 `AvatarImageSet`。不含次數限制、錯誤分類、背景處理 | Bruno 上傳成功，`backend/storage/media/avatars/<uploadId>/md.webp` 存在 | ✅ 2026-10-19：上傳回 200、產生 128×128 WebP、avatars 寫入 PENDING；缺檔回 400／1000。無效圖片目前回 500，於步驟 6 處理 |
+| 3 | **開發環境專用**的 `/media` static serving（只放行 `.webp`、`nosniff`、immutable cache）；正式環境不掛載 | 瀏覽器開啟回傳網址看到圖片；Bruno `GetAvatarImage` 通過 | ✅ 2026-10-19：`main.ts` 於 `NODE_ENV=development` 時掛載；200 且帶 `Content-Type: image/webp`、`nosniff`、`Cache-Control: public, max-age=31536000, immutable`；資料夾、不存在檔案與 `../` 路徑皆回 404 |
+| 4 | `PublicUser.avatar`，`userInfo` 回傳頭像 | 重新取得 userInfo 帶回 avatar | ✅ 2026-10-19：`UserRepository.getById` include avatar，`getUserInfo` 只投影三個 URL，無頭像回 null；UserService 5 個測試涵蓋無頭像、PENDING、COMPLETED、不外露 userId |
+| 5 | 前端：共用 `Avatar.vue`、`AvatarSettingsDialog`、`vue-advanced-cropper`（AI 撰寫）。流程：先畫 `design/` SVG → 使用者確認 → Figma Plugin 產生原生設計稿 → 前端依 Figma 實作 | 網頁上可裁切、上傳並顯示 | ✅ 2026-10-20：SVG 已確認；Figma v15 已由使用者執行並確認。前端完成 `shared/Avatar`（32/40/64/128、@error fallback）、`account/AvatarSettingsDialog`（Idle／Crop／Error／RateLimited 倒數／Uploading／Removing）、`services/avatar.ts`（30 秒 timeout）、`userStore.setAvatar`、UserMenu「更換頭像」。Vitest 35 個新／更新測試通過，vue-tsc、ESLint、oxlint、vite build 通過。使用者已在瀏覽器實測上傳與顯示；移除頭像需等步驟 7 的 DELETE 完成，目前會顯示失敗文案 |
+| 6 | 錯誤處理：缺檔 400、MIME 415、過大 413、無法解碼 400、寫檔失敗 503 | Bruno 傳錯誤檔案看到對應狀態碼 | ✅ 2026-10-20：6-1 完成，`InvalidAvatarImageException extends AppException`（`common/exceptions/avatar.exception.ts`）由全域 Filter 直接回 400／6001，假圖片實測通過。6-2 完成，Multer `fileFilter` 以 `AVATAR_ALLOWED_MIME_TYPES` 檢查 declared MIME，不符丟 `UnsupportedAvatarTypeException`（NestJS 對 `HttpException` 原樣拋出），Bruno 上傳 `text/plain` 回 415／6003，正常 PNG 仍回 200。6-3 完成，後端不改：Bruno 上傳 6 MiB 檔案回 413／4000（RequestError），規格由 6002 修訂為 4000，見 §4 錯誤表。6-4 完成，`write` 或 `upsertCurrent` 失敗時記 log（含 `err`、`uploadId`）並丟 `AvatarStorageUnavailableException`（503／6005）；upsert 失敗會刪除剛寫入的資料夾，刪除失敗只記 log，不蓋掉 503。無法用 Bruno 自然重現，改由 `avatar.service.spec.ts` 4 個單元測試驗證 |
+| 7 | `DELETE /user/avatar`，以及換頭像時刪除舊資料夾 | 磁碟只留最新一份 | ✅ 2026-10-21：7-1 完成，`remove` 先 `findByUserId`，沒有頭像直接回 200；有則 `deleteMany` 後刪除 `avatars/<uploadId>/`，`count` 為 0（已被其他請求刪除）時不刪檔，刪檔失敗只記 log。Bruno 上傳→刪除→資料夾消失→`userInfo.avatar` 為 null→再刪仍 200 全部通過；單元測試 4 個。7-2 完成，`upload` 在 upsert 前以 `findByUserId` 取得舊 `uploadId`（與 upsert 同一個 try，失敗回 503 並刪新資料夾），upsert 成功後才刪舊資料夾，失敗只記 log 仍回 200；Bruno 連續上傳兩次後只剩一個資料夾，單元測試 5 個 |
+| 8 | 上傳次數限制 Guard | 第 6 次回 429 與 `retryAfterSeconds` | ✅ 2026-10-21：`AvatarRateLimitGuard` 以 `INCR` + `EXPIRE <window> NX`（每次都呼叫，補上可能遺失的過期時間，取代原本「count 為 1 才 EXPIRE」），超過 `AVATAR_UPLOAD_LIMIT` 丟 429／6004，`data.retryAfterSeconds = max(0, TTL)`；以 `@UseGuards` 掛在 upload，排在 class 層的 SessionGuard 之後、Multer 之前。Bruno 第 6 次回 429；單元測試 5 個 |
+| 9 | 背景 Worker 產生 sm／lg（含 Redis 連線調整 §9）。拆成 9-1 Redis 連線調整、9-2 API 寫原圖並入列、9-3 Worker 處理 job、9-4 失敗處理，規格見 §0.3 | 上傳後數秒內 `smallUrl`／`largeUrl` 被補上 | ✅ 2026-10-23 完成。2026-10-21：§0.3 規格已由使用者逐項確認（grill Q1–Q14）。9-1 完成：`RedisService.onApplicationShutdown` 關閉 `mqRedisClient`，移除 `destroyBullMqConnection()`；暫時關閉 `devAutoVerifyEmail` 註冊新帳號，worker 收到 job 並寄信成功、API 收到 `completed`；以腳本直接呼叫 `app.close()` 確認順序為 `WorkerService.onModuleDestroy` → `RedisService.onModuleDestroy` → `RedisService.onApplicationShutdown`，無錯誤、exit code 0。9-2a 完成：上傳時原圖以 Sharp 判斷的真實格式（`image/<format>`）寫入 temp `avatars/<uploadId>/original`（無副檔名，不經 `/media` 公開），md 與原圖依序寫入，任一失敗回 503 並清除兩邊資料夾；新增 `deleteUploadDirs(uploadId, reason)` 同時刪除 media 與 temp（各自 try，失敗只記 log），用於寫檔失敗、upsert 失敗、刪舊頭像與 `remove()`。Bruno 驗證 temp 原圖存在、換頭像只留新資料夾、刪除後兩邊清空、`/media/.../original` 回 404；單元測試 42 個通過。9-2b 完成：`QueueService` 新增 `avatar` queue 與 `addAvatarQueue`（job name `generate-avatar-variants`、jobId `avatar-variants-<uploadId>`、attempts 3、exponential 2000、removeOnComplete 1 天、removeOnFail 7 天，不建立 QueueEvents）；`AvatarModule` import `QueueModule`，upsert 成功後入列，失敗只記 log 仍回 200。關閉 worker 上傳後，Redis `bull:avatar:wait` 有該 job，`data` 只有 `userId`、`uploadId`，`opts` 與規格一致；單元測試 45 個通過。9-3a 完成：新增獨立的 `worker/avatarWorker.service.ts`（`concurrency: AVATAR_WORKER_CONCURRENCY`），`WorkerModule` 只加入 `PrismaModule` 與 `AvatarRepository`，不 import 整個 `AvatarModule`（避免把 `QueueModule`、`SessionModule` 帶進 worker）；處理函式先做 Q7 檢查，`uploadId` 不符即略過。實測排隊中的 job 與新上傳都印出「開始產生 sm／lg」。9-3b 完成：`WorkerModule` 加入 `StorageModule`、`ImageProcessingService`；Worker 讀 temp 原圖（`null` 暫時丟 `Error`，9-4 改為 `UnrecoverableError`），以 `render` 產生 sm／lg 並寫入 media，實測資料夾有 md／sm／lg 三個檔案。9-3c 進行中：`AvatarRepository.completeVariants` 以 `updateMany where { userId, uploadId, variantStatus: PENDING }` 寫回 sm／lg 並設為 `COMPLETED`，回傳筆數；Worker 寫檔後呼叫。實測上傳回應 sm／lg 為 null，數秒後 `userInfo` 三個尺寸皆有值。9-3c 完成：寫回後一律刪除 temp `avatars/<uploadId>/`，`count === 0` 時另外刪除 media 的同名資料夾（Q11、Q12），兩者各自 try/catch 只記 log，避免清理失敗觸發 BullMQ 重試整個 job。實測上傳後 temp 資料夾消失、media 保留 md／sm／lg。9-4 完成：原圖不存在與解碼失敗丟 `UnrecoverableError`（解碼失敗先記 Sharp 原始錯誤），寫檔與 DB 錯誤維持一般錯誤交給重試；監聽 Worker `failed` 事件（每次失敗都會觸發），只在 `UnrecoverableError` 或 `attemptsMade >= attempts` 時以 `markVariantsFailed`（`updateMany where PENDING`）標記 `FAILED` 並刪除 temp 原圖。實測：關閉 worker 上傳、手動刪除 temp 原圖後開啟 worker，只失敗一次、DB 為 `FAILED`。`avatarWorker.service.spec.ts` 14 個單元測試 |
+| 10 | 成員、候選人、通知 read model 加回頭像。拆成 10-1 專案成員、10-2 成員候選人、10-3 Workspace 成員與通知 actor | 成員清單顯示頭像 | ✅ 2026-10-24：使用者已在瀏覽器確認三個畫面。10-1 完成，`ProjectMemberDto.avatarUrl = smallUrl ?? mediumUrl`（無頭像為 null），repository 以 `user.avatar.select { smallUrl, mediumUrl }` 查詢；前端 `ProjectMembers` 改用共用 `Avatar`（32px、aria-hidden，名稱已在旁顯示）。後端 project 36 個測試、前端新增 `ProjectMembers.spec.ts` 2 個測試通過。10-2 完成：`MemberCandidate.avatarUrl` 由原生 SQL `LEFT JOIN avatars` 與 `COALESCE(a.small_url, a.medium_url)` 取得（PostgreSQL 無 SQL Server 的 `ISNULL(a, b)`）；已在開發 DB 實跑確認無頭像者未被過濾、sm 缺少時退回 md。前端 `ProjectAddMemberDialog` 改用共用 `Avatar`（40px、aria-hidden），新增 1 個元件測試。10-3 完成：`WorkspaceMemberDto.avatarUrl`（寫法同 10-1），Workspace 側邊欄成員圓圈改用共用 `Avatar`（32px，旁邊沒有名稱，保留 alt／aria-label 與 title）；workspaces 21 個後端測試通過。通知 actor 目前沒有任何畫面顯示頭像，`actorUserDisplayName` 只用於邀請人名稱，**不加頭像欄位**，等有畫面需要時再加 |
+| 11 | **Cloud Storage**：`GcsStorageService` 實作 `StorageService`（物件上傳本身即原子，不需 `.part`；`deleteDir` 以前綴刪除；寫入時設定 `Cache-Control: public, max-age=31536000, immutable`），`StorageModule` 依環境變數選擇 local／gcs；建立 media（公開）與 temp（私有＋1 天生命週期）兩個 bucket；VM 服務帳號授權；Cloudflare `media.<網域>` 指向 media bucket | 正式設定下上傳後，`https://media.<網域>/...` 可讀取圖片；temp 原圖不可公開讀取 | ⬜ |
+| 12 | 部署：`.env.prod` 加入儲存與 bucket 設定；backend 與 worker 都使用 GCS，**不需共用 volume**，Nginx 不需 `/media` | 部署到 VM 後可上傳、顯示，Worker 補上 sm／lg | ⬜ |
+
+> **2026-10-24 部署決定**：步驟 0–10 已在本機完成，步驟 11–12 延後。頭像相關 commit **留在 `feature/windows`，不 merge 到 `main`**，等步驟 11 完成後一起上線。原因：merge 到 `main` 會觸發 CI/CD 部署，而正式環境不掛載 `/media`（只在 `NODE_ENV=development`）、檔案存在容器內且 backend 與 worker 容器互相看不到，上傳會成功但圖片全部 404，sm／lg 也會被標為 FAILED。
+
+步驟 2–5 完成即為可用的頭像功能；之後每一步都在此基礎上擴充。步驟 3–10 皆在本機開發環境以 `LocalStorageService` 進行，步驟 11 才接上 Cloud Storage。
+
+既有骨架 `avatar.controller.ts`、`avatar.service.ts`、`avatar.repository.ts`、`avatarRateLimit.guard.ts` 含有多個後續步驟的 TODO，由使用者在步驟 2 起依當下需要重寫，可參考但不必照用。`TEMP_STORAGE` 到步驟 9 才使用。
+
+### 0.3 步驟 9 的 Worker 規格（2026-10-21 已確認）
+
+2026-10-19 提出的提案，已於 2026-10-21 由使用者以 grill 逐項確認（Q1–Q14）。§5 與本節不一致時，以本節為準。
+
+**架構**
+
+- （Q1）新增 `avatar` queue，放在既有 worker process（`worker/main.ts`），寫成獨立的 `AvatarWorkerService`，不併入 Email 的 `WorkerService`。理想上應拆成獨立 process，避免 Sharp 吃 CPU 拖慢寄信；目前選擇同一個 process 以簡化部署，日後拆分時只需新增 entry 與 module。
+- （Q6）BullMQ 共用的 `mqRedisClient` 由建立它的 `RedisService` 在 `onModuleDestroy` 關閉，並防止重複關閉；Queue／Worker／QueueEvents 只 `close()` 自己。必須在新增 avatar queue 之前完成（9-1）。
+- （Q13）`concurrency` 為常數 `AVATAR_WORKER_CONCURRENCY = 2`（`avatar.constants.ts`），不做成環境變數。
+
+**入列（API）**
+
+- （Q2）Job 資料只放 `{ userId, uploadId }`，不放圖片內容、路徑或網址；Worker 以 `uploadId` 自行組出 storage key。
+- （Q3）上傳流程：validate → render md → 寫入 media md 與 temp 原圖（`avatars/<uploadId>/original`）→ 查舊頭像＋upsert → 入列 → 刪舊資料夾。原圖寫入失敗與 md 寫入失敗相同，回 503 並刪除已寫入的檔案。
+- （Q4）`queue.add` 失敗只記 log，API 仍回 200；該頭像停在 PENDING、只有 md（不做補入列排程的代價），重新上傳即恢復。
+- （Q5）jobId 為 `avatar-variants-<uploadId>`。去重來自 `uploadId`；前綴只為了可讀性，以及日後同一 queue 新增其他 job 時不衝突。`variantAttempts` 欄位保留但不使用。Email queue 維持自動流水號 jobId（重寄必須能再次入列，不可用固定 jobId）。
+- （Q14）job options：`attempts: 3`、`backoff: { type: 'exponential', delay: 2000 }`、`removeOnComplete: { age: 86400 }`、`removeOnFail: { age: 604800 }`。
+
+**處理（Worker）**
+
+- （Q7）開始處理前查 `Avatar where userId`；row 不存在或 `uploadId` 不符（已刪除或被取代），直接結束，不產生 sm／lg。
+- （Q8）暫時性錯誤（DB、寫檔）交給 BullMQ 重試 3 次（2／4／8 秒）；原圖遺失或解碼失敗丟 `UnrecoverableError`，不重試。
+- （Q10）最終失敗（重試用盡或 `UnrecoverableError`）時，以 `updateMany where { userId, uploadId, variantStatus: PENDING }` 標記 `FAILED`；前端不處理，繼續使用 md。
+- （Q11）條件式寫回結果為 0 筆（處理途中被取代或刪除）時，Worker 刪除自己的 media `avatars/<uploadId>/`，避免寫入 sm／lg 時重新建立的資料夾成為孤兒。
+- （Q12）temp 原圖的刪除，失敗皆只記 log：
+  - Worker：處理成功、最終失敗、被取代或被刪除時，刪除自己的 temp `avatars/<uploadId>/`。
+  - API：上傳新頭像（7-2）與刪除頭像（7-1）時，連同 media 一併刪除舊的 temp 資料夾。
+  - 正式環境的 temp bucket 有 1 天生命週期規則作為保險；開發環境漏刪的檔案會留在本機。
+
+**前端**
+
+- （Q9）不輪詢 sm／lg；下次取得 `userInfo` 時自然拿到。顯示時使用 `smallUrl ?? mediumUrl`。
 
 > **2026-09-30 過渡狀態**：`avatars` schema 與 migration `20260930153339_add_avatar_model` 已建立，`users.avatar_url` 已移除。在上傳功能完成前，所有公開 contract（`PublicUser`、Workspace／Project 成員、候選人）與通知 read model 都**暫時不含頭像欄位**，後端測試也已移除相關斷言。前端 `ProjectMembers`、`ProjectAddMemberDialog` 只顯示首字佔位，並以 `TODO(avatar)` 標記。§4.2 的欄位會在實作階段連同後端測試一起加回。
 
@@ -12,10 +96,10 @@
 | --- | --- | --- |
 | 處理模式 | **同步**產生 128px 並立即回傳；64px、256px 交由 BullMQ **背景**產生 | 使用者上傳後當前頁面立刻有圖；背景失敗只影響非必要尺寸 |
 | 同步尺寸 | 128px | 目前 `Avatar.vue` 為 32px（`size-8`）；128px 在 2x 螢幕可覆蓋到 64px 顯示 |
-| 背景可靠性 | B 加強：BullMQ retry＋條件式寫回＋補入列排程＋孤兒檔清理排程 | 不做 outbox／attempt fencing／lease／cleanup task 表 |
+| 背景可靠性 | B 加強：BullMQ retry＋條件式寫回＋補入列排程＋孤兒檔清理排程。**2026-10-19 修訂：兩個排程延後，見 §0.1** | 不做 outbox／attempt fencing／lease／cleanup task 表 |
 | 資料模型 | 只有 `Avatar` 一張表，與 `User` 一對一；`User` 不放 avatar 欄位 | 之後需要上傳歷史或更多尺寸再擴充 |
 | 原圖 | 背景尺寸完成後刪除 | 節省空間，不長期保存 EXIF／GPS |
-| 儲存 | Local 先做，保留 `StorageService` 抽象 | S3／MinIO 之後以新 adapter 接入 |
+| 儲存 | Local 先做，保留 `StorageService` 抽象 | S3／MinIO 之後以新 adapter 接入。**2026-10-19 修訂：正式環境改用 GCP Cloud Storage（`GcsStorageService`），見 §0.1** |
 | 前端裁切 | 使用 `vue-advanced-cropper` 1:1 裁切後上傳 | 原生支援 Vue 3；後端仍以 Sharp 置中 cover 作為保險 |
 | 儲存格式 | 三種輸出尺寸一律存為 `.webp`；temp 原圖保留上傳時的原始 bytes | 見 §3.1 |
 | 背景完成通知 | **不通知** | 前端先以 128px 顯示；下次取得資料時拿到其他尺寸 |
@@ -24,7 +108,7 @@
 
 ### 1.1 不納入 v1
 
-上傳歷史／還原、GIF／APNG／動態 WebP、SVG、HEIC、原圖下載、Google Avatar 匯入、S3 adapter、Socket 即時推播、全站 CSRF 防護（另案處理，見 §10）。
+上傳歷史／還原、GIF／APNG／動態 WebP、SVG、HEIC、原圖下載、Google Avatar 匯入、~~S3 adapter~~（2026-10-19：改為 GCS adapter，納入步驟 11）、Socket 即時推播、全站 CSRF 防護（另案處理，見 §10）。
 
 ### 1.2 與目前工作區 schema 草稿的差異
 
@@ -43,7 +127,7 @@
 
 ```mermaid
 flowchart TD
-  A[Vue：選圖 → vue-advanced-cropper 1:1 裁切 → 512px PNG Blob] --> B[POST /user/me/avatar]
+  A[Vue：選圖 → vue-advanced-cropper 1:1 裁切 → 512px PNG Blob] --> B[POST /user/avatar]
   B --> C[SessionGuard → Rate limit → Multer memory 5 MiB]
   C --> D[Sharp 驗證 + 產生 128px WebP]
   D --> E[寫入 media md.webp + temp 原圖]
@@ -113,7 +197,7 @@ model Avatar {
 - 沒有 `Avatar` row 代表使用者沒有頭像，前端顯示首字。
 - 有 row 時 `mediumUrl` 一定可用。`smallUrl`／`largeUrl` 為 null 時，前端改用 `mediumUrl`。
 - 每次新上傳都換新的 `uploadId`，並把 `smallUrl`／`largeUrl` 設為 null，避免不同上傳的尺寸混用。
-- URL 由 `AVATAR_PUBLIC_BASE_URL` 加上 storage key 組成後寫入 DB。更換 media 網域需要資料 migration，v1 接受這個限制。
+- URL 由 `AVATAR_PUBLIC_BASE_URL` 加上 storage key 組成後寫入 DB。~~更換 media 網域需要資料 migration，v1 接受這個限制。~~ **2026-10-19 修訂：存相對路徑 `/media/...`，換網域不需 migration，見 §0.1。**
 
 ### 3.1 Storage key 規則
 
@@ -126,7 +210,7 @@ temp root ：avatars/<uploadId>/original
 
 格式：公開輸出一律是 WebP（quality 80，保留 alpha），不論使用者上傳 JPEG、PNG 或 WebP。原因是 WebP 在相同畫質下通常比 JPEG／PNG 小，而且支援透明背景，主流瀏覽器都能顯示。temp 的 `original` 不加副檔名，存放上傳的原始 bytes（前端裁切後為 PNG），格式由 Sharp 讀取時判斷，而且永不公開。
 
-檔名使用 `sm`／`md`／`lg` 而不是像素數字，之後調整像素尺寸時 key 名稱與 DB 欄位（`smallUrl`／`mediumUrl`／`largeUrl`）都不必改。Local 與 S3 使用完全相同的 key；S3 沒有真正的目錄，`avatars/<uploadId>/` 是 key 前綴，刪除時以前綴列出後刪除。
+檔名使用 `sm`／`md`／`lg` 而不是像素數字，之後調整像素尺寸時 key 名稱與 DB 欄位（`smallUrl`／`mediumUrl`／`largeUrl`）都不必改。Local 與 GCS（原文為 S3）使用完全相同的 key；GCS 同樣沒有真正的目錄，`avatars/<uploadId>/` 是 key 前綴，刪除時以前綴列出後刪除。
 
 每次上傳的產物都集中在 `<uploadId>` 目錄。孤兒檔清理只需要比對「目錄名稱是否等於某個 `Avatar.uploadId`」，不需要額外的 metadata 表。
 
@@ -143,7 +227,7 @@ temp root ：avatars/<uploadId>/original
 
 ### 4.1 共通
 
-- 路由沿用 `/user` namespace，沒有 `/api` 前綴。
+- 路由沿用 `/user` namespace。**2026-10-19 修訂：全域前綴為 `/v1/api`，完整路徑為 `/v1/api/user/avatar`。**
 - 三個 endpoint 都掛 `SessionGuard`，只能操作 `req.userId` 自己的頭像。
 - multipart 只接受 `avatar` 一個檔案欄位，不接受 userId、path、URL 或 crop 座標。
 - Controller 回傳 `ApiResult<T>`，沿用 `WrapResponseInterceptor` 與 `HttpExceptionFilter`。
@@ -168,7 +252,7 @@ export interface AvatarImageSet {
 
 後端 repository 由 `user: { select: { avatarUrl: true } }` 改為 `user: { select: { avatar: { select: { smallUrl: true, mediumUrl: true, largeUrl: true } } } }`，由 service 投影成公開欄位。
 
-### 4.3 `POST /user/me/avatar`
+### 4.3 `POST /user/avatar`
 
 `multipart/form-data`，欄位 `avatar`。
 
@@ -188,17 +272,17 @@ export interface AvatarImageSet {
 8. `AvatarQueueService.add({ userId, uploadId })`。這一步失敗時只記錄 log，**仍回 200**，由補入列排程恢復。
 9. 回 `200`，`data: AvatarImageSet`（此時 `smallUrl`／`largeUrl` 為 null）。
 
-不立即刪除舊上傳的檔案。其他使用者的畫面可能仍引用舊 URL，交給孤兒檔清理排程在寬限期後回收。
+~~不立即刪除舊上傳的檔案。其他使用者的畫面可能仍引用舊 URL，交給孤兒檔清理排程在寬限期後回收。~~ **2026-10-19 修訂：不做孤兒清理排程，改為 DB upsert 成功後立即刪除舊的 `avatars/<舊 uploadId>/`，失敗只記 log。其他使用者畫面上的舊圖會載入失敗並回退為首字，重新整理後取得新頭像。**
 
 失敗處理：
 
 - 步驟 6 之後、步驟 7 之前失敗：已寫入的檔案成為孤兒，由清理排程回收，並回傳錯誤。
 - 兩個上傳同時進行：以最後 commit 的 upsert 為準。落敗那次的檔案不再被引用，成為孤兒後被回收。
 
-### 4.4 `DELETE /user/me/avatar`
+### 4.4 `DELETE /user/avatar`
 
 - `deleteMany({ where: { userId } })`，冪等；原本就沒有頭像時也回 `200`，`data: null`。
-- 不刪檔，交給清理排程。執行中的背景 job 會因為條件式更新找不到 row 而變成 no-op。
+- ~~不刪檔，交給清理排程。~~ **2026-10-19 修訂：刪除 DB row 成功後，刪除 media 與 temp 的 `avatars/<uploadId>/`。** 執行中的背景 job 會因為條件式更新找不到 row 而變成 no-op（並依 §0.3 刪除自己的資料夾）。
 
 ### 4.5 取得頭像
 
@@ -211,7 +295,7 @@ export interface AvatarImageSet {
 | 400 | ValidationError（1000） | 缺少 `avatar`、多檔、未知欄位 |
 | 400 | AvatarInvalidImage（6001） | Sharp 無法解碼、真實格式不符、動圖、尺寸或像素超限 |
 | 401 | Unauthenticated（2003） | Session 失效 |
-| 413 | AvatarFileTooLarge（6002） | 超過 5 MiB，包含串流途中超限 |
+| 413 | ~~AvatarFileTooLarge（6002）~~ **2026-10-20 修訂：RequestError（4000）** | 超過 5 MiB，包含串流途中超限。Multer 的 `LIMIT_FILE_SIZE` 由 NestJS 轉成 `PayloadTooLargeException`，全域 Filter 對非 `AppException` 的 `HttpException` 一律回 4000「請求失敗」；前端以狀態碼 413 判斷檔案過大，因此不另外轉換 |
 | 415 | AvatarUnsupportedType（6003） | declared MIME 不在允許清單 |
 | 429 | AvatarRateLimited（6004） | 每分鐘超過 5 次；`data.retryAfterSeconds` |
 | 503 | AvatarStorageUnavailable（6005） | 寫檔或 DB 暫時失敗 |
@@ -222,10 +306,10 @@ Multer 的 `LIMIT_FILE_SIZE`、`LIMIT_UNEXPECTED_FILE` 等錯誤必須轉成上�
 
 ### 5.1 Queue 與部署
 
-- Queue：`avatar`；job name：`generate-avatar-variants`；jobId：`avatar-variants-<uploadId>-<variantAttempts>`。jobId 不可含 `:`。
+- Queue：`avatar`；job name：`generate-avatar-variants`；jobId：~~`avatar-variants-<uploadId>-<variantAttempts>`~~ **2026-10-21 修訂：`avatar-variants-<uploadId>`，見 §0.3 Q5**。jobId 不可含 `:`。
 - payload：`{ userId, uploadId }`。不放 buffer、路徑或 URL。
 - job options：`attempts: 3`、`backoff: { type: 'exponential', delay: 2000 }`、`removeOnComplete: { age: 86400 }`、`removeOnFail: { age: 604800 }`。
-- 放在既有 worker process（`backend/src/worker/main.ts`），新增獨立的 `Worker` instance，`concurrency = AVATAR_WORKER_CONCURRENCY`（預設 2），與 Email worker 分開。
+- 放在既有 worker process（`backend/src/worker/main.ts`），新增獨立的 `Worker` instance，`concurrency = AVATAR_WORKER_CONCURRENCY`（~~預設 2~~ **2026-10-21 修訂：常數 2，不做成環境變數**），與 Email worker 分開。
 - API 與 worker 必須看得到同一個 `AVATAR_TEMP_ROOT` 與 `AVATAR_STORAGE_ROOT`。本機開發為同一台機器，不需要額外設定。
 
 ### 5.2 Job 流程
@@ -244,8 +328,8 @@ Multer 的 `LIMIT_FILE_SIZE`、`LIMIT_UNEXPECTED_FILE` 等錯誤必須轉成上�
    })
    ```
 
-   `count === 0` 代表已被取代、刪除或已完成，不視為錯誤。
-7. 刪除 temp 原圖（best-effort，失敗由清理排程補做）。
+   `count === 0` 代表已被取代、刪除或已完成，不視為錯誤。**2026-10-21 修訂：此時刪除自己的 media `avatars/<uploadId>/`，見 §0.3 Q11。**
+7. 刪除 temp 原圖（best-effort，~~失敗由清理排程補做~~ **2026-10-21 修訂：失敗只記 log，正式環境由 temp bucket 生命週期規則清除**）。步驟 1 直接結束與步驟 8 最終失敗時也要刪除，見 §0.3 Q12。
 8. 最終失敗：在 Worker 的 `failed` 事件中，若 `job.attemptsMade >= attempts` 或錯誤為 `UnrecoverableError`，執行 `updateMany where { userId, uploadId, variantStatus: PENDING }` 設為 `FAILED`。
 
 錯誤分類：解碼失敗、原圖遺失屬於不可恢復錯誤，丟 `UnrecoverableError`；寫檔 IO、DB 暫時失敗則交給 BullMQ 重試。
@@ -253,6 +337,8 @@ Multer 的 `LIMIT_FILE_SIZE`、`LIMIT_UNEXPECTED_FILE` 等錯誤必須轉成上�
 Log 只記錄 `jobId`、`uploadId`、耗時與錯誤碼，不 `console.log(job.data)`，也不輸出檔案內容。
 
 ## 6. 維護排程（B 加強）
+
+> **2026-10-19：本節延後，不在目前範圍內。** 見 §0.1。
 
 在 worker process 加上 `ScheduleModule`，由 `AvatarMaintenanceService` 負責。v1 假設只有單一 worker instance；兩個排程的動作都是冪等的，即使多個 instance 重複執行也不會造成錯誤資料，只是多做工。
 
@@ -303,9 +389,11 @@ interface StorageService {
   - 只放行 `.webp`，拒絕 dotfile 與 `.part`，停用 directory listing。
   - 回應 `Content-Type: image/webp`、`X-Content-Type-Options: nosniff`、`Cache-Control: public, max-age=31536000, immutable`（每次上傳 URL 都不同，可以長期快取）。
 - Temp root 永不公開，必須與 media root 分開，也不能放在 repo 內。
-- 之後加 S3 時，只需新增 `S3StorageService` 實作同一介面，API／Worker 程式不變。
+- 正式環境新增 `GcsStorageService`（2026-10-19 修訂，原文為 S3）實作同一介面，API／Worker 程式不變。
 
 ## 8. Config
+
+> **2026-10-19：本節已被取代。** 目前只有 `AVATAR_STORAGE_ROOT`（預設 `./storage/media`）、`AVATAR_TEMP_ROOT`（預設 `./storage/temp`）、`AVATAR_PUBLIC_BASE_URL` 三個環境變數；`AVATAR_PUBLIC_BASE_URL` 將改為相對路徑 `/media`，需放寬 `env.ts` 的 `z.url()`。其餘數值為常數，見 §0.1。下表保留作為原始設計紀錄。
 
 新增至 `config/env.ts`（Zod）、`.env.example`、`.env.e2e.example`。全部都有預設值，避免 Email worker 被迫提供 Avatar 設定。
 
@@ -329,7 +417,8 @@ interface StorageService {
 
 調整方式：
 
-- 由 `RedisService` 在自己的 `onModuleDestroy` 關閉 `mqRedisClient`，並防止重複關閉。
+- 由 `RedisService` 關閉 `mqRedisClient`。**2026-10-21 實作：放在 `onApplicationShutdown`**。`app.close()` 的順序為 `onModuleDestroy`（全部 module）→ `beforeApplicationShutdown` → `onApplicationShutdown`（`@nestjs/core/nest-application-context.js` 的 `close()`），放在最後一階段，不論 module 順序都保證 Queue／Worker 已經關閉。（註：global module 的 distance 為 `Number.MAX_VALUE`，但 destroy／shutdown 系列 hook 會把排序 `reverse()`，global module 其實是**最後**執行，因此原本放在 `onModuleDestroy` 也可行；選用 `onApplicationShutdown` 是為了不依賴 module 排序。）
+- 只有 `RedisService` 會關閉這條連線，不需要防重複關閉的旗標。BullMQ 收到現成的 client 時會標記為 `shared`（`bullmq/dist/cjs/utils/create-backend.js`），`close()` 不會 `quit()` 它；Worker 的 blocking 連線由 BullMQ 自行 `duplicate()` 並負責關閉。
 - Queue／Worker／QueueEvents 只負責 `close()` 自己，不再呼叫 `destroyBullMqConnection()`。
 
 這項修正會同時影響 Email queue，必須和既有 Email 行為一起測試。
@@ -494,11 +583,13 @@ pnpm build
 
 - 上傳後同一個 response 就拿到 128px，當前頁面立即顯示。
 - 背景產生 64／256px；被取代或刪除時不會寫回舊資料。
-- 入列失敗或 job 遺失可由排程補回；孤兒檔在寬限期後被回收。
+- ~~入列失敗或 job 遺失可由排程補回；孤兒檔在寬限期後被回收。~~（2026-10-19：排程延後）換頭像與刪除頭像時移除舊檔，被取代的 job 不留下資料夾。
 - 前端可以裁切、上傳、移除，錯誤有明確文案，手機可操作。
 - 上列指令實際執行並記錄結果到 `docs/progress.md`。
 
 ## 14. 實作順序
+
+> **2026-10-19：本節已被 §0.2 的實作步驟取代**，下表保留作為原始規劃紀錄。
 
 | 階段 | 內容 | 完成門檻 |
 | --- | --- | --- |

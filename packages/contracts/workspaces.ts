@@ -24,4 +24,5 @@ export interface WorkspaceMemberDto {
   memberId: string;
   displayName: string;
   role: WorkspaceRole;
+  avatarUrl: string | null;
 }

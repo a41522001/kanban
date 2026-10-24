@@ -4,12 +4,15 @@ import { AppModule } from './app.module';
 import { SocketService } from './socket/socket.service';
 import { Logger } from 'nestjs-pino';
 import { configureApp } from './app.setup';
-import type { Server as HttpServer } from 'node:http';
-import type { Env } from './config/env';
 import { setupSwagger } from './swagger.setup';
 import { RequestMethod } from '@nestjs/common';
+import { resolve } from 'node:path';
+import type { Env } from './config/env';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { Response } from 'express';
+
 const bootstrap = async (): Promise<void> => {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
   app.setGlobalPrefix('v1/api', {
@@ -18,10 +21,27 @@ const bootstrap = async (): Promise<void> => {
   configureApp(app);
   const configService = app.get(ConfigService<Env>);
   const socketService = app.get(SocketService);
+  const environment = configService.getOrThrow('NODE_ENV', { infer: true });
   const port = configService.getOrThrow('PORT', { infer: true });
-  const httpServer = app.getHttpServer() as HttpServer;
+  const httpServer = app.getHttpServer();
   socketService.initialize(httpServer);
   app.useLogger(app.get(Logger));
+  if (environment === 'development') {
+    const mediaRoot = resolve(
+      configService.getOrThrow('AVATAR_STORAGE_ROOT', {
+        infer: true,
+      }),
+    );
+    app.useStaticAssets(mediaRoot, {
+      prefix: '/media',
+      index: false,
+      maxAge: '1y',
+      immutable: true,
+      setHeaders: (res: Response) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+      },
+    });
+  }
   app.enableShutdownHooks();
   setupSwagger(app);
   await app.listen(port);

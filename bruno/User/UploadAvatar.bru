@@ -1,0 +1,62 @@
+meta {
+  name: UploadAvatar
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/user/avatar
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  avatar: @file(fixtures/avatar.png) @contentType(image/png)
+}
+
+script:post-response {
+  // Save the md URL so GetAvatarImage can fetch it.
+  // Relative URLs (/media/...) are resolved against the backend origin.
+  const mediumUrl = res.getBody()?.data?.mediumUrl;
+  if (mediumUrl) {
+    const origin = bru.getEnvVar('baseUrl').replace(/\/v1\/api\/?$/, '');
+    bru.setVar('avatarMediumUrl', mediumUrl.startsWith('/') ? `${origin}${mediumUrl}` : mediumUrl);
+  }
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test('回傳同步產生的 md，sm／lg 尚為 null', () => {
+    const data = res.getBody().data;
+    expect(data.mediumUrl).to.match(/\/media\/avatars\/[0-9a-f-]{36}\/md\.webp$/);
+    expect(data.smallUrl).to.equal(null);
+    expect(data.largeUrl).to.equal(null);
+  });
+}
+
+docs {
+  # 上傳頭像
+  
+  - Route: `POST /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - Body: `multipart/form-data`，只接受一個檔案欄位 `avatar`
+  - 成功：200 / `AvatarImageSet`，`mediumUrl` 為 128×128 WebP；`smallUrl`／`largeUrl` 由背景 Worker 補上前為 null
+  
+  上傳 collection 內的 `fixtures/avatar.png`（512×512 PNG）。成功後 `mediumUrl` 會存進 runtime 變數 `avatarMediumUrl`，可接著執行 `GetAvatarImage`。上傳新頭像時，後端會在 upsert 成功後刪除舊的 `avatars/<舊 uploadId>/`。
+
+  網址只含隨機 `uploadId`，不含 userId；每次上傳都會產生新的網址。
+
+  **錯誤回應（2026-10-21，avatar 規格 §0.2 步驟 6、8 完成）**
+
+  | 狀況 | 回應 | 對應請求 |
+  |---|---|---|
+  | 缺少檔案 | 400 / ValidationError (1000) | `UploadAvatarWithoutFile` |
+  | 無法解碼、格式不符、動圖、尺寸超限 | 400 / AvatarInvalidImage (6001) | `UploadAvatarInvalidImage` |
+  | MIME 不是 jpeg／png／webp | 415 / AvatarUnsupportedType (6003) | `UploadAvatarUnsupportedType` |
+  | 超過 5 MiB | 413 / RequestError (4000) | `UploadAvatarTooLarge` |
+  | 每 60 秒超過 5 次 | 429 / AvatarRateLimited (6004) | `UploadAvatarRateLimited` |
+  | 寫檔或 DB 失敗 | 503 / AvatarStorageUnavailable (6005) | 單元測試驗證 |
+}

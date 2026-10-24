@@ -78,6 +78,7 @@ describe('ProjectController', () => {
           workspaceMemberId: 'workspace-member-1',
           displayName: 'Mina',
           projectRole: null,
+          avatarUrl: null,
         },
       ];
       const getMemberCandidatesSpy = jest
@@ -127,11 +128,13 @@ describe('ProjectController', () => {
           memberId: '1',
           displayName: '1',
           role: 'OWNER',
+          avatarUrl: null,
         },
         {
           memberId: '2',
           displayName: '2',
           role: 'EDITOR',
+          avatarUrl: '/media/avatars/2/sm.webp',
         },
       ];
       const getSingleProjectMemberSpy = jest

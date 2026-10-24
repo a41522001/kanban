@@ -1,0 +1,28 @@
+meta {
+  name: ListProjects
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/project/{{workspaceId}}
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const id = res.getBody()?.data?.[0]?.id;
+  if (id) {
+    bru.setVar('projectId', id);
+  }
+}
+
+docs {
+  # 工作區內的 Project 列表
+
+  - Route: `GET /v1/api/project/:workspaceId`
+  - Auth: 有效 Session，且為工作區成員
+  - 成功：200 / `ProjectListItemDto[]`（置頂的排在前面）
+
+  自動把第一筆的 id 存進 runtime 變數 `projectId`。
+}

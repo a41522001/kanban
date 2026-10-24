@@ -1,0 +1,29 @@
+meta {
+  name: Accept
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/workspaceInvitation/accept
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "invitationId": "{{invitationId}}"
+  }
+}
+
+docs {
+  # 接受邀請
+
+  - Route: `POST /v1/api/workspaceInvitation/accept`
+  - Auth: 有效 Session，且為該有效 PENDING 邀請的受邀者
+  - 成功：200 / null，message「已接受邀請」；建立 WorkspaceMember
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | invitationId | `string` | UUID v4 |
+}

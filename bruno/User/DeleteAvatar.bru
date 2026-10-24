@@ -1,0 +1,35 @@
+meta {
+  name: DeleteAvatar
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/user/avatar
+  body: none
+  auth: inherit
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('data 為 null', () => {
+    expect(res.getBody().data).to.equal(null);
+  });
+}
+
+docs {
+  # 移除頭像
+
+  - Route: `DELETE /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - 預期：200 / `data: null`；冪等，原本沒有頭像也回 200。
+
+  流程：查目前的 Avatar → 沒有就直接回 200 → `deleteMany` 刪除 DB row → 刪除 `avatars/<uploadId>/` 資料夾。刪資料夾失敗只記 log，仍回 200。
+
+  驗證方式：先跑 `UploadAvatar`，再跑這支，確認 `backend/storage/media/avatars/` 底下對應的資料夾消失，`UserInfo` 的 `avatar` 變成 null。再跑一次這支，仍回 200。
+
+  2026-10-20 avatar 規格 §0.2 步驟 7-1。
+}

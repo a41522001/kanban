@@ -6,9 +6,10 @@ import { AvatarRepository } from './avatar.repository';
 import { AvatarService } from './avatar.service';
 import { AvatarRateLimitGuard } from './avatarRateLimit.guard';
 import { ImageProcessingService } from './image/imageProcessing.service';
+import { QueueModule } from '@/queue/queue.module';
 
 @Module({
-  imports: [SessionModule, StorageModule],
+  imports: [SessionModule, StorageModule, QueueModule],
   controllers: [AvatarController],
   providers: [
     AvatarService,
@@ -16,5 +17,6 @@ import { ImageProcessingService } from './image/imageProcessing.service';
     ImageProcessingService,
     AvatarRateLimitGuard,
   ],
+  exports: [],
 })
 export class AvatarModule {}

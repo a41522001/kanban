@@ -75,10 +75,12 @@ export class WorkspacesService {
     const result =
       await this.workspacesRepository.getSingleWorkspaceMember(workspaceId);
     return result.map(({ id, role, user }) => {
+      const { displayName, avatar } = user;
       return {
         memberId: id,
         role: role,
-        displayName: user.displayName,
+        displayName: displayName,
+        avatarUrl: avatar ? (avatar.smallUrl ?? avatar.mediumUrl) : null,
       };
     });
   }

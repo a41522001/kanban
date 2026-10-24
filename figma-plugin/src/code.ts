@@ -5,7 +5,7 @@ const FONT_MEDIUM = { family: 'Noto Sans TC', style: 'Medium' } as FontName;
 const FONT_BOLD = { family: 'Noto Sans TC', style: 'Bold' } as FontName;
 let resolvedFonts = { regular: FONT, medium: FONT_MEDIUM, bold: FONT_BOLD };
 
-type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification';
+type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification' | 'avatar-settings';
 type Direction = 'HORIZONTAL' | 'VERTICAL';
 type ColorMap = Record<string, string>;
 type NotificationViewport = 'Desktop' | 'Mobile';
@@ -1848,6 +1848,7 @@ async function buildComponents(replace = true): Promise<FrameNode> {
   root.appendChild(buttonRow);
   componentSets.Button = componentSet('Button', ['Primary', 'Secondary', 'Outline', 'Ghost', 'Danger'].map(buttonVariant), buttonRow);
   createEmailVerificationComponents(root);
+  createAvatarSettingsComponents(root);
 
   const inputRow = auto('Input', 'HORIZONTAL', { gap: 24 });
   root.appendChild(inputRow);
@@ -3480,6 +3481,608 @@ function deleteConfirmationScreen(): FrameNode {
   return canvas;
 }
 
+// ── v15 · Account / Avatar Settings ─────────────────────────────────────────
+// Sources: design/avatar-settings-dialog.svg, avatar-settings-dialog-mobile.svg,
+// avatar-settings-dialog-states.svg, account-avatar-entry.svg (design/README.md "Avatar settings contract").
+
+type AvatarSize = 32 | 40 | 64 | 128;
+type AvatarViewport = 'Desktop' | 'Mobile';
+type AvatarDialogState = 'Crop' | 'IdleWithAvatar' | 'IdleEmpty' | 'Uploading' | 'Error' | 'RateLimited' | 'Removing';
+
+const AVATAR_SIZES: readonly AvatarSize[] = [32, 40, 64, 128];
+const AVATAR_STATES_ON_SPEC: readonly AvatarDialogState[] = ['IdleWithAvatar', 'IdleEmpty', 'Uploading', 'Error', 'RateLimited', 'Removing'];
+
+// Sample photo standing in for the user's uploaded image (600 × 420 source).
+const AVATAR_PHOTO_BODY = '<defs><linearGradient id="avatar-photo-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8B8AB"/><stop offset="1" stop-color="#FFF1D8"/></linearGradient></defs>'
+  + '<rect width="600" height="420" fill="url(#avatar-photo-sky)"/>'
+  + '<circle cx="460" cy="96" r="44" fill="#FFF9F4" fill-opacity=".8"/>'
+  + '<path d="M0 300 140 210 250 270 380 190 600 300v120H0z" fill="#6EA99E"/>'
+  + '<path d="M0 350 180 290 330 340 470 300 600 350v70H0z" fill="#31665D"/>'
+  + '<circle cx="300" cy="182" r="58" fill="#E6B960"/>'
+  + '<path d="M200 420c0-120 44-186 100-186s100 66 100 186z" fill="#DF6E51"/>';
+
+const AVATAR_ICONS = {
+  close: '<path d="M5 5l14 14M19 5 5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="9.5" r="1.5" fill="currentColor"/><path d="m21 16-5-5-9 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  minus: '<path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  plus: '<path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  alert: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7.5v5M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  clock: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  spinner: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="2.5"/><path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>',
+  settings: '<circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+
+/** Photo cropped to a viewBox window; the window is the visible part of the 600 × 420 source. */
+function avatarPhoto(name: string, viewBox: string, width: number, height: number): FrameNode {
+  const node = figma.createNodeFromSvg(`<svg width="${width}" height="${height}" viewBox="${viewBox}" xmlns="http://www.w3.org/2000/svg">${AVATAR_PHOTO_BODY}</svg>`);
+  node.name = name;
+  node.resize(width, height);
+  return node;
+}
+
+function avatarInitialStyle(size: AvatarSize): keyof typeof typeScale {
+  if (size === 128) return 'Heading / Auth Display';
+  if (size === 64) return 'Heading / H2';
+  if (size === 40) return 'Heading / H3';
+  return 'Label / Medium';
+}
+
+function sharedAvatarVariant(size: AvatarSize, content: 'Image' | 'Initial'): ComponentNode {
+  const avatar = figma.createComponent();
+  avatar.name = `Size=${size}, Content=${content}`;
+  avatar.description = `shared/Avatar · size ${size}px · ${size <= 40 ? 'smallUrl ?? mediumUrl' : size === 64 ? 'mediumUrl' : 'largeUrl ?? mediumUrl'} · @error and null fall back to the displayName initial · alt = displayName`;
+  avatar.layoutMode = 'HORIZONTAL';
+  avatar.primaryAxisAlignItems = 'CENTER';
+  avatar.counterAxisAlignItems = 'CENTER';
+  fixed(avatar, size, size);
+  avatar.cornerRadius = size / 2;
+  avatar.clipsContent = true;
+  if (content === 'Image') {
+    avatar.fills = [];
+    // The circle crop maps to the 260 × 260 window centred on the subject.
+    avatar.appendChild(avatarPhoto('Avatar image', '170 80 260 260', size, size));
+  } else {
+    applyFill(avatar, 'flow/active');
+    avatar.appendChild(text('Initial', 'J', avatarInitialStyle(size)));
+  }
+  return avatar;
+}
+
+function avatarCropperVariant(viewport: AvatarViewport): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const width = mobile ? 326 : 456;
+  const height = mobile ? 300 : 320;
+  const radius = mobile ? 120 : 130;
+  const cx = width / 2;
+  const cy = height / 2;
+  const cropper = figma.createComponent();
+  cropper.name = `Viewport=${viewport}`;
+  cropper.description = 'vue-advanced-cropper · CircleStencil · aspectRatio 1 · drag to move, wheel / pinch / slider to zoom · exports 512×512 PNG';
+  cropper.resize(width, height);
+  cropper.clipsContent = true;
+  setRadius(cropper, 'radius/lg');
+  cropper.fills = [solid('#182033')];
+
+  const sourceX = 300 - cx;
+  const sourceY = 210 - cy;
+  const source = avatarPhoto('Source image', `${sourceX} ${sourceY} ${width} ${height}`, width, height);
+  cropper.appendChild(source);
+
+  const scrim = figma.createNodeFromSvg(`<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><path fill="#182033" fill-opacity=".62" fill-rule="evenodd" d="M0 0h${width}v${height}H0z M${cx} ${cy - radius}a${radius} ${radius} 0 1 0 0.01 0z"/></svg>`);
+  scrim.name = 'Outside crop scrim';
+  cropper.appendChild(scrim);
+
+  const stencil = figma.createEllipse();
+  stencil.name = 'Crop stencil';
+  stencil.resize(radius * 2, radius * 2);
+  stencil.x = cx - radius;
+  stencil.y = cy - radius;
+  stencil.fills = [];
+  applyStroke(stencil, 'border/default', 2);
+  stencil.strokes = [solid(colors['bg/surface'])];
+  cropper.appendChild(stencil);
+
+  ([
+    ['Top', cx, cy - radius],
+    ['Right', cx + radius, cy],
+    ['Bottom', cx, cy + radius],
+    ['Left', cx - radius, cy],
+  ] as const).forEach(([position, x, y]) => {
+    const handle = figma.createEllipse();
+    handle.name = `Resize handle / ${position}`;
+    handle.resize(12, 12);
+    handle.x = x - 6;
+    handle.y = y - 6;
+    applyFill(handle, 'bg/surface');
+    cropper.appendChild(handle);
+  });
+  return cropper;
+}
+
+function avatarIconButton(name: string, iconBody: string, size: number): FrameNode {
+  const button = auto(name, 'HORIZONTAL', { fill: 'bg/subtle', radius: 'radius/md' });
+  fixed(button, size, size);
+  button.primaryAxisAlignItems = 'CENTER';
+  button.counterAxisAlignItems = 'CENTER';
+  button.appendChild(icon(`${name} icon`, iconBody, 18, 'text/primary'));
+  return button;
+}
+
+function avatarZoomControlVariant(viewport: AvatarViewport): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const buttonSize = mobile ? 44 : 40;
+  const trackWidth = mobile ? 206 : 344;
+  const control = figma.createComponent();
+  control.name = `Viewport=${viewport}`;
+  control.description = 'Zoom slider (Reka Slider) + −/+ buttons · keyboard and touch accessible alternative to wheel / pinch';
+  control.layoutMode = 'HORIZONTAL';
+  control.primaryAxisSizingMode = 'AUTO';
+  control.counterAxisSizingMode = 'AUTO';
+  control.counterAxisAlignItems = 'CENTER';
+  control.itemSpacing = 16;
+  control.fills = [];
+  control.appendChild(avatarIconButton('Zoom out', AVATAR_ICONS.minus, buttonSize));
+
+  const track = figma.createFrame();
+  track.name = 'Zoom slider';
+  track.resize(trackWidth, 22);
+  track.fills = [];
+  const rail = figma.createRectangle(); rail.name = 'Track'; rail.resize(trackWidth, 4); rail.y = 9; rail.cornerRadius = 2; applyFill(rail, 'border/default');
+  const range = figma.createRectangle(); range.name = 'Range'; range.resize(Math.round(trackWidth * 0.4), 4); range.y = 9; range.cornerRadius = 2; applyFill(range, 'action/primary');
+  const thumb = figma.createEllipse(); thumb.name = 'Thumb'; thumb.resize(20, 20); thumb.x = Math.round(trackWidth * 0.4) - 10; thumb.y = 1; applyFill(thumb, 'bg/surface'); applyStroke(thumb, 'action/primary', 2);
+  track.appendChild(rail); track.appendChild(range); track.appendChild(thumb);
+  control.appendChild(track);
+
+  control.appendChild(avatarIconButton('Zoom in', AVATAR_ICONS.plus, buttonSize));
+  return control;
+}
+
+function avatarAvatarInstance(size: AvatarSize, content: 'Image' | 'Initial'): InstanceNode | FrameNode {
+  return instance(componentVariant('Shared Avatar', `Size=${size}, Content=${content}`), `Avatar ${size}`);
+}
+
+function avatarButton(style: 'Primary' | 'Outline', label: string, width: number, height: number, options: { disabled?: boolean; danger?: boolean; muted?: boolean } = {}): InstanceNode | FrameNode {
+  const button = instance(componentVariant('Button', style), `${label} button`);
+  overrideText(button, 'Label', label);
+  fixed(button, width, height);
+  if ('primaryAxisAlignItems' in button) {
+    button.primaryAxisAlignItems = 'CENTER';
+    button.counterAxisAlignItems = 'CENTER';
+  }
+  const labelNode = (button as any).findOne((node: SceneNode) => node.type === 'TEXT' && node.name === 'Label') as TextNode | null;
+  if (options.danger && labelNode) applyFill(labelNode, 'category/coral');
+  if (options.muted) {
+    applyFill(button as GeometryMixin, 'bg/canvas');
+    (button as GeometryMixin).strokes = [];
+    if (labelNode) applyFill(labelNode, 'text/secondary');
+  }
+  if (options.disabled) button.opacity = 0.5;
+  return button;
+}
+
+function avatarRechooseButton(width?: number, height = 44): FrameNode {
+  const button = auto('Rechoose button', 'HORIZONTAL', { gap: 8, padding: [12, 12], radius: 'radius/md' });
+  button.counterAxisAlignItems = 'CENTER';
+  button.primaryAxisAlignItems = 'CENTER';
+  if (width) {
+    applyFill(button, 'bg/surface');
+    applyStroke(button, 'border/default');
+    fixed(button, width, height);
+  }
+  button.appendChild(icon('Refresh icon', AVATAR_ICONS.refresh, 16, 'text/secondary'));
+  button.appendChild(text('Label', '重新選擇', 'Label / Medium', 'text/secondary'));
+  return button;
+}
+
+function avatarNotice(kind: 'Error' | 'RateLimited', width: number): FrameNode {
+  const error = kind === 'Error';
+  const notice = auto(error ? 'Error notice' : 'Rate limit notice', 'HORIZONTAL', { gap: 12, padding: [14, 16], fill: error ? 'action/primary-soft' : 'flow/review-soft', radius: 'radius/lg' });
+  notice.counterAxisSizingMode = 'AUTO';
+  notice.primaryAxisSizingMode = 'FIXED';
+  notice.resize(width, notice.height);
+  notice.counterAxisSizingMode = 'AUTO';
+  const tone = error ? 'category/coral' : 'category/amber';
+  notice.appendChild(icon(error ? 'Alert icon' : 'Clock icon', error ? AVATAR_ICONS.alert : AVATAR_ICONS.clock, 18, tone));
+  const copy = auto('Notice copy', 'VERTICAL', { gap: 2 });
+  copy.appendChild(text('Notice title', error ? '圖片超過 5 MB' : '上傳太頻繁，請稍後再試', 'Label / Medium', tone));
+  if (error) copy.appendChild(text('Notice detail', '請選擇較小的圖片後再試一次。', 'Body / Small', tone));
+  notice.appendChild(copy);
+  return notice;
+}
+
+function avatarDivider(width: number): RectangleNode {
+  const divider = figma.createRectangle();
+  divider.name = 'Divider';
+  divider.resize(width, 1);
+  applyFill(divider, 'border/default');
+  return divider;
+}
+
+function avatarFooter(width: number, children: SceneNode[], spaceBetween = false): FrameNode {
+  const footer = auto('Dialog footer', 'HORIZONTAL', { gap: 12 });
+  fixed(footer, width, 44);
+  footer.counterAxisAlignItems = 'CENTER';
+  footer.primaryAxisAlignItems = spaceBetween ? 'SPACE_BETWEEN' : 'MAX';
+  children.forEach((child) => footer.appendChild(child));
+  return footer;
+}
+
+function avatarCropperWithOverlay(): FrameNode {
+  const wrapper = figma.createFrame();
+  wrapper.name = 'Cropper / Uploading';
+  wrapper.resize(456, 320);
+  wrapper.fills = [];
+  wrapper.clipsContent = true;
+  wrapper.cornerRadius = radii['radius/lg'];
+  wrapper.appendChild(instance(componentVariant('Avatar Cropper', 'Viewport=Desktop'), 'Avatar cropper'));
+  const veil = figma.createRectangle();
+  veil.name = 'Uploading veil';
+  veil.resize(456, 320);
+  applyFill(veil, 'bg/surface');
+  veil.opacity = 0.55;
+  wrapper.appendChild(veil);
+  const spinner = icon('Uploading spinner', AVATAR_ICONS.spinner, 32, 'text/primary');
+  spinner.x = 212;
+  spinner.y = 144;
+  wrapper.appendChild(spinner);
+  return wrapper;
+}
+
+function avatarSettingsDialogVariant(viewport: AvatarViewport, state: AvatarDialogState): ComponentNode {
+  const mobile = viewport === 'Mobile';
+  const width = mobile ? 358 : 520;
+  const padding = mobile ? 16 : 32;
+  const contentWidth = width - padding * 2;
+  const dialog = figma.createComponent();
+  dialog.name = `Viewport=${viewport}, State=${state}`;
+  dialog.description = 'account/AvatarSettingsDialog · shadcn-vue/DialogContent · errors map ApiCode → copy: 6002 >5 MB, 6003 type, 6001 unreadable/too large, 6005 storage; 429/6004 counts down data.retryAfterSeconds';
+  dialog.layoutMode = 'VERTICAL';
+  dialog.primaryAxisSizingMode = 'AUTO';
+  dialog.counterAxisSizingMode = 'FIXED';
+  dialog.itemSpacing = 20;
+  dialog.resize(width, 400);
+  // resize() switches Auto Layout sizing to FIXED; restore Hug so content is not clipped.
+  dialog.primaryAxisSizingMode = 'AUTO';
+  setPadding(dialog, mobile ? 16 : 24, padding, mobile ? 16 : 24, padding);
+  applyFill(dialog, 'bg/surface');
+  setRadius(dialog, 'radius/xl');
+  dialog.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.2 }, offset: { x: 0, y: 16 }, radius: 24, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const titleRow = auto('Title row', 'HORIZONTAL');
+  fixed(titleRow, contentWidth, 40);
+  titleRow.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  titleRow.counterAxisAlignItems = 'CENTER';
+  titleRow.appendChild(text('Title', '更換頭像', 'Heading / H2'));
+  titleRow.appendChild(avatarIconButton('Close button', AVATAR_ICONS.close, 40));
+  dialog.appendChild(titleRow);
+
+  const hint = 'JPG、PNG、WebP，5 MB 以內';
+  const actionHeight = mobile ? 48 : 44;
+
+  if (state === 'IdleWithAvatar' || state === 'IdleEmpty' || state === 'Removing') {
+    const preview = auto('Current avatar', 'VERTICAL', { gap: 16 });
+    fixed(preview, contentWidth, 172);
+    preview.primaryAxisAlignItems = 'CENTER';
+    preview.counterAxisAlignItems = 'CENTER';
+    const avatar = avatarAvatarInstance(128, state === 'IdleEmpty' ? 'Initial' : 'Image');
+    if (state === 'Removing') avatar.opacity = 0.5;
+    preview.appendChild(avatar);
+    preview.appendChild(text('Format hint', hint, 'Body / Small', 'text/secondary'));
+    dialog.appendChild(preview);
+    dialog.appendChild(avatarButton('Primary', state === 'IdleEmpty' ? '選擇圖片' : '選擇新圖片', contentWidth, actionHeight, { disabled: state === 'Removing' }));
+    if (state !== 'IdleEmpty') dialog.appendChild(avatarButton('Outline', state === 'Removing' ? '移除中…' : '移除頭像', contentWidth, actionHeight, { danger: true }));
+    return dialog;
+  }
+
+  if (state === 'Error') {
+    dialog.appendChild(avatarNotice('Error', contentWidth));
+    dialog.appendChild(avatarDivider(contentWidth));
+    dialog.appendChild(avatarFooter(contentWidth, [
+      avatarButton('Outline', '取消', 96, 44),
+      avatarButton('Primary', '重新選擇', 120, 44),
+    ]));
+    return dialog;
+  }
+
+  if (state === 'RateLimited') dialog.appendChild(avatarNotice('RateLimited', contentWidth));
+  else {
+    const description = text('Description', mobile ? '拖曳調整位置，雙指或滑桿縮放。' : '拖曳圖片調整位置，用滑桿或滾輪縮放，圓形範圍內就是頭像。', 'Body / Medium', 'text/secondary');
+    description.textAutoResize = 'HEIGHT';
+    description.resize(contentWidth, 22);
+    dialog.appendChild(description);
+  }
+
+  dialog.appendChild(state === 'Uploading' ? avatarCropperWithOverlay() : instance(componentVariant('Avatar Cropper', `Viewport=${viewport}`), 'Avatar cropper'));
+
+  if (state === 'Crop') {
+    dialog.appendChild(instance(componentVariant('Avatar Zoom Control', `Viewport=${viewport}`), 'Zoom control'));
+    const preview = auto('Size preview', 'HORIZONTAL', { gap: 16 });
+    preview.counterAxisAlignItems = 'CENTER';
+    if (!mobile) preview.appendChild(text('Preview label', '實際顯示', 'Body / Small', 'text/secondary'));
+    preview.appendChild(avatarAvatarInstance(64, 'Image'));
+    preview.appendChild(avatarAvatarInstance(32, 'Image'));
+    const copy = auto('Preview copy', 'VERTICAL', { gap: 2 });
+    if (mobile) copy.appendChild(text('Preview label', '實際顯示', 'Body / Small', 'text/secondary'));
+    copy.appendChild(text('Format hint', hint, 'Body / Small', 'text/secondary'));
+    preview.appendChild(copy);
+    dialog.appendChild(preview);
+  }
+
+  dialog.appendChild(avatarDivider(contentWidth));
+
+  if (mobile) {
+    const secondary = auto('Secondary actions', 'HORIZONTAL', { gap: 12 });
+    secondary.appendChild(avatarRechooseButton((contentWidth - 12) / 2, 48));
+    secondary.appendChild(avatarButton('Outline', '取消', (contentWidth - 12) / 2, 48));
+    dialog.appendChild(secondary);
+    dialog.appendChild(avatarButton('Primary', '上傳', contentWidth, 48));
+    return dialog;
+  }
+
+  if (state === 'Crop') {
+    const group = auto('Primary actions', 'HORIZONTAL', { gap: 12 });
+    group.appendChild(avatarButton('Outline', '取消', 96, 44));
+    group.appendChild(avatarButton('Primary', '上傳', 110, 44));
+    dialog.appendChild(avatarFooter(contentWidth, [avatarRechooseButton(), group], true));
+  } else if (state === 'Uploading') {
+    dialog.appendChild(avatarFooter(contentWidth, [
+      avatarButton('Outline', '取消', 96, 44, { disabled: true }),
+      avatarButton('Primary', '上傳中…', 144, 44, { disabled: true }),
+    ]));
+  } else {
+    dialog.appendChild(avatarFooter(contentWidth, [
+      avatarButton('Outline', '取消', 96, 44),
+      avatarButton('Primary', '42 秒後可上傳', 144, 44, { muted: true }),
+    ]));
+  }
+  return dialog;
+}
+
+function userMenuItem(label: string, iconBody: string, colorName: string, highlighted = false): FrameNode {
+  const item = auto(`Menu item / ${label}`, 'HORIZONTAL', { gap: 12, padding: [10, 12], radius: 'radius/sm' });
+  fixed(item, 276, 40);
+  item.counterAxisAlignItems = 'CENTER';
+  if (highlighted) applyFill(item, 'bg/subtle');
+  item.appendChild(icon(`${label} icon`, iconBody, 16, colorName));
+  item.appendChild(text('Label', label, 'Body / Medium', colorName));
+  return item;
+}
+
+function userMenuComponent(): ComponentNode {
+  const menu = figma.createComponent();
+  menu.name = 'User Menu';
+  menu.description = 'account/UserMenu · shadcn-vue/DropdownMenuContent w-72 · "更換頭像" opens AvatarSettingsDialog; focus returns to the header avatar on close';
+  menu.layoutMode = 'VERTICAL';
+  menu.primaryAxisSizingMode = 'AUTO';
+  menu.counterAxisSizingMode = 'FIXED';
+  menu.counterAxisAlignItems = 'CENTER';
+  menu.itemSpacing = 4;
+  menu.resize(288, 240);
+  menu.primaryAxisSizingMode = 'AUTO';
+  setPadding(menu, 6);
+  applyFill(menu, 'bg/surface');
+  applyStroke(menu, 'border/default');
+  setRadius(menu, 'radius/lg');
+  menu.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#29324A'), a: 0.14 }, offset: { x: 0, y: 10 }, radius: 32, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const label = auto('Menu label', 'HORIZONTAL', { gap: 12, padding: [8, 6] });
+  fixed(label, 276, 56);
+  label.counterAxisAlignItems = 'CENTER';
+  label.appendChild(avatarAvatarInstance(40, 'Image'));
+  const identity = auto('Identity', 'VERTICAL', { gap: 2 });
+  identity.appendChild(text('Display name', 'Jeffery', 'Label / Medium'));
+  identity.appendChild(text('Email', '111@111.com', 'Body / Small', 'text/secondary'));
+  label.appendChild(identity);
+  menu.appendChild(label);
+  menu.appendChild(avatarDivider(276));
+  menu.appendChild(userMenuItem('更換頭像', AVATAR_ICONS.image, 'text/primary', true));
+  menu.appendChild(userMenuItem('帳號設定', AVATAR_ICONS.settings, 'text/on-dark-muted'));
+  menu.appendChild(avatarDivider(276));
+  menu.appendChild(userMenuItem('登出', AVATAR_ICONS.logout, 'feedback/danger'));
+  return menu;
+}
+
+function createAvatarSettingsComponents(root: FrameNode): void {
+  const section = auto('Avatar Settings components', 'VERTICAL', { gap: 24 });
+  tag(section, 'avatar-settings-components');
+  section.appendChild(text('Section title', 'Account / Avatar Settings', 'Heading / H2'));
+
+  const avatarRow = auto('Shared Avatar', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(avatarRow);
+  componentSets['Shared Avatar'] = componentSet(
+    'Shared Avatar',
+    AVATAR_SIZES.flatMap((size) => (['Image', 'Initial'] as const).map((content) => sharedAvatarVariant(size, content))),
+    avatarRow,
+  );
+
+  const cropperRow = auto('Avatar Cropper', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(cropperRow);
+  componentSets['Avatar Cropper'] = componentSet('Avatar Cropper', (['Desktop', 'Mobile'] as const).map(avatarCropperVariant), cropperRow);
+
+  const zoomRow = auto('Avatar Zoom Control', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(zoomRow);
+  componentSets['Avatar Zoom Control'] = componentSet('Avatar Zoom Control', (['Desktop', 'Mobile'] as const).map(avatarZoomControlVariant), zoomRow);
+
+  const dialogRow = auto('Avatar Settings Dialog', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(dialogRow);
+  const desktopStates: AvatarDialogState[] = ['Crop', ...AVATAR_STATES_ON_SPEC];
+  componentSets['Avatar Settings Dialog'] = componentSet(
+    'Avatar Settings Dialog',
+    [
+      ...desktopStates.map((state) => avatarSettingsDialogVariant('Desktop', state)),
+      avatarSettingsDialogVariant('Mobile', 'Crop'),
+    ],
+    dialogRow,
+  );
+
+  const menuRow = auto('User Menu row', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(menuRow);
+  const menu = userMenuComponent();
+  tag(menu, 'component');
+  standaloneComponents[menu.name] = menu;
+  menuRow.appendChild(menu);
+
+  root.appendChild(section);
+}
+
+function avatarSettingsDialogScreen(mobile = false): FrameNode {
+  const width = mobile ? 390 : 1440;
+  const height = mobile ? 844 : 900;
+  const screen = auto(`Avatar Settings / ${mobile ? 'Mobile / 390×844' : 'Desktop / 1440×900'}`, 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, width, height);
+  screen.clipsContent = true;
+
+  const background = mobile ? workspaceProjectOverviewMobileScreen() : workspaceProjectOverviewDesktopScreen();
+  background.name = 'Workspace backdrop';
+  screen.appendChild(background);
+  background.layoutPositioning = 'ABSOLUTE';
+  background.x = 0;
+  background.y = 0;
+
+  const scrim = auto('Dialog scrim', 'VERTICAL', { fill: 'bg/dark' });
+  fixed(scrim, width, height);
+  scrim.opacity = 0.58;
+  screen.appendChild(scrim);
+  scrim.layoutPositioning = 'ABSOLUTE';
+  scrim.x = 0;
+  scrim.y = 0;
+
+  const dialog = instance(componentVariant('Avatar Settings Dialog', `Viewport=${mobile ? 'Mobile' : 'Desktop'}, State=Crop`), 'Avatar settings dialog');
+  screen.appendChild(dialog);
+  dialog.layoutPositioning = 'ABSOLUTE';
+  dialog.x = mobile ? 16 : (width - dialog.width) / 2;
+  dialog.y = Math.max(16, Math.round((height - dialog.height) / 2));
+  return screen;
+}
+
+function avatarSettingsStatesScreen(): FrameNode {
+  const notes: Record<AvatarDialogState, string> = {
+    Crop: '',
+    IdleWithAvatar: '預覽使用 largeUrl ?? mediumUrl',
+    IdleEmpty: '沒有頭像時顯示名稱首字，不提供「移除頭像」',
+    Uploading: '鎖定關閉、重新選擇與上傳，避免重複送出',
+    Error: '保留 Dialog；文案依 ApiCode：6002 超過 5 MB／6003 格式不支援／6001 無法讀取或尺寸超限／6005 暫時無法上傳',
+    RateLimited: '倒數來自 data.retryAfterSeconds；歸零後恢復「上傳」',
+    Removing: '成功後 avatar 設為 null，切換為 IdleEmpty',
+  };
+  const screen = auto('Avatar Settings / States', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
+  screen.counterAxisSizingMode = 'FIXED';
+  screen.resize(1440, screen.height);
+  screen.primaryAxisSizingMode = 'AUTO';
+  screen.appendChild(text('Title', 'ACCOUNT / AVATAR SETTINGS DIALOG / STATES', 'Heading / H2'));
+  screen.appendChild(text('Description', '由 UserMenu「更換頭像」開啟；成功上傳後關閉 Dialog，以 Toast「頭像已更新」回饋。', 'Body / Medium', 'text/secondary'));
+  const rows = auto('Avatar settings states', 'VERTICAL', { gap: 40 });
+  for (let index = 0; index < AVATAR_STATES_ON_SPEC.length; index += 2) {
+    const row = auto(`State row ${index / 2 + 1}`, 'HORIZONTAL', { gap: 40 });
+    AVATAR_STATES_ON_SPEC.slice(index, index + 2).forEach((state) => {
+      const panel = auto(`State / ${state}`, 'VERTICAL', { gap: 12 });
+      panel.appendChild(text('State label', state, 'Heading / H3'));
+      panel.appendChild(instance(componentVariant('Avatar Settings Dialog', `Viewport=Desktop, State=${state}`), `Avatar settings ${state}`));
+      const note = text('State note', notes[state], 'Body / Small', 'text/secondary');
+      note.textAutoResize = 'HEIGHT';
+      note.resize(520, 18);
+      panel.appendChild(note);
+      row.appendChild(panel);
+    });
+    rows.appendChild(row);
+  }
+  screen.appendChild(rows);
+  return screen;
+}
+
+function accountAvatarEntryScreen(): FrameNode {
+  const screen = auto('Account / Avatar Entry & Shared Avatar / 1440×900', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.appendChild(text('Title', 'ACCOUNT / AVATAR ENTRY & SHARED AVATAR', 'Heading / H2'));
+  screen.appendChild(text('Description', 'Header 的 Avatar 開啟 UserMenu；「更換頭像」開啟 AvatarSettingsDialog。共用 Avatar 統一處理圖片與首字 fallback。', 'Body / Medium', 'text/secondary'));
+
+  const columns = auto('Spec columns', 'HORIZONTAL', { gap: 80 });
+
+  const entry = auto('UserMenu entry', 'VERTICAL', { gap: 12 });
+  entry.counterAxisAlignItems = 'MAX';
+  const header = auto('Header strip', 'HORIZONTAL', { gap: 16, padding: [12, 24], fill: 'bg/dark', radius: 'radius/xl' });
+  fixed(header, 640, 64);
+  header.primaryAxisAlignItems = 'MAX';
+  header.counterAxisAlignItems = 'CENTER';
+  header.appendChild(avatarIconButton('Create button', AVATAR_ICONS.plus, 40));
+  header.appendChild(avatarAvatarInstance(32, 'Image'));
+  entry.appendChild(header);
+  entry.appendChild(instance(localComponent('User Menu'), 'User Menu'));
+  const rules = auto('Entry rules', 'VERTICAL', { gap: 6 });
+  [
+    '• Header Trigger 使用共用 Avatar 32px；有頭像顯示圖片，沒有顯示首字。',
+    '• Menu 標頭使用 40px Avatar，與名稱、Email 同列。',
+    '• 「更換頭像」位於 disabled 的「帳號設定」上方。',
+    '• 選取後關閉 Menu 再開啟 Dialog；關閉時焦點回到 Header Avatar。',
+  ].forEach((line, index) => rules.appendChild(text(`Rule ${index + 1}`, line, 'Body / Medium')));
+  entry.appendChild(rules);
+  stretch(rules);
+  columns.appendChild(entry);
+
+  const table = auto('Shared Avatar variants', 'VERTICAL', { gap: 16, padding: [24], fill: 'bg/surface', radius: 'radius/xl' });
+  table.appendChild(text('Table title', 'shared/Avatar · size prop 以像素命名（32 / 40 / 64 / 128）', 'Heading / H3'));
+  const urls: Record<AvatarSize, string> = { 32: 'smallUrl ?? mediumUrl', 40: 'smallUrl ?? mediumUrl', 64: 'mediumUrl', 128: 'largeUrl ?? mediumUrl' };
+  const usage: Record<AvatarSize, string> = { 32: 'Header、成員清單', 40: 'UserMenu 標頭', 64: '候選人、通知詳情', 128: '頭像設定預覽' };
+  AVATAR_SIZES.forEach((size) => {
+    const row = auto(`Size row / ${size}`, 'HORIZONTAL', { gap: 24 });
+    row.counterAxisAlignItems = 'CENTER';
+    const label = auto('Size label', 'VERTICAL', { gap: 2 });
+    fixed(label, 140, 44);
+    label.appendChild(text('Size', `${size} px`, 'Heading / H3'));
+    label.appendChild(text('Usage', usage[size], 'Body / Small', 'text/tertiary'));
+    row.appendChild(label);
+    row.appendChild(avatarAvatarInstance(size, 'Image'));
+    row.appendChild(avatarAvatarInstance(size, 'Initial'));
+    row.appendChild(text('URL rule', urls[size], 'Body / Small', 'text/secondary'));
+    table.appendChild(row);
+  });
+  table.appendChild(text('Fallback rule', '圖片載入失敗（@error）或 avatar 為 null 時顯示 displayName 首字；alt 使用 displayName；網址只含 uploadId，不含 userId。', 'Body / Small', 'text/secondary'));
+  columns.appendChild(table);
+
+  screen.appendChild(columns);
+  return screen;
+}
+
+function avatarSettingsScreenFactories(): Array<() => FrameNode> {
+  return [() => avatarSettingsDialogScreen(false), () => avatarSettingsDialogScreen(true), avatarSettingsStatesScreen, accountAvatarEntryScreen];
+}
+
+function avatarSettingsSection(): FrameNode {
+  const section = auto('Section / Account / Avatar Settings', 'VERTICAL', { gap: 24 });
+  tag(section, 'avatar-settings-screens');
+  section.appendChild(text('Section title', 'Account / Avatar Settings', 'Heading / H2'));
+  const row = auto('Screens / Account / Avatar Settings', 'HORIZONTAL', { gap: 48 });
+  avatarSettingsScreenFactories().forEach((create) => {
+    const screen = create();
+    tag(screen, 'screen');
+    row.appendChild(screen);
+  });
+  section.appendChild(row);
+  return section;
+}
+
+async function generateAvatarSettingsOnly(): Promise<FrameNode> {
+  const screensRoot = await existingGeneratedRoot('03 · Screens', 'Flowboard Screens');
+  const componentsRoot = await existingGeneratedRoot('02 · Components', 'Flowboard Components');
+  if (!screensRoot || !componentsRoot) throw new Error('Existing Flowboard Screens and Components are required; run Generate All first.');
+  await buildFoundations();
+  await hydrateComponentCache();
+  if (!componentSets.Button || !componentSets['Project Card']) throw new Error('Button and Project Card components are required; run Generate All first.');
+
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  screensRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'avatar-settings-screens')?.remove();
+  await figma.setCurrentPageAsync(componentsRoot.parent as PageNode);
+  componentsRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'avatar-settings-components')?.remove();
+  createAvatarSettingsComponents(componentsRoot);
+
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  const anchorIndex = screensRoot.children.findIndex((child) => child.getPluginData(PLUGIN_KEY) === 'email-verification-screens');
+  screensRoot.insertChild(anchorIndex < 0 ? screensRoot.children.length : anchorIndex + 1, avatarSettingsSection());
+  return screensRoot;
+}
+
 async function buildScreens(): Promise<FrameNode> {
   const generatedPageNames = [
     '03 · Auth · Login · Desktop', '04 · Auth · Login · Mobile', '05 · Auth · Signup · Desktop', '06 · Auth · Signup · Mobile',
@@ -3517,6 +4120,7 @@ async function buildScreens(): Promise<FrameNode> {
       () => emailVerificationScreen('Loading'),
       () => emailVerificationScreen('Success'),
     ] },
+    { name: 'Account / Avatar Settings', screens: avatarSettingsScreenFactories() },
     { name: 'Workspace Project Overview', screens: [workspaceProjectOverviewDesktopScreen, workspaceProjectOverviewTabletScreen, workspaceProjectOverviewMobileScreen] },
     { name: 'Workspace Invite', screens: [() => workspaceInviteDialogScreen(false), () => workspaceInviteDialogScreen(true)] },
     { name: 'Project Add Member', screens: [() => projectAddMemberDialogScreen(false), () => projectAddMemberDialogScreen(true), projectAddMemberStatesScreen] },
@@ -3533,6 +4137,7 @@ async function buildScreens(): Promise<FrameNode> {
     postStatus(`Creating ${group.name}…`);
     const section = auto(`Section / ${group.name}`, 'VERTICAL', { gap: 24 });
     if (group.name === 'Auth / Email Verification') tag(section, 'email-verification-screens');
+    if (group.name === 'Account / Avatar Settings') tag(section, 'avatar-settings-screens');
     section.appendChild(text('Section title', group.name, 'Heading / H2'));
     const row = auto(`Screens / ${group.name}`, 'HORIZONTAL', { gap: 48 });
     group.screens.forEach((create) => { const screen = create(); tag(screen, 'screen'); row.appendChild(screen); });
@@ -3552,6 +4157,15 @@ async function generate(action: GeneratorAction): Promise<void> {
     figma.notify('Flowboard Email Verification design is ready.', { timeout: 3000 });
     return;
   }
+  if (action === 'avatar-settings') {
+    postStatus('Updating Avatar Settings components and screens…');
+    const result = await generateAvatarSettingsOnly();
+    await figma.setCurrentPageAsync(result.parent as PageNode);
+    figma.viewport.scrollAndZoomIntoView([result.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'avatar-settings-screens') as SceneNode]);
+    postStatus('Completed: Avatar Settings components, desktop/mobile dialog, states and entry spec.');
+    figma.notify('Flowboard Avatar Settings design is ready.', { timeout: 3000 });
+    return;
+  }
   let result: FrameNode | undefined;
   if (action === 'components' || action === 'screens') {
     postStatus('Preparing foundations…');
@@ -3568,7 +4182,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop'] || !componentSets['Avatar Settings Dialog'] || !standaloneComponents['User Menu']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {
@@ -3579,7 +4193,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   figma.notify('Flowboard native design is ready.', { timeout: 3000 });
 }
 
-figma.showUI(__html__, { width: 360, height: 330, title: 'Flowboard Design Generator' });
+figma.showUI(__html__, { width: 360, height: 380, title: 'Flowboard Design Generator' });
 
 figma.ui.onmessage = async (message: { type: string; action?: GeneratorAction }) => {
   if (message.type !== 'generate' || !message.action) return;

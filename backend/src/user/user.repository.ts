@@ -20,10 +20,13 @@ export class UserRepository {
     return user;
   }
   /** 取得 By id */
-  async getById(id: string): Promise<User | null> {
+  async getById(id: string) {
     const user = await this.prismaService.user.findUnique({
       where: {
         id,
+      },
+      include: {
+        avatar: true,
       },
     });
     return user;

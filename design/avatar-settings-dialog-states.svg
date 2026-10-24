@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1520" height="1000" viewBox="0 0 1520 1000">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#29324A" flood-opacity=".14"/></filter>
+    <linearGradient id="photo-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8B8AB"/>
+      <stop offset="1" stop-color="#FFF1D8"/>
+    </linearGradient>
+    <clipPath id="avatar-128"><circle cx="64" cy="64" r="64"/></clipPath>
+    <clipPath id="mini-crop"><rect width="392" height="200" rx="12"/></clipPath>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}.spec{font-size:20px;font-weight:700;letter-spacing:.08em;fill:#697287}.title{font-size:20px;font-weight:700}.h2{font-size:16px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#697287}.tiny{font-size:11px;fill:#8B95A8}.inverse{fill:#F7F8FA}.button{font-size:14px;font-weight:700}.medium{font-weight:700}.avatar-initial{font-size:48px;font-weight:700}
+    </style>
+    <g id="close" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3 3 13"/></g>
+    <g id="alert" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="7"/><path d="M8 4.5v4.2M8 11.5h.01"/></g>
+    <g id="clock" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="7"/><path d="M8 4.5V8l2.5 1.5"/></g>
+    <g id="spinner" fill="none" stroke-width="2.5" stroke-linecap="round"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-opacity=".25"/><path d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5" stroke="currentColor"/></g>
+    <g id="image" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="m14.5 11-3.5-3.5-6.5 6"/></g>
+    <!-- Sample photo: stands in for the user's uploaded image -->
+    <g id="photo">
+      <rect width="600" height="420" fill="url(#photo-sky)"/>
+      <circle cx="460" cy="96" r="44" fill="#FFF9F4" opacity=".8"/>
+      <path d="M0 300 140 210 250 270 380 190 600 300v120H0z" fill="#6EA99E"/>
+      <path d="M0 350 180 290 330 340 470 300 600 350v70H0z" fill="#31665D"/>
+      <circle cx="300" cy="182" r="58" fill="#E6B960"/>
+      <path d="M200 420c0-120 44-186 100-186s100 66 100 186z" fill="#DF6E51"/>
+    </g>
+    <g id="avatar-photo-128">
+      <g clip-path="url(#avatar-128)"><use href="#photo" transform="translate(-83.7 -39.4) scale(.4923)"/></g>
+      <circle cx="64" cy="64" r="64" fill="none" stroke="#D7DCE5"/>
+    </g>
+    <g id="mini-cropper">
+      <g clip-path="url(#mini-crop)">
+        <rect width="392" height="200" fill="#182033"/>
+        <use href="#photo" transform="translate(-104 -110)"/>
+        <path fill="#182033" fill-opacity=".62" fill-rule="evenodd" d="M0 0h392v200H0z M196 12a88 88 0 1 0 0.01 0z"/>
+      </g>
+      <circle cx="196" cy="100" r="88" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+    </g>
+    <g id="card-header">
+      <text x="24" y="44" class="title">更換頭像</text>
+      <rect x="376" y="20" width="40" height="40" rx="9" fill="#F7F8FA"/>
+      <g transform="translate(388 32)" color="#697287"><use href="#close"/></g>
+    </g>
+  </defs>
+
+  <rect width="1520" height="1000" fill="#E9ECF1"/>
+  <text x="40" y="52" class="spec">ACCOUNT / AVATAR SETTINGS DIALOG / STATES</text>
+  <text x="40" y="84" class="body" fill="#697287">由 UserMenu「更換頭像」開啟；預覽使用 largeUrl ?? mediumUrl。成功上傳後關閉 Dialog，以 Toast「頭像已更新」回饋。</text>
+
+  <!-- 1. Idle with avatar -->
+  <g id="idle-with-avatar" transform="translate(40 132)">
+    <text y="-16" class="title">Idle · 已有頭像</text>
+    <rect width="440" height="400" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <use href="#card-header"/>
+    <use href="#avatar-photo-128" transform="translate(156 84)"/>
+    <text x="220" y="244" text-anchor="middle" class="small">JPG、PNG、WebP，5 MB 以內</text>
+    <rect x="24" y="268" width="392" height="44" rx="9" fill="#DF6E51"/>
+    <g transform="translate(176 282)" color="#F7F8FA"><use href="#image"/></g>
+    <text x="232" y="296" text-anchor="middle" class="button inverse">選擇新圖片</text>
+    <rect x="24" y="324" width="392" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+    <text x="220" y="352" text-anchor="middle" class="button" fill="#9F3F2C">移除頭像</text>
+  </g>
+
+  <!-- 2. Idle without avatar -->
+  <g id="idle-empty" transform="translate(540 132)">
+    <text y="-16" class="title">Idle · 尚未設定</text>
+    <rect width="440" height="400" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <use href="#card-header"/>
+    <circle cx="220" cy="148" r="64" fill="#A9D2C8"/>
+    <text x="220" y="165" text-anchor="middle" class="avatar-initial">J</text>
+    <text x="220" y="244" text-anchor="middle" class="small">JPG、PNG、WebP，5 MB 以內</text>
+    <rect x="24" y="268" width="392" height="44" rx="9" fill="#DF6E51"/>
+    <g transform="translate(184 282)" color="#F7F8FA"><use href="#image"/></g>
+    <text x="232" y="296" text-anchor="middle" class="button inverse">選擇圖片</text>
+    <text x="24" y="390" class="tiny">沒有頭像時顯示名稱首字，不提供「移除頭像」</text>
+  </g>
+
+  <!-- 3. Uploading -->
+  <g id="uploading" transform="translate(1040 132)">
+    <text y="-16" class="title">Uploading</text>
+    <rect width="440" height="400" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <use href="#card-header"/>
+    <use href="#mini-cropper" transform="translate(24 76)"/>
+    <rect x="24" y="76" width="392" height="200" rx="12" fill="#FFFFFF" opacity=".55"/>
+    <g transform="translate(208 164) scale(1.5)" color="#29324A"><use href="#spinner"/></g>
+    <rect x="164" y="300" width="96" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5" opacity=".5"/>
+    <text x="212" y="328" text-anchor="middle" class="button" opacity=".5">取消</text>
+    <rect x="272" y="300" width="144" height="44" rx="9" fill="#DF6E51" opacity=".6"/>
+    <g transform="translate(290 314)" color="#F7F8FA"><use href="#spinner"/></g>
+    <text x="354" y="328" text-anchor="middle" class="button inverse">上傳中…</text>
+    <text x="24" y="384" class="tiny">鎖定關閉、重新選擇與上傳，避免重複送出</text>
+  </g>
+
+  <!-- 4. Upload error -->
+  <g id="upload-error" transform="translate(40 572)">
+    <text y="-16" class="title">Error · 上傳失敗</text>
+    <rect width="440" height="400" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <use href="#card-header"/>
+    <rect x="24" y="76" width="392" height="64" rx="12" fill="#FCE5DF"/>
+    <g transform="translate(40 92)" color="#9F3F2C"><use href="#alert"/></g>
+    <text x="66" y="104" class="body medium" fill="#9F3F2C">圖片超過 5 MB</text>
+    <text x="66" y="126" class="small" fill="#9F3F2C">請選擇較小的圖片後再試一次。</text>
+    <text x="24" y="172" class="small medium">錯誤碼對應文案</text>
+    <text x="24" y="196" class="small">413 · 6002　圖片超過 5 MB</text>
+    <text x="24" y="218" class="small">415 · 6003　只支援 JPG、PNG、WebP</text>
+    <text x="24" y="240" class="small">400 · 6001　無法讀取這張圖片，或尺寸超過限制</text>
+    <text x="24" y="262" class="small">503 · 6005　暫時無法上傳，請稍後再試</text>
+    <rect x="164" y="300" width="96" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+    <text x="212" y="328" text-anchor="middle" class="button">取消</text>
+    <rect x="272" y="300" width="144" height="44" rx="9" fill="#DF6E51"/>
+    <text x="344" y="328" text-anchor="middle" class="button inverse">重新選擇</text>
+    <text x="24" y="384" class="tiny">保留 Dialog；文案依 ApiCode 決定，不直接顯示後端 message</text>
+  </g>
+
+  <!-- 5. Rate limited -->
+  <g id="rate-limited" transform="translate(540 572)">
+    <text y="-16" class="title">Rate limited · 429</text>
+    <rect width="440" height="400" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <use href="#card-header"/>
+    <rect x="24" y="76" width="392" height="48" rx="12" fill="#FFF1D8"/>
+    <g transform="translate(40 92)" color="#8A6417"><use href="#clock"/></g>
+    <use href="#mini-cropper" transform="translate(73 136) scale(.75)"/>
+    <text x="66" y="105" class="body medium" fill="#8A6417">上傳太頻繁，請稍後再試</text>
+    <rect x="164" y="300" width="96" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+    <text x="212" y="328" text-anchor="middle" class="button">取消</text>
+    <rect x="272" y="300" width="144" height="44" rx="9" fill="#E9ECF1"/>
+    <text x="344" y="328" text-anchor="middle" class="button" fill="#697287">42 秒後可上傳</text>
+    <text x="24" y="384" class="tiny">倒數來自 data.retryAfterSeconds；歸零後恢復「上傳」</text>
+  </g>
+
+  <!-- 6. Removing -->
+  <g id="removing" transform="translate(1040 572)">
+    <text y="-16" class="title">Removing</text>
+    <rect width="440" height="400" rx="18" fill="#FFFFFF" filter="url(#shadow)"/>
+    <use href="#card-header"/>
+    <g opacity=".5"><use href="#avatar-photo-128" transform="translate(156 84)"/></g>
+    <text x="220" y="244" text-anchor="middle" class="small">JPG、PNG、WebP，5 MB 以內</text>
+    <rect x="24" y="268" width="392" height="44" rx="9" fill="#DF6E51" opacity=".5"/>
+    <text x="220" y="296" text-anchor="middle" class="button inverse">選擇新圖片</text>
+    <rect x="24" y="324" width="392" height="44" rx="9" fill="#FFFFFF" stroke="#D7DCE5"/>
+    <g transform="translate(166 338)" color="#9F3F2C"><use href="#spinner"/></g>
+    <text x="228" y="352" text-anchor="middle" class="button" fill="#9F3F2C">移除中…</text>
+    <text x="24" y="390" class="tiny">成功後 avatar 設為 null，切換為「Idle · 尚未設定」</text>
+  </g>
+</svg>

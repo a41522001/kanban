@@ -1,0 +1,13 @@
+@reference '../../../styles/index.css';
+
+.shared-avatar {
+  @apply inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-flow-active font-bold text-content-primary;
+}
+
+.shared-avatar__image {
+  @apply size-full object-cover;
+}
+
+.shared-avatar__initial {
+  @apply leading-none select-none;
+}

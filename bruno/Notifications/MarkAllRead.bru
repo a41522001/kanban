@@ -1,0 +1,19 @@
+meta {
+  name: MarkAllRead
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/notifications/readAll
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 全部標為已讀
+
+  - Route: `PATCH /v1/api/notifications/readAll`
+  - Auth: 有效 Session
+  - 成功：200 / 本次標為已讀的筆數（`number`）
+}

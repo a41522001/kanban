@@ -1,0 +1,39 @@
+meta {
+  name: UploadAvatarTooLarge
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/user/avatar
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  avatar: @file(fixtures/too-large.png) @contentType(image/png)
+}
+
+tests {
+  test('回應 413', () => {
+    expect(res.getStatus()).to.equal(413);
+  });
+
+  test('code 為 RequestError (4000)', () => {
+    expect(res.getBody().code).to.equal(4000);
+  });
+}
+
+docs {
+  # 上傳頭像：檔案超過 5 MiB（錯誤案例）
+
+  - Route: `POST /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - 預期：413 / RequestError (4000)
+
+  `fixtures/too-large.png` 是 6 MiB 的全零檔案，宣告為 `image/png`，可以通過 `fileFilter`。Multer 讀到超過 `AVATAR_MAX_FILE_BYTES`（5 MiB）時丟出 `LIMIT_FILE_SIZE`，NestJS 轉成 `PayloadTooLargeException`，檔案不會進到 Sharp。
+
+  全域 Filter 對非 `AppException` 的 `HttpException` 一律回 4000「請求失敗」，因此 code 不是 6002（AvatarFileTooLarge）。前端以狀態碼 413 判斷檔案過大。
+
+  2026-10-20 avatar 規格 §0.2 步驟 6-3 完成（實測 413／4000）。
+}

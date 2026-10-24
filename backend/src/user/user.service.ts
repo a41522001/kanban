@@ -26,10 +26,17 @@ export class UserService {
     if (!user) {
       return null;
     }
-    const { email, displayName } = user;
+    const { email, displayName, avatar } = user;
     return {
       email,
       displayName,
+      avatar: avatar
+        ? {
+            smallUrl: avatar.smallUrl,
+            mediumUrl: avatar.mediumUrl,
+            largeUrl: avatar.largeUrl,
+          }
+        : null,
     };
   }
   /** 更新user為已驗證帳號 */

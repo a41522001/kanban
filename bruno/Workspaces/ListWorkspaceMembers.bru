@@ -1,0 +1,19 @@
+meta {
+  name: ListWorkspaceMembers
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/workspaces/{{workspaceId}}/members
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 工作區成員
+
+  - Route: `GET /v1/api/workspaces/:workspaceId/members`
+  - Auth: 有效 Session，且為未封存工作區的成員
+  - 成功：200 / `WorkspaceMemberDto[]`
+}

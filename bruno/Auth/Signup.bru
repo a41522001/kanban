@@ -1,0 +1,36 @@
+meta {
+  name: Signup
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/signup
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}",
+    "name": "{{name}}"
+  }
+}
+
+docs {
+  # 註冊
+
+  - Route: `POST /v1/api/auth/signup`
+  - Auth: 公開
+  - 成功：201 / `SignupResult`，code 1；帳號已建立但驗證信入列失敗時 code 2007。不建立 Session。
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | email | `string` | Email 格式，最長 320，自動 trim + 小寫 |
+  | password | `string` | 8–72 字元 |
+  | name | `string` | 最長 100，自動 trim |
+
+  - development 環境且 `devAutoVerifyEmail = true` 時會直接標記為已驗證，不寄信。
+  - Email 已存在：EmailAlreadyRegistered (2002)。
+}

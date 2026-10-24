@@ -108,10 +108,13 @@
                 "
                 @click="selectedWorkspaceMemberId = candidate.workspaceMemberId"
               >
-                <!-- TODO(avatar): 頭像功能完成後改用共用 Avatar 元件顯示圖片，見 docs/avatar-processing-spec.md -->
-                <span class="project-add-member-dialog__avatar" aria-hidden="true">
-                  {{ candidate.displayName.trim().charAt(0).toUpperCase() }}
-                </span>
+                <!-- The name is shown next to it, so the avatar is decorative. -->
+                <Avatar
+                  :name="candidate.displayName"
+                  :src="candidate.avatarUrl"
+                  :size="40"
+                  aria-hidden="true"
+                />
                 <span class="project-add-member-dialog__candidate-copy">
                   <strong>{{ candidate.displayName }}</strong>
                   <small v-if="candidate.projectRole">
@@ -196,6 +199,7 @@ import type {
 } from '@kanban/contracts/project';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import Avatar from '@/components/shared/Avatar/Avatar.vue';
 import {
   Dialog,
   DialogContent,

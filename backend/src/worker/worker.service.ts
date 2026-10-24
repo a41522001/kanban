@@ -6,11 +6,13 @@ import { EmailService } from '@/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '@/config/env';
 import { redisKeys } from '@/redis/redis.keys';
+import { AvatarWorkerService } from './avatarWorker.service';
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
+    private readonly avatarWorkerService: AvatarWorkerService,
     private readonly configService: ConfigService<Env>,
   ) {}
   private emailWorker!: Worker<SendVerificationEmailData>;
@@ -33,7 +35,6 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.emailWorker?.close();
-    await this.redisService.destroyBullMqConnection();
   }
 
   async handleSendVerificationEmail(data: SendVerificationEmailData) {

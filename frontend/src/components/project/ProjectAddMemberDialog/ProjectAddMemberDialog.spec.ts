@@ -43,11 +43,13 @@ const candidates: MemberCandidate[] = [
     workspaceMemberId: 'workspace-member-owner',
     displayName: 'Jeffery',
     projectRole: 'OWNER',
+    avatarUrl: '/media/avatars/jeffery/sm.webp',
   },
   {
     workspaceMemberId: 'workspace-member-mina',
     displayName: 'Mina',
     projectRole: null,
+    avatarUrl: null,
   },
 ];
 
@@ -79,6 +81,17 @@ describe('ProjectAddMemberDialog', () => {
     vi.mocked(addProjectMemberApi).mockReset();
     vi.mocked(getProjectMemberCandidatesApi).mockResolvedValue(apiResponse(candidates));
     vi.mocked(addProjectMemberApi).mockResolvedValue(apiResponse(null));
+  });
+
+  it('有頭像的候選人顯示圖片，沒有頭像的顯示名稱首字', async () => {
+    const wrapper = mountDialog();
+    await flushPromises();
+
+    const [jeffery, mina] = wrapper.findAll('.project-add-member-dialog__candidate');
+    expect(jeffery!.get('img').attributes('src')).toBe('/media/avatars/jeffery/sm.webp');
+    expect(mina!.find('img').exists()).toBe(false);
+    expect(mina!.get('.shared-avatar').text()).toBe('M');
+    expect(mina!.get('.shared-avatar').attributes('aria-hidden')).toBe('true');
   });
 
   it('停用已加入者並以 workspaceMemberId 與可指派角色送出', async () => {

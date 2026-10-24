@@ -1,0 +1,37 @@
+meta {
+  name: UploadAvatarUnsupportedType
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/user/avatar
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  avatar: @file(fixtures/not-an-image.txt) @contentType(text/plain)
+}
+
+tests {
+  test('回應 415', () => {
+    expect(res.getStatus()).to.equal(415);
+  });
+
+  test('code 為 AvatarUnsupportedType (6003)', () => {
+    expect(res.getBody().code).to.equal(6003);
+  });
+}
+
+docs {
+  # 上傳頭像：不支援的檔案類型（錯誤案例）
+
+  - Route: `POST /v1/api/user/avatar`
+  - Auth: 有效 Session
+  - 預期：415 / AvatarUnsupportedType (6003)
+
+  上傳宣告 MIME 為 `text/plain` 的檔案。Multer 的 `fileFilter` 發現類型不在 `AVATAR_ALLOWED_MIME_TYPES` 內，丟出 `UnsupportedAvatarTypeException`；NestJS 遇到 `HttpException` 會原樣往外丟，由全域 Filter 轉成 415。檔案不會進到 Sharp。
+
+  2026-10-20 avatar 規格 §0.2 步驟 6-2。
+}

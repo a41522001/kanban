@@ -35,6 +35,9 @@ Current 表示目前採用的視覺參考，不代表畫面中的每項操作都
 | Card detail | `card-detail.svg` | — | `card-detail-mobile.svg` | Current |
 | Drag and collaboration | `board-drag-states.svg` | — | — | Current spec page |
 | System states | `board-system-states.svg` | — | — | Current spec page |
+| Avatar settings dialog | `avatar-settings-dialog.svg` | — | `avatar-settings-dialog-mobile.svg` | Current · 2026-10-19 使用者確認；Figma v15 已產生，前端已實作 |
+| Avatar settings states | `avatar-settings-dialog-states.svg` | — | — | Current spec page · Figma v15 已產生 |
+| Avatar entry & shared Avatar | `account-avatar-entry.svg` | — | — | Current spec page · Figma v15 已產生 |
 
 ## Legacy boundary
 
@@ -125,6 +128,20 @@ Card
 - 詳情載入或 API 失敗時保留 Dialog，畫面使用穩定 `ApiCode` 決定文案，不直接顯示後端 message；關閉後焦點回到原通知項目。
 - 回覆狀態不等同已讀狀態；開啟詳情是否自動標記已讀是獨立產品規則，不得把 accept／decline 當成 Notification 本身的狀態。
 
+## Avatar settings contract（2026-10-19 使用者確認）
+
+依 [avatar 規格 §0](../docs/avatar-processing-spec.md) 與 §11 前端規格設計；已確認並加入 Figma Generator v15，前端依 Figma 實作。
+
+- 入口：Header Avatar 開啟既有 UserMenu（`account/UserMenu`），新增可用項目「更換頭像」，位於 disabled 的「帳號設定」上方。選取後關閉 Menu 再開啟 Dialog，Dialog 關閉時焦點回到 Header Avatar。
+- Dialog 對應 `shadcn-vue/Dialog`；Desktop 置中 `520px`，Mobile 使用 `358px` inset Dialog 並保留 `16px` gutter。Desktop 動作高度 `44px`，Mobile `48px`，Mobile 的「上傳」為獨立一列的全寬主要按鈕。
+- 裁切：`vue-advanced-cropper` 圓形 stencil、固定 1:1；提供縮放滑桿與 `−`／`+` 按鈕（鍵盤與觸控可操作），並顯示 64px／32px 實際顯示預覽。輸出 512×512 PNG。
+- 狀態：Idle（已有頭像／尚未設定）、Selected（裁切）、Uploading、Error、Rate limited、Removing。Uploading 時鎖定關閉、重新選擇與上傳；Removing 只鎖定操作，不清除預覽直到 DELETE 成功。
+- 錯誤文案依 `ApiCode` 決定，不直接顯示後端 message：6002 超過 5 MB、6003 格式不支援、6001 無法讀取或尺寸超限、6005 暫時無法上傳；429／6004 以 `data.retryAfterSeconds` 倒數，歸零後恢復「上傳」。前端選檔時先檢查類型與大小，不合格直接顯示同樣的錯誤狀態。
+- 成功上傳後更新 user store 的 `avatar`、關閉 Dialog 並顯示 Toast「頭像已更新」；移除成功後 `avatar` 設為 null，Dialog 回到「尚未設定」。
+- 「移除頭像」使用 outline 按鈕搭配 danger 文字色，只在已有頭像時顯示。
+- 共用 `shared/Avatar`：`size` 以像素命名（32／40／64／128），避免與圖片檔 `sm`／`md`／`lg`（64／128／256px）混淆。32 與 40 使用 `smallUrl ?? mediumUrl`，64 使用 `mediumUrl`，128 使用 `largeUrl ?? mediumUrl`。`avatar` 為 null、URL 為空或 `@error` 時回退為 displayName 首字（mint `#A9D2C8` 底色）；`alt` 使用 displayName。
+- 圖片網址只含隨機 uploadId，不含 userId；其他成員在下次 refetch 時看到新頭像，v1 不做即時推播。
+
 ## Single-page file rule
 
 - Desktop、Tablet、Mobile 必須是不同 SVG 檔案。
@@ -135,6 +152,8 @@ Card
 - `notification-read-actions-states.svg` 是已讀操作規格頁，允許展示單筆／全部的 Default、Processing、Complete 與 Error recovery。
 - `notification-item-interactions.svg` 是 Notification Item 操作分區與 Type routing 規格頁，允許展示 Desktop／Mobile、Unread／Read 與 interaction anatomy。
 - `workspace-invitation-response-states.svg` 是邀請詳情 Dialog 規格頁，允許展示 Loading、Pending、Responding、Accepted、Declined 與 Unavailable／Expired。
+- `avatar-settings-dialog-states.svg` 是頭像設定 Dialog 規格頁，允許展示 Idle（兩種）、Uploading、Error、Rate limited 與 Removing。
+- `account-avatar-entry.svg` 是 UserMenu 入口與共用 Avatar 元件規格頁，允許展示 Menu 與多個 Avatar size／fallback variants。
 - 新增裝置版本時使用 `*-tablet.svg`、`*-mobile.svg` 命名，不再使用含混的 `*-rwd.svg`。
 
 ## Figma regeneration gate

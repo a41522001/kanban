@@ -1,0 +1,34 @@
+meta {
+  name: UserInfo
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/user/userInfo
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 取得目前使用者
+
+  - Route: `GET /v1/api/user/userInfo`
+  - Auth: 有效 Session
+  - 成功：200 / `PublicUser`（`email`、`displayName`、`avatar`）
+
+  `avatar` 為 `{ smallUrl, mediumUrl, largeUrl }`，沒有頭像時為 null；不包含 userId、uploadId 等內部欄位。Session 失效回 401 / Unauthenticated (2003)。
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('avatar 為 null 或只含三個網址', () => {
+    const avatar = res.getBody().data.avatar;
+    if (avatar !== null) {
+      expect(Object.keys(avatar).sort()).to.deep.equal(['largeUrl', 'mediumUrl', 'smallUrl']);
+    }
+  });
+}

@@ -40,9 +40,6 @@
   @apply flex items-center gap-3 rounded-control bg-surface-subtle px-3 py-2 text-sm font-semibold;
 }
 .project-members__list img,
-.project-members__avatar {
-  @apply grid size-8 shrink-0 place-items-center rounded-full bg-flow-active object-cover text-xs font-bold;
-}
 .project-members__empty {
   @apply mt-3 rounded-control bg-surface-subtle p-4 text-sm text-content-secondary;
 }

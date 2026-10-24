@@ -60,7 +60,7 @@ describe('Project Store', () => {
 
   it('同一專案的並行 member 請求只送出一次並快取結果', async () => {
     const members: ProjectMemberDto[] = [
-      { memberId: 'member-1', displayName: 'Ada', role: 'EDITOR' },
+      { memberId: 'member-1', displayName: 'Ada', role: 'EDITOR', avatarUrl: null },
     ];
     vi.mocked(getProjectMembersApi).mockResolvedValue(apiResponse(members));
     const store = useProjectStore();

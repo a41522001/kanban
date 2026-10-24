@@ -1,0 +1,42 @@
+meta {
+  name: GetAvatarImage
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{avatarMediumUrl}}
+  body: none
+  auth: none
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('Content-Type 為 image/webp', () => {
+    expect(res.getHeader('content-type')).to.contain('image/webp');
+  });
+
+  test('帶有 nosniff 與長期快取', () => {
+    expect(res.getHeader('x-content-type-options')).to.equal('nosniff');
+    expect(res.getHeader('cache-control')).to.contain('immutable');
+  });
+}
+
+docs {
+  # 讀取頭像圖片
+
+  - Route: `GET /media/avatars/<uploadId>/md.webp`（不在 `/v1/api` 底下）
+  - Auth: 不需登入；知道網址即可讀取
+  - 網址來自 `UploadAvatar` 存入的 runtime 變數 `avatarMediumUrl`
+
+  **目前實作狀態（2026-10-19，步驟 3 完成）**：只在 `NODE_ENV=development` 時由後端提供，回 200 並帶有：
+
+  - `Content-Type: image/webp`
+  - `X-Content-Type-Options: nosniff`
+  - `Cache-Control: public, max-age=31536000, immutable`
+
+  請求資料夾或不存在的檔案回 404。正式環境的圖片改由 Cloud Storage 經 Cloudflare 提供（步驟 11），網址為 `https://media.<網域>/...`。
+}

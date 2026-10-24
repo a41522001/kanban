@@ -1,0 +1,38 @@
+meta {
+  name: CreateWorkspace
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaces
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "My Workspace"
+  }
+}
+
+script:post-response {
+  const id = res.getBody()?.data?.id;
+  if (id) {
+    bru.setVar('workspaceId', id);
+  }
+}
+
+docs {
+  # 建立工作區
+
+  - Route: `POST /v1/api/workspaces`
+  - Auth: 有效 Session
+  - 成功：201 / `WorkspaceDto`；建立者成為 OWNER。
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | name | `string` | 必填，最長 100，自動 trim |
+
+  成功後自動把 `data.id` 存進 runtime 變數 `workspaceId`。
+}

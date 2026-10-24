@@ -1,0 +1,33 @@
+meta {
+  name: Invite
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/workspaceInvitation/invite
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "workspaceId": "{{workspaceId}}",
+    "email": "{{inviteeEmail}}"
+  }
+}
+
+docs {
+  # 邀請成員
+
+  - Route: `POST /v1/api/workspaceInvitation/invite`
+  - Auth: 有效 Session，且為未封存工作區的 OWNER
+  - 成功：201 / null，message「邀請已送出」
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | workspaceId | `string` | UUID v4 |
+  | email | `string` | 受邀者 Email，自動 trim + 小寫 |
+
+  會在同一個 transaction 建立邀請與 `WORKSPACE_INVITED` 通知，commit 後以 Socket 推送給受邀者。
+}

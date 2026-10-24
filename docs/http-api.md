@@ -21,6 +21,7 @@
 | PATCH `/auth/verify/:token` | 公開，不需 Session | URL token；無 body | 200 / null；消耗 token，不建立 Session |
 | POST `/auth/resend-verification-email` | 公開，不需 Session | `{ email }` | 202 / `{ retryAfterSeconds }`；條件式受理 |
 | GET `/user/userInfo` | 有效 Session | 無 | 200 / PublicUser |
+| POST `/user/avatar` | 有效 Session，只能操作自己的頭像 | `multipart/form-data`，檔案欄位 `avatar`（≤ 5 MiB） | 200 / `AvatarImageSet`；同步產生 128px `mediumUrl`，`smallUrl`／`largeUrl` 為 null。缺檔 400 / ValidationError (1000)。2026-10-19 實作中：錯誤分類、次數限制、`/media` 讀取與 `DELETE /user/avatar` 尚未完成，見 [avatar 規格 §0.2](avatar-processing-spec.md) |
 | POST `/workspaces` | 有效 Session | `{ name }` | 201 / WorkspaceDto |
 | GET `/workspaces` | 有效 Session | 無 | 200 / WorkspaceListItemDto[] |
 | GET `/workspaces/:workspaceId/members` | 有效 Session，且為未封存工作區成員 | UUID path param | 200 / WorkspaceMemberDto[] |
@@ -134,14 +135,16 @@ Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀�
 
 - SignupResult：`accountCreated: true, emailQueued: boolean, retryAfterSeconds: number`。
 - ResendVerificationEmailResult：`retryAfterSeconds: number`。
-- ProjectMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 ProjectMember UUID，沒有 joinedAt。
-- PublicUser：`email, displayName, avatarUrl`，實際完整型別見 `packages/contracts/user.ts`。
+- 頭像欄位過渡狀態（2026-10-19）：`users.avatar_url` 已移除。PublicUser 已加回 `avatar`；以下成員與候選人目前**仍不含頭像欄位**，將依 [avatar 規格 §0.2](avatar-processing-spec.md) 步驟 10 加回。
+- AvatarImageSet：`smallUrl: string | null, mediumUrl: string, largeUrl: string | null`；網址只含隨機 uploadId，不含 userId。
+- ProjectMemberDto：`memberId, displayName, role`；memberId 是 ProjectMember UUID，沒有 joinedAt。
+- PublicUser：`email, displayName, avatar`；`avatar` 為 `AvatarImageSet | null`，沒有頭像時為 null。實際完整型別見 `packages/contracts/user.ts`。
 - WorkspaceDto：`id, name, createdAt, updatedAt`。
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
-- WorkspaceMemberDto：`memberId, displayName, avatarUrl, role`；memberId 是 membership UUID。
+- WorkspaceMemberDto：`memberId, displayName, role`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
 - ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt, pinnedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。`pinnedAt` 為 ISO 8601 字串或 null，來自目前使用者自己的 ProjectMember。
-- MemberCandidate：`workspaceMemberId, displayName, avatarUrl, projectRole`；前端新增 Project member 時只提交 membership id，不取得內部 userId。
+- MemberCandidate：`workspaceMemberId, displayName, projectRole`；前端新增 Project member 時只提交 membership id，不取得內部 userId。
 - ProjectMemberAddedNotificationDetail：`role, projectName, projectId, workspaceName, workspaceId, inviterName, joinedAt`；只由通知收件者取得，詳細型別見 `packages/contracts/project.ts`。
 - PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。

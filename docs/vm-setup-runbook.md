@@ -205,7 +205,7 @@ Worker log 會印出 job 資料（含驗證 token），分享 log 前先移除 t
 
 - 網域與 HTTPS：規劃使用 Cloudflare（Proxy、SSL 模式 Full (strict)、Origin Certificate 裝在 Nginx），compose 開放 443，`FRONTEND_URL` 改為 `https://`。未完成前，以 `http://IP` 存取時 secure Cookie 不會被儲存，無法登入。
 - `compose.prod.yml` 加入 `restart: unless-stopped`，否則 VM 重開機後容器不會自動啟動。
-- Avatar 上線前（見 [avatar 規格](avatar-processing-spec.md)）：backend 與 worker 掛載同一個 storage named volume；Nginx 新增 `location /media/`；`AVATAR_PUBLIC_BASE_URL` 會寫入資料庫，應在網域確定後才上線。
+- Avatar 上線前（見 [avatar 規格 §0](avatar-processing-spec.md) 步驟 11–12）：正式環境使用 GCP Cloud Storage，backend 與 worker 都直接存取 GCS，**不需共用 volume**，Nginx 也不需 `/media`。需建立 media（公開）與 temp（私有、1 天生命週期）兩個 bucket，授權 VM 的服務帳號存取，Cloudflare 設定 `media.<網域>` 指向 media bucket，並在 `.env.prod` 加入儲存設定；`AVATAR_PUBLIC_BASE_URL` 設為 `https://media.<網域>`。
 
 ## 11. 下線 VM
 

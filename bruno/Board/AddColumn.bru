@@ -1,0 +1,35 @@
+meta {
+  name: AddColumn
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/board/addColumn
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "projectId": "{{projectId}}",
+    "title": "New Column",
+    "colorKey": "coral"
+  }
+}
+
+docs {
+  # 新增看板欄位
+
+  - Route: `POST /v1/api/board/addColumn`
+  - Auth: 有效 Session，且為 Project 的 OWNER 或 EDITOR（VIEWER 回 403）
+  - 成功：201 / `{ column, boardRevision }`
+
+  | 欄位 | 型別 | 規則 |
+  |---|---|---|
+  | projectId | `string` | UUID v4 |
+  | title | `string` | 必填，最長 80，自動 trim |
+  | colorKey | `string` | `coral`、`mint`、`amber`、`violet` |
+
+  新欄位排在最後（目前最大 position + 1024），並遞增 Project 的 `boardRevision`。
+}

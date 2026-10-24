@@ -1,0 +1,19 @@
+meta {
+  name: UnreadCount
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/notifications/unreadCount
+  body: none
+  auth: inherit
+}
+
+docs {
+  # 未讀數量
+
+  - Route: `GET /v1/api/notifications/unreadCount`
+  - Auth: 有效 Session
+  - 成功：200 / 未讀通知數量（過期但未讀的通知仍會計入）
+}
