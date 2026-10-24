@@ -15,6 +15,12 @@ type ProjectMemberResponse = Prisma.ProjectMemberGetPayload<{
     user: {
       select: {
         displayName: true;
+        avatar: {
+          select: {
+            smallUrl: true;
+            mediumUrl: true;
+          };
+        };
       };
     };
   };
@@ -30,7 +36,8 @@ export class ProjectRepository {
       SELECT
         wm.id AS "workspaceMemberId",
         u.display_name AS "displayName",
-        pm.role AS "projectRole"
+        pm.role AS "projectRole",
+        COALESCE(a.small_url, a.medium_url) AS "avatarUrl"
       FROM projects AS p
       JOIN workspaces AS w
         ON w.id = p.workspace_id
@@ -42,6 +49,8 @@ export class ProjectRepository {
       LEFT JOIN project_members AS pm
         ON pm.project_id = p.id
         AND pm.user_id = wm.user_id
+      LEFT JOIN avatars AS a
+        ON a.user_id = u.id
       WHERE p.id = ${projectId}::uuid
         AND p.archived_at IS NULL
       ORDER BY
@@ -246,6 +255,12 @@ export class ProjectRepository {
         user: {
           select: {
             displayName: true,
+            avatar: {
+              select: {
+                smallUrl: true,
+                mediumUrl: true,
+              },
+            },
           },
         },
       },

@@ -25,6 +25,7 @@ export interface ProjectMemberDto {
   memberId: string;
   displayName: string;
   role: ProjectRole;
+  avatarUrl: string | null;
 }
 /** 專案列表中的專案摘要資料。 */
 export interface ProjectListItemDto {
@@ -43,6 +44,7 @@ export interface MemberCandidate {
   workspaceMemberId: string;
   displayName: string;
   projectRole: ProjectRole | null;
+  avatarUrl: string | null;
 }
 
 /** 被加入專案後，點擊通知時使用的詳細資料。 */

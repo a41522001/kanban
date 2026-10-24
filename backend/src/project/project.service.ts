@@ -142,12 +142,12 @@ export class ProjectService {
     const candidates =
       await this.projectRepository.getMemberCandidates(projectId);
 
-    // API 只公開 membership id；內部 User.id 不得傳到前端。
     return candidates.map(
-      ({ workspaceMemberId, displayName, projectRole }) => ({
+      ({ workspaceMemberId, displayName, projectRole, avatarUrl }) => ({
         workspaceMemberId,
         displayName,
         projectRole,
+        avatarUrl,
       }),
     );
   }
@@ -290,10 +290,12 @@ export class ProjectService {
     const result =
       await this.projectRepository.getSingleProjectMember(projectId);
     return result.map(({ id, role, user }) => {
+      const { displayName, avatar } = user;
       return {
         memberId: id,
         role: role,
-        displayName: user.displayName,
+        displayName: displayName,
+        avatarUrl: avatar ? (avatar.smallUrl ?? avatar.mediumUrl) : null,
       };
     });
   }

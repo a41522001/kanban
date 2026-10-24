@@ -93,9 +93,14 @@
               :aria-label="t('workspace.sidebar.workspaceMembers')"
             >
               <li v-for="member in visibleMembers" :key="member.memberId">
-                <span class="workspace__member-avatar" :title="member.displayName">
-                  {{ member.displayName.trim().charAt(0).toUpperCase() }}
-                </span>
+                <!-- No visible name here, so Avatar keeps its alt/aria-label. -->
+                <Avatar
+                  class="workspace__member-avatar"
+                  :name="member.displayName"
+                  :src="member.avatarUrl"
+                  :size="32"
+                  :title="member.displayName"
+                />
               </li>
               <li v-if="remainingMemberCount > 0">
                 <span class="workspace__member-avatar workspace__member-avatar--more">
@@ -426,6 +431,7 @@ import type { ProjectListItemDto, ProjectStatus } from '@kanban/contracts/projec
 import CreateProjectDialog from '@/components/project/CreateProjectDialog/CreateProjectDialog.vue';
 import ProjectAddMemberDialog from '@/components/project/ProjectAddMemberDialog/ProjectAddMemberDialog.vue';
 import ProjectMembers from '@/components/project/ProjectMembers/ProjectMembers.vue';
+import Avatar from '@/components/shared/Avatar/Avatar.vue';
 import FormField from '@/components/shared/FormField/FormField.vue';
 import Input from '@/components/shared/Input/Input.vue';
 import Logo from '@/components/shared/Logo/Logo.vue';

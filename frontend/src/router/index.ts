@@ -13,6 +13,12 @@ import { useEmailVerificationStore } from '@/stores/emailVerification';
 
 const routes = [
   {
+    // Not public: the redirect target goes through the auth guard, so
+    // signed-out users end up on the login page.
+    path: '/',
+    redirect: { name: 'workspace' },
+  },
+  {
     path: '/checkEmail',
     name: 'checkEmail',
     component: CheckEmailView,

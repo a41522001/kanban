@@ -214,6 +214,7 @@ describe('ProjectService', () => {
       workspaceMemberId: 'workspace-member-2',
       displayName: 'Mina',
       projectRole: null,
+      avatarUrl: '/media/avatars/mina/sm.webp',
     };
 
     it('Project OWNER 可取得同 Workspace 的候選清單', async () => {
@@ -698,13 +699,29 @@ describe('ProjectService', () => {
         {
           id: 'member-1',
           role: 'OWNER' as const,
-          user: { displayName: 'Alice' },
+          user: { displayName: 'Alice', avatar: null },
         },
         {
           id: 'member-2',
           role: 'EDITOR' as const,
           user: {
             displayName: 'Bob',
+            avatar: {
+              smallUrl: '/media/avatars/bob/sm.webp',
+              mediumUrl: '/media/avatars/bob/md.webp',
+            },
+          },
+        },
+        {
+          id: 'member-3',
+          role: 'VIEWER' as const,
+          user: {
+            displayName: 'Carol',
+            // sm not generated yet (PENDING or FAILED)
+            avatar: {
+              smallUrl: null,
+              mediumUrl: '/media/avatars/carol/md.webp',
+            },
           },
         },
       ];
@@ -724,11 +741,19 @@ describe('ProjectService', () => {
           memberId: 'member-1',
           role: 'OWNER',
           displayName: 'Alice',
+          avatarUrl: null,
         },
         {
           memberId: 'member-2',
           role: 'EDITOR',
           displayName: 'Bob',
+          avatarUrl: '/media/avatars/bob/sm.webp',
+        },
+        {
+          memberId: 'member-3',
+          role: 'VIEWER',
+          displayName: 'Carol',
+          avatarUrl: '/media/avatars/carol/md.webp',
         },
       ]);
     });

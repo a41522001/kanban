@@ -29,10 +29,13 @@
     </p>
     <ul v-else class="project-members__list">
       <li v-for="member in members" :key="member.memberId">
-        <!-- TODO(avatar): 頭像功能完成後改用共用 Avatar 元件顯示圖片，見 docs/avatar-processing-spec.md -->
-        <span class="project-members__avatar" aria-hidden="true">
-          {{ member.displayName.trim().charAt(0).toUpperCase() }}
-        </span>
+        <!-- The name is shown next to it, so the avatar is decorative. -->
+        <Avatar
+          :name="member.displayName"
+          :src="member.avatarUrl"
+          :size="32"
+          aria-hidden="true"
+        />
         <span>{{ member.displayName }}</span>
       </li>
     </ul>
@@ -60,6 +63,7 @@ import { ArrowRight, UserPlus } from 'lucide-vue-next';
 import type { ProjectListItemDto, ProjectMemberDto } from '@kanban/contracts/project';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import Avatar from '@/components/shared/Avatar/Avatar.vue';
 
 defineProps<{
   project: ProjectListItemDto;
