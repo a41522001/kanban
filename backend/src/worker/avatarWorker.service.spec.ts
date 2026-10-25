@@ -199,22 +199,73 @@ describe('AvatarWorkerService', () => {
       expect(completeVariants).not.toHaveBeenCalled();
     });
 
-    it('處理途中被取代（寫回 0 筆）時，刪除自己的 media 與 temp 資料夾', async () => {
+    it.each([
+      ['被新上傳取代', createAvatar({ uploadId: 'another-upload' })],
+      ['頭像被刪除', null],
+    ])(
+      '處理途中%s（寫回 0 筆）時，刪除自己的 media 與 temp 資料夾',
+      async (_label, current) => {
+        // Arrange：開始處理時仍是這次上傳，寫回時已被取代或刪除。
+        findByUserId
+          .mockResolvedValueOnce(createAvatar())
+          .mockResolvedValueOnce(current);
+        completeVariants.mockResolvedValue(0);
+
+        // Act
+        await process();
+
+        // Assert
+        expect(mediaDeleteDir).toHaveBeenCalledWith(dir);
+        expect(tempDeleteDir).toHaveBeenCalledWith(dir);
+      },
+    );
+
+    it('同一個 job 重跑、DB 已是 COMPLETED（寫回 0 筆）時，不刪除使用中的 media', async () => {
+      // Arrange：uploadId 仍相符，只是狀態已不是 PENDING。
+      findByUserId
+        .mockResolvedValueOnce(createAvatar())
+        .mockResolvedValueOnce(createAvatar({ variantStatus: 'COMPLETED' }));
       completeVariants.mockResolvedValue(0);
 
+      // Act
       await process();
 
-      expect(mediaDeleteDir).toHaveBeenCalledWith(dir);
+      // Assert
+      expect(mediaDeleteDir).not.toHaveBeenCalled();
+      expect(tempDeleteDir).toHaveBeenCalledWith(dir);
+    });
+
+    it('寫回 0 筆後重新查詢失敗時，不刪 media、只記 log，job 不丟錯', async () => {
+      // Arrange
+      findByUserId
+        .mockResolvedValueOnce(createAvatar())
+        .mockRejectedValueOnce(new Error('DB down'));
+      completeVariants.mockResolvedValue(0);
+
+      // Act
+      const act = process();
+
+      // Assert
+      await expect(act).resolves.toBeUndefined();
+      expect(mediaDeleteDir).not.toHaveBeenCalled();
+      expect(loggerError).toHaveBeenCalledTimes(1);
       expect(tempDeleteDir).toHaveBeenCalledWith(dir);
     });
 
     it('清理失敗只記 log，不丟錯（避免 BullMQ 重試整個 job）', async () => {
+      // Arrange
+      findByUserId
+        .mockResolvedValueOnce(createAvatar())
+        .mockResolvedValueOnce(createAvatar({ uploadId: 'another-upload' }));
       completeVariants.mockResolvedValue(0);
       mediaDeleteDir.mockRejectedValue(new Error('EPERM'));
       tempDeleteDir.mockRejectedValue(new Error('EPERM'));
 
-      await expect(process()).resolves.toBeUndefined();
+      // Act
+      const act = process();
 
+      // Assert
+      await expect(act).resolves.toBeUndefined();
       expect(loggerError).toHaveBeenCalledTimes(2);
     });
 
