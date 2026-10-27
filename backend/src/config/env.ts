@@ -28,6 +28,8 @@ export const envSchema = z.object({
   AVATAR_TEMP_ROOT: z.string().min(1).default('./storage/temp'),
   // 瀏覽器讀取 Avatar 圖片的網址前綴，對應 media root。
   AVATAR_PUBLIC_BASE_URL: z.url().default('http://localhost:4001/media'),
+  // 設定時 log 會同時送進 Seq；未設定則只輸出到終端機（E2E、CI、正式環境預設不設定）。
+  SEQ_URL: z.url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
