@@ -1,0 +1,59 @@
+import { AppException } from '@/common/exceptions/app.exception';
+import { getCookieOptions } from '@/common/utils/cookie';
+import type { Env } from '@/config/env';
+import { SessionService } from '@/modules/session/session.service';
+import { ApiCode } from '@kanban/contracts/api';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  HttpStatus,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Request, Response } from 'express';
+@Injectable()
+export class SessionGuard implements CanActivate {
+  private sessionCookieName: string = 'sessionId';
+  private sessionCookieMaxAge: number;
+  constructor(
+    private readonly configService: ConfigService<Env>,
+    private readonly sessionService: SessionService,
+  ) {
+    this.sessionCookieMaxAge =
+      1000 *
+      60 *
+      60 *
+      24 *
+      this.configService.getOrThrow('SESSION_EXPIRE_DAY', { infer: true });
+  }
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const httpContext = context.switchToHttp();
+    const request = httpContext.getRequest<Request>();
+    const response = httpContext.getResponse<Response>();
+    const { sessionId } = request.cookies;
+    if (!sessionId || typeof sessionId !== 'string') {
+      throw new AppException({
+        status: HttpStatus.UNAUTHORIZED,
+        code: ApiCode.Unauthenticated,
+        message: '登入已失效，請重新登入',
+      });
+    }
+    const authResult = await this.sessionService.authenticateSession(sessionId);
+    if (authResult === null) {
+      throw new AppException({
+        status: HttpStatus.UNAUTHORIZED,
+        code: ApiCode.Unauthenticated,
+        message: '登入已失效，請重新登入',
+      });
+    }
+    if (authResult.rotatedSessionId) {
+      response.cookie(this.sessionCookieName, authResult.rotatedSessionId, {
+        ...getCookieOptions(this.configService),
+        maxAge: this.sessionCookieMaxAge,
+      });
+    }
+
+    request.userId = authResult.userId;
+    return true;
+  }
+}

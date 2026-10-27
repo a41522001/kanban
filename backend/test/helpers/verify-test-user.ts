@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { UserService } from '../../src/user/user.service';
+import { UserService } from '../../src/modules/user/user.service';
 
 /** 非 Auth 的 e2e 測試使用已驗證帳號；完整驗證流程由 auth.e2e.spec.ts 測試。 */
 export const verifyTestUser = async (

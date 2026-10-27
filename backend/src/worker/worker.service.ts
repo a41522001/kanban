@@ -1,11 +1,11 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import type { SendVerificationEmailData } from '@/types/queue';
+import type { SendVerificationEmailData } from '@/common/types/queue';
 import { Worker } from 'bullmq';
-import { RedisService } from '@/redis/redis.service';
-import { EmailService } from '@/email/email.service';
+import { RedisService } from '@/infrastructure/redis/redis.service';
+import { EmailService } from '@/infrastructure/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '@/config/env';
-import { redisKeys } from '@/redis/redis.keys';
+import { redisKeys } from '@/infrastructure/redis/redis.keys';
 import { AvatarWorkerService } from './avatarWorker.service';
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {

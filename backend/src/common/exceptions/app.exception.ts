@@ -1,4 +1,4 @@
-import { AppExceptionOptions } from '@/types';
+import { AppExceptionOptions } from '@/common/types';
 import type { ApiCode, FieldErrors } from '@kanban/contracts/api';
 import { HttpException } from '@nestjs/common';
 

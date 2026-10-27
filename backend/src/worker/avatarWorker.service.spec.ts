@@ -4,15 +4,18 @@ import { type Job, UnrecoverableError } from 'bullmq';
 import {
   AVATAR_WORKER_CONCURRENCY,
   type AvatarSizeKey,
-} from '@/avatar/avatar.constants';
-import { AvatarRepository } from '@/avatar/avatar.repository';
-import { ImageProcessingService } from '@/avatar/image/imageProcessing.service';
+} from '@/modules/avatar/avatar.constants';
+import { AvatarRepository } from '@/modules/avatar/avatar.repository';
+import { ImageProcessingService } from '@/modules/avatar/image/imageProcessing.service';
 import { InvalidAvatarImageException } from '@/common/exceptions/avatar.exception';
 import type { Avatar } from '@/generated/prisma/client';
-import { RedisService } from '@/redis/redis.service';
-import { MEDIA_STORAGE, TEMP_STORAGE } from '@/storage/storage.tokens';
-import type { StorageService } from '@/storage/storage.types';
-import type { GenerateAvatarVariantsData } from '@/types/queue';
+import { RedisService } from '@/infrastructure/redis/redis.service';
+import {
+  MEDIA_STORAGE,
+  TEMP_STORAGE,
+} from '@/infrastructure/storage/storage.tokens';
+import type { StorageService } from '@/infrastructure/storage/storage.types';
+import type { GenerateAvatarVariantsData } from '@/common/types/queue';
 import { AvatarWorkerService } from './avatarWorker.service';
 
 type Processor = (job: Job<GenerateAvatarVariantsData>) => Promise<void>;

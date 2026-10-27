@@ -5,14 +5,18 @@ import {
   Logger,
   Inject,
 } from '@nestjs/common';
-import type { GenerateAvatarVariantsData } from '@/types/queue';
+import type { GenerateAvatarVariantsData } from '@/common/types/queue';
 import { type Job, Worker, UnrecoverableError } from 'bullmq';
-import { RedisService } from '@/redis/redis.service';
-import { AvatarRepository } from '@/avatar/avatar.repository';
-import { AVATAR_WORKER_CONCURRENCY } from '@/avatar/avatar.constants';
-import { ImageProcessingService } from '@/avatar/image/imageProcessing.service';
-import { MEDIA_STORAGE, TEMP_STORAGE } from '@/storage/storage.tokens';
-import type { StorageService } from '@/storage/storage.types';
+import { RedisService } from '@/infrastructure/redis/redis.service';
+import { AvatarRepository } from '@/modules/avatar/avatar.repository';
+import { AVATAR_WORKER_CONCURRENCY } from '@/modules/avatar/avatar.constants';
+import { ImageProcessingService } from '@/modules/avatar/image/imageProcessing.service';
+import {
+  MEDIA_STORAGE,
+  TEMP_STORAGE,
+} from '@/infrastructure/storage/storage.tokens';
+import type { StorageService } from '@/infrastructure/storage/storage.types';
+import { jobLogFields } from './jobLogFields';
 @Injectable()
 export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
@@ -34,9 +38,24 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
       },
     );
 
+    // 監聽完成事件
+    this.avatarWorker.on('completed', (job) => {
+      this.logger.log(
+        { event: 'queue.job.completed', ...jobLogFields(job) },
+        'job 完成',
+      );
+    });
+
     // 每次失敗都會觸發（包含之後還會重試的那幾次），只在最終失敗時處理。
     this.avatarWorker.on('failed', (job, error) => {
-      if (job === undefined || !this.isFinalFailure(job, error)) {
+      if (job === undefined) {
+        return;
+      }
+      this.logger.error(
+        { event: 'queue.job.failed', err: error, ...jobLogFields(job) },
+        'job 失敗',
+      );
+      if (!this.isFinalFailure(job, error)) {
         return;
       }
       void this.handleFinalFailure(job);
