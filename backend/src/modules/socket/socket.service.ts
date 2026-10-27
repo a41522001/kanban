@@ -1,4 +1,9 @@
-import { HttpStatus, Injectable, OnModuleDestroy } from '@nestjs/common';
+import {
+  HttpStatus,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Server as HttpServer } from 'node:http';
 import { Server, type DefaultEventsMap, type Socket } from 'socket.io';
@@ -12,6 +17,7 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import type { PublicNotification } from '@kanban/contracts/notification';
 import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 interface SocketData {
   userId: string;
   session: string;
@@ -25,7 +31,7 @@ export class SocketService implements OnModuleDestroy {
     DefaultEventsMap,
     SocketData
   > | null = null;
-
+  private readonly logger = new Logger(SocketService.name);
   constructor(
     private readonly configService: ConfigService<Env>,
     private readonly sessionService: SessionService,
@@ -73,7 +79,13 @@ export class SocketService implements OnModuleDestroy {
     this.io.on('connection', async (socket) => {
       await socket.join(this.getUserRoom(socket.data.userId));
       await socket.join(this.getSessionRoom(socket.data.session));
-      console.log(`a user connected: ${socket.data.userId}`);
+      this.logger.log(
+        {
+          event: LOG_EVENTS.socketConnectionConnected,
+          userId: socket.data.userId,
+        },
+        'Socket 已連線',
+      );
       socket.on('demo:echo', (payload) => {
         socket.emit('demo:echoed', {
           text: payload.text,
@@ -85,8 +97,13 @@ export class SocketService implements OnModuleDestroy {
         void this.authenticateWorkspace(socket, payload.workspaceId)
           .then(() => socket.join(this.getWorkspaceRoom(payload.workspaceId)))
           .catch((error: unknown) => {
-            console.error(
-              error instanceof Error ? error.message : '工作區驗證失敗',
+            this.logger.warn(
+              {
+                event: LOG_EVENTS.socketWorkspaceJoinRejected,
+                err: error,
+                workspaceId: payload.workspaceId,
+              },
+              '加入工作區失敗',
             );
           });
       });
@@ -96,7 +113,13 @@ export class SocketService implements OnModuleDestroy {
       });
       // 離線
       socket.on('disconnect', () => {
-        console.log(`a user disconnected: ${socket.data.userId}`);
+        this.logger.log(
+          {
+            event: LOG_EVENTS.socketConnectionDisconnected,
+            userId: socket.data.userId,
+          },
+          'Socket 已斷線',
+        );
       });
     });
   }

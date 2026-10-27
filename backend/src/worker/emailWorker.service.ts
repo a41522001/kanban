@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '@/config/env';
 import { redisKeys } from '@/infrastructure/redis/redis.keys';
 import { jobLogFields } from './jobLogFields';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 @Injectable()
 export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
@@ -36,7 +37,7 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
 
     this.emailWorker.on('completed', (job) => {
       this.logger.log(
-        { event: 'queue.job.completed', ...jobLogFields(job) },
+        { event: LOG_EVENTS.queueJobCompleted, ...jobLogFields(job) },
         'job 完成',
       );
     });
@@ -46,7 +47,7 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       this.logger.error(
-        { event: 'queue.job.failed', err: error, ...jobLogFields(job) },
+        { event: LOG_EVENTS.queueJobFailed, err: error, ...jobLogFields(job) },
         'job 失敗',
       );
     });

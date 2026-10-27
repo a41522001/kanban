@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DateTime } from 'luxon';
 import { WorkspaceInvitationService } from './workspaceInvitation.service';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 
 @Injectable()
 export class WorkspaceInvitationExpirationJob {
@@ -22,7 +23,8 @@ export class WorkspaceInvitationExpirationJob {
 
     if (count > 0) {
       this.logger.log(
-        `已改變workspace invitations 的 ${count} 筆狀態為Expired `,
+        { event: LOG_EVENTS.workspaceInvitationExpireCompleted, count },
+        '已將過期的工作區邀請標記為 EXPIRED',
       );
     }
   }

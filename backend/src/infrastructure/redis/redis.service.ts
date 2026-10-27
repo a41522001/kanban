@@ -3,6 +3,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
   OnApplicationShutdown,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '@/config/env';
@@ -12,6 +13,7 @@ import {
   type SessionScripts,
 } from '@/modules/session/session.script';
 import { createNodeRedisClient, type IRedisClient } from 'bullmq';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 type EmptyRedisExtensions = Record<string, never>;
 
 type AppRedisClient = RedisClientType<
@@ -25,6 +27,7 @@ export class RedisService
 {
   private readonly client: AppRedisClient;
   private readonly mqRedisClient: IRedisClient;
+  private readonly logger = new Logger(RedisService.name);
   constructor(configService: ConfigService<Env>) {
     this.client = createClient({
       url: configService.getOrThrow('REDIS_URL', {
@@ -33,8 +36,11 @@ export class RedisService
       scripts: SESSION_SCRIPTS,
     });
 
-    this.client.on('error', (error) => {
-      console.error('Redis error:', error);
+    this.client.on('error', (error: Error) => {
+      this.logger.error(
+        { event: LOG_EVENTS.redisClientError, err: error },
+        'Redis 連線錯誤',
+      );
     });
 
     this.mqRedisClient = createNodeRedisClient(
@@ -45,8 +51,11 @@ export class RedisService
       }),
     );
 
-    this.mqRedisClient.on('error', (error) => {
-      console.error('Redis error:', error);
+    this.mqRedisClient.on('error', (error: Error) => {
+      this.logger.error(
+        { event: LOG_EVENTS.redisClientError, err: error },
+        'Redis 連線錯誤',
+      );
     });
   }
 

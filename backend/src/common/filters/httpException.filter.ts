@@ -10,6 +10,7 @@ import type { Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode, type ApiResponse } from '@kanban/contracts/api';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -35,7 +36,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           event:
             exception instanceof AppException && exception.event
               ? exception.event
-              : 'http.request.unexpected_error',
+              : LOG_EVENTS.httpRequestUnexpectedError,
           err:
             exception instanceof HttpException && exception.cause
               ? exception.cause

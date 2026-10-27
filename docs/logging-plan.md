@@ -46,7 +46,7 @@ this.logger.error(
 - 一律 `logger.<level>({ 欄位 }, '訊息')`：物件在前、訊息在後。
 - 錯誤一律放在 `err` 欄位。
 - **禁止** `logger.error('訊息', error)`：經 nestjs-pino 轉交 pino 後，第二個參數會被當成格式化參數而遺失（2026-10-21 實測）。
-- **禁止** `console.*`：不經過 pino，不會被 redact，也送不進 Seq。以 ESLint `no-console` 強制。
+- 應用程式的 log 一律使用 Logger，不使用 `console.*`（不經過 pino、不會被 redact，也送不進 Seq）。臨時除錯可以用 `console.log`，ESLint `no-console` 設為 `warn` 提醒（2026-10-27 由 `error` 調整，避免妨礙開發），commit 前要刪除或改成 Logger。
 
 ### 4.2 event（Q3）與訊息（Q4）
 
@@ -110,8 +110,8 @@ this.logger.error(
 | L1 | worker 接上 nestjs-pino（共用 `logger.config.ts`），加上 `service` 欄位 | ✅ 2026-10-26：`WorkerModule` 加入 `LoggerModule`、`worker/main.ts` 以 `bufferLogs` + `useLogger`；`loggerFactory(configService, service)` 以 pino `base: { pid, hostname, service }` 加上欄位。實測 API／worker 分別帶 `service: 'api'`／`'worker'`，production JSON 保留 `pid`、`hostname` |
 | L2 | HTTP：`requestId`、`X-Request-Id`、依狀態碼的 level、略過 `/health` | ✅ 2026-10-27：L2-1 `genReqId` 產生 UUID 並設定 `X-Request-Id`（不採用請求自帶的值，實測偽造 header 被忽略）。L2-2 不實作，沿用 `req.id`（見 §7）。L2-3 `customLogLevel`：`err` 或 5xx 為 `error`、4xx 為 `warn`、其餘 `info`，實測 200 INFO、400／401／404 WARN；5xx 待 L7 測試。L2-4 延後到實作 `/health` 時 |
 | L3 | `AppException` 加 `cause`／`event`；`HttpExceptionFilter` 只在 5xx 記錄 | ✅ 2026-10-27：L3-1 `AppExceptionOptions` 加可選的 `cause`、`event`；`cause` 以 Nest `HttpException` 第三個參數 `{ cause }` 傳入（`exception.cause`），不放進回應內容，`event` 為 `AppException` 屬性。L3-2 Filter 在 `status >= 500` 時統一記錄一筆 `error`（訊息「請求處理失敗」），`err` 有 `cause` 取 `cause`、否則取 exception 本身，`event` 取 `AppException.event`、否則為 `http.request.unexpected_error`；4xx 不記。L3-3 `AvatarStorageUnavailableException` 可帶 `{ cause, event }`，avatar 上傳的兩個 503 使用 `avatar.upload.write_failed`／`avatar.upload.save_failed`，移除 service 中重複的 `logger.error`。已知取捨：Filter 的 log 不含 `uploadId`，以 `req.id` 對應請求。`auth.service.ts` 重寄驗證信的 503 同樣模式，於 L5 一併處理 |
-| L4 | Worker `completed`／`failed` 統一記錄（email、avatar） | ⬜ |
-| L5 | 修正既有 log：`auth.service.ts` 遺失 error 的寫法、worker 印出 `job.data`（含 token）、`QueueService` 的 `console.log(job)`、Redis／Socket.IO 的 `console.*`；既有 log 補上 `event`；ESLint `no-console` | ⬜ |
+| L4 | Worker `completed`／`failed` 統一記錄（email、avatar） | ✅ 2026-10-27：新增 `worker/jobLogFields.ts` 產生 `queue`、`jobName`、`jobId`、`attempt`（`job.attemptsStarted`，第幾次執行）、`durationMs`（`Date.now() - job.processedOn`，不含 backoff）；兩個 Worker 的 `completed` 記 `info`／`queue.job.completed`，`failed` 每次失敗記 `error`／`queue.job.failed`（含 `err`）。avatar 的 `handleFinalFailure` 改為 `warn`／`avatar.variants.marked_failed`，不再重複記錄原因。Email worker 改名為 `EmailWorkerService`（`emailWorker.service.ts`），移除未使用的 `AvatarWorkerService` 依賴，並刪除印出 `job.data`（含驗證 token）的 `console.log`。以本機 Redis 測試佇列實測失敗重試與完成的欄位值 |
+| L5 | 修正既有 log：`auth.service.ts` 遺失 error 的寫法、~~worker 印出 `job.data`（含 token）~~（L4 已處理）、`QueueService` 的 `console.log(job)`、Redis／Socket.IO 的 `console.*`；既有 log 補上 `event`；ESLint `no-console` | ✅ 2026-10-27：L5-1 刪除 API 的 email `QueueEvents`（唯一用途是印出含 token 的 job）與 `board.service.ts` 的 `console.log(userId)`。L5-2 Redis、Socket.IO、`worker/main.ts` 的 `console.*` 改為 Logger（Redis 錯誤 `error`、Socket 連線／斷線 `info`、加入工作區被拒 `warn`）。新增 `common/constants/logEvents.ts`：`LOG_EVENTS` 集中所有 event，`LogEvent` 型別約束 `AppException.event`。L5-3 `auth.service.ts` 註冊入列失敗改為物件寫法並以 `userId` 識別（不記 email）；重寄入列失敗改為 503 帶 `cause`／`event`，交給 Filter 記錄。L5-4 所有應用程式 log 補上 `event`；刪除 avatar worker 的三筆處理進度 log（已由 `queue.job.completed` 涵蓋）與 `avatar.service.ts` 一個不會執行到的 `try/catch`；刪檔失敗統一為 `avatar.storage.delete_failed`。L5-5 `no-console` 設為 `warn` |
 | L6 | Seq：`compose.yml` 加 `seq` 服務、`SEQ_URL`、`pino-seq`（先驗證 ESM 相容性） | ⬜ |
 | L7 | 測試：redaction、Filter 5xx／4xx、Worker 失敗 log（Q15） | ⬜ |
 
@@ -123,4 +123,4 @@ this.logger.error(
 2. 全域 Filter：5xx 會記錄且帶 `cause`；4xx 不記錄。
 3. Worker：job 失敗時有記錄，且帶 `queue`、`jobId`。
 
-`no-console` 由 ESLint 檢查，不另寫測試。
+`no-console` 由 ESLint 以 `warn` 提醒，不另寫測試。

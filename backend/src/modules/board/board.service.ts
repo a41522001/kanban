@@ -5,7 +5,7 @@ import { ProjectService } from '@/modules/project/project.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
-import { redisKeys } from '@/infrastructure/redis/redis.keys';
+// import { redisKeys } from '@/infrastructure/redis/redis.keys';
 
 @Injectable()
 export class BoardService {
@@ -63,14 +63,13 @@ export class BoardService {
   }
 
   /** 取得看板欄 */
-  async getBoardColumn(projectId: string, userId: string) {
+  async getBoardColumn(projectId: string, _userId: string) {
     const result = await this.boardRepository.getAllBoardColumn(projectId);
-    console.log(userId);
     return result;
   }
 
   /** 移動看板 */
-  async moveBoardColumn(projectId: string) {
-    const lockKey = redisKeys.dragSession(projectId);
+  async moveBoardColumn(_projectId: string) {
+    // const lockKey = redisKeys.dragSession(projectId);
   }
 }

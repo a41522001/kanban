@@ -17,6 +17,7 @@ import {
 } from '@/infrastructure/storage/storage.tokens';
 import type { StorageService } from '@/infrastructure/storage/storage.types';
 import { jobLogFields } from './jobLogFields';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 @Injectable()
 export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
@@ -41,7 +42,7 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
     // 監聽完成事件
     this.avatarWorker.on('completed', (job) => {
       this.logger.log(
-        { event: 'queue.job.completed', ...jobLogFields(job) },
+        { event: LOG_EVENTS.queueJobCompleted, ...jobLogFields(job) },
         'job 完成',
       );
     });
@@ -52,7 +53,7 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       this.logger.error(
-        { event: 'queue.job.failed', err: error, ...jobLogFields(job) },
+        { event: LOG_EVENTS.queueJobFailed, err: error, ...jobLogFields(job) },
         'job 失敗',
       );
       if (!this.isFinalFailure(job, error)) {
@@ -76,10 +77,12 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
     const { userId, uploadId } = job.data;
     const avatar = await this.avatarRepository.findByUserId(userId);
     if (avatar === null || avatar.uploadId !== uploadId) {
-      this.logger.log({ jobId: job.id, uploadId }, '頭像已被刪除或取代，略過');
+      this.logger.log(
+        { event: LOG_EVENTS.avatarVariantsSkipped, jobId: job.id, uploadId },
+        '頭像已被刪除或取代，略過',
+      );
       return;
     }
-    this.logger.log({ jobId: job.id, uploadId }, '開始產生 sm／lg');
 
     const originalKey = `avatars/${uploadId}/original`;
     const original = await this.tempStorage.read(originalKey);
@@ -93,8 +96,14 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
       smallWebp = await this.imageProcessingService.render(original, 'sm');
       largeWebp = await this.imageProcessingService.render(original, 'lg');
     } catch (error) {
+      // UnrecoverableError 無法帶 cause，Sharp 的原始錯誤只能在這裡記錄。
       this.logger.error(
-        { err: error, jobId: job.id, uploadId },
+        {
+          event: LOG_EVENTS.avatarVariantsDecodeFailed,
+          err: error,
+          jobId: job.id,
+          uploadId,
+        },
         '原圖解碼失敗',
       );
       throw new UnrecoverableError('原圖解碼失敗');
@@ -110,7 +119,6 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
       largeWebp,
       'image/webp',
     );
-    this.logger.log({ jobId: job.id, uploadId }, 'sm／lg 已寫入');
 
     const count = await this.avatarRepository.completeVariants({
       userId,
@@ -118,7 +126,6 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
       smallUrl: this.mediaStorage.getPublicUrl(`avatars/${uploadId}/sm.webp`),
       largeUrl: this.mediaStorage.getPublicUrl(`avatars/${uploadId}/lg.webp`),
     });
-    this.logger.log({ jobId: job.id, uploadId, count }, '寫回 DB');
 
     // DB 已寫好，清理失敗只記 log，不能丟錯，否則 BullMQ 會重試整個 job。
     const dirname = `avatars/${uploadId}/`;
@@ -132,7 +139,12 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
         }
       } catch (error) {
         this.logger.error(
-          { err: error, uploadId, storage: 'media' },
+          {
+            event: LOG_EVENTS.avatarStorageDeleteFailed,
+            err: error,
+            uploadId,
+            storage: 'media',
+          },
           '確認或刪除已被取代的頭像檔案失敗',
         );
       }
@@ -141,7 +153,12 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
       await this.tempStorage.deleteDir(dirname);
     } catch (error) {
       this.logger.error(
-        { err: error, uploadId, storage: 'temp' },
+        {
+          event: LOG_EVENTS.avatarStorageDeleteFailed,
+          err: error,
+          uploadId,
+          storage: 'temp',
+        },
         '刪除頭像原圖失敗',
       );
     }
@@ -164,19 +181,31 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
   ): Promise<void> {
     const { userId, uploadId } = job.data;
     this.logger.warn(
-      { event: 'avatar.variants.marked_failed', jobId: job.id, uploadId },
+      { event: LOG_EVENTS.avatarVariantsMarkedFailed, jobId: job.id, uploadId },
       '頭像尺寸最終失敗，標記為 FAILED',
     );
     try {
       await this.avatarRepository.markVariantsFailed({ userId, uploadId });
     } catch (error) {
-      this.logger.error({ err: error, uploadId }, '標記頭像 FAILED 失敗');
+      this.logger.error(
+        {
+          event: LOG_EVENTS.avatarVariantsStatusUpdateFailed,
+          err: error,
+          uploadId,
+        },
+        '標記頭像 FAILED 失敗',
+      );
     }
     try {
       await this.tempStorage.deleteDir(`avatars/${uploadId}/`);
     } catch (error) {
       this.logger.error(
-        { err: error, uploadId, storage: 'temp' },
+        {
+          event: LOG_EVENTS.avatarStorageDeleteFailed,
+          err: error,
+          uploadId,
+          storage: 'temp',
+        },
         '刪除頭像原圖失敗',
       );
     }

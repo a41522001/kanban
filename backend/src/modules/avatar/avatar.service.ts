@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { AvatarStorageUnavailableException } from '@/common/exceptions/avatar.exception';
 import type { Avatar } from '@/generated/prisma/client';
 import { QueueService } from '@/infrastructure/queue/queue.service';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 
 const STORAGE_UNAVAILABLE_MESSAGE = '頭像暫時無法儲存，請稍後再試';
 
@@ -45,7 +46,7 @@ export class AvatarService {
       await this.deleteUploadDirs(uploadId, '清除寫入失敗的頭像檔案失敗');
       throw new AvatarStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, {
         cause: error,
-        event: 'avatar.upload.write_failed',
+        event: LOG_EVENTS.avatarUploadWriteFailed,
       });
     }
 
@@ -58,25 +59,21 @@ export class AvatarService {
         mediumUrl,
       });
     } catch (error) {
-      // 清理失敗只記 log，不能蓋掉下面的 503。
-      try {
-        await this.deleteUploadDirs(uploadId, '清除本次上傳的頭像檔案失敗');
-      } catch (deleteError) {
-        this.logger.error(
-          { err: deleteError, uploadId },
-          '清除本次上傳的頭像檔案失敗',
-        );
-      }
+      // deleteUploadDirs 不會丟錯（失敗只記 log），因此不會蓋掉下面的 503。
+      await this.deleteUploadDirs(uploadId, '清除本次上傳的頭像檔案失敗');
       throw new AvatarStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, {
         cause: error,
-        event: 'avatar.upload.save_failed',
+        event: LOG_EVENTS.avatarUploadSaveFailed,
       });
     }
 
     try {
       await this.queueService.addAvatarQueue({ userId, uploadId });
     } catch (error) {
-      this.logger.error({ err: error, uploadId }, '頭像尺寸工作入列失敗');
+      this.logger.error(
+        { event: LOG_EVENTS.avatarUploadEnqueueFailed, err: error, uploadId },
+        '頭像尺寸工作入列失敗',
+      );
     }
 
     // 刪除舊頭像檔案
@@ -115,12 +112,28 @@ export class AvatarService {
     try {
       await this.mediaStorage.deleteDir(dirname);
     } catch (error) {
-      this.logger.error({ err: error, uploadId, storage: 'media' }, reason);
+      this.logger.error(
+        {
+          event: LOG_EVENTS.avatarStorageDeleteFailed,
+          err: error,
+          uploadId,
+          storage: 'media',
+        },
+        reason,
+      );
     }
     try {
       await this.tempStorage.deleteDir(dirname);
     } catch (error) {
-      this.logger.error({ err: error, uploadId, storage: 'temp' }, reason);
+      this.logger.error(
+        {
+          event: LOG_EVENTS.avatarStorageDeleteFailed,
+          err: error,
+          uploadId,
+          storage: 'temp',
+        },
+        reason,
+      );
     }
   }
 }

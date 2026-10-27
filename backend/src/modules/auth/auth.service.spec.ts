@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -9,6 +10,8 @@ import { RedisService } from '@/infrastructure/redis/redis.service';
 import { QueueService } from '@/infrastructure/queue/queue.service';
 import { ApiCode } from '@kanban/contracts/api';
 import type { User } from '@/generated/prisma/client';
+import { AppException } from '@/common/exceptions/app.exception';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 describe('AuthService', () => {
   let authService: AuthService;
   let userService: UserService;
@@ -93,6 +96,10 @@ describe('AuthService', () => {
     sessionService = module.get<SessionService>(SessionService);
     socketService = module.get<SocketService>(SocketService);
     queueService = module.get<QueueService>(QueueService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
   /** 註冊 */
   describe('signup', () => {
@@ -232,23 +239,40 @@ describe('AuthService', () => {
   });
 
   it('帳號已建立後入列失敗，回傳可重寄的結果', async () => {
+    // Arrange
+    const queueError = new Error('Queue unavailable');
+    const loggerError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
     jest.spyOn(userService, 'getByEmail').mockResolvedValue(null);
     jest.spyOn(userService, 'createUser').mockResolvedValue(pendingUser);
     jest
       .spyOn(queueService, 'addVerificationEmailQueue')
-      .mockRejectedValue(new Error('Queue unavailable'));
+      .mockRejectedValue(queueError);
     redisClient.ttl.mockResolvedValue(52);
-    await expect(
-      authService.signup({
-        email: pendingUser.email,
-        password: 'testtest',
-        name: 'test',
-      }),
-    ).resolves.toEqual({
+
+    // Act
+    const result = authService.signup({
+      email: pendingUser.email,
+      password: 'testtest',
+      name: 'test',
+    });
+
+    // Assert
+    await expect(result).resolves.toEqual({
       accountCreated: true,
       emailQueued: false,
       retryAfterSeconds: 52,
     });
+    // 接住後不再丟出，由 service 記錄：物件在前、錯誤放在 err，不記 email
+    expect(loggerError).toHaveBeenCalledWith(
+      {
+        event: LOG_EVENTS.authSignupEmailEnqueueFailed,
+        err: queueError,
+        userId: pendingUser.id,
+      },
+      '帳號已建立，但驗證信無法入列',
+    );
   });
 
   it('帳號已建立後 Redis 故障，仍回傳帳號已建立', async () => {
@@ -347,16 +371,31 @@ describe('AuthService', () => {
     });
 
     it('重寄入列失敗回傳專用錯誤和剩餘冷卻', async () => {
+      // Arrange
+      const queueError = new Error('Queue unavailable');
+      const loggerError = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
       jest.spyOn(userService, 'getByEmail').mockResolvedValue(pendingUser);
       jest
         .spyOn(queueService, 'addVerificationEmailQueue')
-        .mockRejectedValue(new Error('Queue unavailable'));
-      await expect(
-        authService.resendVerificationEmail(email),
-      ).rejects.toMatchObject({
+        .mockRejectedValue(queueError);
+
+      // Act
+      const error: unknown = await authService
+        .resendVerificationEmail(email)
+        .catch((e: unknown) => e);
+
+      // Assert
+      expect(error).toBeInstanceOf(AppException);
+      expect(error).toMatchObject({
         code: ApiCode.VerificationEmailQueueFailed,
         data: { retryAfterSeconds: 60 },
+        event: LOG_EVENTS.authResendEmailEnqueueFailed,
       });
+      // 原始錯誤放進 cause，交給全域 Filter 記錄；service 不重複記
+      expect((error as AppException).cause).toBe(queueError);
+      expect(loggerError).not.toHaveBeenCalled();
     });
   });
   /** 登入 */

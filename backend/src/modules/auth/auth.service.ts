@@ -18,6 +18,7 @@ import { QueueService } from '@/infrastructure/queue/queue.service';
 import { randomBytes } from 'crypto';
 import { RedisService } from '@/infrastructure/redis/redis.service';
 import { redisKeys } from '@/infrastructure/redis/redis.keys';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 
 @Injectable()
 export class AuthService {
@@ -84,7 +85,15 @@ export class AuthService {
         retryAfterSeconds: this.rateLimitEmailVerifySeconds,
       };
     } catch (error) {
-      this.logger.error('帳號已建立，但驗證信無法入列', error);
+      // 接住後不再丟出（回傳 emailQueued: false），所以由這裡記錄。
+      this.logger.error(
+        {
+          event: LOG_EVENTS.authSignupEmailEnqueueFailed,
+          err: error,
+          userId: newUser.id,
+        },
+        '帳號已建立，但驗證信無法入列',
+      );
       // 帳號已寫入 DB，前端應提供重寄，而不是要求重新註冊。
       return {
         accountCreated: true,
@@ -181,12 +190,14 @@ export class AuthService {
           token: randomBytes(32).toString('base64url'),
         });
       } catch (error) {
-        this.logger.error('重寄驗證信無法入列', error);
+        // 丟出 503，由全域 HttpExceptionFilter 統一記錄（含 cause）。
         throw new AppException({
           code: ApiCode.VerificationEmailQueueFailed,
           message: '暫時無法安排寄送驗證信，請稍後重試',
           status: HttpStatus.SERVICE_UNAVAILABLE,
           data: { retryAfterSeconds: await this.getRemainingCooldown(email) },
+          cause: error,
+          event: LOG_EVENTS.authResendEmailEnqueueFailed,
         });
       }
     }
