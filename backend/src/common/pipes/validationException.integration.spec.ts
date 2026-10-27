@@ -1,4 +1,4 @@
-import { LoginDto } from '@/auth/dto/login.dto';
+import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { HttpExceptionFilter } from '@/common/filters/httpException.filter';
 import { ApiCode, type ApiResponse } from '@kanban/contracts/api';
 import { Body, Controller, type INestApplication, Post } from '@nestjs/common';

@@ -6,12 +6,12 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { WorkerModule } from '../src/worker/worker.module';
-import { EmailService } from '../src/email/email.service';
-import { QueueService } from '../src/queue/queue.service';
-import { RedisService } from '../src/redis/redis.service';
-import { PrismaService } from '../src/prisma/prisma.service';
-import { UserService } from '../src/user/user.service';
-import { redisKeys } from '../src/redis/redis.keys';
+import { EmailService } from '../src/infrastructure/email/email.service';
+import { QueueService } from '../src/infrastructure/queue/queue.service';
+import { RedisService } from '../src/infrastructure/redis/redis.service';
+import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
+import { UserService } from '../src/modules/user/user.service';
+import { redisKeys } from '../src/infrastructure/redis/redis.keys';
 import { ApiCode, type ApiResponse } from '@kanban/contracts/api';
 import type { SignupRequest, SignupResult } from '@kanban/contracts/auth';
 

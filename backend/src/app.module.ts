@@ -4,25 +4,25 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
-import { envSchema } from './config/env';
+import { type Env, envSchema } from './config/env';
 import { loggerFactory } from './config/logger.config';
-import { PrismaModule } from './prisma/prisma.module';
-import { RedisModule } from './redis/redis.module';
-import { SessionModule } from './session/session.module';
-import { SocketModule } from './socket/socket.module';
-import { AuthModule } from './auth/auth.module';
-import { WorkspacesModule } from './workspaces/workspaces.module';
-import { UserModule } from './user/user.module';
-import { NotificationModule } from './notification/notification.module';
+import { PrismaModule } from '@/infrastructure/prisma/prisma.module';
+import { RedisModule } from '@/infrastructure/redis/redis.module';
+import { SessionModule } from '@/modules/session/session.module';
+import { SocketModule } from './modules/socket/socket.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { WorkspacesModule } from './modules/workspaces/workspaces.module';
+import { UserModule } from './modules/user/user.module';
+import { NotificationModule } from './modules/notification/notification.module';
 import { HttpExceptionFilter } from './common/filters/httpException.filter';
 import { createValidationPipe } from './common/pipes/validation.pipe';
 import { WrapResponseInterceptor } from './common/interceptors/wrapResponse.interceptor';
-import { WorkspaceInvitationModule } from './workspaceInvitation/workspaceInvitation.module';
-import { ProjectModule } from './project/project.module';
-import { BoardModule } from './board/board.module';
-import { QueueModule } from './queue/queue.module';
-import { EmailModule } from './email/email.module';
-import { AvatarModule } from './avatar/avatar.module';
+import { WorkspaceInvitationModule } from './modules/workspaceInvitation/workspaceInvitation.module';
+import { ProjectModule } from './modules/project/project.module';
+import { BoardModule } from './modules/board/board.module';
+import { QueueModule } from './infrastructure/queue/queue.module';
+import { EmailModule } from './infrastructure/email/email.module';
+import { AvatarModule } from './modules/avatar/avatar.module';
 
 const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
@@ -34,7 +34,8 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: loggerFactory,
+      useFactory: (configService: ConfigService<Env>) =>
+        loggerFactory(configService, 'api'),
     }),
     ScheduleModule.forRoot(),
     PrismaModule,

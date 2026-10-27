@@ -1,6 +1,7 @@
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { HttpStatus } from '@nestjs/common';
+import type { LogEvent } from '@/common/constants/logEvents';
 
 export class InvalidAvatarImageException extends AppException {
   constructor(reason: string) {
@@ -23,11 +24,12 @@ export class UnsupportedAvatarTypeException extends AppException {
 }
 
 export class AvatarStorageUnavailableException extends AppException {
-  constructor(reason: string) {
+  constructor(reason: string, options?: { cause?: unknown; event?: LogEvent }) {
     super({
       status: HttpStatus.SERVICE_UNAVAILABLE,
       code: ApiCode.AvatarStorageUnavailable,
       message: reason,
+      ...options,
     });
   }
 }

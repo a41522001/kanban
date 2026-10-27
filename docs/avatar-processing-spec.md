@@ -76,7 +76,7 @@
 - （Q7）開始處理前查 `Avatar where userId`；row 不存在或 `uploadId` 不符（已刪除或被取代），直接結束，不產生 sm／lg。
 - （Q8）暫時性錯誤（DB、寫檔）交給 BullMQ 重試 3 次（2／4／8 秒）；原圖遺失或解碼失敗丟 `UnrecoverableError`，不重試。
 - （Q10）最終失敗（重試用盡或 `UnrecoverableError`）時，以 `updateMany where { userId, uploadId, variantStatus: PENDING }` 標記 `FAILED`；前端不處理，繼續使用 md。
-- （Q11）條件式寫回結果為 0 筆（處理途中被取代或刪除）時，Worker 刪除自己的 media `avatars/<uploadId>/`，避免寫入 sm／lg 時重新建立的資料夾成為孤兒。
+- （Q11）條件式寫回結果為 0 筆時，Worker **重新查詢 Avatar**，只有 row 不存在或 `uploadId` 已不同（處理途中被取代或刪除）才刪除自己的 media `avatars/<uploadId>/`，避免寫入 sm／lg 時重新建立的資料夾成為孤兒；`uploadId` 相同代表同一個 job 重跑時已經 COMPLETED，**不可刪**（2026-10-25 修正：原本 0 筆一律刪除，重跑時會刪掉使用中的頭像）。重新查詢失敗時不刪、只記 log。
 - （Q12）temp 原圖的刪除，失敗皆只記 log：
   - Worker：處理成功、最終失敗、被取代或被刪除時，刪除自己的 temp `avatars/<uploadId>/`。
   - API：上傳新頭像（7-2）與刪除頭像（7-1）時，連同 media 一併刪除舊的 temp 資料夾。
@@ -328,7 +328,7 @@ Multer 的 `LIMIT_FILE_SIZE`、`LIMIT_UNEXPECTED_FILE` 等錯誤必須轉成上�
    })
    ```
 
-   `count === 0` 代表已被取代、刪除或已完成，不視為錯誤。**2026-10-21 修訂：此時刪除自己的 media `avatars/<uploadId>/`，見 §0.3 Q11。**
+   `count === 0` 代表已被取代、刪除或已完成，不視為錯誤。**2026-10-21 修訂：此時刪除自己的 media `avatars/<uploadId>/`，見 §0.3 Q11。2026-10-25 修正：「已完成」不可刪，需重新查詢確認是被取代或刪除，見 Q11。**
 7. 刪除 temp 原圖（best-effort，~~失敗由清理排程補做~~ **2026-10-21 修訂：失敗只記 log，正式環境由 temp bucket 生命週期規則清除**）。步驟 1 直接結束與步驟 8 最終失敗時也要刪除，見 §0.3 Q12。
 8. 最終失敗：在 Worker 的 `failed` 事件中，若 `job.attemptsMade >= attempts` 或錯誤為 `UnrecoverableError`，執行 `updateMany where { userId, uploadId, variantStatus: PENDING }` 設為 `FAILED`。
 

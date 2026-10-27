@@ -1,6 +1,6 @@
 import type { ArgumentMetadata } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
-import { LoginDto } from '@/auth/dto/login.dto';
+import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { createValidationPipe } from './validation.pipe';

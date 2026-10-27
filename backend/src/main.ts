@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { SocketService } from './socket/socket.service';
+import { SocketService } from './modules/socket/socket.service';
 import { Logger } from 'nestjs-pino';
 import { configureApp } from './app.setup';
 import { setupSwagger } from './swagger.setup';
