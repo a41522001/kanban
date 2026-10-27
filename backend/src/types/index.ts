@@ -7,4 +7,6 @@ export type AppExceptionOptions = {
   message: string;
   data?: unknown;
   errors?: FieldErrors | null;
+  cause?: unknown;
+  event?: string;
 };

@@ -29,6 +29,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
       data: null,
       error: null,
     };
+    if (status >= 500) {
+      this.logger?.error(
+        {
+          event:
+            exception instanceof AppException && exception.event
+              ? exception.event
+              : 'http.request.unexpected_error',
+          err:
+            exception instanceof HttpException && exception.cause
+              ? exception.cause
+              : exception,
+        },
+        '請求處理失敗',
+      );
+    }
+
     // App自訂錯誤
     if (exception instanceof AppException) {
       apiResponse.code = exception.code;
@@ -45,8 +61,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       response.status(status).json(apiResponse);
       return;
     }
-    // 非預期錯誤
-    this.logger?.error({ err: exception }, 'Unexpected HTTP exception');
+
     response.status(status).json(apiResponse);
   }
 }

@@ -1,6 +1,6 @@
 # Flowboard Backend Logging Plan
 
-日期：2026-10-24（重寫）。狀態：**規則已確認，實作中**（見 §9）。
+日期：2026-10-24（重寫），最後更新 2026-10-27。狀態：**規則已確認，實作中**（見 §9）。
 
 本版取代 2026-09 的初期規劃。舊版的 Loki／Grafana、Auth 與 Socket.IO 事件清單與現況差距太大，已移除；規則改由使用者以 grill 逐項確認（Q1–Q15，2026-10-24）。
 
@@ -64,7 +64,7 @@ this.logger.error(
 | `event` | 事件代號 |
 | `err` | 錯誤物件 |
 | `service` | `api`／`worker` |
-| `requestId` | HTTP 請求 ID |
+| `requestId` | HTTP 請求 ID。**目前放在 pino-http 的 `req.id`**（2026-10-27 決定，見 §7），不另外建立頂層欄位 |
 | `userId`、`workspaceId`、`projectId`、`uploadId` | 資料 ID |
 | `queue`、`jobName`、`jobId`、`attempt` | BullMQ job |
 | `durationMs` | 花費時間（毫秒） |
@@ -91,10 +91,11 @@ this.logger.error(
 
 ## 7. HTTP（Q8、Q10）
 
-- 每個請求以 UUID 產生 `requestId`，同一請求的 log 都帶上它；回應 header 加 `X-Request-Id`。
+- 每個請求以 UUID 產生 `requestId`（pino-http `genReqId`），回應 header 加 `X-Request-Id`。
+- 同一請求的 log 以 `req.id` 對應：pino-http 預設會在請求期間的每筆 log 附帶整包 `req`（含 `id`），因此不另外加 `customProps`／`quietReqLogger`。代價是 service log 會重複帶 `req`；之後在 Seq 覺得太長時，再改為 `quietReqLogger: true` ＋ `customAttributeKeys: { reqId: 'requestId' }`（2026-10-27 已用 pino-http 11.0.0 實驗確認可行）。
 - **不採用**請求自帶的 `X-Request-Id`，避免偽造或塞入超長字串。
 - request log level：2xx／3xx `info`、4xx `warn`、5xx `error`。
-- `/health` 不記錄。
+- `/health` 不記錄。**延後**：目前沒有 `/health` 路由（`main.ts` 只在 `setGlobalPrefix` 排除），等實作該路由時再以 `autoLogging.ignore` 略過。
 
 ## 8. Worker（Q9）
 
@@ -106,9 +107,9 @@ this.logger.error(
 
 | 步驟 | 內容 | 狀態 |
 | --- | --- | --- |
-| L1 | worker 接上 nestjs-pino（共用 `logger.config.ts`），加上 `service` 欄位 | 🔄 |
-| L2 | HTTP：`requestId`、`X-Request-Id`、依狀態碼的 level、略過 `/health` | ⬜ |
-| L3 | `AppException` 加 `cause`／`event`；`HttpExceptionFilter` 只在 5xx 記錄 | ⬜ |
+| L1 | worker 接上 nestjs-pino（共用 `logger.config.ts`），加上 `service` 欄位 | ✅ 2026-10-26：`WorkerModule` 加入 `LoggerModule`、`worker/main.ts` 以 `bufferLogs` + `useLogger`；`loggerFactory(configService, service)` 以 pino `base: { pid, hostname, service }` 加上欄位。實測 API／worker 分別帶 `service: 'api'`／`'worker'`，production JSON 保留 `pid`、`hostname` |
+| L2 | HTTP：`requestId`、`X-Request-Id`、依狀態碼的 level、略過 `/health` | ✅ 2026-10-27：L2-1 `genReqId` 產生 UUID 並設定 `X-Request-Id`（不採用請求自帶的值，實測偽造 header 被忽略）。L2-2 不實作，沿用 `req.id`（見 §7）。L2-3 `customLogLevel`：`err` 或 5xx 為 `error`、4xx 為 `warn`、其餘 `info`，實測 200 INFO、400／401／404 WARN；5xx 待 L7 測試。L2-4 延後到實作 `/health` 時 |
+| L3 | `AppException` 加 `cause`／`event`；`HttpExceptionFilter` 只在 5xx 記錄 | ✅ 2026-10-27：L3-1 `AppExceptionOptions` 加可選的 `cause`、`event`；`cause` 以 Nest `HttpException` 第三個參數 `{ cause }` 傳入（`exception.cause`），不放進回應內容，`event` 為 `AppException` 屬性。L3-2 Filter 在 `status >= 500` 時統一記錄一筆 `error`（訊息「請求處理失敗」），`err` 有 `cause` 取 `cause`、否則取 exception 本身，`event` 取 `AppException.event`、否則為 `http.request.unexpected_error`；4xx 不記。L3-3 `AvatarStorageUnavailableException` 可帶 `{ cause, event }`，avatar 上傳的兩個 503 使用 `avatar.upload.write_failed`／`avatar.upload.save_failed`，移除 service 中重複的 `logger.error`。已知取捨：Filter 的 log 不含 `uploadId`，以 `req.id` 對應請求。`auth.service.ts` 重寄驗證信的 503 同樣模式，於 L5 一併處理 |
 | L4 | Worker `completed`／`failed` 統一記錄（email、avatar） | ⬜ |
 | L5 | 修正既有 log：`auth.service.ts` 遺失 error 的寫法、worker 印出 `job.data`（含 token）、`QueueService` 的 `console.log(job)`、Redis／Socket.IO 的 `console.*`；既有 log 補上 `event`；ESLint `no-console` | ⬜ |
 | L6 | Seq：`compose.yml` 加 `seq` 服務、`SEQ_URL`、`pino-seq`（先驗證 ESM 相容性） | ⬜ |

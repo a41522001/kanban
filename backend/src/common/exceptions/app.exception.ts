@@ -6,7 +6,16 @@ export class AppException extends HttpException {
   public readonly code: ApiCode;
   public readonly data?: unknown;
   public readonly errors?: FieldErrors | null;
-  constructor({ status, code, message, data, errors }: AppExceptionOptions) {
+  public readonly event?: string;
+  constructor({
+    status,
+    code,
+    message,
+    data,
+    errors,
+    cause,
+    event,
+  }: AppExceptionOptions) {
     super(
       {
         message,
@@ -14,10 +23,12 @@ export class AppException extends HttpException {
         errors,
       },
       status,
+      { cause },
     );
 
     this.code = code;
     this.data = data;
     this.errors = errors;
+    this.event = event;
   }
 }

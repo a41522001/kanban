@@ -19,16 +19,16 @@ body:json {
 
 docs {
   # 登入
-
+  
   - Route: `POST /v1/api/auth/login`
   - Auth: 公開
   - 成功：200 / null，回應帶 `Set-Cookie: sessionId=...`（HttpOnly）。collection script 會自動存進環境變數 `sessionId`。
-
+  
   | 欄位 | 型別 | 規則 |
   |---|---|---|
   | email | `string` | Email 格式，自動 trim + 小寫 |
   | password | `string` | 8–72 字元 |
-
+  
   - 帳密錯誤：401 / InvalidCredentials (2001)。
   - Email 尚未驗證：403 / EmailVerificationRequired (2005)，`data.email`。
 }

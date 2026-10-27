@@ -23,11 +23,12 @@ export class UnsupportedAvatarTypeException extends AppException {
 }
 
 export class AvatarStorageUnavailableException extends AppException {
-  constructor(reason: string) {
+  constructor(reason: string, options?: { cause?: unknown; event?: string }) {
     super({
       status: HttpStatus.SERVICE_UNAVAILABLE,
       code: ApiCode.AvatarStorageUnavailable,
       message: reason,
+      ...options,
     });
   }
 }

@@ -39,9 +39,11 @@ export class AvatarService {
         `image/${metadata.format}`,
       );
     } catch (error) {
-      this.logger.error({ err: error, uploadId }, '寫入頭像檔案失敗');
       await this.deleteUploadDirs(uploadId, '清除寫入失敗的頭像檔案失敗');
-      throw new AvatarStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE);
+      throw new AvatarStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, {
+        cause: error,
+        event: 'avatar.upload.write_failed',
+      });
     }
 
     let oldAvatar: Avatar | null;
@@ -53,7 +55,6 @@ export class AvatarService {
         mediumUrl,
       });
     } catch (error) {
-      this.logger.error({ err: error, uploadId }, '儲存頭像資料失敗');
       // 清理失敗只記 log，不能蓋掉下面的 503。
       try {
         await this.deleteUploadDirs(uploadId, '清除本次上傳的頭像檔案失敗');
@@ -63,7 +64,10 @@ export class AvatarService {
           '清除本次上傳的頭像檔案失敗',
         );
       }
-      throw new AvatarStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE);
+      throw new AvatarStorageUnavailableException(STORAGE_UNAVAILABLE_MESSAGE, {
+        cause: error,
+        event: 'avatar.upload.save_failed',
+      });
     }
 
     try {

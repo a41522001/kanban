@@ -136,8 +136,8 @@ describe('HttpExceptionFilter', () => {
       error: null,
     });
     expect(errorLogMock).toHaveBeenCalledWith(
-      { err: error },
-      'Unexpected HTTP exception',
+      { event: 'http.request.unexpected_error', err: error },
+      '請求處理失敗',
     );
   });
 });

@@ -29,11 +29,17 @@ const createAvatar = (): Avatar => ({
   updatedAt: new Date(),
 });
 
-const expectStorageUnavailable = (error: unknown): void => {
+/** 503 必須帶上原始錯誤（cause）與事件代號（event），交給全域 Filter 統一記錄。 */
+const expectStorageUnavailable = (
+  error: unknown,
+  expected: { event: string; cause: Error },
+): void => {
   expect(error).toBeInstanceOf(AvatarStorageUnavailableException);
   const exception = error as AvatarStorageUnavailableException;
   expect(exception.getStatus()).toBe(HttpStatus.SERVICE_UNAVAILABLE);
   expect(exception.code).toBe(ApiCode.AvatarStorageUnavailable);
+  expect(exception.event).toBe(expected.event);
+  expect(exception.cause).toBe(expected.cause);
 };
 
 describe('AvatarService', () => {
@@ -171,48 +177,66 @@ describe('AvatarService', () => {
     });
 
     it('寫入 md 失敗時丟 503，不寫原圖、不 upsert，並清除兩邊的資料夾', async () => {
-      mediaWrite.mockRejectedValue(new Error('ENOSPC'));
+      const cause = new Error('ENOSPC');
+      mediaWrite.mockRejectedValue(cause);
 
       const error = await catchUploadError();
 
-      expectStorageUnavailable(error);
+      expectStorageUnavailable(error, {
+        event: 'avatar.upload.write_failed',
+        cause,
+      });
       expect(tempWrite).not.toHaveBeenCalled();
       expect(upsertCurrent).not.toHaveBeenCalled();
       expectBothDirsDeleted(getUpload().dir);
-      expect(loggerError).toHaveBeenCalledTimes(1);
+      // 由全域 Filter 記錄，service 不重複記
+      expect(loggerError).not.toHaveBeenCalled();
     });
 
     it('寫入原圖失敗時丟 503，不 upsert，並清除已寫入的 md', async () => {
-      tempWrite.mockRejectedValue(new Error('ENOSPC'));
+      const cause = new Error('ENOSPC');
+      tempWrite.mockRejectedValue(cause);
 
       const error = await catchUploadError();
 
-      expectStorageUnavailable(error);
+      expectStorageUnavailable(error, {
+        event: 'avatar.upload.write_failed',
+        cause,
+      });
       expect(upsertCurrent).not.toHaveBeenCalled();
       expectBothDirsDeleted(getUpload().dir);
-      expect(loggerError).toHaveBeenCalledTimes(1);
+      expect(loggerError).not.toHaveBeenCalled();
     });
 
     it('upsert 失敗時丟 503，並清除兩邊剛寫入的資料夾', async () => {
-      upsertCurrent.mockRejectedValue(new Error('DB down'));
+      const cause = new Error('DB down');
+      upsertCurrent.mockRejectedValue(cause);
 
       const error = await catchUploadError();
 
-      expectStorageUnavailable(error);
+      expectStorageUnavailable(error, {
+        event: 'avatar.upload.save_failed',
+        cause,
+      });
       expectBothDirsDeleted(getUpload().dir);
-      expect(loggerError).toHaveBeenCalledTimes(1);
+      expect(loggerError).not.toHaveBeenCalled();
     });
 
     it('upsert 與刪檔都失敗時仍丟 503，不被刪檔錯誤蓋掉', async () => {
-      upsertCurrent.mockRejectedValue(new Error('DB down'));
+      const cause = new Error('DB down');
+      upsertCurrent.mockRejectedValue(cause);
       mediaDeleteDir.mockRejectedValue(new Error('EPERM'));
       tempDeleteDir.mockRejectedValue(new Error('EPERM'));
 
       const error = await catchUploadError();
 
-      expectStorageUnavailable(error);
-      // upsert failure + one log per storage that failed to clean up
-      expect(loggerError).toHaveBeenCalledTimes(3);
+      // cause 仍是 upsert 的錯誤，不是刪檔錯誤
+      expectStorageUnavailable(error, {
+        event: 'avatar.upload.save_failed',
+        cause,
+      });
+      // 只有清理失敗（接住後不再丟出）由 service 記錄：media、temp 各一筆
+      expect(loggerError).toHaveBeenCalledTimes(2);
     });
 
     it('media 刪除失敗時仍會繼續刪除 temp', async () => {
@@ -225,11 +249,15 @@ describe('AvatarService', () => {
     });
 
     it('查詢舊頭像失敗時丟 503，不 upsert，並清除兩邊剛寫入的資料夾', async () => {
-      findByUserId.mockRejectedValue(new Error('DB down'));
+      const cause = new Error('DB down');
+      findByUserId.mockRejectedValue(cause);
 
       const error = await catchUploadError();
 
-      expectStorageUnavailable(error);
+      expectStorageUnavailable(error, {
+        event: 'avatar.upload.save_failed',
+        cause,
+      });
       expect(upsertCurrent).not.toHaveBeenCalled();
       expectBothDirsDeleted(getUpload().dir);
     });
