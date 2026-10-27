@@ -3,6 +3,7 @@ import { ApiCode, type FieldErrors } from '@kanban/contracts/api';
 import { HttpException, HttpStatus, type ArgumentsHost } from '@nestjs/common';
 import type { Response } from 'express';
 import type { PinoLogger } from 'nestjs-pino';
+import { LOG_EVENTS } from '@/common/constants/logEvents';
 import { HttpExceptionFilter } from './httpException.filter';
 
 type FilterTestContext = {
@@ -139,5 +140,114 @@ describe('HttpExceptionFilter', () => {
       { event: 'http.request.unexpected_error', err: error },
       '請求處理失敗',
     );
+  });
+
+  describe('log 記錄規則', () => {
+    it('5xx 的 AppException 帶 cause 時，記錄 cause 與 event，回應不含原始錯誤', () => {
+      // Arrange
+      const { host, jsonMock } = createFilterTestContext();
+      const cause = new Error('ENOSPC: no space left on device');
+
+      // Act
+      filter.catch(
+        new AppException({
+          status: HttpStatus.SERVICE_UNAVAILABLE,
+          code: ApiCode.AvatarStorageUnavailable,
+          message: '頭像暫時無法儲存',
+          cause,
+          event: LOG_EVENTS.avatarUploadWriteFailed,
+        }),
+        host,
+      );
+
+      // Assert
+      expect(errorLogMock).toHaveBeenCalledTimes(1);
+      expect(errorLogMock).toHaveBeenCalledWith(
+        { event: LOG_EVENTS.avatarUploadWriteFailed, err: cause },
+        '請求處理失敗',
+      );
+      expect(JSON.stringify(jsonMock.mock.calls[0])).not.toContain('ENOSPC');
+    });
+
+    it('5xx 的 AppException 沒有 cause 與 event 時，記錄 exception 本身與預設 event', () => {
+      // Arrange
+      const { host } = createFilterTestContext();
+      const exception = new AppException({
+        status: HttpStatus.SERVICE_UNAVAILABLE,
+        code: ApiCode.AvatarStorageUnavailable,
+        message: '頭像暫時無法儲存',
+      });
+
+      // Act
+      filter.catch(exception, host);
+
+      // Assert
+      expect(errorLogMock).toHaveBeenCalledWith(
+        { event: LOG_EVENTS.httpRequestUnexpectedError, err: exception },
+        '請求處理失敗',
+      );
+    });
+
+    it('非 AppException 的 5xx HttpException 也會記錄', () => {
+      // Arrange
+      const { host } = createFilterTestContext();
+      const exception = new HttpException(
+        'bad gateway',
+        HttpStatus.BAD_GATEWAY,
+      );
+
+      // Act
+      filter.catch(exception, host);
+
+      // Assert
+      expect(errorLogMock).toHaveBeenCalledWith(
+        { event: LOG_EVENTS.httpRequestUnexpectedError, err: exception },
+        '請求處理失敗',
+      );
+    });
+
+    it.each([
+      [
+        'AppException 400',
+        new AppException({
+          status: HttpStatus.BAD_REQUEST,
+          code: ApiCode.ValidationError,
+          message: '請求參數錯誤',
+        }),
+      ],
+      [
+        'AppException 401',
+        new AppException({
+          status: HttpStatus.UNAUTHORIZED,
+          code: ApiCode.Unauthenticated,
+          message: '登入已失效',
+        }),
+      ],
+      [
+        'AppException 429',
+        new AppException({
+          status: HttpStatus.TOO_MANY_REQUESTS,
+          code: ApiCode.AvatarRateLimited,
+          message: '上傳太頻繁',
+        }),
+      ],
+      [
+        'HttpException 404',
+        new HttpException('not found', HttpStatus.NOT_FOUND),
+      ],
+      [
+        'HttpException 413',
+        new HttpException('too large', HttpStatus.PAYLOAD_TOO_LARGE),
+      ],
+    ])('4xx（%s）不記錄，交給 request log', (_label, exception) => {
+      // Arrange
+      const { host } = createFilterTestContext();
+
+      // Act
+      filter.catch(exception, host);
+
+      // Assert
+      expect(errorLogMock).not.toHaveBeenCalled();
+    });
   });
 });
