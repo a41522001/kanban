@@ -163,9 +163,9 @@ export class AvatarWorkerService implements OnModuleInit, OnModuleDestroy {
     job: Job<GenerateAvatarVariantsData>,
   ): Promise<void> {
     const { userId, uploadId } = job.data;
-    this.logger.error(
-      { jobId: job.id, uploadId, reason: job.failedReason },
-      '頭像尺寸產生最終失敗',
+    this.logger.warn(
+      { event: 'avatar.variants.marked_failed', jobId: job.id, uploadId },
+      '頭像尺寸最終失敗，標記為 FAILED',
     );
     try {
       await this.avatarRepository.markVariantsFailed({ userId, uploadId });

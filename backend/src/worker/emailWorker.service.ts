@@ -1,4 +1,9 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import type { SendVerificationEmailData } from '@/common/types/queue';
 import { Worker } from 'bullmq';
 import { RedisService } from '@/infrastructure/redis/redis.service';
@@ -6,23 +11,20 @@ import { EmailService } from '@/infrastructure/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '@/config/env';
 import { redisKeys } from '@/infrastructure/redis/redis.keys';
-import { AvatarWorkerService } from './avatarWorker.service';
+import { jobLogFields } from './jobLogFields';
 @Injectable()
-export class WorkerService implements OnModuleInit, OnModuleDestroy {
+export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
-    private readonly avatarWorkerService: AvatarWorkerService,
     private readonly configService: ConfigService<Env>,
   ) {}
+  private readonly logger = new Logger(EmailWorkerService.name);
   private emailWorker!: Worker<SendVerificationEmailData>;
   onModuleInit() {
     this.emailWorker = new Worker<SendVerificationEmailData>(
       'email',
       async (job) => {
-        console.log(job.id);
-        console.log(job.name);
-        console.log(job.data);
         if (job.name === 'send-verification-email') {
           await this.handleSendVerificationEmail(job.data);
         }
@@ -31,6 +33,23 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         connection: this.redisService.createBullMQConnection(),
       },
     );
+
+    this.emailWorker.on('completed', (job) => {
+      this.logger.log(
+        { event: 'queue.job.completed', ...jobLogFields(job) },
+        'job 完成',
+      );
+    });
+
+    this.emailWorker.on('failed', (job, error) => {
+      if (job === undefined) {
+        return;
+      }
+      this.logger.error(
+        { event: 'queue.job.failed', err: error, ...jobLogFields(job) },
+        'job 失敗',
+      );
+    });
   }
 
   async onModuleDestroy() {
