@@ -1,43 +1,30 @@
 # Flowboard 文件索引
 
-本目錄保存會影響多個模組的規格、設計決策與驗收條件。實作前先更新規格，完成後同步更新 progress。
+本目錄保存會影響多個模組的規格、設計決策與驗收條件。實作前先更新規格，完成後同步更新進度。
 
-## 文件導覽
+## 從哪裡開始
 
-1. [功能盤點與未完成項目](feature-readiness.md)：查看目前功能缺口、API 能力與畫面範圍。
-2. [目前 HTTP API](http-api.md)、[API contract](api-contract-plan.md)：Auth 已加入驗證／重寄、部分註冊成功與登入限制；Board 現行端點與未完成項目已分開標示。
-3. [驗證信前端設計與實作](email-verification-ui-plan.md)：四張核准 SVG 已進 Figma，前端提示／重寄、載入／成功與錯誤 Dialog 已完成。
-4. [Board API 與 WebSocket](board-api-websocket-spec.md)：先補 GET /board/:projectId 授權，再完成 snapshot、持久化拖曳、Card 與協作。
-5. [Workspace 邀請與通知](workspace-invitation-notification.md)：取消、分頁、併發與 reconnect resync。
-6. [Session 架構](session-architecture.md)、[測試策略](testing-strategy.md)、[Logging](logging-plan.md)、[安全](security-checklist.md)與[部署](deployment-plan.md)：依各文件未完成項目推進。
+- **目前做到哪裡**：[進度](progress.md)（唯一記錄整體狀態的地方）
+- **某個功能的規則與步驟**：`features/` 底下對應的文件
+- **API 與資料表現在長什麼樣子**：`reference/`
+- **API 測試**：專案根目錄的 `bruno/`（用 Bruno 開啟 collection）
 
-## 現行實作入口
+## 分類
 
-- [目前 HTTP API](http-api.md)
-- [Workspace 邀請與通知](workspace-invitation-notification.md)
-- [Frontend Auth vertical slice](frontend-auth-plan.md)
-- [驗證信 Queue／Worker 規格](email-verification-worker-spec.md)
-- [驗證信 UI／SVG 與前端實作](email-verification-ui-plan.md)
-- [功能盤點與未完成項目](feature-readiness.md)
-- [部署現況與 CI/CD](deployment-plan.md#0-目前實作現況cicd-mvp)：Docker Compose 部署到 GCP VM，cd.yml 於 main 自動測試、推送 GHCR 與部署；網域與 HTTPS 尚未完成。
-- [VM 初始化 Runbook](vm-setup-runbook.md)：新建 production VM 的步驟、`/app` 目錄結構、`.env.prod` 範本與驗證方式。
-
-2026-10-06：新增 Docker 化與 CI/CD MVP 紀錄，REST 路由改為 `/v1/api` 前綴。
-
-最後靜態核對：2026-09-28。本輪文件更新未重新執行測試。使用者已回報驗證信前後端流程實測成功；最近一次前端 Vitest 為 15 files／57 tests 通過，型別檢查通過。後端 169 tests 通過、5 skipped，E2E 4 suites／13 tests 通過，屬歷史驗收；詳見 progress。
-
-## 既有路線
-
-- [學習進度](progress.md)
-- [整體學習路線](roadmap.md)
-- [Socket.IO Kanban roadmap](socketio/00-kanban-roadmap.md)
-- [Frontend UI 實作守則](frontend-design-guidelines.md)
-- [Figma UI 設計稿工作流程](figma-ui-design-workflow.md)
+| 資料夾 | 內容 | 文件 |
+| --- | --- | --- |
+| （根目錄） | 整體狀態 | [進度](progress.md) |
+| `features/` | 功能規格：規則與該功能自己的實作步驟 | [Auth 前端](features/auth-frontend.md)、[驗證信 Worker](features/email-verification-worker.md)、[驗證信 UI](features/email-verification-ui.md)、[Workspace 邀請與通知](features/workspace-invitation-notification.md)、[頭像](features/avatar.md)、[Board 與 Card](features/board.md) |
+| `reference/` | 現在的行為，以程式碼為準 | [HTTP API](reference/http-api.md)、[API contract](reference/api-contract.md)、[資料庫 Schema](reference/database-schema.md) |
+| `architecture/` | 跨功能的設計 | [Session](architecture/session.md)、[Socket.IO 驗證](architecture/socketio-auth.md)、[Logging](architecture/logging.md) |
+| `operations/` | 部署與維運 | [部署現況與 CI/CD](operations/deployment.md)、[VM 初始化 Runbook](operations/vm-setup-runbook.md) |
+| `guides/` | 開發規則 | [測試策略](guides/testing.md)、[安全檢查清單](guides/security-checklist.md)、[前端 UI 守則](guides/frontend-design.md)、[Figma 工作流程](guides/figma-workflow.md) |
 
 ## 文件更新規則
 
 - 規格改變時，先改文件再改 contracts 與程式。
-- 完成一個 milestone 後，記錄驗收指令與結果。
+- **狀態只寫在兩個地方**：整體進度寫在 `progress.md`；功能自己的實作步驟寫在該功能的 `features/` 文件。其他文件只寫規則與現行行為，不寫「目前做到哪裡」。
 - 尚未決定的事項標記為 Decision pending，不在程式中默認猜測。
 - 描述「目前行為」時以 contracts、Prisma schema 與執行中的 TypeScript／Lua 為準；目標設計需明確標記為尚未實作。
+- 被新文件取代時，先把仍有用的內容併入新文件，再刪除舊文件；需要時從 git 歷史查看，不另外保留封存資料夾。
 - 文件內不得放入真實 secret、Cookie、Token、Session ID 或 production credential。

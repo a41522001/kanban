@@ -1,6 +1,6 @@
 # 目前 HTTP API
 
-最後靜態核對：2026-09-28。依 Controllers、Service、DTO、Prisma 與 `packages/contracts` 核對；本次只更新文件，未重新執行 API 或測試。Auth 驗證／重寄已完成，Board 已有部分實作，未完成端點另行標示。功能缺口見[功能盤點](feature-readiness.md)，既有測試紀錄見[進度](progress.md)。
+最後核對：2026-10-30，依 Controllers、Service、DTO、Prisma 與 `packages/contracts`。本文只描述**目前的行為**；尚未實作的功能與缺口見[進度](../progress.md)，目標設計見 `features/` 底下的規格。
 
 ## 基本約定
 
@@ -8,7 +8,9 @@
 - 除公開 Auth 端點外，下表受保護的路徑都使用 `sessionId` HttpOnly Cookie。
 - SessionGuard 從 Redis 驗證 Cookie，將 userId 放入 request，必要時用 Set-Cookie 輪轉。
 - 成功與錯誤皆包成 `{ code, data, message, time, error }`；以下「data」指 envelope 內部資料。
-- DTO whitelist、transform、forbidNonWhitelisted 已開啟；詳細錯誤格式見 [API contract](api-contract-plan.md)。
+- DTO whitelist、transform、forbidNonWhitelisted 已開啟；詳細錯誤格式見 [API contract](api-contract.md)。
+- 每個回應都帶 `X-Request-Id` header（server 產生的 UUID，不採用請求自帶的值），可用來在 log／Seq 查詢該請求，見 [Logging 規格](../architecture/logging.md) §7。
+- 開發環境（`NODE_ENV=development`）另提供 `GET /media/...` 讀取頭像圖片，不在 `/v1/api` 前綴下；正式環境不掛載。
 - 使用 `ParseUUIDPipe` 且未指定版本的 path param 接受一般 UUID，並非只接受 v4；格式錯誤會由 Filter 回 400 / RequestError (4000)。DTO 上的 `@IsUUID('4')` 則只接受 v4，驗證失敗回 400 / ValidationError (1000)。
 
 ## 已實作端點
@@ -21,7 +23,8 @@
 | PATCH `/auth/verify/:token` | 公開，不需 Session | URL token；無 body | 200 / null；消耗 token，不建立 Session |
 | POST `/auth/resend-verification-email` | 公開，不需 Session | `{ email }` | 202 / `{ retryAfterSeconds }`；條件式受理 |
 | GET `/user/userInfo` | 有效 Session | 無 | 200 / PublicUser |
-| POST `/user/avatar` | 有效 Session，只能操作自己的頭像 | `multipart/form-data`，檔案欄位 `avatar`（≤ 5 MiB） | 200 / `AvatarImageSet`；同步產生 128px `mediumUrl`，`smallUrl`／`largeUrl` 為 null。缺檔 400 / ValidationError (1000)。2026-10-19 實作中：錯誤分類、次數限制、`/media` 讀取與 `DELETE /user/avatar` 尚未完成，見 [avatar 規格 §0.2](avatar-processing-spec.md) |
+| POST `/user/avatar` | 有效 Session，只能操作自己的頭像 | `multipart/form-data`，檔案欄位 `avatar`（≤ 5 MiB） | 200 / `AvatarImageSet`；同步產生 128px `mediumUrl`，`smallUrl`／`largeUrl` 為 null，數秒後由 Worker 補上。錯誤：缺檔 400 / ValidationError (1000)、無法解碼或格式不符 400 / AvatarInvalidImage (6001)、超過 5 MiB 413 / RequestError (4000)、MIME 不支援 415 / AvatarUnsupportedType (6003)、每 60 秒超過 5 次 429 / AvatarRateLimited (6004，`data.retryAfterSeconds`)、寫檔或 DB 失敗 503 / AvatarStorageUnavailable (6005)。見[頭像規格](../features/avatar.md) |
+| DELETE `/user/avatar` | 有效 Session，只能操作自己的頭像 | 無 | 200 / null；冪等，原本沒有頭像也回 200；刪除 DB 後刪除 media 與 temp 資料夾，刪檔失敗只記 log |
 | POST `/workspaces` | 有效 Session | `{ name }` | 201 / WorkspaceDto |
 | GET `/workspaces` | 有效 Session | 無 | 200 / WorkspaceListItemDto[] |
 | GET `/workspaces/:workspaceId/members` | 有效 Session，且為未封存工作區成員 | UUID path param | 200 / WorkspaceMemberDto[] |
@@ -129,22 +132,22 @@ Request：`{ "email": "user@example.com" }`。
 
 倒數資訊固定放 `data`，沒有 Retry-After header。前端可自行算 `retryAt = Date.now() + retryAfterSeconds * 1000`；retryAt 不是 API 欄位。500／網路錯誤可能無倒數資料，不可視為冷卻已解除。
 
-Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀態。登入 403 也不提供剩餘冷卻秒數；無本機暫存時可顯示寄送按鈕，提交遇到 429 再依回應校正倒數。精確的驗證期限顯示在信件中，前端先使用「請在信件標示的期限內完成驗證」。詳細 Worker 流程見[寄信規格](email-verification-worker-spec.md)。
+Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀態。登入 403 也不提供剩餘冷卻秒數；無本機暫存時可顯示寄送按鈕，提交遇到 429 再依回應校正倒數。精確的驗證期限顯示在信件中，前端先使用「請在信件標示的期限內完成驗證」。詳細 Worker 流程見[寄信規格](../features/email-verification-worker.md)。
 
 ## Public data
 
 - SignupResult：`accountCreated: true, emailQueued: boolean, retryAfterSeconds: number`。
 - ResendVerificationEmailResult：`retryAfterSeconds: number`。
-- 頭像欄位過渡狀態（2026-10-19）：`users.avatar_url` 已移除。PublicUser 已加回 `avatar`；以下成員與候選人目前**仍不含頭像欄位**，將依 [avatar 規格 §0.2](avatar-processing-spec.md) 步驟 10 加回。
 - AvatarImageSet：`smallUrl: string | null, mediumUrl: string, largeUrl: string | null`；網址只含隨機 uploadId，不含 userId。
-- ProjectMemberDto：`memberId, displayName, role`；memberId 是 ProjectMember UUID，沒有 joinedAt。
+- 清單用的 `avatarUrl`（ProjectMemberDto、WorkspaceMemberDto、MemberCandidate）：`smallUrl ?? mediumUrl`，沒有頭像時為 null。
+- ProjectMemberDto：`memberId, displayName, role, avatarUrl`；memberId 是 ProjectMember UUID，沒有 joinedAt。
 - PublicUser：`email, displayName, avatar`；`avatar` 為 `AvatarImageSet | null`，沒有頭像時為 null。實際完整型別見 `packages/contracts/user.ts`。
 - WorkspaceDto：`id, name, createdAt, updatedAt`。
 - WorkspaceListItemDto：上述欄位加 `currentUserRole`。
-- WorkspaceMemberDto：`memberId, displayName, role`；memberId 是 membership UUID。
+- WorkspaceMemberDto：`memberId, displayName, role, avatarUrl`；memberId 是 membership UUID。
 - WorkspaceInvitationDetail：`invitationId, workspaceId, workspaceName, inviterName, role, status, expiresAt, respondedAt`；詳細型別見 `packages/contracts/workspaceInvitation.ts`。
 - ProjectListItemDto：`id, workspaceId, name, description, status, createdAt, updatedAt, pinnedAt`；只包含目前使用者是 ProjectMember 且 Project 未封存的資料，不包含 `currentUserRole`。`pinnedAt` 為 ISO 8601 字串或 null，來自目前使用者自己的 ProjectMember。
-- MemberCandidate：`workspaceMemberId, displayName, projectRole`；前端新增 Project member 時只提交 membership id，不取得內部 userId。
+- MemberCandidate：`workspaceMemberId, displayName, projectRole, avatarUrl`；前端新增 Project member 時只提交 membership id，不取得內部 userId。
 - ProjectMemberAddedNotificationDetail：`role, projectName, projectId, workspaceName, workspaceId, inviterName, joinedAt`；只由通知收件者取得，詳細型別見 `packages/contracts/project.ts`。
 - PublicNotification：`id, type, resourceType, resourceId, readAt, expiresAt, createdAt`；不包含 recipientUserId、actorUserId、dedupeKey、workspaceId 或 payload。`resourceId` 由 `type + resourceType` 導向對應的 domain detail API。
 - 日期以 ISO 8601 字串回傳；nullable 日期保留 null。
@@ -164,7 +167,7 @@ Auth response 目前沒有 token、jobId、驗證到期時間或 SMTP 寄送狀�
 | 邀請自己 | 400 / RequestError (4000) |
 | 已是成員、已有有效 PENDING 邀請、過期更新競爭失敗 | 409 / RequestError (4000) |
 
-邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO；找不到 invitation 時回 404 / ResourceNotFound (3001)，其餘非受邀者、已回覆或已過期等條件式更新筆數為 0 時回 409 / RequestError (4000)。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。另有每分鐘執行的背景 job 將已到期 PENDING invitation 改為 EXPIRED；操作端仍自行驗證 expiresAt，不依賴排程已執行。詳見[邀請與通知](workspace-invitation-notification.md)。
+邀請成功不會直接加入成員。接受與拒絕共用 UUID v4 `invitationId` DTO；找不到 invitation 時回 404 / ResourceNotFound (3001)，其餘非受邀者、已回覆或已過期等條件式更新筆數為 0 時回 409 / RequestError (4000)。接受成功會在同一 transaction 建立 WorkspaceMember；拒絕成功只寫入 DECLINED 與 respondedAt。另有每分鐘執行的背景 job 將已到期 PENDING invitation 改為 EXPIRED；操作端仍自行驗證 expiresAt，不依賴排程已執行。詳見[邀請與通知](../features/workspace-invitation-notification.md)。
 
 ## Notification 邊界
 
@@ -212,15 +215,15 @@ Project list 的存取錯誤如下：
 
 | Method / path | Request | 現況 response | 完成程度 |
 | --- | --- | --- | --- |
-| GET `/board/:projectId` | UUID path param | 200 / `BoardColumn[]` | 已查 DB，尚缺 Project membership 與 Project／Workspace archivedAt 授權檢查 |
+| GET `/board/:projectId` | UUID path param | 200 / `BoardColumn[]` | 已查 DB；2026-10-30 起只允許未封存 Project／Workspace 的 ProjectMember（含 VIEWER），否則 404 / ResourceNotFound (3001)。回傳格式將依 [Board 規格](../features/board.md) A-2 改為 `{ boardRevision, columns[].cards }` |
 | POST `/board/addColumn` | `{ projectId, title, colorKey }` | 201 / `{ column, boardRevision: string }` | 已檢查有效 Project OWNER／EDITOR，transaction 新增 Column 並遞增 revision |
 | PATCH `/board/moveColumn` | 型別定義有 projectId、columnId、beforeColumnId、afterColumnId、expectedBoardRevision | handler 是 200 / null 佔位 | 未呼叫 Service、未更新排序、未檢查 revision；DTO 無 validation decorators，非空 body 會被全域 whitelist 拒絕 |
 
-目前 BoardColumn 直接回傳 Prisma 資料：`id, projectId, title, colorKey, position, version, archivedAt, createdAt, updatedAt`，尚無 shared response DTO。GET 只過濾 Column.archivedAt=null，依 position ASC、updatedAt DESC 排序；不含 Project metadata、boardRevision 或 cards。找不到 Columns 時回空陣列。**目前只要通過 SessionGuard 並提供 Project ID 即可查其未封存 Columns，授權尚未完成。**
+目前 BoardColumn 直接回傳 Prisma 資料：`id, projectId, title, colorKey, position, version, archivedAt, createdAt, updatedAt`，尚無 shared response DTO。GET 只過濾 Column.archivedAt=null，依 position ASC、updatedAt DESC 排序；不含 Project metadata、boardRevision 或 cards。成員但所有 Columns 都已封存時回空陣列；非成員、Project 或 Workspace 已封存、Project 不存在一律 404 / ResourceNotFound (3001)，不透露 Project 是否存在。
 
 新增 Column 的 projectId 必須 UUID v4；title trim、非空且最多 80 字元；colorKey 限 coral／mint／amber／violet。position 設為未封存欄位的最大值加 1024（空集合從 1024 開始）。無 membership、VIEWER、Project 或 Workspace 已封存回 403 / RequestError；DTO 錯誤回 400 / ValidationError。
 
-前端 ProjectView 已呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；cards 暫填空陣列。VueDraggable 只更改本機順序，重新載入會回到 DB 順序。Card schema／API、Column 更新／封存、持久化拖曳及 project room 同步尚未完成。`GET /project/:projectId/board` 仍是[目標規格](board-api-websocket-spec.md)，不能當作現有路徑。
+前端 ProjectView 已呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；cards 暫填空陣列。VueDraggable 只更改本機順序，重新載入會回到 DB 順序。Card schema／API、Column 更新／封存、持久化拖曳及 project room 同步尚未完成。Board 的後續 API（Card 新增／編輯／封存／移動）以 [Board 規格](../features/board.md) 為準；舊規格中的 `GET /project/:projectId/board` 已不採用，沿用 `GET /board/:projectId`。
 
 Project 成員清單補充：`GET /project/:projectId/members` 無 membership 或 Project 已封存時拋一般 NotFoundException，經 Filter 回 404 / RequestError (4000)，目前不是 ResourceNotFound (3001)；Service 尚未拒絕 Workspace 已封存的情況。
 
@@ -230,4 +233,4 @@ Swagger 位於 `/api/docs`。既有 Auth／User／Workspace／Invitation／Notif
 
 Auth 手寫 error schema 已改為 object，但 additionalProperties 仍描述成字串陣列，實際應是 `{ value, messages }` 的 FieldError。可重用 typed response decorators 尚未完成，因此目前以本文件、contracts 和執行程式共同核對 API，不把 Swagger 視為完整唯一真相。
 
-尚未實作的功能包括：Google OAuth、忘記／重設密碼、修改帳號 Email、寄信狀態查詢、通知 query DTO、邀請取消、Workspace／Project 成員角色調整與移除、Project detail／編輯／封存、完整 Board snapshot、Card API 與協作拖曳。分批優先順序與 SVG 設計邊界見[設計前功能盤點](feature-readiness.md)。
+尚未實作的功能包括：Google OAuth、忘記／重設密碼、修改帳號 Email、寄信狀態查詢、通知 query DTO、邀請取消、Workspace／Project 成員角色調整與移除、Project detail／編輯／封存、完整 Board snapshot、Card API 與協作拖曳。分批優先順序與 SVG 設計邊界見[進度與已知缺口](../progress.md)。

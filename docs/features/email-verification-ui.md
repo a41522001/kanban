@@ -14,7 +14,7 @@
 | `design/auth-email-verify-loading.svg` | 點擊信件後等待驗證 API | 同區塊 Loading |
 | `design/auth-email-verify-success.svg` | 驗證成功後返回登入 | 同區塊 Success |
 
-四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；前端已完成 Ready／Cooldown／Loading／Success、錯誤 Dialog 與基本響應式排版。來源與輸出清單見 [design 索引](../design/README.md)及 [Plugin manifest](../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
+四張均為 Desktop 1440 × 900。既有 Figma `Flowboard — Native Design System` 已透過原生 Generator v14 產生三組 Component Sets 與四張 Screen Frames，專用動作連續執行兩次成功；前端已完成 Ready／Cooldown／Loading／Success、錯誤 Dialog 與基本響應式排版。來源與輸出清單見 [design 索引](../../design/README.md)及 [Plugin manifest](../../figma-plugin/README.md#v14-email-verification-source-to-output-manifest)。
 
 ### 錯誤處理與前端接線規格（2026-09-28）
 
@@ -50,12 +50,12 @@
 
 | 來源 | 本次用途 |
 | --- | --- |
-| [目前驗證信實作](email-verification-worker-spec.md)及 backend 原始碼 | 現況；本文的新 API 與行為不可冒充已完成 |
-| [前端設計規則](frontend-design-guidelines.md)及 frontend/src/styles/index.css | 元件、色彩、字體、尺寸與互動規則 |
-| [design 索引](../design/README.md)與 Current Auth SVG | 現有登入／註冊視覺基準；archive 不使用 |
-| [Figma 流程](figma-ui-design-workflow.md)及 [Plugin](../figma-plugin/README.md) | 更新既有 Generator 與既有 Flowboard — Native Design System |
-| [.agents 設計 skill](../.agents/skills/figma-plugin-native-design/SKILL.md) | 原生 Figma nodes、components、Auto Layout、manifest 與驗收 |
-| [現有前端 Auth](frontend-auth-plan.md)及 frontend/src | 登入、註冊、Session 與錯誤處理的接入位置 |
+| [目前驗證信實作](email-verification-worker.md)及 backend 原始碼 | 現況；本文的新 API 與行為不可冒充已完成 |
+| [前端設計規則](../guides/frontend-design.md)及 frontend/src/styles/index.css | 元件、色彩、字體、尺寸與互動規則 |
+| [design 索引](../../design/README.md)與 Current Auth SVG | 現有登入／註冊視覺基準；archive 不使用 |
+| [Figma 流程](../guides/figma-workflow.md)及 [Plugin](../../figma-plugin/README.md) | 更新既有 Generator 與既有 Flowboard — Native Design System |
+| [.agents 設計 skill](../../.agents/skills/figma-plugin-native-design/SKILL.md) | 原生 Figma nodes、components、Auto Layout、manifest 與驗收 |
+| [現有前端 Auth](auth-frontend.md)及 frontend/src | 登入、註冊、Session 與錯誤處理的接入位置 |
 
 保留目前實作文件作為現況；本提案核准並逐項落地後，再同步相關功能文件。
 
@@ -212,11 +212,11 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 | 有效期限文案 | Worker 用 VERIFY_MAIL_EXPIRE_MINUTE，只有信件提供分鐘數；HTTP 未回傳到期時間 | SVG 先寫「請在信件標示的期限內完成驗證」；若需精確數字再擴充 contract |
 | 已登入狀態 | 已有 User Store 與 logout | 公開驗證頁保留 Session；切換帳號必須明確操作 |
 
-前端根據 ApiCode 切換狀態，不比對 message 字串。上述後端 contracts 已實作；細節見 email-verification-worker-spec.md。UI / SVG / Figma 仍依本提案審查後再生成。
+前端根據 ApiCode 切換狀態，不比對 message 字串。上述後端 contracts 已實作；細節見 features/email-verification-worker.md。UI / SVG / Figma 仍依本提案審查後再生成。
 
 ## API 與畫面狀態對照（靜態盤點）
 
-以下沿用 [目前 HTTP API](http-api.md#auth-api-詳細規格)，不是新增 API 的提案。
+以下沿用 [目前 HTTP API](../reference/http-api.md#auth-api-詳細規格)，不是新增 API 的提案。
 
 | API 結果 | 設計狀態 | 前端注意事項 |
 | --- | --- | --- |
@@ -233,7 +233,7 @@ Vue 建議對應 EmailVerificationNoticeView、EmailVerificationResultView；Not
 
 既有 request-error manifest 應在 Figma / Vue 中保留「欄位錯誤、冷卻中的服務失敗、網路失敗」差異，不能把 503 的倒數丟掉。無 token 頁面由前端直接顯示 unavailable。頁面重新整理、瀏覽器返回或跨分頁完成驗證也需保留登入入口。
 
-此節是原提案的狀態清單；目前前端 service functions、路由、狀態分流、暫存／倒數與 i18n 已實作。Google 登入與忘記密碼尚無 API；Workspace／Board 等全站缺口見 [功能盤點](feature-readiness.md)。
+此節是原提案的狀態清單；目前前端 service functions、路由、狀態分流、暫存／倒數與 i18n 已實作。Google 登入與忘記密碼尚無 API；Workspace／Board 等全站缺口見 [進度與已知缺口](../progress.md)。
 
 ## 審查與交付階段
 

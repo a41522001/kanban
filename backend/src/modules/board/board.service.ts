@@ -63,8 +63,18 @@ export class BoardService {
   }
 
   /** 取得看板欄 */
-  async getBoardColumn(projectId: string, _userId: string) {
-    const result = await this.boardRepository.getAllBoardColumn(projectId);
+  async getBoardColumn(projectId: string, userId: string) {
+    const result = await this.boardRepository.getAllBoardColumn(
+      projectId,
+      userId,
+    );
+    if (result === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到專案或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
     return result;
   }
 

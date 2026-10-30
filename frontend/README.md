@@ -43,8 +43,5 @@ Build 同時執行 vue-tsc 與 Vite build；pre scripts 會先編譯共用 contr
 - Session ID 不放在 localStorage；protected route 恢復 Session 後會連接 Socket.IO 並啟動通知監聽，登出或 HTTP Session 失效時會停止監聽並斷線。Socket `connect_error`、rotation 與 reconnect resync 尚未完成。
 - Google 登入、忘記密碼與帳號設定尚未完成；通知選單尚未提供分頁操作。Backend 通知 read model 未回傳邀請最終狀態，因此整頁重新整理後無法單靠通知資料還原已接受／婉拒 UI。
 
-通知手動驗收（2026-09-12）已確認單筆已讀、全部已讀、接受邀請與婉拒邀請皆可正常完成；已讀操作集中於 `components/notifications/NotificationReadAction/`，並由 Notification Store 統一管理 optimistic 更新、重試與未讀數同步。
+更多說明見 [Auth](../docs/features/auth-frontend.md)、[邀請與通知](../docs/features/workspace-invitation-notification.md)、[UI 守則](../docs/guides/frontend-design.md)。
 
-更多說明見 [Auth](../docs/frontend-auth-plan.md)、[邀請與通知](../docs/workspace-invitation-notification.md)、[UI 守則](../docs/frontend-design-guidelines.md)。
-
-文件最後核對：2026-09-21。2026-09-20 的完整 Frontend baseline 為 13 個 test files／39 tests、type-check、production build 與 ESLint 通過；2026-09-21 另驗證 Project service／store 2 files／8 tests 與 `vue-tsc --build` 通過，涵蓋 pin request、`pinnedAt` optimistic update 與排序。Project 頁已由 `BoardView` 更名為 `ProjectView`，route 改為 `/projects/:projectId`。後端 BoardColumn 已建模，但 Board snapshot API 仍未實作；現有 mock type 中的 `boardId` 只是待串接時改成 `projectId` 的暫時欄位。Vite main chunk 與 Oxlint 等完整 baseline 缺口沿用 [progress](../docs/progress.md) 紀錄。

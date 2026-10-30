@@ -22,7 +22,7 @@
 | 待實作時確認 | Cloudflare 連到 GCS bucket 的方式（bucket 命名是否需等於網域、網域擁有權驗證、HTTPS 設定）在步驟 11 對照 GCP 與 Cloudflare 官方文件決定 | 細節尚未查證，不影響本機開發的步驟 3–10 |
 | 三層檢查 | 前端（體驗）→ Multer declared MIME 與 5 MiB → Sharp 實際解碼 | 前兩層可被繞過，只有 Sharp 可信；`validate` 只讀檔頭，損壞檔到 `render` 才失敗，也要回 400 |
 | 上傳次數限制 | 每人每分鐘 5 次，Redis `INCR` + 首次 `EXPIRE 60`，做成 Guard，排在 SessionGuard 之後、Multer 之前 | 超過限制時不讀取檔案內容 |
-| 設定 | 目前只有 `AVATAR_STORAGE_ROOT`、`AVATAR_TEMP_ROOT`、`AVATAR_PUBLIC_BASE_URL` 是環境變數；其餘為 `backend/src/avatar/avatar.constants.ts` 與 `packages/contracts/avatar.ts` 的常數。步驟 11 將新增儲存切換開關與兩個 bucket 名稱的環境變數 | 取代 §8 |
+| 設定 | 目前只有 `AVATAR_STORAGE_ROOT`、`AVATAR_TEMP_ROOT`、`AVATAR_PUBLIC_BASE_URL` 是環境變數；其餘為 `backend/src/modules/avatar/avatar.constants.ts` 與 `packages/contracts/avatar.ts` 的常數。步驟 11 將新增儲存切換開關與兩個 bucket 名稱的環境變數 | 取代 §8 |
 | 路由名稱 | 由 `/user/me/avatar` 改為 `/user/avatar` | 專案不提供以 userId 指定使用者的路由，`me` 沒有需要區分的對象；與既有 `/user/userInfo` 風格一致 |
 | 路由前綴 | API 為 `/v1/api/user/avatar`；開發環境的 `/media` 由 static middleware 提供，不屬於 controller 路由；正式環境不提供 `/media` | 取代 §4.1「沒有前綴」 |
 
@@ -411,9 +411,9 @@ interface StorageService {
 
 `.gitignore` 加入 `backend/storage/`，禁止提交使用者圖片。
 
-## 9. Redis 連線調整（必要前置）
+## 9. Redis 連線調整（2026-10-21 已完成）
 
-目前 `RedisService.createBullMQConnection()` 回傳同一個 `mqRedisClient`，而 `QueueService` 與 `WorkerService` 的 `onModuleDestroy` 都會呼叫 `destroyBullMqConnection()`。新增 Avatar queue 之後，同一條連線會被多個 provider 重複 `quit`。
+修正前，`RedisService.createBullMQConnection()` 回傳同一個 `mqRedisClient`，而 `QueueService` 與 `WorkerService` 的 `onModuleDestroy` 都會呼叫 `destroyBullMqConnection()`。新增 Avatar queue 之後，同一條連線會被多個 provider 重複 `quit`。
 
 調整方式：
 
@@ -486,55 +486,24 @@ interface StorageService {
 - 320px 寬度下仍可操作；cropper 在手機上支援觸控拖曳與縮放。
 - Vue SFC 順序為 template → script setup lang=ts → style scoped；樣式沿用 Tailwind v4 CSS-first tokens。
 
-## 12. 檔案變更計畫
+## 12. 檔案位置
 
-### 12.1 新增
+> 2026-10-30：原本的「檔案變更計畫」是實作前的規劃（資料夾重構前的路徑，且部分檔案最後沒有建立），步驟 0–10 完成後改為目前實際的檔案位置。
 
-```text
-packages/contracts/avatar.ts
-backend/prisma/migrations/<timestamp>_add_avatar/migration.sql
-backend/src/avatar/
-  avatar.module.ts
-  avatar.controller.ts
-  avatar.service.ts
-  avatar.repository.ts
-  avatarRateLimit.guard.ts
-  avatarQueue.service.ts
-  image/imageProcessing.service.ts
-backend/src/storage/
-  storage.module.ts
-  storage.tokens.ts
-  storage.types.ts
-  localStorage.service.ts
-backend/src/worker/avatarWorker.service.ts
-backend/src/worker/avatarMaintenance.service.ts
-frontend/src/services/avatar.ts
-frontend/src/components/account/AvatarSettingsDialog/AvatarSettingsDialog.vue
-```
-
-### 12.2 修改
-
-| 路徑 | 目的 |
+| 位置 | 內容 |
 | --- | --- |
-| `backend/prisma/schema.prisma` | 依 §3 修正工作區草稿 |
-| `backend/src/config/env.ts`、`.env.example`、`.env.e2e.example` | Avatar 設定 |
-| `backend/src/main.ts` | 掛上 `/media` static middleware |
-| `backend/src/app.module.ts` | 註冊 `AvatarModule`、`StorageModule` |
-| `backend/src/redis/redis.service.ts`、`redis.keys.ts` | 依 §9 調整連線 ownership；新增 `rateLimitAvatarUpload` key |
-| `backend/src/queue/queue.service.ts`、`worker/worker.service.ts` | 移除 `destroyBullMqConnection()` 呼叫；移除 `console.log(job)`／`job.data` |
-| `backend/src/worker/worker.module.ts` | 加入 `ScheduleModule`、`PrismaModule`、`StorageModule` 與 Avatar worker providers |
-| `backend/src/user/*`、`workspaces/*`、`project/*`、`notification/*` | 改用 `avatar` relation 投影 URL；移除 `updateAvatar` |
-| `backend/package.json` | `sharp`、`@types/multer` |
-| `packages/contracts/api.ts`、`user.ts`、`package.json` | ApiCode 6001–6005、`PublicUser.avatar`、avatar export |
-| `frontend/package.json` | `vue-advanced-cropper` |
-| `frontend/src/types/index.ts`、`services/http.ts` | `ApiOption.timeout` |
-| `frontend/src/stores/user.ts` | `setAvatar` |
-| `frontend/src/components/shared/Avatar/Avatar.vue` | 真正顯示圖片與 fallback |
-| `frontend/src/components/account/UserMenu/UserMenu.vue` | 入口與傳入 src |
-| `frontend/src/components/project/ProjectMembers/*`、`ProjectAddMemberDialog/*` | 改用共用 Avatar |
-| `frontend/src/i18n/locales/zh-TW.ts`、`en.ts` | 文案 |
-| `.gitignore` | `backend/storage/` |
-| `docs/http-api.md`、`database-schema.md`、`progress.md` | 實作完成後同步 |
+| `packages/contracts/avatar.ts` | `AvatarImageSet`、尺寸與 MIME 等共用常數 |
+| `backend/prisma/migrations/20260930153339_add_avatar_model/` | `avatars` 表，移除 `users.avatar_url` |
+| `backend/src/modules/avatar/` | controller、service、repository、`avatarRateLimit.guard.ts`、`avatar.constants.ts`、`image/imageProcessing.service.ts` |
+| `backend/src/common/exceptions/avatar.exception.ts` | `InvalidAvatarImageException`、`UnsupportedAvatarTypeException`、`AvatarStorageUnavailableException` |
+| `backend/src/infrastructure/storage/` | `StorageService` 介面、`MEDIA_STORAGE`／`TEMP_STORAGE` token、`LocalStorageService` |
+| `backend/src/infrastructure/queue/queue.service.ts` | avatar queue 與 `addAvatarQueue` |
+| `backend/src/worker/avatarWorker.service.ts` | 產生 sm／lg 的 Worker |
+| `backend/src/main.ts` | 開發環境的 `/media` static serving |
+| `frontend/src/services/avatar.ts` | 上傳、刪除 API |
+| `frontend/src/components/shared/Avatar/` | 共用頭像元件（圖片與首字 fallback） |
+| `frontend/src/components/account/AvatarSettingsDialog/` | 裁切與上傳的對話框 |
+| `bruno/User/` | `UploadAvatar*`、`DeleteAvatar`、`GetAvatarImage` |
 
 ## 13. 測試與驗收
 
@@ -550,7 +519,7 @@ frontend/src/components/account/AvatarSettingsDialog/AvatarSettingsDialog.vue
 | LocalStorageService | 原子寫入、path traversal 被拒、刪除不存在的目錄視為成功 |
 | RedisService | 多個 consumer 關閉時不重複 quit |
 
-### 13.2 E2E（`backend/test/avatar.e2e.spec.ts`，真實 PostgreSQL／Redis／BullMQ／Sharp）
+### 13.2 E2E（尚未建立；規劃為 `backend/test/avatar.e2e.spec.ts`，真實 PostgreSQL／Redis／BullMQ／Sharp）
 
 1. 上傳 PNG → 200 且只有 `mediumUrl` → 啟動 worker 後，`userInfo` 的 small／large 都存在，檔案實際可經由 `/media` 讀取。
 2. 未登入 401、超過 5 MiB 413、錯誤 MIME 415、假圖 400、第 6 次 429。

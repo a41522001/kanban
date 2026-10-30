@@ -72,9 +72,9 @@ type SocketAck<T> =
 - Workspace 使用 `workspace:{workspaceId}` room。Client 只能提出 `workspace:into`／`workspace:leave`，Server 在加入前透過 `WorkspacesService.findMembership()` 驗證 userId 對應的有效 WorkspaceMember 與 archivedAt；client 不可自行選擇 user room。
 - `workspace:memberChanged` 只傳 `{ workspaceId }` 作為 invalidation signal；目前 Workspace View 收到後重新呼叫成員清單 API。
 - Project Board room 命名統一為 `project:{projectId}`；Project 是 Board aggregate root，沒有 Board ID。
-- joinBoard 前由 Board 找到 Project，再確認使用者具有有效的 ProjectMember。
-- 每一個 mutation event 都再次確認資源權限，不能只依賴已加入 room。
-- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Project room；disconnect 時由 Socket.IO 自動清除連線 room。BoardColumn schema 已建立，但 room 尚未實作，此項仍是目標行為。
+- 加入 project room 前，以 `projectId` 確認使用者是該 Project 的有效成員（含 VIEWER），Project 與 Workspace 皆未封存。
+- 不能只依賴已加入 room 來授權修改。依 [Board 規格](../features/board.md) §7 的提案，Board 的修改走 HTTP，由 HTTP 端點逐次檢查權限，Socket 只負責廣播；若日後改用 Socket 指令，每一個指令都必須再次確認資源權限。
+- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Project room；disconnect 時由 Socket.IO 自動清除連線 room。project room 尚未實作，將於 Board 階段 C 完成。
 - 成功寫入 DB 並 commit 後，才向 room broadcast domain event。
 
 ## 6. 重連與資料恢復
@@ -85,8 +85,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 
 1. reconnect 後重新驗證 Session。
 2. 重新授權並加入目前 `project:{projectId}` room。
-3. 傳送 client 已知的 board version 或 lastEventId。
-4. 若 server 無法補齊事件，要求 client 重新抓 snapshot。
+3. 前端比對 `boardRevision`：發現跳號或剛重連，就重新載入整個看板（[Board 規格](../features/board.md) §7）。
 
 第一版可採簡化方案：任何重連成功都重新查詢目前 Board snapshot；資料量變大後再導入 event replay。
 

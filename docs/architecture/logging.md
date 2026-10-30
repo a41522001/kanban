@@ -115,6 +115,12 @@ this.logger.error(
 | L6 | Seq：`compose.yml` 加 `seq` 服務、`SEQ_URL`、`pino-seq`（先驗證 ESM 相容性） | ✅ 2026-10-27：L6-1 `compose.yml` 加 `datalust/seq:2026.1`（`ACCEPT_EULA`、`env_file` 讀 `SEQ_FIRSTRUN_ADMINPASSWORD`、volume `kanban-seq`、`5341:80`）；明碼初始密碼在第一次登入時一定會被要求更改（官方設計）。L6-2 `env.ts` 加可選的 `SEQ_URL: z.url().optional()`，`.env.example` 以註解提供（空字串會驗證失敗）。L6-3a `loggerFactory` 改為 async，pino-pretty 由 `transport` 改為 stream（僅開發時 `import()`），輸出改用 `pinoHttp: [設定, pino.multistream(...)]`；設定寫在陣列第一個位置以保留參數型別推導；multistream 每個目的地都指定 `level`（預設為 info）。L6-3b 有 `SEQ_URL` 時以 `await import('pino-seq')` 加入 Seq 目的地。單元測試指令加上 `--experimental-vm-modules`（Jest 預設不支援動態 `import()`，與 E2E 一致）。`worker/main.ts` 改用 `@nestjs/common` 的 `Logger` 寫 log（直接用 nestjs-pino `Logger` 時訊息會被當成 context）。L6-4 Seq 接受無 API key 的事件（201）；使用者以 Seq 後台確認 API 的 request log 進入 Seq，`service`、`req.id`（與 `X-Request-Id` 相同）、`hostname`、`pid` 為獨立欄位，Cookie 與 Set-Cookie 為 `[REDACTED]`。已知限制：pino-seq 先暫存再分批送出，程序被強制結束時最後一小段 log 可能遺失 |
 | L7 | 測試：redaction、Filter 5xx／4xx、Worker 失敗 log（Q15） | ✅ 2026-10-27：新增 `config/logger.config.spec.ts`（13 個：以真正的 pino 驗證 Cookie、Authorization、密碼、Set-Cookie 被遮住；`service`／`pid`／`hostname`；`genReqId` 產生 UUID、寫入 `X-Request-Id` 且不採用請求自帶的值；`customLogLevel` 對應表；開發／正式環境差異）。`httpException.filter.spec.ts` 新增 8 個（5xx 記錄 `cause` 與 `event` 且回應不含原始錯誤；無 `cause` 時記錄 exception 與預設 event；非 AppException 的 5xx；400／401／429／404／413 不記錄）。新增 `worker/jobLogFields.spec.ts`（3 個）、`avatarWorker.service.spec.ts` 新增 4 個 `completed`／`failed` 事件測試，`emailWorker.service.spec.ts` 由 skip 的空殼改為 7 個實際測試（含處理過程不記錄 token 與 email）。以暫時改壞程式確認測試能抓到退步 |
 
+### 9.1 上線前待辦（2026-10-28 延後）
+
+- `compose.yml` 的 `seq` 服務不要用 `env_file: ./backend/.env`（會把資料庫連線、SMTP 密碼等全部機密放進 Seq 容器），改為只以 `environment` 傳入 `SEQ_FIRSTRUN_ADMINPASSWORD`。
+- ESLint `no-console` 由 `warn` 改為 `error`，讓 CI 擋下 `console.*`（Q6 要求強制）。
+- 換電腦或重建 `backend/.env` 時須手動加上 `SEQ_URL`；`.env.example` 中為註解，直接複製不會生效。
+
 ## 10. 測試（Q15）
 
 只測容易出錯又重要的部分，不逐筆測 log 內容：

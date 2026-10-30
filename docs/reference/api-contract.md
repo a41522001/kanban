@@ -1,6 +1,6 @@
 # API Contract 與錯誤處理規格
 
-最後靜態核對：2026-09-27。現行端點見[目前 HTTP API](http-api.md)。本文件中的規範與驗收條件包含尚未完成的目標；多數既有 Controller class 已有 Swagger tag／auth，部分 Board metadata 尚缺；多數既有 handlers 有 operation／主要 response 描述與 request DTO metadata。新 Project pin handler 尚缺 endpoint-specific metadata，共用 response envelope decorator 仍待實作。
+最後核對：2026-10-30。現行端點見[目前 HTTP API](http-api.md)。本文是 API 的**規範**（response 格式、錯誤碼、驗證規則）；其中仍有尚未完成的目標，Swagger metadata 的缺口見[進度](../progress.md)。
 
 ## 1. 目標
 
