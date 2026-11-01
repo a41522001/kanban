@@ -1,6 +1,6 @@
 /**
  * 應用程式 log 的 event 代號。
- * 格式為「模組.動作.結果」，全小寫，以 `.` 分層、單字間用 `_`（見 docs/logging-plan.md §4.2）。
+ * 格式為「模組.動作.結果」，全小寫，以 `.` 分層、單字間用 `_`（見 docs/architecture/logging.md §4.2）。
  * 新增 event 時先在這裡加一行，再於 log 或 AppException 使用，避免打錯字與同義不同名。
  */
 export const LOG_EVENTS = {

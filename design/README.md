@@ -4,7 +4,7 @@ SVG 是 **Visual Reference**；最終設計稿必須由 Plugin 重新建立為�
 
 ## 2026-09-28 功能現況與設計範圍
 
-Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；前端提示、重寄、驗證與錯誤 Dialog 已完成，手機響應式由 Vue 實作，沒有另建手機版 SVG。規格參考見 [驗證信設計與實作](../docs/email-verification-ui-plan.md)、[功能盤點](../docs/feature-readiness.md)與 [HTTP API](../docs/http-api.md)。
+Current 表示目前採用的視覺參考，不代表畫面中的每項操作都已串接後端。驗證信四個 Desktop 主狀態已加入 Current SVG 與 Figma v14；前端提示、重寄、驗證與錯誤 Dialog 已完成，手機響應式由 Vue 實作，沒有另建手機版 SVG。規格參考見 [驗證信設計與實作](../docs/features/email-verification-ui.md)、[進度與已知缺口](../docs/progress.md)與 [HTTP API](../docs/reference/http-api.md)。
 
 - Signup 已排信，前端已處理 201 正常入列與部分成功分流，並提供信件驗證頁；使用者已回報前後端流程實測成功。
 - Project members API 回 memberId、displayName、avatarUrl、role，沒有 joinedAt；overview 的加入時間只能作為未來設計，不可直接使用不存在欄位。
@@ -130,7 +130,7 @@ Card
 
 ## Avatar settings contract（2026-10-19 使用者確認）
 
-依 [avatar 規格 §0](../docs/avatar-processing-spec.md) 與 §11 前端規格設計；已確認並加入 Figma Generator v15，前端依 Figma 實作。
+依 [avatar 規格 §0](../docs/features/avatar.md) 與 §11 前端規格設計；已確認並加入 Figma Generator v15，前端依 Figma 實作。
 
 - 入口：Header Avatar 開啟既有 UserMenu（`account/UserMenu`），新增可用項目「更換頭像」，位於 disabled 的「帳號設定」上方。選取後關閉 Menu 再開啟 Dialog，Dialog 關閉時焦點回到 Header Avatar。
 - Dialog 對應 `shadcn-vue/Dialog`；Desktop 置中 `520px`，Mobile 使用 `358px` inset Dialog 並保留 `16px` gutter。Desktop 動作高度 `44px`，Mobile `48px`，Mobile 的「上傳」為獨立一列的全寬主要按鈕。

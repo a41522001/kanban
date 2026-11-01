@@ -1,6 +1,6 @@
 # Security Checklist
 
-最後靜態核對：2026-09-20。已完成項目只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未完成。
+最後核對：2026-10-30。已勾選只代表目前程式具有對應機制；涉及 production、跨站部署或未執行 integration test 的條目仍維持未勾選。本清單是「規則只寫規則」的例外：勾選狀態本身就是檢查結果，未勾選項目即為目前的安全缺口（[進度](../progress.md)會連到這裡）。
 
 ## 1. 使用方式
 
@@ -37,7 +37,7 @@
 - [ ] DTO 對 email、password、UUID、字串長度與必要欄位有明確限制。
 - [ ] Nested DTO 使用 ValidateNested 與 Type。
 - [ ] 不直接把 request body 傳給 Prisma，避免 mass assignment。
-- [ ] 檔案、URL、富文字與 Markdown 等輸入另做類型專用驗證。
+- [ ] 檔案、URL、富文字與 Markdown 等輸入另做類型專用驗證。頭像上傳已完成（declared MIME、5 MiB 上限、Sharp 解碼驗證真實格式與尺寸、只輸出重新編碼的 WebP 並去除 EXIF）；其他類型尚無。
 - [x] Validation error 的 value 經過遮蔽，不回傳 password、token 等敏感值。
 - [ ] 對大型 payload 設定 body size limit。
 
@@ -55,7 +55,7 @@
 - [x] 公開 HTTP／Socket contract 不回傳內部 `User.id`／`userId`；Project member candidate 只公開 `workspaceMemberId`，Service 再明確投影 public DTO 欄位。
 - [ ] 補 Project create／addMember／pin 的未登入、非 OWNER 或非成員、跨 Workspace、他人通知存取、transaction rollback 與真實 P2002 併行 E2E；目前 Service／Controller unit tests 與第一版 happy-path／重複加入 409 E2E 已通過。
 - [ ] 前端 Store reset 後應忽略或取消舊 request，避免登出／切換帳號後舊資料回寫。
-- [ ] 查詢 Board snapshot、Column、Card 時透過 `Project → ProjectMember` 驗證權限，並驗證 Column／Card 的 Project scope，避免 BOLA/IDOR。
+- [ ] 查詢 Board snapshot、Column、Card 時透過 `Project → ProjectMember` 驗證權限，並驗證 Column／Card 的 Project scope，避免 BOLA/IDOR。2026-10-30 `GET /board/:projectId` 已完成（非成員 404）；Card 待 [Board 規格](../features/board.md) 階段 A。
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
 - [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
 - [ ] 修改、刪除與邀請成員等敏感操作有 audit log。
@@ -67,14 +67,14 @@
 - [ ] 錯誤有穩定 code，message 可調整但不作為前端邏輯依據。
 - [ ] 401、403、404 的使用策略一致，避免洩漏不該知道的資源存在性。
 - [x] Global Exception Filter 由 `APP_FILTER` 註冊，能處理未知 exception 並回一致格式。
-- [ ] 每個 request 有 requestId，可與 log 對照。
+- [x] 每個 request 有 requestId，可與 log 對照（server 產生 UUID，回應帶 `X-Request-Id`）。
 - [ ] Security headers 由 Helmet 或 reverse proxy 統一設定。
 
 ## 7. Socket.IO
 
 - [x] Handshake 由 middleware 驗證 Cookie 與 Redis Session，並把 userId 寫入 `socket.data`。
 - [x] 現有 echo／notification flow 不接受 payload 中的 userId、role 或 resource owner；user room 由 server 組成。
-- [ ] Handshake 必須避免觸發無法回寫 Cookie 的 Session rotation；現行 middleware 直接呼叫 `authenticateSession()` 並忽略 `rotatedSessionId`。
+- [x] Handshake 避免觸發無法回寫 Cookie 的 Session rotation：middleware 改用 `authenticateSocketSession()`，不會輪轉。
 - [x] Workspace room join 會由 server 依 `socket.data.userId` 驗證 WorkspaceMember 與 archivedAt；client 只能提出 Workspace ID，不能指定 user room。
 - [ ] 每個 mutation event 都重新做 resource authorization；目前 Board／Project Socket commands 尚未實作。
 - [ ] Event payload 有 validation 與大小限制。
@@ -96,7 +96,7 @@
 
 ## 9. Secrets 與設定
 
-- [ ] .env 已加入 .gitignore，repository 只提交 .env.example。
+- [x] .env 已加入 .gitignore，repository 只提交 .env.example。
 - [ ] CI/CD secrets 不寫入 image layer、artifact 或 log。
 - [ ] Production secrets 與 development secrets 完全分離。
 - [ ] Secret rotation 有操作流程，不依賴修改原始碼。
@@ -105,16 +105,16 @@
 
 ## 10. Logging 與個資
 
-- [ ] 不記錄 password、passwordHash、Cookie、Session ID、Authorization header。
-- [ ] Email 等識別資料只在必要情境記錄，並考慮遮蔽或 hash。
-- [ ] Structured log 有 level、timestamp、requestId、event、duration。
+- [x] 不記錄 password、passwordHash、Cookie、Session ID、Authorization header（pino redact；規則見 [Logging](../architecture/logging.md) §6）。
+- [x] Email 等識別資料只在必要情境記錄，並考慮遮蔽或 hash：log 一律以 `userId` 識別，不記 email。
+- [x] Structured log 有 level、timestamp、requestId、event、duration（HTTP 由 pino-http 記錄 responseTime；job 為 `durationMs`）。
 - [ ] Log retention、讀取權限與刪除週期明確。
 - [ ] Authentication、authorization 與管理操作有安全事件 log。
 - [ ] Log injection 字元與過長輸入受到限制。
 
 ## 11. Dependency、Container 與主機
 
-- [ ] pnpm lockfile 提交版本控制，CI 使用 frozen lockfile。
+- [x] pnpm lockfile 提交版本控制，CI 與兩個 Dockerfile 使用 `--frozen-lockfile`。
 - [ ] 定期執行 dependency audit 並處理高風險漏洞。
 - [ ] Docker image 使用固定版本，不依賴 floating latest。
 - [ ] Container 以 non-root user 執行。

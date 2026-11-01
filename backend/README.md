@@ -33,15 +33,15 @@ pnpm test:backend:e2e
 
 先依根 README 啟動資料庫並建立 env。開發新 schema 時另產生可審閱的 migration；上述 `migrate deploy` 只套用既有 migration。Prisma config 依 `E2E_ENV=true` 選擇 `.env.e2e`，其餘使用 `.env`。
 
-Build／start／test 的 pre scripts 會先建置共用 contracts。Production entry 為 `node dist/src/main.js`；目前 Compose 不包含 backend deployment。
+Build／start／test 的 pre scripts 會先建置共用 contracts。Production entry 為 `node dist/src/main.js`，worker 為 `node dist/src/worker/main.js`；正式環境以 `compose.prod.yml` 部署，見 [部署](../docs/operations/deployment.md)。
 
 ## API 與限制
 
-預設 HTTP port 4001；Swagger 位於 `/api/docs`。API 沒有全域 `/api` 前綴。Workspace／Notification／userInfo 使用 SessionGuard；logout 無 Guard，會嘗試撤銷傳入 Cookie 並在 finally 清除 Cookie。
+預設 HTTP port 4001；REST API 全域前綴為 `/v1/api`（Swagger 不在前綴下，位於 `/api/docs`）。Workspace／Notification／userInfo 使用 SessionGuard；logout 無 Guard，會嘗試撤銷傳入 Cookie 並在 finally 清除 Cookie。
 
-- [現行 HTTP API](../docs/http-api.md)
-- [邀請與通知 transaction、併發限制](../docs/workspace-invitation-notification.md)
-- [Session 架構](../docs/session-architecture.md)
-- [測試範圍與未完成項目](../docs/testing-strategy.md)
+- [現行 HTTP API](../docs/reference/http-api.md)
+- [邀請與通知 transaction、併發限制](../docs/features/workspace-invitation-notification.md)
+- [Session 架構](../docs/architecture/session.md)
+- [測試策略與執行方式](../docs/guides/testing.md)
+- [目前進度與已知缺口](../docs/progress.md)
 
-文件最後核對：2026-09-21。2026-09-20 的完整 Backend baseline 為 19 suites／114 tests 與既有 coverage；2026-09-21 Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests、contracts／Backend build 與隔離 E2E 4 suites／9 tests 通過，13 個 migrations 可從空資料庫套用。Project create E2E 已經過含 BoardColumn 的 nested write，但仍需補預設四欄內容／順序的直接 assertion 與 rollback test。Pin endpoint 亦尚缺 HTTP E2E 與 endpoint-specific Swagger response metadata。

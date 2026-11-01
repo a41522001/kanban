@@ -1,6 +1,16 @@
 # Backend 與 Frontend 測試策略
 
-最後檢視：2026-09-21。2026-09-20 完整 Backend build／19 suites／114 tests／coverage 與 Frontend 13 files／39 tests／build baseline 見 [progress](progress.md)；2026-09-21 另驗證 Project Service／Controller 2 suites／36 tests、BoardColumn DTO 6 tests、Frontend Project service／store 2 files／8 tests、Frontend type-check，以及套用 13 個 migrations 的隔離 E2E 4 suites／9 tests。Project create flow 通過，但尚未直接斷言四個預設 Columns 的內容／順序或 rollback。
+本文只寫測試策略與規則；最近一次實際執行的結果記在[進度](../progress.md)的「最近一次驗證」。測試矩陣中的勾選代表該案例已有測試，未勾選即為待補。
+
+## 0. 如何執行
+
+| 範圍 | 指令 | 備註 |
+| --- | --- | --- |
+| Backend unit | `pnpm test:backend` | 腳本會加上 `node --experimental-vm-modules`；直接執行 `npx jest` 時 `logger.config.spec.ts` 會因動態 `import()` 失敗 |
+| Backend E2E | `pnpm test:backend:e2e` | 首次先複製 `backend/.env.e2e.example` 為 `backend/.env.e2e`；runner 會建立並移除隔離的 PostgreSQL／Redis |
+| Frontend unit | `pnpm --filter frontend test:unit --run` | `email-verification.spec.ts` 在 Windows 有既有的圖檔路徑問題 |
+| 型別檢查 | `pnpm --filter backend exec tsc --noEmit -p tsconfig.json`、`pnpm --filter frontend type-check` | 前端讀取編譯後的 contracts，改了 `packages/contracts` 要先 `pnpm --filter @kanban/contracts build` |
+| API 手動測試 | Bruno 開啟 `bruno/` | 選 `Local` 環境，先執行 `Auth/Login` |
 
 ## 1. 目標
 
@@ -282,12 +292,12 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 - CI 不輸出 Password、Cookie、Session ID。
 - 同一套指令可在 Windows 開發機與 Linux CI 執行。
 
-目前 workflow 觸發條件為 push 到 main、dev、feature/*，以及 workflow_dispatch；未配置 pull_request。前端驗證與 type-check／lint／build 尚未納入 CI。
+目前 `ci.yml` 觸發條件為 push 到 `dev`、`feature/*`、`workflow_dispatch`，以及被 `cd.yml`（push 到 `main`）以 `workflow_call` 呼叫；未配置 pull_request。前端驗證與 type-check／lint／build 尚未納入 CI。
 
 ## 11. 目前最優先的測試順序
 
 1. 補 Project pin HTTP E2E 與 Swagger contract，再補 Project 負向授權、P2002 真實併行衝突與 transaction rollback。
-2. 補預設四欄內容／順序與 rollback E2E，再建立 snapshot read model 與 Card schema；BoardColumn migration deploy 已通過。
+2. 補預設四欄內容／順序與 rollback E2E；Card 的測試隨 [Board 規格](../features/board.md) 階段 A 一起撰寫。
 3. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
 4. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 5. SessionService unit tests：驗證分支與 Lua reply mapping。

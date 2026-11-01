@@ -39,8 +39,7 @@ sequenceDiagram
     W->>M: sendVerifyEmail(email, url)
     M-->>W: 寄送操作完成
     W->>R: 工作標記 completed
-    R-->>A: QueueEvents 收到 completed
-    A->>R: getJob(jobId)，印出工作
+    W->>W: completed 事件記錄 queue.job.completed（不含 job.data）
 
     Note over C,A: 前端 /verifyEmail/:token 頁面讀取 token 並呼叫驗證 API
     C->>A: PATCH /auth/verify/:token
@@ -59,41 +58,44 @@ API 等待入列成功，不等待 SMTP 寄送完成。註冊回傳成功、寄�
 ```text
 backend/src/
 ├── main.ts
-├── auth/
-│   ├── auth.module.ts
-│   ├── auth.controller.ts
-│   └── auth.service.ts
-├── queue/
-│   ├── queue.module.ts
-│   └── queue.service.ts
-├── worker/
-│   ├── main.ts
-│   ├── worker.module.ts
-│   └── worker.service.ts
-├── email/
-│   ├── email.module.ts
-│   └── email.service.ts
-├── redis/
-│   ├── redis.module.ts
-│   ├── redis.service.ts
-│   └── redis.keys.ts
-├── types/
-│   └── queue.ts
-└── user/
-    ├── user.service.ts
-    └── user.repository.ts
+├── modules/
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.controller.ts
+│   │   └── auth.service.ts
+│   └── user/
+│       ├── user.service.ts
+│       └── user.repository.ts
+├── infrastructure/
+│   ├── queue/
+│   │   ├── queue.module.ts
+│   │   └── queue.service.ts
+│   ├── email/
+│   │   ├── email.module.ts
+│   │   └── email.service.ts
+│   └── redis/
+│       ├── redis.module.ts
+│       ├── redis.service.ts
+│       └── redis.keys.ts
+├── common/
+│   └── types/
+│       └── queue.ts
+└── worker/
+    ├── main.ts
+    ├── worker.module.ts
+    └── emailWorker.service.ts
 ```
 
 | 元件 | 目前責任 |
 | --- | --- |
 | AuthService | 註冊與重寄入列、Redis 冷卻、驗證 token、登入前檢查驗證狀態 |
-| QueueService | 建立 email Queue、提供入列方法、用 QueueEvents 監聽 completed |
-| WorkerService | 建立 Worker、寫入 Redis hash 與 TTL、組合網址並呼叫 EmailService |
+| QueueService | 建立 email Queue（與 avatar Queue）、提供入列方法；2026-10-27 起不再建立 QueueEvents |
+| EmailWorkerService | 建立 Worker、寫入 Redis hash 與 TTL、組合網址並呼叫 EmailService；在 `completed`／`failed` 事件記錄 log |
 | EmailService | 建立 Nodemailer transporter，寄出含驗證網址的 HTML 信 |
 | RedisService | 提供一般 Redis client 與獨立的 BullMQ client |
 | UserService / UserRepository | 查詢 User，以及更新 emailVerifiedAt |
 
-`AuthModule` 匯入 `QueueModule` 與 `RedisModule` 等依賴。`WorkerModule` 只匯入 `ConfigModule`、`RedisModule`、`EmailModule`，註冊 `WorkerService`；目前 Worker 不查資料庫，也沒有載入 PrismaModule 或 AppModule。
+`AuthModule` 匯入 `QueueModule` 與 `RedisModule` 等依賴。`WorkerModule` 註冊 `EmailWorkerService`（`worker/emailWorker.service.ts`，2026-10-27 由 `WorkerService` 改名）；寄信流程不查資料庫。`WorkerModule` 另有 avatar Worker 需要的 `PrismaModule`、`StorageModule`，但不載入 AppModule。
 
 ## 註冊與入列
 
@@ -108,7 +110,7 @@ backend/src/
 5. 用 `SET EX` 設定首次寄信的冷卻，再呼叫 `QueueService.addVerificationEmailQueue(payload)`。
 6. 入列完成後回傳 201、`Success`，data 為 `{ accountCreated: true, emailQueued: true, retryAfterSeconds: 60 }`（秒數依設定）。回應不包含 token，也不建立登入 Session。
 
-Job data 定義在 `backend/src/types/queue.ts`：
+Job data 定義在 `backend/src/common/types/queue.ts`：
 
 ```ts
 export type SendVerificationEmailData = {
@@ -132,23 +134,23 @@ User 建立與 Queue.add 不屬於同一筆交易。建立 User 後，若 Redis 
 | Job 名稱 | `send-verification-email` |
 | Job ID | 沒有自訂，交由 BullMQ 產生 |
 | concurrency | 沒有設定，使用 BullMQ 預設值 |
-| attempts / backoff | 沒有設定寄信失敗的自動重試次數與間隔 |
-| removeOnComplete / removeOnFail | 沒有設定完成或失敗工作的自動清除 |
-| QueueEvents | 在 API 進程監聽 `completed`，取得 job 後印出 |
-| Worker 事件處理 | 目前未註冊 `completed`、`failed`、`error` 的自訂監聽器 |
+| attempts / backoff | `attempts: 3`、`backoff: { type: 'exponential', delay: 1000 }` |
+| removeOnComplete / removeOnFail | 沒有設定完成或失敗工作的自動清除（job 會一直留在 Redis） |
+| QueueEvents | 無（2026-10-27 刪除；原本唯一用途是印出含 token 的 job） |
+| Worker 事件處理 | `completed` 記 `info`／`queue.job.completed`；`failed` 每次失敗記 `error`／`queue.job.failed`（含 `err`）。欄位見 [Logging 規格](../architecture/logging.md) §8 |
 
 Queue 與 Worker 的名稱目前分別寫在各自的 service；只有 job data 型別抽到共用檔案。
 
-Worker 在 `onModuleInit()` 建立，收到工作後印出 `job.id`、`job.name`、`job.data`。工作名稱符合時，執行 `handleSendVerificationEmail()`：
+Worker 在 `onModuleInit()` 建立；處理過程不記錄 `job.data`（含驗證 token 與 email）。工作名稱符合時，執行 `handleSendVerificationEmail()`：
 
 1. 從 job data 取得 `userId`、`email`、`token`。
 2. 取得一般 Redis client，寫入驗證 hash 及 TTL。
 3. 透過 `EmailService.sendVerifyEmail(email, url)` 寄信，並等待 Promise 完成。
-4. processor 完成後由 BullMQ 標記 completed。寄信拋出錯誤時，processor 也會失敗；目前沒有配置該失敗的自動重試。
+4. processor 完成後由 BullMQ 標記 completed。寄信拋出錯誤時 processor 失敗，BullMQ 依 attempts／backoff 最多執行 3 次。
 
 Worker 不檢查 User 是否仍存在、是否已驗證，也不在寄信前查驗既有 token。若同一工作再次執行，會重新 HSET 並設定完整 TTL。目前沒有 `sent` 或 `skipped` 回傳值。
 
-QueueEvents 的 completed 只用於觀察工作結果，沒有透過 Socket 通知前端，也不更新 `emailVerifiedAt`。測試階段保留完整 job 的 console 輸出。
+寄信結果只記錄在 Worker 的 log（Seq 可依 `event` 查詢），沒有透過 Socket 通知前端，也不更新 `emailVerifiedAt`。
 
 ## Redis 驗證資料
 
@@ -254,10 +256,10 @@ RedisService 建立兩個 client：
 
 兩者都使用 `REDIS_URL`。API 與 Worker 是不同進程，各自有 Nest DI 容器與 RedisService 實例；Worker 寫入的驗證資料必須能由 API 讀取，因此需連至同一個 Redis DB。
 
-API 內的 Queue 與 QueueEvents 都使用 RedisService 提供的 BullMQ connection。一般 client 在 RedisService 初始化時 connect，銷毀時 quit。
+API 內的 Queue 使用 RedisService 提供的 BullMQ connection。一般 client 在 RedisService 初始化時 connect，`onModuleDestroy` 時 quit。
 
-- API 的 QueueService 銷毀時先關閉 QueueEvents，再關閉 Queue 與 BullMQ client。
-- WorkerService 銷毀時呼叫 Worker.close，再關閉 BullMQ client。
+- BullMQ client 由建立它的 RedisService 在 `onApplicationShutdown` 關閉（2026-10-21），保證所有 Queue／Worker 的 `onModuleDestroy` 都已完成。BullMQ 收到現成 client 時視為 shared，`close()` 不會 quit 它。
+- QueueService 銷毀時只關閉自己的 Queue；EmailWorkerService 銷毀時只呼叫 `Worker.close()`。
 - API 與 Worker 入口都啟用 Nest shutdown hooks。
 - Worker 入口是 `src/worker/main.ts`，透過 `createApplicationContext(WorkerModule)` 啟動，不呼叫 listen，也不開 HTTP server。
 
@@ -347,17 +349,17 @@ E2E runner 使用 compose.e2e.yml 的獨立 PostgreSQL / Redis、套用測試 mi
 
 ## 程式碼對照
 
-- [註冊、登入與驗證 service](../backend/src/auth/auth.service.ts)
-- [Auth controller](../backend/src/auth/auth.controller.ts)
-- [Queue service](../backend/src/queue/queue.service.ts)
-- [Worker service](../backend/src/worker/worker.service.ts)
-- [Email service](../backend/src/email/email.service.ts)
-- [Redis service](../backend/src/redis/redis.service.ts)與 [Redis keys](../backend/src/redis/redis.keys.ts)
-- [User repository](../backend/src/user/user.repository.ts)與 [Prisma schema](../backend/prisma/schema.prisma)
-- [Job data 型別](../backend/src/types/queue.ts)
-- [環境設定 schema](../backend/src/config/env.ts)
-- [前端 router](../frontend/src/router/index.ts)與 [Auth API service](../frontend/src/services/auth.ts)
+- [註冊、登入與驗證 service](../../backend/src/modules/auth/auth.service.ts)
+- [Auth controller](../../backend/src/modules/auth/auth.controller.ts)
+- [Queue service](../../backend/src/infrastructure/queue/queue.service.ts)
+- [Email worker service](../../backend/src/worker/emailWorker.service.ts)
+- [Email service](../../backend/src/infrastructure/email/email.service.ts)
+- [Redis service](../../backend/src/infrastructure/redis/redis.service.ts)與 [Redis keys](../../backend/src/infrastructure/redis/redis.keys.ts)
+- [User repository](../../backend/src/modules/user/user.repository.ts)與 [Prisma schema](../../backend/prisma/schema.prisma)
+- [Job data 型別](../../backend/src/common/types/queue.ts)
+- [環境設定 schema](../../backend/src/config/env.ts)
+- [前端 router](../../frontend/src/router/index.ts)與 [Auth API service](../../frontend/src/services/auth.ts)
 
 ## 設計前文件對照（2026-09-27）
 
-HTTP request、status、code、data 與錯誤範例以 [目前 HTTP API](http-api.md#auth-api-詳細規格) 為串接依據；畫面缺口見 [功能盤點](feature-readiness.md)。本文件中的後端已實作行為不代表前端頁面已完成。API 尚未提供驗證到期時間、jobId 或 SMTP 狀態，SVG 不能依賴這些未提供的欄位。
+HTTP request、status、code、data 與錯誤範例以 [目前 HTTP API](../reference/http-api.md#auth-api-詳細規格) 為串接依據；畫面缺口見 [進度與已知缺口](../progress.md)。本文件中的後端已實作行為不代表前端頁面已完成。API 尚未提供驗證到期時間、jobId 或 SMTP 狀態，SVG 不能依賴這些未提供的欄位。

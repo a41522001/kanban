@@ -62,7 +62,7 @@ Browser Cookie
 
 目前沒有 `SessionRotationInterceptor`。Service 會先判斷是否需要輪轉，但 Lua 仍會重新檢查 Redis 當下狀態，處理高併發競爭。
 
-獨立的 `backend/src/session/session.rotateSession.lua` 與 `session.revokeSession.lua` 不是執行時來源；修改腳本時以 `session.script.ts` 為準，避免兩份內容漂移。
+獨立的 `backend/src/modules/session/lua/session.rotateSession.lua` 與 `session.revokeSession.lua` 不是執行時來源；修改腳本時以 `session.script.ts` 為準，避免兩份內容漂移。
 
 ## 5. Cookie
 

@@ -1,6 +1,6 @@
 # Production VM 初始化 Runbook
 
-最後更新：2026-10-06。依第一台 VM（e2-micro、asia-east1、Ubuntu 26.04）實際操作整理。新建 production VM 時依序執行本文件；部署架構與 CD 流程見[部署現況](deployment-plan.md#0-目前實作現況cicd-mvp)。
+最後更新：2026-10-06。依第一台 VM（e2-micro、asia-east1、Ubuntu 26.04）實際操作整理。新建 production VM 時依序執行本文件；部署架構與 CD 流程見[部署現況](deployment.md#0-目前實作現況cicd-mvp)。
 
 本文件不得放入真實密碼、Token 或私鑰。
 
@@ -205,7 +205,7 @@ Worker log 會印出 job 資料（含驗證 token），分享 log 前先移除 t
 
 - 網域與 HTTPS：規劃使用 Cloudflare（Proxy、SSL 模式 Full (strict)、Origin Certificate 裝在 Nginx），compose 開放 443，`FRONTEND_URL` 改為 `https://`。未完成前，以 `http://IP` 存取時 secure Cookie 不會被儲存，無法登入。
 - `compose.prod.yml` 加入 `restart: unless-stopped`，否則 VM 重開機後容器不會自動啟動。
-- Avatar 上線前（見 [avatar 規格 §0](avatar-processing-spec.md) 步驟 11–12）：正式環境使用 GCP Cloud Storage，backend 與 worker 都直接存取 GCS，**不需共用 volume**，Nginx 也不需 `/media`。需建立 media（公開）與 temp（私有、1 天生命週期）兩個 bucket，授權 VM 的服務帳號存取，Cloudflare 設定 `media.<網域>` 指向 media bucket，並在 `.env.prod` 加入儲存設定；`AVATAR_PUBLIC_BASE_URL` 設為 `https://media.<網域>`。
+- Avatar 上線前（見 [avatar 規格 §0](../features/avatar.md) 步驟 11–12）：正式環境使用 GCP Cloud Storage，backend 與 worker 都直接存取 GCS，**不需共用 volume**，Nginx 也不需 `/media`。需建立 media（公開）與 temp（私有、1 天生命週期）兩個 bucket，授權 VM 的服務帳號存取，Cloudflare 設定 `media.<網域>` 指向 media bucket，並在 `.env.prod` 加入儲存設定；`AVATAR_PUBLIC_BASE_URL` 設為 `https://media.<網域>`。
 
 ## 11. 下線 VM
 

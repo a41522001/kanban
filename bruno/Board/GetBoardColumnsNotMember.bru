@@ -1,0 +1,36 @@
+meta {
+  name: GetBoardColumnsNotMember
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/board/00000000-0000-4000-8000-000000000000
+  body: none
+  auth: inherit
+}
+
+tests {
+  test('回應 404', () => {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test('code 為 ResourceNotFound (3001)', () => {
+    expect(res.getBody().code).to.equal(3001);
+  });
+
+  test('不回傳任何欄位資料', () => {
+    expect(res.getBody().data).to.equal(null);
+  });
+}
+
+docs {
+  # 取得看板欄位：沒有權限（錯誤案例）
+
+  - Route: `GET /v1/api/board/:projectId`
+  - 預期：404 / ResourceNotFound (3001)
+
+  使用一個不存在的 projectId。後端對「Project 不存在」與「不是成員」回應完全相同，所以這支也代表非成員的結果，不會透露 Project 是否存在。
+
+  要測真正的非成員：用另一個帳號登入，把網址換成第一個帳號的 projectId，結果應與這支相同。
+}

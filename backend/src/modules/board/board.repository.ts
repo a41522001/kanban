@@ -1,7 +1,7 @@
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
-import type { Prisma } from '@/generated/prisma/client';
+import type { BoardColumn, Prisma } from '@/generated/prisma/client';
 
 @Injectable()
 export class BoardRepository {
@@ -23,22 +23,36 @@ export class BoardRepository {
   }
 
   /** 取得所有看板欄 by projectId */
-  async getAllBoardColumn(projectId: string) {
-    const result = await this.prismaService.boardColumn.findMany({
+  async getAllBoardColumn(
+    projectId: string,
+    userId: string,
+  ): Promise<BoardColumn[] | null> {
+    const result = await this.prismaService.project.findFirst({
       where: {
-        projectId,
+        id: projectId,
         archivedAt: null,
+        workspace: { archivedAt: null },
+        members: {
+          some: { userId },
+        },
       },
-      orderBy: [
-        {
-          position: 'asc',
+      select: {
+        boardColumns: {
+          where: {
+            archivedAt: null,
+          },
+          orderBy: [
+            {
+              position: 'asc',
+            },
+            {
+              updatedAt: 'desc',
+            },
+          ],
         },
-        {
-          updatedAt: 'desc',
-        },
-      ],
+      },
     });
-    return result;
+    return result?.boardColumns ?? null;
   }
 
   /** 取得看板最大position by projectId*/

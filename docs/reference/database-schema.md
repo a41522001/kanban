@@ -1,15 +1,16 @@
 # Flowboard 資料庫 Schema
 
-最後靜態檢視：2026-09-27。核對 User 驗證欄位與 Board 現況；本文保留先前 migration 驗收紀錄，本輪未重新執行 migration／測試。
+最後核對：2026-10-30，依 `backend/prisma/schema.prisma`（共 15 個 migrations）。本文只描述目前的資料表；尚未建立的資料表見各功能規格（例如 Card 見 [Board 規格](../features/board.md)）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
 ## 1. 目前範圍
 
-目前已定義八張業務資料表：User、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember、BoardColumn。
+目前已定義九張業務資料表：User、Avatar、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember、BoardColumn。
 
 ```text
 User
+├── Avatar（一對一）
 ├── Workspace (createdBy)
 ├── WorkspaceMember
 ├── Notification (recipient)
@@ -29,7 +30,7 @@ Project
 ```
 
 ```text
-users ──< workspace_members >── workspaces ──< projects ──< board_columns
+avatars ── users ──< workspace_members >── workspaces ──< projects ──< board_columns
   │                                  │              │
   ├────< notifications (recipient)   └─< workspace_invitations
   ├────< notifications (actor)
@@ -109,13 +110,30 @@ Board 沒有獨立 resource type；看板層級操作以 `PROJECT` 指向 `proje
 | `auth_provider` | AuthProvider | 否 | 預設 LOCAL；可為 GOOGLE。 |
 | `email_verified_at` | TIMESTAMP(3) | 是 | null 表示未驗證；成功驗證只寫入第一次時間。 |
 | `google_sub` | TEXT | 是 | Google 帳號識別碼，唯一；不取代內部 UUID。 |
-| `avatar_url` | TEXT | 是 | 使用者頭像 URL。 |
 | `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
 | `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
 
-不建立驗證 token 資料表；Worker 在 Redis 寫入 token 對應的 userId／email hash 與 TTL。驗證 API 先核對帳號，再以 emailVerifiedAt=null 的條件式更新寫入時間，成功後刪除 Redis key。驗證與重寄不在公開 API 暴露 userId。詳細見 [寄信規格](email-verification-worker-spec.md)。
+不建立驗證 token 資料表；Worker 在 Redis 寫入 token 對應的 userId／email hash 與 TTL。驗證 API 先核對帳號，再以 emailVerifiedAt=null 的條件式更新寫入時間，成功後刪除 Redis key。驗證與重寄不在公開 API 暴露 userId。詳細見 [寄信規格](../features/email-verification-worker.md)。
 
 關聯：一位使用者可建立多個 Workspace 與 Project、加入多個 Workspace 與 Project、收到多則 Notification，也可作為多則 Notification 的 actor。
+
+### 3.1 `avatars`
+
+使用者目前的頭像，與 `users` 一對一（`user_id` 同時是主鍵）。2026-09-30 migration `20260930153339_add_avatar_model` 建立，並移除 `users.avatar_url`。規則見[頭像規格](../features/avatar.md)。
+
+| 欄位 | 型別 | Null | 說明 |
+| --- | --- | --- | --- |
+| `user_id` | UUID | 否 | 主鍵兼 FK → users，刪除使用者時 cascade。 |
+| `upload_id` | UUID | 否 | 每次上傳由 server 產生，也是 storage 資料夾名稱；Worker 寫回時以此判斷是否已被取代。 |
+| `medium_url` | TEXT | 否 | 上傳時同步產生的 128px WebP。 |
+| `small_url` | TEXT | 是 | Worker 產生的 64px；尚未產生或失敗時為 null。 |
+| `large_url` | TEXT | 是 | Worker 產生的 256px；尚未產生或失敗時為 null。 |
+| `variant_status` | AvatarVariantStatus | 否 | `PENDING`／`COMPLETED`／`FAILED`，預設 PENDING。 |
+| `variant_attempts` | INT | 否 | 預設 0；原為補入列排程設計，目前保留不使用。 |
+| `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
+| `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+
+索引：`variant_status, updated_at`。換頭像時 upsert 同一列，sm／lg 清為 null、狀態回到 PENDING；刪除頭像時刪除整列。
 
 ## 4. `workspaces`
 
@@ -208,7 +226,7 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 - 目前沒有同一工作區／受邀者的 PENDING unique constraint；並行查詢後新增可能產生重複邀請。
 - Migration：`backend/prisma/migrations/20260905163548_add_workspaec_invitation/migration.sql`（沿用實際目錄拼字）。
 
-發送邀請的驗證、transaction 範圍與待辦見[邀請與通知](workspace-invitation-notification.md)。
+發送邀請的驗證、transaction 範圍與待辦見[邀請與通知](../features/workspace-invitation-notification.md)。
 
 ## 8. `projects`
 

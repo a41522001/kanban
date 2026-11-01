@@ -236,7 +236,7 @@ Deployment concurrency 設為 1，避免兩次 migration 或部署同時執行�
 - 收集 request latency、DB latency、Redis latency、Socket connection count。
 - 設定 error rate、p95 latency、登入異常與磁碟空間告警。
 
-詳細事件欄位遵循 logging-plan.md。
+詳細事件欄位遵循 architecture/logging.md。
 
 ## 10. Backup 與 Disaster Recovery
 

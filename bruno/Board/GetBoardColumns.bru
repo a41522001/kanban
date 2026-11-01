@@ -10,12 +10,25 @@ get {
   auth: inherit
 }
 
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('data 為欄位陣列', () => {
+    expect(res.getBody().data).to.be.an('array');
+  });
+}
+
 docs {
   # 取得看板欄位
 
   - Route: `GET /v1/api/board/:projectId`
-  - Auth: 有效 Session
-  - 成功：200 / 未封存的 BoardColumn 陣列，依 `position` 排序
+  - Auth: 有效 Session，且必須是該 Project 的成員（任何角色，含 VIEWER）
+  - 成功：200 / 未封存的 BoardColumn 陣列，依 `position` 排序；所有欄位都封存時為空陣列
+  - 非成員、Project 或 Workspace 已封存：404 / ResourceNotFound (3001)，不透露 Project 是否存在（見 `GetBoardColumnsNotMember`）
 
-  ⚠️ 已知缺口：目前沒有檢查 Project membership，任何登入者知道 projectId 就能讀取。
+  `projectId` 由 `Project/ListProjects` 存入 runtime 變數，請先執行它。
+
+  2026-10-30 補上權限檢查：以 `project.findFirst` 的 `where`（未封存、Workspace 未封存、`members.some.userId`）一次查出權限與欄位。
 }

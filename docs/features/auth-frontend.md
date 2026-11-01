@@ -1,6 +1,6 @@
 # Frontend Auth Vertical Slice
 
-> 更新：2026-09-28。驗證信前端第 1、2 階段已完成：註冊結果導向與重寄、公開驗證路由、載入與成功畫面，以及失效連結與服務錯誤 Dialog。畫面規劃見 [驗證信設計提案](email-verification-ui-plan.md)。
+> 更新：2026-09-28。驗證信前端第 1、2 階段已完成：註冊結果導向與重寄、公開驗證路由、載入與成功畫面，以及失效連結與服務錯誤 Dialog。畫面規劃見 [驗證信設計提案](email-verification-ui.md)。
 
 ## 1. 目標
 
@@ -96,7 +96,7 @@ Store 不保存 Session ID；瀏覽器自行管理 HttpOnly Cookie。
 - confirmPassword 只存在 frontend，不傳給 backend，除非 contract 改變。
 - Signup 201 成功後直接導向 `/checkEmail`，顯示「驗證信已安排寄送」及後端回傳的倒數；不自動登入。
 
-Backend signup 不建立 Session。SignupView 已依 code=2007 或 emailQueued=false 區分正常入列與排信失敗：兩者都清除密碼並導向信箱提示頁；入列失敗另顯示 Dialog，保留後端倒數以供稍後重寄。Email 重複顯示欄位錯誤；500／網路錯誤不推定帳號未建立。登入回傳 EmailVerificationRequired 時，也進入同一路由，但使用登入未驗證文案。詳細錯誤行為見 [驗證信前端規格](email-verification-ui-plan.md)。
+Backend signup 不建立 Session。SignupView 已依 code=2007 或 emailQueued=false 區分正常入列與排信失敗：兩者都清除密碼並導向信箱提示頁；入列失敗另顯示 Dialog，保留後端倒數以供稍後重寄。Email 重複顯示欄位錯誤；500／網路錯誤不推定帳號未建立。登入回傳 EmailVerificationRequired 時，也進入同一路由，但使用登入未驗證文案。詳細錯誤行為見 [驗證信前端規格](email-verification-ui.md)。
 
 ## 6. Route Guard
 
@@ -173,4 +173,4 @@ Backend signup 不建立 Session。SignupView 已依 code=2007 或 emailQueued=f
 - Password、Session ID 不進入 localStorage、Pinia persistence 或 log。
 - Logout 後 HTTP 與 Socket 都無法繼續使用舊 Session。
 
-後端 revoke 成功時，僅保證本次 Cookie 對應的 Session 已刪除。網路失敗時，前端清空 Store 不代表伺服器 Session 已失效。Current／Grace family 的完整撤銷不在 MVP；詳見 `session-architecture.md`。
+後端 revoke 成功時，僅保證本次 Cookie 對應的 Session 已刪除。網路失敗時，前端清空 Store 不代表伺服器 Session 已失效。Current／Grace family 的完整撤銷不在 MVP；詳見 `architecture/session.md`。

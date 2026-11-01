@@ -66,7 +66,7 @@ Project 新增成員不是需要接受／拒絕的 invitation，而是由 Projec
 
 若通知不存在、不屬於目前使用者、type／resource 不符、ProjectMember 不存在，或 Project／Workspace 已封存，detail API 回 404 / `ResourceNotFound`。因此前端不能只使用通知列表中的 `resourceId` 自行組裝詳細畫面或直接當作授權依據。
 
-Dialog 設計規格為 Desktop `520 × 544px`、Mobile `358 × 648px`；Mobile 保留 `16px` viewport gutter 並使用較短副標題。畫面包含 Project／邀請者摘要、加入狀態、角色 badge、Workspace／角色／加入時間資料列，以及「前往專案」與「關閉」操作。對應 SVG 與 Figma 元件見 [design README](../design/README.md)。
+Dialog 設計規格為 Desktop `520 × 544px`、Mobile `358 × 648px`；Mobile 保留 `16px` viewport gutter 並使用較短副標題。畫面包含 Project／邀請者摘要、加入狀態、角色 badge、Workspace／角色／加入時間資料列，以及「前往專案」與「關閉」操作。對應 SVG 與 Figma 元件見 [design README](../../design/README.md)。
 
 ### 通知 Socket.IO 推播（第一版已實作）
 

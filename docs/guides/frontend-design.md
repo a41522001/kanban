@@ -1,6 +1,6 @@
 # Frontend UI 實作守則
 
-本文件定義 Flowboard 前端畫面、元件、樣式與互動規範。Figma 的來源、Generator 操作與驗收另見 [Figma UI 設計稿工作流程](figma-ui-design-workflow.md)。
+本文件定義 Flowboard 前端畫面、元件、樣式與互動規範。Figma 的來源、Generator 操作與驗收另見 [Figma UI 設計稿工作流程](figma-workflow.md)。
 
 ## 0. Source of truth
 
@@ -46,7 +46,7 @@
 
 ## 3. Figma 設計稿
 
-- 所有 Flowboard Figma 畫面必須遵守 [Figma UI 設計稿工作流程](figma-ui-design-workflow.md)，先更新 Current SVG 與既有 Generator，再產生原生 Figma nodes。
+- 所有 Flowboard Figma 畫面必須遵守 [Figma UI 設計稿工作流程](figma-workflow.md)，先更新 Current SVG 與既有 Generator，再產生原生 Figma nodes。
 - 設計稿必須以實際可落地的 shadcn-vue 元件與既有 Flowboard common 元件為主，不畫出程式端不存在且沒有必要新增的控制項。
 - Dialog、Button、Input、Badge 等重複元素使用 Figma component／instance，不複製成彼此無關的圖層。
 - Frame 與元件使用 Auto Layout；圖層命名應表達產品語意及對應元件，例如 `Workspace/Invite member dialog`、`Button/Outline`。
