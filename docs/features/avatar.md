@@ -1,6 +1,6 @@
 # Kanban Avatar 功能規格與實作計畫
 
-日期：2026-09-29。最後修訂：2026-10-19。狀態：**實作中**（schema、Storage、ImageProcessing 已完成；其餘依 §0 的步驟逐步進行）。
+日期：2026-09-29。最後修訂：2026-11-03（新增 §0.4 步驟 11 Cloud Storage 規格）。狀態：**實作中**（步驟 0–10 已完成；步驟 11 依 §0.4 進行）。
 
 ## 0. 2026-10-19 修訂與實作步驟
 
@@ -15,14 +15,14 @@
 | 舊檔處理 | 上傳新頭像時，在 DB upsert **成功之後**刪除舊的 `avatars/<舊 uploadId>/`；失敗只記 log | 先刪舊檔再寫 DB 失敗，會同時失去新舊頭像 |
 | 網址 | 每次上傳產生新的隨機 `uploadId`，路徑 `avatars/<uploadId>/<sm\|md\|lg>.webp` | 網址每次不同，可長期 immutable 快取；Worker 以 uploadId 判斷 job 是否為最新上傳 |
 | **userId 不外露** | 對外的網址與 API 回應**不可出現 userId** 或可推算出 userId 的值 | uploadId 由 `randomUUID()` 產生，與 userId 無關；userId 只出現在 Redis 內部的 job 資料 |
-| 儲存位置 | **開發用本機磁碟**（`LocalStorageService`），**正式環境用 GCP Cloud Storage**（`GcsStorageService`），以環境變數切換；`AvatarService` 與 Worker 只依賴 `StorageService` 介面 | 本機開發不需網路與憑證；正式環境 backend 與 worker 是兩個容器，必須共用雲端儲存。專案的雲端服務一律使用 GCP，VM 以附帶的服務帳號存取 GCS，不需金鑰檔 |
+| 儲存位置 | **開發用本機磁碟**（`LocalStorageService`），**正式環境用 GCP Cloud Storage**（`GcsStorageService`），以環境變數切換；`AvatarService` 與 Worker 只依賴 `StorageService` 介面 | 本機開發不需網路與憑證；正式環境 backend 與 worker 是兩個容器，必須共用雲端儲存。專案的雲端服務一律使用 GCP，VM 以附帶的服務帳號存取 GCS，不需金鑰檔。2026-11-03：本機開發改為可切換到 dev bucket，以 dev 專用服務帳號的帳密寫在 `.env`，正式環境禁止設定，見 §0.4 |
 | Bucket | 兩個：`media`（公開讀取，sm／md／lg）與 `temp`（私有，原圖）；`temp` 設定生命週期規則，**超過 1 天自動刪除** | GCS 建議以整個 bucket 統一設定權限，無法同一 bucket 部分公開；原圖不可公開。生命週期規則在正式環境取代 temp 的孤兒清理排程，`queue.add` 失敗、Worker 最終失敗或中途當機留下的原圖都會自動清除 |
 | CDN | **Cloudflare 免費方案**；正式圖片網址為 `https://media.<網域>/avatars/<uploadId>/md.webp`（網域已於 Cloudflare 購買） | Cloud CDN 需搭配外部負載平衡器，有每月固定費用；Cloudflare 免費且已用於 DNS。網址綁定自有網域，之後更換 CDN 或儲存服務只需改 DNS，DB 不需 migration |
 | DB 存完整網址 | 開發：`http://localhost:4001/media/avatars/...`；正式：`https://media.<網域>/avatars/...`。`AVATAR_PUBLIC_BASE_URL` 維持 `z.url()` 驗證 | 兩個環境都不會遇到換網域問題，取代原先「存相對路徑」的決定 |
-| 待實作時確認 | Cloudflare 連到 GCS bucket 的方式（bucket 命名是否需等於網域、網域擁有權驗證、HTTPS 設定）在步驟 11 對照 GCP 與 Cloudflare 官方文件決定 | 細節尚未查證，不影響本機開發的步驟 3–10 |
+| Cloudflare 連到 GCS | **2026-11-03 已決定：Cloudflare Worker 代理**（原為「待實作時確認」）；Worker 細節仍為 Decision pending，見 §0.4.5 | CNAME 做法要求 bucket 名稱等於網域，且到 GCS 只支援 HTTP，與規劃的 Full (strict) 衝突 |
 | 三層檢查 | 前端（體驗）→ Multer declared MIME 與 5 MiB → Sharp 實際解碼 | 前兩層可被繞過，只有 Sharp 可信；`validate` 只讀檔頭，損壞檔到 `render` 才失敗，也要回 400 |
 | 上傳次數限制 | 每人每分鐘 5 次，Redis `INCR` + 首次 `EXPIRE 60`，做成 Guard，排在 SessionGuard 之後、Multer 之前 | 超過限制時不讀取檔案內容 |
-| 設定 | 目前只有 `AVATAR_STORAGE_ROOT`、`AVATAR_TEMP_ROOT`、`AVATAR_PUBLIC_BASE_URL` 是環境變數；其餘為 `backend/src/modules/avatar/avatar.constants.ts` 與 `packages/contracts/avatar.ts` 的常數。步驟 11 將新增儲存切換開關與兩個 bucket 名稱的環境變數 | 取代 §8 |
+| 設定 | 目前只有 `AVATAR_STORAGE_ROOT`、`AVATAR_TEMP_ROOT`、`AVATAR_PUBLIC_BASE_URL` 是環境變數；其餘為 `backend/src/modules/avatar/avatar.constants.ts` 與 `packages/contracts/avatar.ts` 的常數。步驟 11 新增的變數見 §0.4.2 | 取代 §8 |
 | 路由名稱 | 由 `/user/me/avatar` 改為 `/user/avatar` | 專案不提供以 userId 指定使用者的路由，`me` 沒有需要區分的對象；與既有 `/user/userInfo` 風格一致 |
 | 路由前綴 | API 為 `/v1/api/user/avatar`；開發環境的 `/media` 由 static middleware 提供，不屬於 controller 路由；正式環境不提供 `/media` | 取代 §4.1「沒有前綴」 |
 
@@ -44,8 +44,8 @@
 | 8 | 上傳次數限制 Guard | 第 6 次回 429 與 `retryAfterSeconds` | ✅ 2026-10-21：`AvatarRateLimitGuard` 以 `INCR` + `EXPIRE <window> NX`（每次都呼叫，補上可能遺失的過期時間，取代原本「count 為 1 才 EXPIRE」），超過 `AVATAR_UPLOAD_LIMIT` 丟 429／6004，`data.retryAfterSeconds = max(0, TTL)`；以 `@UseGuards` 掛在 upload，排在 class 層的 SessionGuard 之後、Multer 之前。Bruno 第 6 次回 429；單元測試 5 個 |
 | 9 | 背景 Worker 產生 sm／lg（含 Redis 連線調整 §9）。拆成 9-1 Redis 連線調整、9-2 API 寫原圖並入列、9-3 Worker 處理 job、9-4 失敗處理，規格見 §0.3 | 上傳後數秒內 `smallUrl`／`largeUrl` 被補上 | ✅ 2026-10-23 完成。2026-10-21：§0.3 規格已由使用者逐項確認（grill Q1–Q14）。9-1 完成：`RedisService.onApplicationShutdown` 關閉 `mqRedisClient`，移除 `destroyBullMqConnection()`；暫時關閉 `devAutoVerifyEmail` 註冊新帳號，worker 收到 job 並寄信成功、API 收到 `completed`；以腳本直接呼叫 `app.close()` 確認順序為 `WorkerService.onModuleDestroy` → `RedisService.onModuleDestroy` → `RedisService.onApplicationShutdown`，無錯誤、exit code 0。9-2a 完成：上傳時原圖以 Sharp 判斷的真實格式（`image/<format>`）寫入 temp `avatars/<uploadId>/original`（無副檔名，不經 `/media` 公開），md 與原圖依序寫入，任一失敗回 503 並清除兩邊資料夾；新增 `deleteUploadDirs(uploadId, reason)` 同時刪除 media 與 temp（各自 try，失敗只記 log），用於寫檔失敗、upsert 失敗、刪舊頭像與 `remove()`。Bruno 驗證 temp 原圖存在、換頭像只留新資料夾、刪除後兩邊清空、`/media/.../original` 回 404；單元測試 42 個通過。9-2b 完成：`QueueService` 新增 `avatar` queue 與 `addAvatarQueue`（job name `generate-avatar-variants`、jobId `avatar-variants-<uploadId>`、attempts 3、exponential 2000、removeOnComplete 1 天、removeOnFail 7 天，不建立 QueueEvents）；`AvatarModule` import `QueueModule`，upsert 成功後入列，失敗只記 log 仍回 200。關閉 worker 上傳後，Redis `bull:avatar:wait` 有該 job，`data` 只有 `userId`、`uploadId`，`opts` 與規格一致；單元測試 45 個通過。9-3a 完成：新增獨立的 `worker/avatarWorker.service.ts`（`concurrency: AVATAR_WORKER_CONCURRENCY`），`WorkerModule` 只加入 `PrismaModule` 與 `AvatarRepository`，不 import 整個 `AvatarModule`（避免把 `QueueModule`、`SessionModule` 帶進 worker）；處理函式先做 Q7 檢查，`uploadId` 不符即略過。實測排隊中的 job 與新上傳都印出「開始產生 sm／lg」。9-3b 完成：`WorkerModule` 加入 `StorageModule`、`ImageProcessingService`；Worker 讀 temp 原圖（`null` 暫時丟 `Error`，9-4 改為 `UnrecoverableError`），以 `render` 產生 sm／lg 並寫入 media，實測資料夾有 md／sm／lg 三個檔案。9-3c 進行中：`AvatarRepository.completeVariants` 以 `updateMany where { userId, uploadId, variantStatus: PENDING }` 寫回 sm／lg 並設為 `COMPLETED`，回傳筆數；Worker 寫檔後呼叫。實測上傳回應 sm／lg 為 null，數秒後 `userInfo` 三個尺寸皆有值。9-3c 完成：寫回後一律刪除 temp `avatars/<uploadId>/`，`count === 0` 時另外刪除 media 的同名資料夾（Q11、Q12），兩者各自 try/catch 只記 log，避免清理失敗觸發 BullMQ 重試整個 job。實測上傳後 temp 資料夾消失、media 保留 md／sm／lg。9-4 完成：原圖不存在與解碼失敗丟 `UnrecoverableError`（解碼失敗先記 Sharp 原始錯誤），寫檔與 DB 錯誤維持一般錯誤交給重試；監聽 Worker `failed` 事件（每次失敗都會觸發），只在 `UnrecoverableError` 或 `attemptsMade >= attempts` 時以 `markVariantsFailed`（`updateMany where PENDING`）標記 `FAILED` 並刪除 temp 原圖。實測：關閉 worker 上傳、手動刪除 temp 原圖後開啟 worker，只失敗一次、DB 為 `FAILED`。`avatarWorker.service.spec.ts` 14 個單元測試 |
 | 10 | 成員、候選人、通知 read model 加回頭像。拆成 10-1 專案成員、10-2 成員候選人、10-3 Workspace 成員與通知 actor | 成員清單顯示頭像 | ✅ 2026-10-24：使用者已在瀏覽器確認三個畫面。10-1 完成，`ProjectMemberDto.avatarUrl = smallUrl ?? mediumUrl`（無頭像為 null），repository 以 `user.avatar.select { smallUrl, mediumUrl }` 查詢；前端 `ProjectMembers` 改用共用 `Avatar`（32px、aria-hidden，名稱已在旁顯示）。後端 project 36 個測試、前端新增 `ProjectMembers.spec.ts` 2 個測試通過。10-2 完成：`MemberCandidate.avatarUrl` 由原生 SQL `LEFT JOIN avatars` 與 `COALESCE(a.small_url, a.medium_url)` 取得（PostgreSQL 無 SQL Server 的 `ISNULL(a, b)`）；已在開發 DB 實跑確認無頭像者未被過濾、sm 缺少時退回 md。前端 `ProjectAddMemberDialog` 改用共用 `Avatar`（40px、aria-hidden），新增 1 個元件測試。10-3 完成：`WorkspaceMemberDto.avatarUrl`（寫法同 10-1），Workspace 側邊欄成員圓圈改用共用 `Avatar`（32px，旁邊沒有名稱，保留 alt／aria-label 與 title）；workspaces 21 個後端測試通過。通知 actor 目前沒有任何畫面顯示頭像，`actorUserDisplayName` 只用於邀請人名稱，**不加頭像欄位**，等有畫面需要時再加 |
-| 11 | **Cloud Storage**：`GcsStorageService` 實作 `StorageService`（物件上傳本身即原子，不需 `.part`；`deleteDir` 以前綴刪除；寫入時設定 `Cache-Control: public, max-age=31536000, immutable`），`StorageModule` 依環境變數選擇 local／gcs；建立 media（公開）與 temp（私有＋1 天生命週期）兩個 bucket；VM 服務帳號授權；Cloudflare `media.<網域>` 指向 media bucket | 正式設定下上傳後，`https://media.<網域>/...` 可讀取圖片；temp 原圖不可公開讀取 | ⬜ |
-| 12 | 部署：`.env.prod` 加入儲存與 bucket 設定；backend 與 worker 都使用 GCS，**不需共用 volume**，Nginx 不需 `/media` | 部署到 VM 後可上傳、顯示，Worker 補上 sm／lg | ⬜ |
+| 11 | **Cloud Storage**：拆成 11-1 `GcsStorageService`、11-2 `StorageModule` 切換與 `env.ts` 驗證、11-3 dev bucket 實測、11-4 正式 bucket 與 Cloudflare Worker，規格見 §0.4 | 見 §0.4.6 | 🔄 2026-11-03：規格已由使用者以 grill 逐項確認（Q1–Q28），11-1 待實作 |
+| 12 | 部署：`.env.prod` 加入儲存與 bucket 設定（[VM Runbook §10.1](../operations/vm-setup-runbook.md)）；backend 與 worker 都使用 GCS，**不需共用 volume**，Nginx 不需 `/media`。重建 VM 時一併設定服務帳號 `kanban-app`、scope `cloud-platform` 與靜態 IP（§0.4.4） | 部署到 VM 後可上傳、顯示，Worker 補上 sm／lg | ⬜ |
 
 > **2026-10-24 部署決定**：步驟 0–10 已在本機完成，步驟 11–12 延後。頭像相關 commit **留在 `feature/windows`，不 merge 到 `main`**，等步驟 11 完成後一起上線。原因：merge 到 `main` 會觸發 CI/CD 部署，而正式環境不掛載 `/media`（只在 `NODE_ENV=development`）、檔案存在容器內且 backend 與 worker 容器互相看不到，上傳會成功但圖片全部 404，sm／lg 也會被標為 FAILED。
 
@@ -89,6 +89,96 @@
 > **2026-09-30 過渡狀態**：`avatars` schema 與 migration `20260930153339_add_avatar_model` 已建立，`users.avatar_url` 已移除。在上傳功能完成前，所有公開 contract（`PublicUser`、Workspace／Project 成員、候選人）與通知 read model 都**暫時不含頭像欄位**，後端測試也已移除相關斷言。前端 `ProjectMembers`、`ProjectAddMemberDialog` 只顯示首字佔位，並以 `TODO(avatar)` 標記。§4.2 的欄位會在實作階段連同後端測試一起加回。
 
 本版取代 2026-09-28 的提案。舊版以 outbox dispatcher、AvatarAttempt fencing、StorageCleanupTask、reconciler 追求完整可靠性，複雜度超出需求；本版依使用者決策改為「同步產生主要尺寸＋背景補其他尺寸」，可靠性採「B 加強」等級。文中程式區塊都是未來實作的契約草案。
+
+### 0.4 步驟 11 Cloud Storage 規格（2026-11-03 已確認）
+
+由使用者以 grill 逐項確認（Q1–Q28）。§0.1、§7、§8 與本節不一致時，以本節為準。GCS 與 Cloudflare 的行為於 2026-11-01 依官方文件與 `@google-cloud/storage` 8.4.0（2026-10-09 發布，需要 Node ≥ 22；backend Dockerfile 為 `node:24-alpine`）原始碼查證。
+
+#### 0.4.1 子步驟與分工
+
+| 步驟 | 內容 | 驗證 | 狀態 |
+| --- | --- | --- | --- |
+| 11-1 | `GcsStorageService` 實作 `StorageService`（§0.4.3） | `gcsStorage.service.spec.ts` 通過 | ⬜ |
+| 11-2 | `StorageModule` 依 `AVATAR_STORAGE_DRIVER` 建立 local／gcs；`env.ts` 驗證（§0.4.2）；`.env.example` 加入註解範例 | driver 為 `local` 時既有測試與 Bruno 結果不變；§0.4.6 第 7 項的錯誤設定皆啟動失敗 | ⬜ |
+| 11-3 | Console 建立 dev bucket 與 dev 服務帳號（§0.4.4），本機以 `gcs` 實測 | §0.4.6 第 1–6 項 | ⬜ |
+| 11-4 | 正式環境 bucket 與服務帳號、Cloudflare Worker（§0.4.5） | `https://media.<網域>/...` 可讀取，同一張圖第二次請求 `cf-cache-status: HIT`；temp 原圖不可公開讀取 | ⬜ 等網域與 HTTPS |
+
+分工（Q28）：`GcsStorageService`、`StorageModule`、`env.ts`、`.env.example` 與 Console 設定由使用者完成；單元測試（`gcsStorage.service.spec.ts`、`env.ts` 驗證規則）與文件由 AI 撰寫。
+
+#### 0.4.2 環境變數
+
+| 變數 | 規則 |
+| --- | --- |
+| `AVATAR_STORAGE_DRIVER` | `local`／`gcs`，預設 `local`。以獨立變數切換，不由 `NODE_ENV` 推斷，開發環境才能切到 GCS（Q1）。E2E 與 CI 不設定 |
+| `AVATAR_MEDIA_BUCKET`、`AVATAR_TEMP_BUCKET` | driver 為 `gcs` 時必填，兩者不可相同（Q3） |
+| `AVATAR_PUBLIC_BASE_URL` | 沿用。dev（gcs）：`https://storage.googleapis.com/flowboard-dev-avatar-media`（Q19）；正式：`https://media.<網域>` |
+| `AVATAR_STORAGE_ROOT`、`AVATAR_TEMP_ROOT` | 只在 `local` 使用，維持現有預設 |
+| `GCS_CLIENT_EMAIL`、`GCS_PRIVATE_KEY` | **只供本機開發**，值取自 dev 服務帳號 JSON 金鑰的 `client_email`、`private_key`（Q20）。不加 `AVATAR_` 前綴，之後其他功能使用 GCS 時共用（Q21）。`GCS_PRIVATE_KEY` 以 `.transform((v) => v.replace(/\\n/g, '\n'))` 把 `\n` 字串轉成換行，不依賴 dotenv 或 Docker `env_file` 的引號處理（Q23） |
+
+`env.ts` 以 `superRefine` 檢查，違反任一條即啟動失敗：
+
+- `NODE_ENV=production` 且 driver 為 `local`（Q2）：避免「上傳成功、圖片全部 404」。
+- driver 為 `gcs` 且缺少 bucket 名稱，或兩個名稱相同（Q3）。
+- `GCS_CLIENT_EMAIL`、`GCS_PRIVATE_KEY` 只設定其中一個（Q22）。
+- `NODE_ENV=production` 且設定了 `GCS_*`（Q22）：正式環境只使用 VM 服務帳號，避免永久有效的金鑰被放上正式機。
+
+#### 0.4.3 `GcsStorageService`
+
+- 位置 `backend/src/infrastructure/storage/gcsStorage.service.ts`。與 `LocalStorageService` 相同不使用 `@Injectable()`，由 `StorageModule` factory 建立 media、temp 兩個實例。
+- constructor：`(bucket: Bucket, options: { publicBaseUrl: string | null; cacheControl: string | null })`（Q4、Q5）。收 `Bucket` 物件，單元測試直接傳入假物件，不需 `jest.mock` 套件。
+- `new Storage()` 在 factory 建立一次，兩個 bucket 共用。有 `GCS_*` 時傳入 `credentials: { client_email, private_key }`；沒有時使用預設身分（正式環境為 VM 服務帳號）。
+- `cacheControl`：media 傳 `public, max-age=31536000, immutable`，temp 傳 `null`。明確傳入，不由 `publicBaseUrl` 推斷，`StorageModule` 中即可看出每個實例的快取設定（Q5）。
+- Key 驗證（Q6），違反時丟 `Error`；與 Local 的 `resolveKey` 邏輯不同，各自實作：
+  - `write`／`read`／`getPublicUrl` 的 key：不可為空、不可以 `/` 開頭或結尾、不可含 `..` 段。
+  - `deleteDir` 的 prefix：必須以 `/` 結尾且不可只有 `/`（現有呼叫端皆傳 `avatars/<uploadId>/`）。空前綴等於整個 bucket，必須擋下。
+- `write`（Q8）：`file.save(body, { contentType, resumable: false, metadata: { cacheControl } })`（`cacheControl` 為 `null` 時不帶）。GCS 物件上傳本身即原子，不需 `.part`。不加 `ifGenerationMatch`：client 因此不自動重試上傳，API 失敗回 503、Worker 由 BullMQ 重試；同一 key 重寫直接覆蓋，與 Local 語意一致。若加上 `ifGenerationMatch: 0`，Worker 重試時重寫 sm／lg 會得到 412，最終被標為 `FAILED`。
+- `read`（Q9）：`file.download()`；`ApiError` 且 `code === 404` 回傳 `null`，其他錯誤往外丟，Worker「原圖不存在不重試、暫時讀不到交給重試」的判斷不變。
+- `deleteDir`（Q9）：`bucket.getFiles({ prefix })` 後逐一 `file.delete({ ignoreNotFound: true })`。不使用 `bucket.deleteFiles({ prefix })`：兩邊同時刪除時，晚到的 404 會被視為失敗，違反介面「不存在視為成功」。每個資料夾最多 4 個物件。
+- `getPublicUrl`：`publicBaseUrl` 為 `null` 時丟錯；否則去掉結尾 `/` 後接上 key，與 Local 相同。
+- `listDirs`：維持 `NotImplementedException`（Q7）；temp 由 bucket 生命週期規則清理。
+
+#### 0.4.4 GCP 設定
+
+以 GCP Console 手動建立，設定結果記錄在 [VM Runbook §10.1](../operations/vm-setup-runbook.md)（Q13）。
+
+| 項目 | 正式 | dev |
+| --- | --- | --- |
+| Bucket 名稱（Q18、Q24） | `flowboard-prod-avatar-media`、`flowboard-prod-avatar-temp` | `flowboard-dev-avatar-media`、`flowboard-dev-avatar-temp` |
+| 位置（Q14） | `asia-east1` 單一區域（與 VM 同區） | 同左 |
+| media 權限（Q11） | Uniform bucket-level access、不強制 public access prevention、`allUsers` 授予 `roles/storage.objectViewer` | 同左（瀏覽器直接讀取） |
+| temp 權限（Q11） | 強制 public access prevention；生命週期規則 Delete，條件 `age: 1` | 同左 |
+| Soft delete（Q15） | media 維持預設 7 天（`deleteDir` 誤刪時可救回）；temp 關閉 | 兩個皆關閉 |
+| 存取身分 | 服務帳號 `kanban-app`，只在兩個 prod bucket 授予 `roles/storage.objectUser`；VM scope 設為 `cloud-platform`（Q12）。於重建 VM 時設定（Q25） | 服務帳號 `kanban-dev`，只在兩個 dev bucket 授予 `roles/storage.objectUser`；Console 建立 JSON 金鑰，`client_email`、`private_key` 寫入 `backend/.env`（Q20） |
+
+- Bucket 名稱全球唯一；已被使用時在名稱後加上 GCP 專案 ID，並同步修改本表與 runbook。
+- VM 預設 scope 只有 storage 唯讀，即使 IAM 已授權，寫入仍會失敗；變更 VM 的服務帳號或 scope 必須先停機，因此併入重建 VM。
+- 生命週期 `age: 1` 自物件建立時間起算，刪除為非同步且不保證時間；程式不依賴它，只作為漏刪原圖的保險。
+- 金鑰檔不放進 repo；`.env` 已在 `.gitignore`。GCP 專案是否以組織政策禁止建立服務帳號金鑰，建立時才能確認；若被禁止，回到 Q10／Q20 重新決定（替代方案：fake-gcs-server，或 `gcloud auth application-default login`）。
+- 若改用 fake-gcs-server，須以 `new Storage({ apiEndpoint })` 連線；`STORAGE_EMULATOR_HOST` 在 8.4.0 中上傳與一般 API 的路徑不一致，無法搭配 fake-gcs-server 使用。
+
+#### 0.4.5 Cloudflare（11-4）
+
+- 等網域與 HTTPS（[VM Runbook §10](../operations/vm-setup-runbook.md)）完成後才做（Q16）。DB 存完整網址，若先以暫時網址上線，換網域時要另外處理已存的網址。
+- 以 **Cloudflare Worker 代理**（Q17）：`media.<網域>` → Worker → `https://storage.googleapis.com/flowboard-prod-avatar-media/<key>`。兩段都是 HTTPS，可與 Full (strict) 共存；bucket 名稱不受網域限制。
+- 未採用：CNAME 指向 `c.storage.googleapis.com`（bucket 名稱須等於網域、須驗證網域擁有權、到 GCS 只支援 HTTP）；Origin Rules 的 Host header override（免費方案不提供）；GCP 外部負載平衡器（有每小時固定費用）。
+- **Decision pending**（Q26，11-4 開始時再 grill）：
+  - 快取方式（Worker 中如何讓回應進入 Cloudflare 快取）。
+  - 放行的路徑與方法，比照開發環境 `/media`：只放行 `.webp`、回應 `nosniff`。
+  - Worker 程式碼放在 repo 或直接寫在 Cloudflare 後台。
+  - 快取命中的請求是否計入免費方案每日 10 萬次請求額度（尚未查證）。
+
+#### 0.4.6 驗收（11-1～11-3）
+
+在 dev 設定 `AVATAR_STORAGE_DRIVER=gcs` 後（Q27）：
+
+1. Bruno 上傳：`md.webp` 出現在 dev media bucket，`original` 出現在 dev temp bucket。
+2. 數秒後 Worker 補上 `sm.webp`、`lg.webp`，temp 原圖被刪除，`userInfo` 回傳三個網址。
+3. 瀏覽器可開啟 `https://storage.googleapis.com/flowboard-dev-avatar-media/...`；Console 中物件 metadata 為 `Cache-Control: public, max-age=31536000, immutable`。
+4. 直接以網址開啟 temp bucket 的原圖被拒絕。
+5. 換頭像後舊資料夾在兩個 bucket 都消失；刪除頭像後兩邊都清空。
+6. Bruno 既有錯誤案例（缺檔、MIME、過大、無法解碼、次數限制）結果不變。
+7. 以下設定皆啟動失敗：driver 為 `gcs` 但缺 bucket 名稱；正式環境 driver 為 `local`；正式環境設定了 `GCS_*`；`GCS_*` 只設定一個。
+8. 單元測試全部通過；driver 為 `local` 時行為完全不變。
 
 ## 1. 決策紀錄
 
@@ -389,11 +479,11 @@ interface StorageService {
   - 只放行 `.webp`，拒絕 dotfile 與 `.part`，停用 directory listing。
   - 回應 `Content-Type: image/webp`、`X-Content-Type-Options: nosniff`、`Cache-Control: public, max-age=31536000, immutable`（每次上傳 URL 都不同，可以長期快取）。
 - Temp root 永不公開，必須與 media root 分開，也不能放在 repo 內。
-- 正式環境新增 `GcsStorageService`（2026-10-19 修訂，原文為 S3）實作同一介面，API／Worker 程式不變。
+- 正式環境新增 `GcsStorageService`（2026-10-19 修訂，原文為 S3）實作同一介面，API／Worker 程式不變。規格見 §0.4.3。
 
 ## 8. Config
 
-> **2026-10-19：本節已被取代。** 目前只有 `AVATAR_STORAGE_ROOT`（預設 `./storage/media`）、`AVATAR_TEMP_ROOT`（預設 `./storage/temp`）、`AVATAR_PUBLIC_BASE_URL` 三個環境變數；`AVATAR_PUBLIC_BASE_URL` 將改為相對路徑 `/media`，需放寬 `env.ts` 的 `z.url()`。其餘數值為常數，見 §0.1。下表保留作為原始設計紀錄。
+> **2026-10-19：本節已被取代。** 目前只有 `AVATAR_STORAGE_ROOT`（預設 `./storage/media`）、`AVATAR_TEMP_ROOT`（預設 `./storage/temp`）、`AVATAR_PUBLIC_BASE_URL` 三個環境變數；`AVATAR_PUBLIC_BASE_URL` 將改為相對路徑 `/media`，需放寬 `env.ts` 的 `z.url()`。其餘數值為常數，見 §0.1。步驟 11 新增的變數見 §0.4.2。下表保留作為原始設計紀錄。
 
 新增至 `config/env.ts`（Zod）、`.env.example`、`.env.e2e.example`。全部都有預設值，避免 Email worker 被迫提供 Avatar 設定。
 

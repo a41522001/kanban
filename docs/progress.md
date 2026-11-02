@@ -1,6 +1,6 @@
 # 進度
 
-最後更新：2026-10-30。本文是**唯一**記錄整體狀態的地方；各功能的細部步驟寫在 `features/` 對應的文件。2026-09 至 10-06 的歷史驗收紀錄已刪除，可從 git 歷史查看 `docs/progress.md` 的舊版本。
+最後更新：2026-11-03。本文是**唯一**記錄整體狀態的地方；各功能的細部步驟寫在 `features/` 對應的文件。2026-09 至 10-06 的歷史驗收紀錄已刪除，可從 git 歷史查看 `docs/progress.md` 的舊版本。
 
 ## 分支與上線限制
 
@@ -19,7 +19,7 @@
 | 通知 | 🔄 | 列表、未讀數、單筆／全部已讀、Socket 即時推送 | cursor／filters（目前只回最新 20 筆）、重連後補抓、跨分頁同步 |
 | Project | 🔄 | 建立、列表、置頂、成員清單、候選人、新增成員、成員加入通知（成員與候選人含頭像） | 詳情、編輯、封存、角色調整、移除成員 |
 | Board | 🔄 | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位 | 見 [Board 規格](features/board.md) §9：Card（階段 A）、拖曳存檔（B）、多人同步（C）、拖曳衝突（D） |
-| 頭像 | 🔄 本機完成 | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示 | 步驟 11 GCP Cloud Storage、步驟 12 部署（[頭像規格](features/avatar.md)） |
+| 頭像 | 🔄 本機完成 | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示 | 步驟 11 GCP Cloud Storage（2026-11-03 規格已確認，見 [頭像規格](features/avatar.md) §0.4；11-1 待實作）、步驟 12 部署 |
 | Logging | ✅ 開發環境 | API 與 worker 共用 pino、`event` 欄位、`requestId`、5xx 由 Filter 統一記錄、Worker job 記錄、本機 Seq（[Logging 規格](architecture/logging.md)） | 正式環境的 Seq；上線前待辦見該文件 §9.1 |
 | Socket.IO | 🔄 | Session Cookie handshake、user／session／workspace room、通知與成員異動推送 | project room（Board 階段 C）；reconnect 後 rejoin、快速切換競速、成員移除後清理 room |
 | 部署與 CI/CD | 🔄 MVP | Docker 化、`compose.prod.yml`、CI 測試 `dev`／`feature/*`、CD 於 `main` 推 GHCR 並部署到 GCP VM、`IMAGE_TAG` 版本（[部署](operations/deployment.md)） | 網域與 HTTPS（未完成前正式環境無法登入）、靜態 IP、`restart: unless-stopped`、CI 未跑前端測試 |
@@ -28,7 +28,7 @@
 ## 下一步
 
 1. **Board 階段 A**：A-1 `Card` schema 與 migration（[Board 規格](features/board.md) §9）。A-0 讀取權限已寫好，尚待以 Bruno 驗證。
-2. **頭像上線**：GCP Cloud Storage 與 Cloudflare `media.<網域>`，之後才能 merge 到 `main`。
+2. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
 3. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
 
 ## 已知缺口
