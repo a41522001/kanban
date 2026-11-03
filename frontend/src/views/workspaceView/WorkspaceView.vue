@@ -752,4 +752,4 @@ onUnmounted(() => {
 // #endregion
 </script>
 
-<style scoped src="./workplace-view.css"></style>
+<style scoped src="./workspace-view.css"></style>
