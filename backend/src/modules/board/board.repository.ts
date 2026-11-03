@@ -2,6 +2,7 @@ import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import type { Prisma } from '@/generated/prisma/client';
+import { DateTime } from 'luxon';
 
 /** 寫入資料庫的卡片內容；與 API request 分開定義，description 已正規化為 null。 */
 export interface CreateCardData {
@@ -169,6 +170,7 @@ export class BoardRepository {
       },
       select: {
         id: true,
+        columnId: true,
         column: {
           select: {
             projectId: true,
@@ -264,5 +266,22 @@ export class BoardRepository {
     });
 
     return project.boardRevision;
+  }
+
+  /** 封存卡片 */
+  async archiveCard(
+    cardId: string,
+    expectedVersion: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    const db = tx ?? this.prismaService;
+    const result = await db.card.updateMany({
+      where: { id: cardId, version: expectedVersion, archivedAt: null },
+      data: {
+        archivedAt: DateTime.utc().toJSDate(),
+        version: { increment: 1 },
+      },
+    });
+    return result.count;
   }
 }

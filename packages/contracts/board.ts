@@ -99,3 +99,17 @@ export interface UpdateCardRequest {
   /** 使用者開始編輯時看到的 version；與目前版本不符時回 409 / CardVersionConflict。 */
   expectedVersion: number;
 }
+
+/** 封存卡片。 */
+export interface ArchiveCardRequest {
+  cardId: string;
+  /** 使用者看到的 version；與目前版本不符時回 409 / CardVersionConflict。 */
+  expectedVersion: number;
+}
+
+/** 封存卡片的回傳：前端用 cardId、columnId 把卡片從畫面上移除。 */
+export interface ArchiveCardResult {
+  cardId: string;
+  columnId: string;
+  boardRevision: string;
+}

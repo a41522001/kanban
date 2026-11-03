@@ -8,6 +8,7 @@ import { BoardRepository } from './board.repository';
 import { BoardService } from './board.service';
 import type { AddCardDto } from './dto/addCard.dto';
 import type { UpdateCardDto } from './dto/updateCard.dto';
+import type { ArchiveCardDto } from './dto/archiveCard.dto';
 
 type BoardRecord = NonNullable<
   Awaited<ReturnType<BoardRepository['getAllBoardColumn']>>
@@ -66,6 +67,7 @@ describe('BoardService', () => {
   let findCardSnapshot: jest.MockedFunction<
     BoardRepository['findCardSnapshot']
   >;
+  let archiveCardRecord: jest.MockedFunction<BoardRepository['archiveCard']>;
   let transaction: jest.Mock;
   // Stand-in for the Prisma transaction client passed to the callback.
   const tx = { isTransaction: true };
@@ -78,10 +80,13 @@ describe('BoardService', () => {
     incrementBoardRevision = jest.fn().mockResolvedValue(13n);
     getCardMaxPosition = jest.fn().mockResolvedValue(2048);
     createCardRecord = jest.fn().mockResolvedValue(createCard());
-    findEditableCard = jest
-      .fn()
-      .mockResolvedValue({ id: 'card-1', column: { projectId } });
+    findEditableCard = jest.fn().mockResolvedValue({
+      id: 'card-1',
+      columnId: 'column-1',
+      column: { projectId },
+    });
     updateCardContent = jest.fn().mockResolvedValue(1);
+    archiveCardRecord = jest.fn().mockResolvedValue(1);
     findCardSnapshot = jest
       .fn()
       .mockResolvedValue(createCard({ title: '新標題', version: 4 }));
@@ -103,6 +108,7 @@ describe('BoardService', () => {
             findEditableCard,
             updateCardContent,
             findCardSnapshot,
+            archiveCard: archiveCardRecord,
           },
         },
         { provide: ProjectService, useValue: {} },
@@ -392,6 +398,56 @@ describe('BoardService', () => {
       expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
       expect(exception.code).toBe(ApiCode.ResourceNotFound);
       expect(transaction).not.toHaveBeenCalled();
+    });
+  });
+  describe('archiveCard', () => {
+    const dto: ArchiveCardDto = { cardId: 'card-1', expectedVersion: 3 };
+
+    it('在 transaction 內遞增 revision、帶版本封存，回傳 cardId、columnId 與 boardRevision', async () => {
+      const result = await service.archiveCard(dto, userId);
+
+      expect(findEditableCard).toHaveBeenCalledWith('card-1', userId);
+      expect(incrementBoardRevision).toHaveBeenCalledWith(projectId, tx);
+      expect(archiveCardRecord).toHaveBeenCalledWith('card-1', 3, tx);
+      expect(result).toEqual({
+        cardId: 'card-1',
+        columnId: 'column-1',
+        boardRevision: '13',
+      });
+    });
+
+    it('先遞增 revision（鎖住 Project）再封存卡片', async () => {
+      await service.archiveCard(dto, userId);
+
+      expect(incrementBoardRevision.mock.invocationCallOrder[0]).toBeLessThan(
+        archiveCardRecord.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('版本不符（封存 0 筆）時丟 409 / CardVersionConflict', async () => {
+      archiveCardRecord.mockResolvedValue(0);
+
+      const error: unknown = await service
+        .archiveCard(dto, userId)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppException);
+      const exception = error as AppException;
+      expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
+      expect(exception.code).toBe(ApiCode.CardVersionConflict);
+    });
+
+    it('沒有編輯權限時丟 404，且不開 transaction', async () => {
+      findEditableCard.mockResolvedValue(null);
+
+      const error: unknown = await service
+        .archiveCard(dto, userId)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppException);
+      expect((error as AppException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+      expect(transaction).not.toHaveBeenCalled();
+      expect(archiveCardRecord).not.toHaveBeenCalled();
     });
   });
 });

@@ -6,6 +6,7 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import type {
+  ArchiveCardResult,
   BoardCardSnapshot,
   BoardColumnColorKey,
   BoardSnapshot,
@@ -13,6 +14,7 @@ import type {
 } from '@kanban/contracts/board';
 import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
+import { ArchiveCardDto } from './dto/archiveCard.dto';
 
 /** Prisma 查出的卡片欄位（日期仍是 Date）。 */
 type CardRecord = Omit<BoardCardSnapshot, 'createdAt' | 'updatedAt'> & {
@@ -121,6 +123,51 @@ export class BoardService {
       return {
         boardRevision: revision.toString(),
         card: toCardSnapshot(card),
+      };
+    });
+  }
+
+  /** 封存卡片；版本不符時回 409 */
+  async archiveCard(
+    dto: ArchiveCardDto,
+    userId: string,
+  ): Promise<ArchiveCardResult> {
+    const editableCard = await this.boardRepository.findEditableCard(
+      dto.cardId,
+      userId,
+    );
+    if (editableCard === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到卡片或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    const projectId = editableCard.column.projectId;
+
+    return await this.prismaService.$transaction(async (tx) => {
+      const revision = await this.boardRepository.incrementBoardRevision(
+        projectId,
+        tx,
+      );
+      const count = await this.boardRepository.archiveCard(
+        dto.cardId,
+        dto.expectedVersion,
+        tx,
+      );
+      // 丟錯會讓 transaction rollback，上面遞增的 boardRevision 也一起復原。
+      if (count === 0) {
+        throw new AppException({
+          status: HttpStatus.CONFLICT,
+          message: '卡片已被其他人修改，請重新載入',
+          code: ApiCode.CardVersionConflict,
+        });
+      }
+      // 卡片已封存，前端只需要 cardId、columnId 把它從畫面上移除。
+      return {
+        cardId: dto.cardId,
+        columnId: editableCard.columnId,
+        boardRevision: revision.toString(),
       };
     });
   }

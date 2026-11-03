@@ -17,7 +17,11 @@ import { SessionGuard } from '@/modules/session/session.guard';
 import { BoardService } from './board.service';
 import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
-import type { CardMutationResult } from '@kanban/contracts/board';
+import { ArchiveCardDto } from './dto/archiveCard.dto';
+import type {
+  ArchiveCardResult,
+  CardMutationResult,
+} from '@kanban/contracts/board';
 
 @Controller('board')
 @UseGuards(SessionGuard)
@@ -73,6 +77,21 @@ export class BoardController {
   ): Promise<ApiResult<CardMutationResult>> {
     const result = await this.boardService.updateCard(
       updateCardDto,
+      req.userId!,
+    );
+    return {
+      data: result,
+      message: '',
+    };
+  }
+
+  @Patch('archiveCard')
+  async archiveCard(
+    @Body() archiveCardDto: ArchiveCardDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<ArchiveCardResult>> {
+    const result = await this.boardService.archiveCard(
+      archiveCardDto,
       req.userId!,
     );
     return {
