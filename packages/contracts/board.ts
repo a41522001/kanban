@@ -5,6 +5,26 @@ export const BOARD_COLUMN_COLOR_KEYS = ['coral', 'mint', 'amber', 'violet'] as c
 
 export type BoardColumnColorKey = (typeof BOARD_COLUMN_COLOR_KEYS)[number];
 
+/** CardCategory 可持久化並跨前後端傳遞的色票 key（Board 規格 §4.5）；順序即建立類別時色票的顯示順序。 */
+export const CARD_CATEGORY_COLOR_KEYS = [
+  'coral',
+  'rose',
+  'orange',
+  'mint',
+  'amber',
+  'lime',
+  'teal',
+  'cyan',
+  'lavender',
+  'indigo',
+  'violet',
+  'pink',
+  'blue',
+  'slate',
+] as const;
+
+export type CardCategoryColorKey = (typeof CARD_CATEGORY_COLOR_KEYS)[number];
+
 export interface DefaultBoardColumn {
   title: string;
   colorKey: BoardColumnColorKey;

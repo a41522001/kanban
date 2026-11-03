@@ -27,7 +27,7 @@
 
 ## 下一步
 
-1. **Board 階段 A+**：卡片類別與標籤，2026-11-03 已 grill 確認；A+1-0 設計稿與 Figma v17 已完成，下一步 A+1-1 `CardCategory` schema 與 migration（[Board 規格](features/board.md) §4.5、§9）。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
+1. **Board 階段 A+**：卡片類別與標籤，2026-11-03 已 grill 確認；A+1-0 設計稿與 Figma v17 已完成，A+1-1 schema 與色票已完成，下一步 A+1-2 `POST /board/addCategory`（[Board 規格](features/board.md) §4.5、§9）。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
 2. **頭像上線**：GCP Cloud Storage 與 Cloudflare `media.<網域>`，之後才能 merge 到 `main`。
 3. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
 
