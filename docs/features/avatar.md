@@ -107,6 +107,8 @@
 
 #### 0.4.2 環境變數
 
+程式內以 config namespace 讀取：`AVATAR_*` 對應 `avatar.*`、`GCS_*` 對應 `gcs.*`（例如 `avatar.storageDriver`、`gcs.privateKey`），對照表見 [Config Namespace](../architecture/config.md) §2。
+
 | 變數 | 規則 |
 | --- | --- |
 | `AVATAR_STORAGE_DRIVER` | `local`／`gcs`，預設 `local`。以獨立變數切換，不由 `NODE_ENV` 推斷，開發環境才能切到 GCS（Q1）。E2E 與 CI 不設定 |

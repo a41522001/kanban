@@ -16,7 +16,7 @@
 | （根目錄） | 整體狀態 | [進度](progress.md) |
 | `features/` | 功能規格：規則與該功能自己的實作步驟 | [Auth 前端](features/auth-frontend.md)、[驗證信 Worker](features/email-verification-worker.md)、[驗證信 UI](features/email-verification-ui.md)、[Workspace 邀請與通知](features/workspace-invitation-notification.md)、[頭像](features/avatar.md)、[Board 與 Card](features/board.md) |
 | `reference/` | 現在的行為，以程式碼為準 | [HTTP API](reference/http-api.md)、[API contract](reference/api-contract.md)、[資料庫 Schema](reference/database-schema.md) |
-| `architecture/` | 跨功能的設計 | [Session](architecture/session.md)、[Socket.IO 驗證](architecture/socketio-auth.md)、[Logging](architecture/logging.md) |
+| `architecture/` | 跨功能的設計 | [Session](architecture/session.md)、[Socket.IO 驗證](architecture/socketio-auth.md)、[Logging](architecture/logging.md)、[Config Namespace](architecture/config.md) |
 | `operations/` | 部署與維運 | [部署現況與 CI/CD](operations/deployment.md)、[VM 初始化 Runbook](operations/vm-setup-runbook.md) |
 | `guides/` | 開發規則 | [測試策略](guides/testing.md)、[安全檢查清單](guides/security-checklist.md)、[前端 UI 守則](guides/frontend-design.md)、[Figma 工作流程](guides/figma-workflow.md) |
 

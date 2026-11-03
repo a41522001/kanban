@@ -21,6 +21,7 @@
 | Board | 🔄 | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位 | 見 [Board 規格](features/board.md) §9：Card（階段 A）、拖曳存檔（B）、多人同步（C）、拖曳衝突（D） |
 | 頭像 | 🔄 本機完成 | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示 | 步驟 11 GCP Cloud Storage（2026-11-03 規格已確認，見 [頭像規格](features/avatar.md) §0.4；11-1 待實作）、步驟 12 部署 |
 | Logging | ✅ 開發環境 | API 與 worker 共用 pino、`event` 欄位、`requestId`、5xx 由 Filter 統一記錄、Worker job 記錄、本機 Seq（[Logging 規格](architecture/logging.md)） | 正式環境的 Seq；上線前待辦見該文件 §9.1 |
+| Config Namespace | 🔄 規格已確認 | 2026-11-03 規格（[Config Namespace](architecture/config.md)）：9 個 namespace、`ConfigService<AppConfig, true>` 點路徑讀值 | 實作；19 個使用端一次遷移（含 `socket.service.ts`，完成後盡快推 `dev`） |
 | Socket.IO | 🔄 | Session Cookie handshake、user／session／workspace room、通知與成員異動推送 | project room（Board 階段 C）；reconnect 後 rejoin、快速切換競速、成員移除後清理 room |
 | 部署與 CI/CD | 🔄 MVP | Docker 化、`compose.prod.yml`、CI 測試 `dev`／`feature/*`、CD 於 `main` 推 GHCR 並部署到 GCP VM、`IMAGE_TAG` 版本（[部署](operations/deployment.md)） | 網域與 HTTPS（未完成前正式環境無法登入）、靜態 IP、`restart: unless-stopped`、CI 未跑前端測試 |
 | API 測試 | ✅ | Bruno collection 移入 repo（`bruno/`），涵蓋全部 API 與頭像錯誤案例 | — |
@@ -28,8 +29,9 @@
 ## 下一步
 
 1. **Board 階段 A**：A-1 `Card` schema 與 migration（[Board 規格](features/board.md) §9）。A-0 讀取權限已寫好，尚待以 Bruno 驗證。
-2. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
-3. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
+2. **Config Namespace**（本機）：先於頭像 GCS 步驟 11-2 完成，11-2 直接使用 `avatar.*`、`gcs.*`。
+3. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
+4. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
 
 ## 已知缺口
 
