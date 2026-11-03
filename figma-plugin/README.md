@@ -26,9 +26,11 @@ npm run watch
 2. 在 Canvas 按右鍵，選擇 `Plugins` → `Development` → `Import plugin from manifest…`。
 3. 選取 `/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin/manifest.json`。
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
-5. 本次 Board 階段 A 的卡片畫面按 `Board Phase A · card dialogs, states`；它只更新階段 A 卡片區塊。頭像設定畫面按 `Avatar Settings · dialog, states, entry`；它只更新頭像區塊。驗證信畫面按 `Email Verification · 4 desktop screens`。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
+5. 本次 Board 階段 A+ 的類別與標籤畫面按 `Board Phase A+ · category, labels`；它只更新階段 A+ 區塊。Board 階段 A 的卡片畫面按 `Board Phase A · card dialogs, states`；它只更新階段 A 卡片區塊。頭像設定畫面按 `Avatar Settings · dialog, states, entry`；它只更新頭像區塊。驗證信畫面按 `Email Verification · 4 desktop screens`。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
 
-目前 UI 版本標記為 `v16`。新增 `Board Phase A · card dialogs, states` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Board Phase A components` 區塊與 `03 · Screens` 的 `Board / Phase A Cards` 區塊；需要既有的 Button、Task Card、Notification Trigger、Avatar components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
+目前 UI 版本標記為 `v17`。新增 `Board Phase A+ · category, labels` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Board Phase A+ components` 區塊與 `03 · Screens` 的 `Board / Phase A+ Category & Labels` 區塊；需要既有的 Button、Task Card 與 v16 的 `Card Form Field`（先執行過 `Board Phase A` 或 `Generate All` 即可）。`Generate All` 也包含這些畫面。
+
+v16 曾新增 `Board Phase A · card dialogs, states` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Board Phase A components` 區塊與 `03 · Screens` 的 `Board / Phase A Cards` 區塊；需要既有的 Button、Task Card、Notification Trigger、Avatar components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
 
 v15 曾新增 `Avatar Settings · dialog, states, entry` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Avatar Settings components` 區塊與 `03 · Screens` 的 `Account / Avatar Settings` 區塊；需要既有的 Button 與 Project Card components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
 
@@ -48,6 +50,27 @@ v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Mem
 
 2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。已確認 `Project Member Added Notification Detail Dialog` 有 Desktop／Mobile 兩個 variants，兩個 Screen 均使用 Instances，並完成 runtime／visual check。
 
+
+## v17 Board Phase A+ Category & Labels source-to-output manifest
+
+Board 階段 A+ 的類別與標籤（`docs/features/board.md` §4.5）：一張卡片最多一個類別（14 色），最多 5 個標籤（沒有顏色）。在卡片 Dialog 內直接選取或建立，不做管理頁面。
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/card-dialog-phase-a-plus.svg` | Desktop `1440 × 900` | `03 · Screens` → `Board / Phase A+ Category & Labels` → `Card Dialog · Phase A+ / Desktop / 1440×900`（看板 backdrop 使用 `Board Card A+` Instances + scrim + `Card Dialog A+` `Mode=Create, State=Default` Instance） |
+| `../design/card-taxonomy-states-phase-a-plus.svg` | 規格頁，6 states | 同上 → `Card Category + Label States · Phase A+ / Spec`：看板卡片 4 種組合、類別選單、建立類別與色票、標籤建議、標籤上限與名稱錯誤、VIEWER 唯讀 |
+
+`02 · Components` → `Board Phase A+ components` 新增：
+
+- `Category Chip`：`Color=` 14 色（順序與 contracts `CARD_CATEGORY_COLOR_KEYS` 相同）。
+- `Label Chip`：純文字＋移除按鈕。
+- `Card Taxonomy Field`：`Kind=Category` × `State=Default|Focused`、`Kind=Labels` × `State=Default|Focused|Limit|Error`。
+- `Category Menu`：`State=List`（含「不設定類別」與打勾）、`State=Create`（14 色色票、預覽、7002 上限錯誤）。
+- `Label Suggestions`：既有標籤與「建立」選項。
+- `Board Card A+`：`Content=Full|CategoryOnly|LabelsOnly|TitleOnly`。
+- `Card Dialog A+`：`Mode=Create, State=Default`（加上類別與標籤欄位）、`Mode=Detail, State=ReadOnly`（VIEWER）。
+
+2026-11-03：v17 通過 TypeScript typecheck 與 production build；使用者在 Figma Desktop 執行並確認畫面。修正過一次：在 Hug 寬度的 Auto Layout 列裡放會延展的 spacer，Figma 會把列固定在收縮後的寬度並裁掉後面的內容；選單列改為固定寬度＋`SPACE_BETWEEN`。
 
 ## v16 Board Phase A Cards source-to-output manifest
 

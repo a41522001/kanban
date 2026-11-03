@@ -5,7 +5,7 @@ const FONT_MEDIUM = { family: 'Noto Sans TC', style: 'Medium' } as FontName;
 const FONT_BOLD = { family: 'Noto Sans TC', style: 'Bold' } as FontName;
 let resolvedFonts = { regular: FONT, medium: FONT_MEDIUM, bold: FONT_BOLD };
 
-type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification' | 'avatar-settings' | 'board-phase-a';
+type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification' | 'avatar-settings' | 'board-phase-a' | 'board-phase-a-plus';
 type Direction = 'HORIZONTAL' | 'VERTICAL';
 type ColorMap = Record<string, string>;
 type NotificationViewport = 'Desktop' | 'Mobile';
@@ -1850,6 +1850,7 @@ async function buildComponents(replace = true): Promise<FrameNode> {
   createEmailVerificationComponents(root);
   createAvatarSettingsComponents(root);
   createBoardPhaseAComponents(root);
+  createBoardPhaseAPlusComponents(root);
 
   const inputRow = auto('Input', 'HORIZONTAL', { gap: 24 });
   root.appendChild(inputRow);
@@ -4541,6 +4542,586 @@ async function generateBoardPhaseAOnly(): Promise<FrameNode> {
   return screensRoot;
 }
 
+// ── v17 · Board / Phase A+ Category & Labels ────────────────────────────────
+// Sources: design/card-dialog-phase-a-plus.svg, card-taxonomy-states-phase-a-plus.svg
+// (docs/features/board.md §4.5: one category per card with 14 colors, up to 5 plain-text labels).
+
+type CategoryColorKey = (typeof categoryColorKeys)[number];
+type TaxonomyFieldKind = 'Category' | 'Labels';
+type TaxonomyFieldState = 'Default' | 'Focused' | 'Limit' | 'Error';
+type BoardCardAPlusContent = 'Full' | 'CategoryOnly' | 'LabelsOnly' | 'TitleOnly';
+
+const TAXONOMY_FIELD_VARIANTS: ReadonlyArray<[TaxonomyFieldKind, TaxonomyFieldState]> = [
+  ['Category', 'Default'],
+  ['Category', 'Focused'],
+  ['Labels', 'Default'],
+  ['Labels', 'Focused'],
+  ['Labels', 'Limit'],
+  ['Labels', 'Error'],
+];
+
+const TAXONOMY_ICONS = {
+  chevron: '<path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  search: '<circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m16.5 16.5 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  check: '<path d="m5 12 5 5 9-10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  xSmall: '<path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+};
+
+/** Flexible gap for horizontal rows; call after the parent has been appended to. */
+function appendSpacer(row: FrameNode): void {
+  const spacer = figma.createFrame();
+  spacer.name = 'Spacer';
+  spacer.fills = [];
+  spacer.resize(1, 1);
+  row.appendChild(spacer);
+  spacer.layoutGrow = 1;
+}
+
+function categoryChipVariant(colorKey: CategoryColorKey): ComponentNode {
+  const chip = figma.createComponent();
+  chip.name = `Color=${colorKey}`;
+  chip.description = 'board/CategoryChip · 一張卡片最多一個類別；顏色來自 contracts CARD_CATEGORY_COLOR_KEYS';
+  chip.layoutMode = 'HORIZONTAL';
+  chip.primaryAxisSizingMode = 'AUTO';
+  chip.counterAxisSizingMode = 'AUTO';
+  setPadding(chip, 2, 10);
+  applyFill(chip, `category/${colorKey}-soft`);
+  setRadius(chip, 'radius/full');
+  chip.appendChild(text('Label', '類別', 'Label / Small', `category/${colorKey}`));
+  return chip;
+}
+
+function categoryChip(colorKey: CategoryColorKey, label: string): InstanceNode | FrameNode {
+  const chip = instance(componentVariant('Category Chip', `Color=${colorKey}`), `Category chip / ${label}`);
+  overrideText(chip, 'Label', label);
+  return chip;
+}
+
+function labelChipComponent(): ComponentNode {
+  const chip = figma.createComponent();
+  chip.name = 'Label Chip';
+  chip.description = 'board/LabelChip · 標籤沒有顏色；× 移除；輸入框為空時 Backspace 移除最後一個';
+  chip.layoutMode = 'HORIZONTAL';
+  chip.primaryAxisSizingMode = 'AUTO';
+  chip.counterAxisSizingMode = 'AUTO';
+  chip.counterAxisAlignItems = 'CENTER';
+  chip.itemSpacing = 6;
+  setPadding(chip, 4, 8, 4, 12);
+  applyFill(chip, 'bg/canvas');
+  setRadius(chip, 'radius/sm');
+  chip.appendChild(text('Label', 'Auth', 'Label / Small'));
+  chip.appendChild(icon('Remove icon', TAXONOMY_ICONS.xSmall, 14, 'text/secondary'));
+  return chip;
+}
+
+function labelChip(label: string): InstanceNode | FrameNode {
+  const chip = instance(localComponent('Label Chip'), `Label chip / ${label}`);
+  overrideText(chip, 'Label', label);
+  return chip;
+}
+
+function taxonomyFieldVariant(kind: TaxonomyFieldKind, state: TaxonomyFieldState): ComponentNode {
+  const width = 536;
+  const field = figma.createComponent();
+  field.name = `Kind=${kind}, State=${state}`;
+  field.description = kind === 'Category'
+    ? 'board/CardCategoryField · 可篩選的下拉選單；選取送 categoryId，「不設定類別」送 null'
+    : 'board/CardLabelsField · 最多 5 個；Enter 選取既有或建立新標籤；送出時 labelIds 整組取代';
+  field.layoutMode = 'VERTICAL';
+  field.itemSpacing = 8;
+  field.fills = [];
+  hugHeight(field, width);
+
+  const label = auto('Label row', 'HORIZONTAL', { gap: 8 });
+  label.appendChild(text('Label', kind === 'Category' ? '類別' : '標籤', 'Label / Medium'));
+  label.appendChild(text('Hint', '選填', 'Body / Small', 'text/secondary'));
+  field.appendChild(label);
+
+  const control = auto('Control', 'HORIZONTAL', { gap: 8, padding: [0, 12], fill: 'bg/surface', radius: 'radius/md' });
+  fixed(control, width, 52);
+  control.counterAxisAlignItems = 'CENTER';
+  const strokeColor = state === 'Focused' ? 'action/primary' : state === 'Error' ? 'action/primary-hover' : 'border/strong';
+  applyStroke(control, strokeColor, state === 'Default' || state === 'Limit' ? 1 : 2);
+
+  if (kind === 'Category') {
+    if (state === 'Focused') {
+      control.appendChild(icon('Search icon', TAXONOMY_ICONS.search, 20, 'text/secondary'));
+      control.appendChild(text('Value', '搜尋或建立類別', 'Body / Medium', 'text/tertiary'));
+    } else {
+      control.appendChild(categoryChip('mint', '後端'));
+      appendSpacer(control);
+      control.appendChild(icon('Chevron icon', TAXONOMY_ICONS.chevron, 20, 'text/secondary'));
+    }
+  } else if (state === 'Error') {
+    control.appendChild(text('Value', 'Socket handshake middleware 驗證', 'Body / Medium'));
+  } else {
+    const chips = state === 'Limit' ? ['Auth', 'Backend', 'Board', 'Testing', 'UX'] : state === 'Focused' ? ['Auth'] : ['Auth', 'Backend'];
+    chips.forEach((name) => control.appendChild(labelChip(name)));
+    if (state === 'Focused') control.appendChild(text('Value', 'Fr', 'Body / Medium'));
+    if (state === 'Default') control.appendChild(text('Value', '輸入後按 Enter 新增', 'Body / Medium', 'text/tertiary'));
+  }
+  field.appendChild(control);
+  stretch(control);
+
+  if (kind === 'Labels') {
+    const meta = auto('Meta row', 'HORIZONTAL', { gap: 12 });
+    meta.counterAxisAlignItems = 'CENTER';
+    meta.primaryAxisAlignItems = 'SPACE_BETWEEN';
+    hugHeight(meta, width);
+    const helperCopy: Record<TaxonomyFieldState, [string, string]> = {
+      Default: ['可選擇既有標籤或建立新標籤，依名稱排序顯示。', 'text/secondary'],
+      Focused: ['', 'text/secondary'],
+      Limit: ['已達 5 個標籤上限，移除後才能再新增。', 'text/secondary'],
+      Error: ['標籤名稱最多 20 字', 'action/primary-hover'],
+    };
+    const [helper, helperColor] = helperCopy[state];
+    meta.appendChild(text('Helper', helper, 'Body / Small', helperColor));
+    const counter = state === 'Limit' ? '5 / 5' : state === 'Focused' ? '1 / 5' : state === 'Error' ? '0 / 5' : '2 / 5';
+    meta.appendChild(text('Counter', counter, 'Label / Small', state === 'Limit' ? 'action/primary-hover' : 'text/secondary'));
+    field.appendChild(meta);
+    stretch(meta);
+  }
+  return field;
+}
+
+function taxonomyField(kind: TaxonomyFieldKind, state: TaxonomyFieldState): InstanceNode | FrameNode {
+  return instance(componentVariant('Card Taxonomy Field', `Kind=${kind}, State=${state}`), `${kind} field`);
+}
+
+function menuSurface(name: string, width: number): FrameNode {
+  const menu = auto(name, 'VERTICAL', { gap: 4, padding: [8], fill: 'bg/surface', radius: 'radius/lg' });
+  applyStroke(menu, 'border/default');
+  hugHeight(menu, width);
+  menu.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.16 }, offset: { x: 0, y: 8 }, radius: 20, spread: 0, visible: true, blendMode: 'NORMAL' }];
+  return menu;
+}
+
+/**
+ * Fixed-width row; the trailing node is pushed right with SPACE_BETWEEN.
+ * (A growing spacer inside a Hug row makes Figma freeze the row at its hugged width and clip the rest.)
+ */
+function menuRow(name: string, children: SceneNode[], options: { highlighted?: boolean; trailing?: SceneNode; width?: number } = {}): FrameNode {
+  const row = auto(name, 'HORIZONTAL', { gap: 8, padding: [10, 8], radius: 'radius/sm', fill: options.highlighted ? 'bg/subtle' : undefined });
+  row.counterAxisAlignItems = 'CENTER';
+  row.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  row.resize(options.width ?? 520, 40);
+  row.primaryAxisSizingMode = 'FIXED';
+  row.counterAxisSizingMode = 'AUTO';
+  const leading = auto('Leading', 'HORIZONTAL', { gap: 8 });
+  leading.counterAxisAlignItems = 'CENTER';
+  children.forEach((child) => leading.appendChild(child));
+  row.appendChild(leading);
+  if (options.trailing) row.appendChild(options.trailing);
+  return row;
+}
+
+function categorySwatch(colorKey: CategoryColorKey, selected: boolean): FrameNode {
+  const ring = auto(`Swatch / ${colorKey}`, 'HORIZONTAL', { padding: [3], radius: 'radius/full' });
+  if (selected) applyStroke(ring, 'text/primary', 2);
+  const dot = figma.createEllipse();
+  dot.name = 'Color';
+  dot.resize(24, 24);
+  applyFill(dot, `category/${colorKey}-soft`);
+  applyStroke(dot, `category/${colorKey}`);
+  ring.appendChild(dot);
+  return ring;
+}
+
+function categoryMenuVariant(state: 'List' | 'Create'): ComponentNode {
+  const width = 536;
+  const menu = figma.createComponent();
+  menu.name = `State=${state}`;
+  menu.description = state === 'List'
+    ? 'board/CategoryMenu · 依 normalizedName 排序；目前選取打勾；「不設定類別」送 categoryId: null'
+    : 'board/CategoryMenu create · 名稱不存在（不分大小寫）時出現；14 色，預設第一個未使用的顏色；POST /board/addCategory；409／7002 達 50 個上限';
+  menu.layoutMode = 'VERTICAL';
+  menu.itemSpacing = 4;
+  setPadding(menu, 8);
+  hugHeight(menu, width);
+  applyFill(menu, 'bg/surface');
+  applyStroke(menu, 'border/default');
+  setRadius(menu, 'radius/lg');
+  menu.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.16 }, offset: { x: 0, y: 8 }, radius: 20, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  if (state === 'List') {
+    appendStretched(menu, menuRow('None option', [text('Label', '不設定類別', 'Body / Medium', 'text/secondary')]));
+    appendStretched(menu, avatarDivider(width - 16));
+    const items: Array<[CategoryColorKey, string]> = [['coral', '企劃'], ['lavender', '前端'], ['mint', '後端'], ['amber', '設計']];
+    items.forEach(([colorKey, name]) => {
+      const selected = name === '後端';
+      appendStretched(menu, menuRow(`Option / ${name}`, [categoryChip(colorKey, name)], {
+        highlighted: selected,
+        trailing: selected ? icon('Check icon', TAXONOMY_ICONS.check, 20, 'action/primary-hover') : undefined,
+      }));
+    });
+    appendStretched(menu, menuRow('Footer', [text('Label', '依名稱排序 · 共 4 個類別', 'Label / Small', 'text/secondary')]));
+    return menu;
+  }
+
+  appendStretched(menu, menuRow('Empty', [text('Label', '沒有符合「文件」的類別', 'Body / Small', 'text/secondary')]));
+  appendStretched(menu, avatarDivider(width - 16));
+  appendStretched(menu, menuRow('Create option', [icon('Plus icon', CARD_ICONS.plus, 20, 'action/primary-hover'), text('Label', '建立「文件」', 'Label / Medium', 'action/primary-hover')]));
+  const picker = auto('Color picker', 'VERTICAL', { gap: 8, padding: [4, 8] });
+  picker.appendChild(text('Label', '類別色彩', 'Body / Small', 'text/secondary'));
+  const swatches = auto('Swatches', 'HORIZONTAL', { gap: 4 });
+  // coral is already used by 企劃, so the first unused color (rose) is preselected.
+  categoryColorKeys.forEach((colorKey) => swatches.appendChild(categorySwatch(colorKey, colorKey === 'rose')));
+  picker.appendChild(swatches);
+  appendStretched(menu, picker);
+  const buttons = auto('Buttons', 'HORIZONTAL', { gap: 12 });
+  buttons.appendChild(avatarButton('Outline', '取消', 96, 40));
+  buttons.appendChild(avatarButton('Primary', '建立', 96, 40));
+  appendStretched(menu, menuRow('Preview and actions', [
+    text('Preview label', '預覽', 'Body / Small', 'text/secondary'),
+    categoryChip('rose', '文件'),
+  ], { trailing: buttons }));
+  appendStretched(menu, menuRow('Limit error', [text('Label', '已達 50 個上限時（409 / 7002）：「這個專案的類別已達 50 個上限」', 'Body / Small', 'action/primary-hover')]));
+  return menu;
+}
+
+function labelSuggestionsComponent(): ComponentNode {
+  const width = 536;
+  const menu = figma.createComponent();
+  menu.name = 'Label Suggestions';
+  menu.description = 'board/LabelSuggestions · 列出名稱包含輸入文字的既有標籤（不含已選）；Enter 選取第一個；完全相同（不分大小寫）沿用既有；POST /board/addLabel';
+  menu.layoutMode = 'VERTICAL';
+  menu.itemSpacing = 4;
+  setPadding(menu, 8);
+  hugHeight(menu, width);
+  applyFill(menu, 'bg/surface');
+  applyStroke(menu, 'border/default');
+  setRadius(menu, 'radius/lg');
+  menu.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.16 }, offset: { x: 0, y: 8 }, radius: 20, spread: 0, visible: true, blendMode: 'NORMAL' }];
+  appendStretched(menu, menuRow('Option / Frontend', [text('Label', 'Frontend', 'Body / Medium')], {
+    highlighted: true,
+    trailing: text('Shortcut', 'Enter 選取', 'Label / Small', 'text/secondary'),
+  }));
+  appendStretched(menu, menuRow('Create option', [icon('Plus icon', CARD_ICONS.plus, 20, 'action/primary-hover'), text('Label', '建立「Fr」', 'Label / Medium', 'action/primary-hover')]));
+  return menu;
+}
+
+function boardCardAPlusVariant(content: BoardCardAPlusContent): ComponentNode {
+  const card = figma.createComponent();
+  card.name = `Content=${content}`;
+  card.description = 'board/BoardCard · 類別 chip 在標題上方；標籤以「·」串接在標題下方，單行省略；沒有時不顯示該行';
+  card.layoutMode = 'VERTICAL';
+  card.itemSpacing = 8;
+  setPadding(card, 16);
+  hugHeight(card, 256);
+  applyFill(card, 'bg/surface');
+  setRadius(card, 'radius/lg');
+  const data: Record<BoardCardAPlusContent, { title: string; category?: [CategoryColorKey, string]; labels?: string }> = {
+    Full: { title: 'Session Cookie 驗證流程', category: ['mint', '後端'], labels: 'Auth · Backend' },
+    CategoryOnly: { title: '看板卡片樣式', category: ['lavender', '前端'] },
+    LabelsOnly: { title: '整理 Bruno 測試順序', labels: 'Board · Testing' },
+    TitleOnly: { title: '整理部署文件' },
+  };
+  const { title: titleValue, category, labels } = data[content];
+  if (category) card.appendChild(categoryChip(category[0], category[1]));
+  card.appendChild(text('Title', titleValue, 'Label / Medium'));
+  if (labels) card.appendChild(text('Labels', labels, 'Body / Small', 'text/secondary'));
+  return card;
+}
+
+function cardDialogAPlusVariant(mode: 'Create' | 'Detail'): ComponentNode {
+  const create = mode === 'Create';
+  const width = create ? 600 : 680;
+  const contentWidth = width - 64;
+  const dialog = figma.createComponent();
+  dialog.name = create ? 'Mode=Create, State=Default' : 'Mode=Detail, State=ReadOnly';
+  dialog.description = create
+    ? 'board/CreateCardDialog A+ · addCard 加上 categoryId、labelIds；新類別／標籤先呼叫 addCategory／addLabel 取得 id'
+    : 'board/CardDetailDialog A+ VIEWER · 類別與標籤以純文字呈現；沒有時顯示「沒有類別」「沒有標籤」';
+  dialog.layoutMode = 'VERTICAL';
+  dialog.itemSpacing = 0;
+  hugHeight(dialog, width);
+  applyFill(dialog, 'bg/surface');
+  setRadius(dialog, 'radius/xl');
+  dialog.clipsContent = true;
+  dialog.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.24 }, offset: { x: 0, y: 16 }, radius: 24, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const header = auto('Dialog header', 'HORIZONTAL', { padding: [32, 32, 20, 32] });
+  header.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  hugHeight(header, width);
+  const titleCopy = auto('Title copy', 'VERTICAL', { gap: 4 });
+  titleCopy.appendChild(text('Eyebrow', create ? '卡片' : '卡片 · 位於「正在進行」', 'Label / Small', 'text/secondary'));
+  titleCopy.appendChild(text('Title', create ? '新增卡片' : '卡片詳情', 'Heading / H2'));
+  header.appendChild(titleCopy);
+  header.appendChild(avatarIconButton('Close button', CARD_ICONS.close, 44));
+  dialog.appendChild(header);
+  dialog.appendChild(avatarDivider(width));
+
+  const body = auto('Dialog body', 'VERTICAL', { gap: create ? 16 : 20, padding: [20, 32] });
+  hugHeight(body, width);
+  if (create) {
+    const rail = auto('Target column', 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: 'bg/subtle', radius: 'radius/md' });
+    applyStroke(rail, 'border/default');
+    rail.counterAxisAlignItems = 'CENTER';
+    hugHeight(rail, contentWidth);
+    const accent = figma.createRectangle(); accent.name = 'Column accent'; accent.resize(4, 32); accent.cornerRadius = 2; applyFill(accent, 'flow/ready');
+    rail.appendChild(accent);
+    const railCopy = auto('Column copy', 'VERTICAL', { gap: 2 });
+    rail.appendChild(railCopy);
+    railCopy.layoutGrow = 1;
+    railCopy.appendChild(text('Label', '新增至', 'Body / Small', 'text/secondary'));
+    railCopy.appendChild(text('Column', '準備開始', 'Label / Medium'));
+    rail.appendChild(text('Position', '新增在欄位最下面', 'Body / Small', 'text/secondary'));
+    body.appendChild(rail);
+    appendStretched(body, cardField('Title', 'Default', { value: '建立使用者註冊 API', counter: '11 / 200', hint: '' }));
+    appendStretched(body, taxonomyField('Category', 'Default'));
+    appendStretched(body, taxonomyField('Labels', 'Default'));
+    appendStretched(body, cardField('Description', 'Default', { value: '完成註冊 API 與 DTO 驗證。', counter: '16 / 5000', controlHeight: 88 }));
+  } else {
+    body.appendChild(viewerBadge());
+    body.appendChild(wrappedText('Card title', 'Session Cookie 驗證流程', contentWidth, 'Heading / Auth Card'));
+    const categoryRow = auto('Category', 'HORIZONTAL', { gap: 16 });
+    categoryRow.counterAxisAlignItems = 'CENTER';
+    categoryRow.appendChild(text('Label', '類別', 'Label / Medium'));
+    categoryRow.appendChild(categoryChip('mint', '後端'));
+    body.appendChild(categoryRow);
+    const labelsRow = auto('Labels', 'HORIZONTAL', { gap: 16 });
+    labelsRow.appendChild(text('Label', '標籤', 'Label / Medium'));
+    labelsRow.appendChild(text('Value', 'Auth · Backend', 'Body / Medium'));
+    body.appendChild(labelsRow);
+    const description = auto('Description', 'VERTICAL', { gap: 8 });
+    description.appendChild(text('Label', '描述', 'Label / Medium'));
+    description.appendChild(wrappedText('Value', '使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。', contentWidth));
+    body.appendChild(description);
+    body.appendChild(text('Card meta', '建立於 2026/11/03 10:42　·　最後更新 2026/11/03 11:05', 'Body / Small', 'text/secondary'));
+  }
+  dialog.appendChild(body);
+  dialog.appendChild(avatarDivider(width));
+
+  const footerWrap = auto('Footer wrap', 'VERTICAL', { padding: [24, 32, 32, 32] });
+  hugHeight(footerWrap, width);
+  let footer: FrameNode;
+  if (create) {
+    const hint = text('Footer hint', '建立後可在卡片詳情中修改。', 'Body / Small', 'text/secondary');
+    const buttons = auto('Buttons', 'HORIZONTAL', { gap: 12 });
+    buttons.appendChild(cardDialogButton('Outline', '取消', 96));
+    buttons.appendChild(cardDialogButton('Primary', '建立', 108));
+    footer = avatarFooter(contentWidth, [hint, buttons], true);
+  } else {
+    footer = avatarFooter(contentWidth, [cardDialogButton('Outline', '關閉', 96)]);
+  }
+  footer.resize(contentWidth, 48);
+  footerWrap.appendChild(footer);
+  dialog.appendChild(footerWrap);
+  return dialog;
+}
+
+function registerStandalone(row: FrameNode, component: ComponentNode): void {
+  tag(component, 'component');
+  standaloneComponents[component.name] = component;
+  row.appendChild(component);
+}
+
+function createBoardPhaseAPlusComponents(root: FrameNode): void {
+  const section = auto('Board Phase A+ components', 'VERTICAL', { gap: 24 });
+  tag(section, 'board-phase-a-plus-components');
+  section.appendChild(text('Section title', 'Board / Phase A+ Category & Labels', 'Heading / H2'));
+  // Append the section first: instances of the chips are created inside later variants.
+  root.appendChild(section);
+
+  const chipRow = auto('Category Chip', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(chipRow);
+  componentSets['Category Chip'] = componentSet('Category Chip', categoryColorKeys.map(categoryChipVariant), chipRow);
+
+  const labelRow = auto('Label Chip row', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(labelRow);
+  registerStandalone(labelRow, labelChipComponent());
+
+  const fieldRow = auto('Card Taxonomy Field', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(fieldRow);
+  componentSets['Card Taxonomy Field'] = componentSet('Card Taxonomy Field', TAXONOMY_FIELD_VARIANTS.map(([kind, state]) => taxonomyFieldVariant(kind, state)), fieldRow);
+
+  const menuRowFrame = auto('Category Menu', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(menuRowFrame);
+  componentSets['Category Menu'] = componentSet('Category Menu', [categoryMenuVariant('List'), categoryMenuVariant('Create')], menuRowFrame);
+
+  const suggestionRow = auto('Label Suggestions row', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(suggestionRow);
+  registerStandalone(suggestionRow, labelSuggestionsComponent());
+
+  const cardRow = auto('Board Card A+', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(cardRow);
+  componentSets['Board Card A+'] = componentSet('Board Card A+', (['Full', 'CategoryOnly', 'LabelsOnly', 'TitleOnly'] as const).map(boardCardAPlusVariant), cardRow);
+
+  const dialogRow = auto('Card Dialog A+', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(dialogRow);
+  componentSets['Card Dialog A+'] = componentSet('Card Dialog A+', [cardDialogAPlusVariant('Create'), cardDialogAPlusVariant('Detail')], dialogRow);
+}
+
+function phaseAPlusBoardBackdrop(): FrameNode {
+  const screen = auto('Board backdrop', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.appendChild(appHeader());
+  const content = auto('Main content', 'VERTICAL', { gap: 28, padding: [32] });
+  const heading = auto('Board name', 'VERTICAL', { gap: 6 });
+  heading.appendChild(text('Breadcrumb', 'Jeffery 的工作區 / Flowboard 即時協作', 'Label / Small', 'text/secondary'));
+  heading.appendChild(text('Title', '產品開發看板', 'Heading / H2'));
+  content.appendChild(heading);
+  const columns = auto('Kanban columns', 'HORIZONTAL', { gap: 16 });
+  const data: Array<[string, string, BoardCardAPlusContent[]]> = [
+    ['準備開始', 'flow/ready', ['CategoryOnly', 'TitleOnly']],
+    ['正在進行', 'flow/active', ['Full']],
+    ['等待檢視', 'flow/review', ['LabelsOnly']],
+    ['已完成', 'flow/done', []],
+  ];
+  data.forEach(([name, colorName, cards]) => {
+    const column = boardColumn(name, String(cards.length).padStart(2, '0'), colorName, []);
+    cards.forEach((content, index) => column.insertChild(1 + index, instance(componentVariant('Board Card A+', `Content=${content}`), `Card / ${content}`)));
+    columns.appendChild(column);
+  });
+  content.appendChild(columns);
+  screen.appendChild(content);
+  return screen;
+}
+
+function cardDialogScreenPhaseAPlus(): FrameNode {
+  const screen = auto('Card Dialog · Phase A+ / Desktop / 1440×900', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.clipsContent = true;
+  const layers: SceneNode[] = [phaseAPlusBoardBackdrop()];
+  const scrim = auto('Dialog scrim', 'VERTICAL', { fill: 'bg/dark' });
+  fixed(scrim, 1440, 900);
+  scrim.opacity = 0.62;
+  layers.push(scrim);
+  layers.forEach((layer) => {
+    screen.appendChild(layer);
+    (layer as FrameNode).layoutPositioning = 'ABSOLUTE';
+    layer.x = 0;
+    layer.y = 0;
+  });
+  const dialog = instance(componentVariant('Card Dialog A+', 'Mode=Create'), 'Card dialog');
+  screen.appendChild(dialog);
+  dialog.layoutPositioning = 'ABSOLUTE';
+  dialog.x = Math.round((1440 - dialog.width) / 2);
+  dialog.y = Math.max(16, Math.round((900 - dialog.height) / 2));
+  return screen;
+}
+
+function taxonomyStatesScreenPhaseAPlus(): FrameNode {
+  const screen = auto('Card Category + Label States · Phase A+ / Spec', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
+  hugHeight(screen, 1440);
+  screen.appendChild(text('Title', 'CARD CATEGORY + LABEL STATES / PHASE A+ / SPEC PAGE', 'Heading / H2'));
+  screen.appendChild(text('Description', '類別一張卡片最多一個（14 色），標籤最多 5 個、沒有顏色；每個面板只呈現會改變的部分。', 'Body / Medium', 'text/secondary'));
+
+  const stack = (name: string, children: SceneNode[]): FrameNode => {
+    const frame = auto(name, 'VERTICAL', { gap: 8 });
+    children.forEach((child) => frame.appendChild(child));
+    return frame;
+  };
+
+  const panels: Array<{ name: string; note: string; build: () => SceneNode }> = [
+    {
+      name: '1　看板上的卡片',
+      note: '類別是標題上方的色塊 chip；標籤是標題下方以「·」串接的灰色小字，依名稱排序、單行省略。沒有類別或標籤時不顯示那一行。',
+      build: () => {
+        const grid = auto('Card variants', 'VERTICAL', { gap: 16, padding: [24], fill: 'bg/subtle', radius: 'radius/xl' });
+        applyStroke(grid);
+        const pairs: Array<[BoardCardAPlusContent, BoardCardAPlusContent]> = [['Full', 'CategoryOnly'], ['LabelsOnly', 'TitleOnly']];
+        pairs.forEach((pair, index) => {
+          const line = auto(`Card row ${index + 1}`, 'HORIZONTAL', { gap: 16 });
+          line.counterAxisAlignItems = 'MIN';
+          pair.forEach((content) => line.appendChild(instance(componentVariant('Board Card A+', `Content=${content}`), `Card / ${content}`)));
+          grid.appendChild(line);
+        });
+        return grid;
+      },
+    },
+    {
+      name: '2　類別選單',
+      note: '點類別欄位展開，可輸入文字篩選；目前選取的打勾。「不設定類別」會把類別移除（送出 categoryId: null）。',
+      build: () => stack('Category menu open', [
+        taxonomyField('Category', 'Focused'),
+        instance(componentVariant('Category Menu', 'State=List'), 'Category menu'),
+      ]),
+    },
+    {
+      name: '3　建立新類別',
+      note: '輸入的名稱不存在（不分大小寫）時，最下面出現「建立」。展開 14 色，預設第一個尚未使用的顏色。名稱 trim 後 1–20 字。',
+      build: () => {
+        const field = taxonomyField('Category', 'Focused');
+        overrideText(field, 'Value', '文件');
+        return stack('Category create', [field, instance(componentVariant('Category Menu', 'State=Create'), 'Category menu create')]);
+      },
+    },
+    {
+      name: '4　標籤建議',
+      note: '輸入時列出名稱包含文字的既有標籤；Enter 選取第一個。完全相同（不分大小寫）的名稱會沿用既有標籤，不會重複建立。已選的標籤不在清單中。',
+      build: () => stack('Label suggestions open', [
+        taxonomyField('Labels', 'Focused'),
+        instance(localComponent('Label Suggestions'), 'Label suggestions'),
+      ]),
+    },
+    {
+      name: '5　標籤上限與名稱錯誤',
+      note: '一張卡片最多 5 個標籤，達到上限時隱藏輸入；名稱超過 20 字時不建立，顯示錯誤。專案 200 個上限回 409 / 7003。',
+      build: () => stack('Label limit and error', [taxonomyField('Labels', 'Limit'), taxonomyField('Labels', 'Error')]),
+    },
+    {
+      name: '6　檢視者（VIEWER）唯讀',
+      note: '類別與標籤以純文字呈現，沒有選單與輸入；沒有設定時顯示「沒有類別」「沒有標籤」。',
+      build: () => instance(componentVariant('Card Dialog A+', 'Mode=Detail'), 'Card dialog read only'),
+    },
+  ];
+
+  for (let index = 0; index < panels.length; index += 2) {
+    const row = auto(`State row ${index / 2 + 1}`, 'HORIZONTAL', { gap: 40 });
+    row.counterAxisAlignItems = 'MIN';
+    panels.slice(index, index + 2).forEach(({ name, note, build }) => {
+      const panel = auto(`State / ${name}`, 'VERTICAL', { gap: 12 });
+      panel.appendChild(text('State label', name, 'Heading / H3'));
+      panel.appendChild(wrappedText('State note', note, 600, 'Body / Small', 'text/secondary'));
+      panel.appendChild(build());
+      row.appendChild(panel);
+    });
+    screen.appendChild(row);
+  }
+  return screen;
+}
+
+function boardPhaseAPlusScreenFactories(): Array<() => FrameNode> {
+  return [cardDialogScreenPhaseAPlus, taxonomyStatesScreenPhaseAPlus];
+}
+
+function boardPhaseAPlusSection(): FrameNode {
+  const section = auto('Section / Board / Phase A+ Category & Labels', 'VERTICAL', { gap: 24 });
+  tag(section, 'board-phase-a-plus-screens');
+  section.appendChild(text('Section title', 'Board / Phase A+ Category & Labels', 'Heading / H2'));
+  const row = auto('Screens / Board / Phase A+ Category & Labels', 'HORIZONTAL', { gap: 48 });
+  row.counterAxisAlignItems = 'MIN';
+  boardPhaseAPlusScreenFactories().forEach((create) => {
+    const screen = create();
+    tag(screen, 'screen');
+    row.appendChild(screen);
+  });
+  section.appendChild(row);
+  return section;
+}
+
+async function generateBoardPhaseAPlusOnly(): Promise<FrameNode> {
+  const screensRoot = await existingGeneratedRoot('03 · Screens', 'Flowboard Screens');
+  const componentsRoot = await existingGeneratedRoot('02 · Components', 'Flowboard Components');
+  if (!screensRoot || !componentsRoot) throw new Error('Existing Flowboard Screens and Components are required; run Generate All first.');
+  await buildFoundations();
+  await hydrateComponentCache();
+  if (!componentSets.Button || !componentSets['Task Card'] || !componentSets['Card Form Field']) {
+    throw new Error('Button, Task Card and Card Form Field components are required; run Board Phase A or Generate All first.');
+  }
+
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  screensRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'board-phase-a-plus-screens')?.remove();
+  await figma.setCurrentPageAsync(componentsRoot.parent as PageNode);
+  componentsRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'board-phase-a-plus-components')?.remove();
+  createBoardPhaseAPlusComponents(componentsRoot);
+
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  screensRoot.appendChild(boardPhaseAPlusSection());
+  return screensRoot;
+}
+
 async function buildScreens(): Promise<FrameNode> {
   const generatedPageNames = [
     '03 · Auth · Login · Desktop', '04 · Auth · Login · Mobile', '05 · Auth · Signup · Desktop', '06 · Auth · Signup · Mobile',
@@ -4590,6 +5171,7 @@ async function buildScreens(): Promise<FrameNode> {
     { name: 'Card Detail', screens: [() => cardDetailScreen(false), () => cardDetailScreen(true)] },
     { name: 'Board States', screens: [dragStatesScreen, operationalStatesScreen] },
     { name: 'Board / Phase A Cards', screens: boardPhaseAScreenFactories() },
+    { name: 'Board / Phase A+ Category & Labels', screens: boardPhaseAPlusScreenFactories() },
   ];
 
   for (const group of groups) {
@@ -4598,6 +5180,7 @@ async function buildScreens(): Promise<FrameNode> {
     if (group.name === 'Auth / Email Verification') tag(section, 'email-verification-screens');
     if (group.name === 'Account / Avatar Settings') tag(section, 'avatar-settings-screens');
     if (group.name === 'Board / Phase A Cards') tag(section, 'board-phase-a-screens');
+    if (group.name === 'Board / Phase A+ Category & Labels') tag(section, 'board-phase-a-plus-screens');
     section.appendChild(text('Section title', group.name, 'Heading / H2'));
     const row = auto(`Screens / ${group.name}`, 'HORIZONTAL', { gap: 48 });
     group.screens.forEach((create) => { const screen = create(); tag(screen, 'screen'); row.appendChild(screen); });
@@ -4635,6 +5218,15 @@ async function generate(action: GeneratorAction): Promise<void> {
     figma.notify('Flowboard Board phase A card design is ready.', { timeout: 3000 });
     return;
   }
+  if (action === 'board-phase-a-plus') {
+    postStatus('Updating Board phase A+ category and label components and screens…');
+    const result = await generateBoardPhaseAPlusOnly();
+    await figma.setCurrentPageAsync(result.parent as PageNode);
+    figma.viewport.scrollAndZoomIntoView([result.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'board-phase-a-plus-screens') as SceneNode]);
+    postStatus('Completed: Board phase A+ category/label components, card dialog and states spec.');
+    figma.notify('Flowboard Board phase A+ design is ready.', { timeout: 3000 });
+    return;
+  }
   let result: FrameNode | undefined;
   if (action === 'components' || action === 'screens') {
     postStatus('Preparing foundations…');
@@ -4651,7 +5243,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop'] || !componentSets['Avatar Settings Dialog'] || !standaloneComponents['User Menu'] || !componentSets['Card Dialog'] || !standaloneComponents['Archive Card Confirm']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop'] || !componentSets['Avatar Settings Dialog'] || !standaloneComponents['User Menu'] || !componentSets['Card Dialog'] || !standaloneComponents['Archive Card Confirm'] || !componentSets['Card Dialog A+'] || !standaloneComponents['Label Suggestions']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {
@@ -4662,7 +5254,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   figma.notify('Flowboard native design is ready.', { timeout: 3000 });
 }
 
-figma.showUI(__html__, { width: 360, height: 380, title: 'Flowboard Design Generator' });
+figma.showUI(__html__, { width: 360, height: 420, title: 'Flowboard Design Generator' });
 
 figma.ui.onmessage = async (message: { type: string; action?: GeneratorAction }) => {
   if (message.type !== 'generate' || !message.action) return;
