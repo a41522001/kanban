@@ -123,6 +123,7 @@ describe('BoardService', () => {
     it('以 projectId 與 userId 查詢，並轉成 BoardSnapshot', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 12n,
+        members: [{ role: 'EDITOR' }],
         boardColumns: [
           createColumn({
             cards: [
@@ -139,6 +140,7 @@ describe('BoardService', () => {
       expect(getAllBoardColumn).toHaveBeenCalledWith(projectId, userId);
       expect(snapshot).toEqual({
         boardRevision: '12',
+        currentUserRole: 'EDITOR',
         columns: [
           {
             id: 'column-1',
@@ -173,6 +175,7 @@ describe('BoardService', () => {
     it('回傳內容可被 JSON 序列化（BigInt 已轉為字串）', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 9007199254740993n, // beyond Number.MAX_SAFE_INTEGER
+        members: [{ role: 'EDITOR' }],
         boardColumns: [createColumn({ cards: [createCard()] })],
       });
 
@@ -182,9 +185,22 @@ describe('BoardService', () => {
       expect(snapshot.boardRevision).toBe('9007199254740993');
     });
 
+    it('回傳目前使用者在專案的角色', async () => {
+      getAllBoardColumn.mockResolvedValue({
+        boardRevision: 1n,
+        members: [{ role: 'VIEWER' }],
+        boardColumns: [],
+      });
+
+      const snapshot = await service.getBoardColumn(projectId, userId);
+
+      expect(snapshot.currentUserRole).toBe('VIEWER');
+    });
+
     it('不公開欄位的 version 等內部欄位', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 0n,
+        members: [{ role: 'EDITOR' }],
         boardColumns: [createColumn()],
       });
 
@@ -202,11 +218,13 @@ describe('BoardService', () => {
     it('成員但所有欄位都已封存時回傳空的 columns，不視為沒有權限', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 3n,
+        members: [{ role: 'EDITOR' }],
         boardColumns: [],
       });
 
       await expect(service.getBoardColumn(projectId, userId)).resolves.toEqual({
         boardRevision: '3',
+        currentUserRole: 'EDITOR',
         columns: [],
       });
     });

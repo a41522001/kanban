@@ -78,6 +78,11 @@ export class BoardRepository {
       },
       select: {
         boardRevision: true,
+        // Only the current user's membership, to tell the frontend its role.
+        members: {
+          where: { userId },
+          select: { role: true },
+        },
         boardColumns: {
           where: {
             archivedAt: null,
