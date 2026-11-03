@@ -5,7 +5,7 @@ const FONT_MEDIUM = { family: 'Noto Sans TC', style: 'Medium' } as FontName;
 const FONT_BOLD = { family: 'Noto Sans TC', style: 'Bold' } as FontName;
 let resolvedFonts = { regular: FONT, medium: FONT_MEDIUM, bold: FONT_BOLD };
 
-type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification' | 'avatar-settings';
+type GeneratorAction = 'all' | 'foundations' | 'components' | 'screens' | 'email-verification' | 'avatar-settings' | 'board-phase-a';
 type Direction = 'HORIZONTAL' | 'VERTICAL';
 type ColorMap = Record<string, string>;
 type NotificationViewport = 'Desktop' | 'Mobile';
@@ -1849,6 +1849,7 @@ async function buildComponents(replace = true): Promise<FrameNode> {
   componentSets.Button = componentSet('Button', ['Primary', 'Secondary', 'Outline', 'Ghost', 'Danger'].map(buttonVariant), buttonRow);
   createEmailVerificationComponents(root);
   createAvatarSettingsComponents(root);
+  createBoardPhaseAComponents(root);
 
   const inputRow = auto('Input', 'HORIZONTAL', { gap: 24 });
   root.appendChild(inputRow);
@@ -4083,6 +4084,463 @@ async function generateAvatarSettingsOnly(): Promise<FrameNode> {
   return screensRoot;
 }
 
+// ── v16 · Board / Phase A Cards ─────────────────────────────────────────────
+// Sources: design/card-create-dialog-phase-a.svg, card-detail-dialog-phase-a.svg,
+// card-states-phase-a.svg (docs/features/board.md §2 phase A: title + description only).
+
+type CardFieldKind = 'Title' | 'Description';
+type CardFieldState = 'Default' | 'Focused' | 'Error';
+type CardDialogMode = 'Create' | 'Detail';
+type CardDialogState = 'Default' | 'TitleError' | 'Conflict' | 'ReadOnly';
+
+const CARD_DIALOG_VARIANTS: ReadonlyArray<[CardDialogMode, CardDialogState]> = [
+  ['Create', 'Default'],
+  ['Create', 'TitleError'],
+  ['Detail', 'Default'],
+  ['Detail', 'Conflict'],
+  ['Detail', 'ReadOnly'],
+];
+
+const CARD_ICONS = {
+  close: AVATAR_ICONS.close,
+  plus: AVATAR_ICONS.plus,
+  alert: AVATAR_ICONS.alert,
+  archive: '<rect x="3" y="4" width="18" height="5" rx="1" stroke="currentColor" stroke-width="2"/><path d="M5 9v10h14V9M10 13h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>',
+};
+
+/** Fixed width with Hug height; resize() would otherwise lock both axes. */
+function hugHeight(node: FrameNode | ComponentNode, width: number): void {
+  node.resize(width, Math.max(node.height, 1));
+  node.counterAxisSizingMode = node.layoutMode === 'VERTICAL' ? 'FIXED' : 'AUTO';
+  node.primaryAxisSizingMode = node.layoutMode === 'VERTICAL' ? 'AUTO' : 'FIXED';
+}
+
+function wrappedText(name: string, content: string, width: number, style: keyof typeof typeScale = 'Body / Medium', colorName = 'text/primary'): TextNode {
+  const node = text(name, content, style, colorName);
+  node.textAutoResize = 'HEIGHT';
+  node.resize(width, node.height);
+  return node;
+}
+
+function cardFieldVariant(kind: CardFieldKind, state: CardFieldState): ComponentNode {
+  const width = 536;
+  const field = figma.createComponent();
+  field.name = `Kind=${kind}, State=${state}`;
+  field.description = kind === 'Title'
+    ? 'board/CardTitleField · required · trim 後 1–200 字；有送時不可為空'
+    : 'board/CardDescriptionField · optional · 最多 5000 字；空字串代表清空（存成 null）';
+  field.layoutMode = 'VERTICAL';
+  field.itemSpacing = 8;
+  field.fills = [];
+  hugHeight(field, width);
+
+  const label = auto('Label row', 'HORIZONTAL', { gap: 8 });
+  label.appendChild(text('Label', kind === 'Title' ? '卡片標題' : '描述', 'Label / Medium'));
+  label.appendChild(kind === 'Title' ? text('Required mark', '＊', 'Label / Medium', 'action/primary-hover') : text('Hint', '選填', 'Body / Small', 'text/secondary'));
+  field.appendChild(label);
+
+  const control = auto(kind === 'Title' ? 'Input control' : 'Textarea control', 'VERTICAL', { padding: [14, 16], fill: 'bg/surface', radius: 'radius/md' });
+  fixed(control, width, kind === 'Title' ? 52 : 144);
+  stretch(control);
+  const strokeColor = state === 'Focused' ? 'action/primary' : state === 'Error' ? 'action/primary-hover' : 'border/strong';
+  applyStroke(control, strokeColor, state === 'Default' ? 1 : 2);
+  const placeholder = kind === 'Title' ? '例如：建立使用者註冊 API' : '補充背景、驗收條件或相關連結';
+  const value = state === 'Error' ? '' : kind === 'Title' ? '建立使用者註冊 API' : placeholder;
+  const valueNode = text('Value', value || placeholder, 'Body / Medium', state === 'Error' || (kind === 'Description' && state === 'Default') ? 'text/tertiary' : 'text/primary');
+  if (kind === 'Description') {
+    valueNode.textAutoResize = 'HEIGHT';
+    valueNode.resize(width - 32, valueNode.height);
+  }
+  appendStretched(control, valueNode);
+  field.appendChild(control);
+
+  const meta = auto('Meta row', 'HORIZONTAL', { gap: 12 });
+  meta.counterAxisAlignItems = 'CENTER';
+  meta.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  hugHeight(meta, width);
+  stretch(meta);
+  const helper = state === 'Error'
+    ? text('Helper', '卡片標題不可為空', 'Body / Small', 'action/primary-hover')
+    : text('Helper', kind === 'Title' ? '請用一句可執行、方便團隊理解的工作名稱。' : '', 'Body / Small', 'text/secondary');
+  meta.appendChild(helper);
+  meta.appendChild(text('Counter', kind === 'Title' ? (state === 'Error' ? '0 / 200' : '11 / 200') : '0 / 5000', 'Label / Small', 'text/secondary'));
+  field.appendChild(meta);
+  return field;
+}
+
+function cardDialogButton(style: 'Primary' | 'Outline', label: string, width: number, disabled = false): InstanceNode | FrameNode {
+  return avatarButton(style, label, width, 48, disabled ? { muted: true } : {});
+}
+
+function archiveCardButton(): FrameNode {
+  const button = auto('Archive card button', 'HORIZONTAL', { gap: 8, padding: [12, 16], fill: 'action/primary-soft', radius: 'radius/md' });
+  button.counterAxisAlignItems = 'CENTER';
+  button.appendChild(icon('Archive icon', CARD_ICONS.archive, 18, 'category/coral'));
+  button.appendChild(text('Label', '封存卡片', 'Label / Medium', 'category/coral'));
+  return button;
+}
+
+function cardConflictNotice(width: number): FrameNode {
+  const notice = auto('Version conflict notice', 'HORIZONTAL', { gap: 12, padding: [16, 16], fill: 'flow/review-soft', radius: 'radius/md' });
+  applyStroke(notice, 'flow/review');
+  notice.counterAxisAlignItems = 'CENTER';
+  hugHeight(notice, width);
+  notice.appendChild(icon('Alert icon', CARD_ICONS.alert, 20, 'category/amber'));
+  const copy = auto('Notice copy', 'VERTICAL', { gap: 4 });
+  copy.layoutGrow = 1;
+  copy.appendChild(text('Notice title', '這張卡片已被其他成員修改', 'Label / Medium', 'category/amber'));
+  copy.appendChild(text('Notice detail', '你這次的修改沒有儲存。重新載入後會顯示最新內容。', 'Body / Small', 'category/amber'));
+  notice.appendChild(copy);
+  const reload = auto('Reload button', 'HORIZONTAL', { padding: [12, 20], fill: 'bg/surface', radius: 'radius/md' });
+  applyStroke(reload, 'flow/review');
+  reload.appendChild(text('Label', '重新載入', 'Label / Medium', 'category/amber'));
+  notice.appendChild(reload);
+  return notice;
+}
+
+function viewerBadge(): FrameNode {
+  const badge = auto('Viewer badge', 'HORIZONTAL', { gap: 8, padding: [6, 14], fill: 'category/slate-soft', radius: 'radius/full' });
+  badge.counterAxisAlignItems = 'CENTER';
+  badge.appendChild(icon('Eye icon', CARD_ICONS.eye, 18, 'category/slate'));
+  badge.appendChild(text('Label', '檢視者 · 只能查看', 'Label / Small', 'category/slate'));
+  return badge;
+}
+
+function cardField(kind: CardFieldKind, state: CardFieldState, options: { value?: string; counter?: string; hint?: string; controlHeight?: number } = {}): InstanceNode | FrameNode {
+  const { value, counter, hint, controlHeight } = options;
+  const field = instance(componentVariant('Card Form Field', `Kind=${kind}, State=${state}`), `${kind} field`);
+  if (value !== undefined) {
+    overrideText(field, 'Value', value);
+    const valueNode = (field as any).findOne((node: SceneNode) => node.type === 'TEXT' && node.name === 'Value') as TextNode | null;
+    if (valueNode) applyFill(valueNode, 'text/primary');
+  }
+  if (counter) overrideText(field, 'Counter', counter);
+  if (hint) overrideText(field, 'Hint', hint);
+  if (controlHeight) {
+    const control = (field as any).findOne((node: SceneNode) => node.name === 'Textarea control') as FrameNode | null;
+    if (control) control.resize(control.width, controlHeight);
+  }
+  return field;
+}
+
+/** Append to a vertical Auto Layout parent, then fill its width (layoutAlign only applies after append). */
+function appendStretched(parent: FrameNode | ComponentNode, child: SceneNode): void {
+  parent.appendChild(child);
+  stretch(child);
+}
+
+function cardDialogVariant(mode: CardDialogMode, state: CardDialogState): ComponentNode {
+  const create = mode === 'Create';
+  const width = create ? 600 : 680;
+  const contentWidth = width - 64;
+  const dialog = figma.createComponent();
+  dialog.name = `Mode=${mode}, State=${state}`;
+  dialog.description = create
+    ? 'board/CreateCardDialog · POST /board/addCard · 新增在欄位最下面；成功後以回應的 card 更新畫面，不重新載入看板'
+    : 'board/CardDetailDialog · PATCH /board/updateCard、/board/archiveCard 帶 expectedVersion；409／7001 顯示衝突並停用儲存，VIEWER 唯讀';
+  dialog.layoutMode = 'VERTICAL';
+  dialog.itemSpacing = 0;
+  hugHeight(dialog, width);
+  applyFill(dialog, 'bg/surface');
+  setRadius(dialog, 'radius/xl');
+  dialog.clipsContent = true;
+  dialog.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.24 }, offset: { x: 0, y: 16 }, radius: 24, spread: 0, visible: true, blendMode: 'NORMAL' }];
+
+  const header = auto('Dialog header', 'HORIZONTAL', { padding: [32, 32, 20, 32] });
+  header.primaryAxisAlignItems = 'SPACE_BETWEEN';
+  header.counterAxisAlignItems = 'MIN';
+  hugHeight(header, width);
+  const titleCopy = auto('Title copy', 'VERTICAL', { gap: 4 });
+  titleCopy.appendChild(text('Eyebrow', create ? '卡片' : '卡片 · 位於「正在進行」', 'Label / Small', 'text/secondary'));
+  titleCopy.appendChild(text('Title', create ? '新增卡片' : '卡片詳情', 'Heading / H2'));
+  header.appendChild(titleCopy);
+  if (state !== 'Conflict') header.appendChild(avatarIconButton('Close button', CARD_ICONS.close, 44));
+  dialog.appendChild(header);
+  dialog.appendChild(avatarDivider(width));
+
+  const body = auto('Dialog body', 'VERTICAL', { gap: 20, padding: [24, 32] });
+  hugHeight(body, width);
+
+  if (create) {
+    const rail = auto('Target column', 'HORIZONTAL', { gap: 12, padding: [10, 12], fill: 'bg/subtle', radius: 'radius/md' });
+    applyStroke(rail, 'border/default');
+    rail.counterAxisAlignItems = 'CENTER';
+    hugHeight(rail, contentWidth);
+    const accent = figma.createRectangle(); accent.name = 'Column accent'; accent.resize(4, 32); accent.cornerRadius = 2; applyFill(accent, 'flow/ready');
+    rail.appendChild(accent);
+    const railCopy = auto('Column copy', 'VERTICAL', { gap: 2 });
+    railCopy.layoutGrow = 1;
+    railCopy.appendChild(text('Label', '新增至', 'Body / Small', 'text/secondary'));
+    railCopy.appendChild(text('Column', '準備開始', 'Label / Medium'));
+    rail.appendChild(railCopy);
+    rail.appendChild(text('Position', '新增在欄位最下面', 'Body / Small', 'text/secondary'));
+    body.appendChild(rail);
+    appendStretched(body, cardField('Title', state === 'TitleError' ? 'Error' : 'Focused'));
+    appendStretched(body, state === 'TitleError'
+      ? cardField('Description', 'Default', { value: '完成註冊 API 與 DTO 驗證。', counter: '15 / 5000', controlHeight: 88 })
+      : cardField('Description', 'Default'));
+  } else if (state === 'ReadOnly') {
+    body.appendChild(viewerBadge());
+    body.appendChild(wrappedText('Card title', 'Session Cookie 驗證流程', contentWidth, 'Heading / Auth Card'));
+    const description = auto('Description', 'VERTICAL', { gap: 8 });
+    description.appendChild(text('Label', '描述', 'Label / Medium'));
+    description.appendChild(wrappedText('Value', '使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。完成後由 Socket handshake middleware 驗證登入狀態。', contentWidth));
+    body.appendChild(description);
+    body.appendChild(text('Card meta', '建立於 2026/11/03 10:42　·　最後更新 2026/11/03 11:05', 'Body / Small', 'text/secondary'));
+  } else {
+    if (state === 'Conflict') body.appendChild(cardConflictNotice(contentWidth));
+    appendStretched(body, cardField('Title', state === 'Conflict' ? 'Default' : 'Focused', {
+      value: state === 'Conflict' ? 'Session Cookie 驗證流程（我的修改）' : 'Session Cookie 驗證流程',
+      counter: '19 / 200',
+    }));
+    if (state !== 'Conflict') {
+      appendStretched(body, cardField('Description', 'Default', {
+        value: '使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。\n完成後由 Socket handshake middleware 驗證登入狀態。',
+        counter: '62 / 5000',
+        hint: '選填，清空即移除描述',
+        controlHeight: 200,
+      }));
+      body.appendChild(text('Card meta', '建立於 2026/11/03 10:42　·　最後更新 2026/11/03 11:05', 'Body / Small', 'text/secondary'));
+    }
+  }
+  dialog.appendChild(body);
+  dialog.appendChild(avatarDivider(width));
+
+  const footerWrap = auto('Footer wrap', 'VERTICAL', { padding: [24, 32, 32, 32] });
+  hugHeight(footerWrap, width);
+  let footer: FrameNode;
+  if (create) {
+    const hint = text('Footer hint', '建立後可在卡片詳情中修改。', 'Body / Small', 'text/secondary');
+    const buttons = auto('Buttons', 'HORIZONTAL', { gap: 12 });
+    buttons.appendChild(cardDialogButton('Outline', '取消', 96));
+    buttons.appendChild(cardDialogButton('Primary', '建立', 108));
+    footer = avatarFooter(contentWidth, [hint, buttons], true);
+  } else if (state === 'ReadOnly') {
+    footer = avatarFooter(contentWidth, [cardDialogButton('Outline', '關閉', 96)]);
+  } else {
+    const buttons = auto('Buttons', 'HORIZONTAL', { gap: 12 });
+    buttons.appendChild(cardDialogButton('Outline', '取消', 96));
+    // After a 409 the stale version must not be resent, so Save stays disabled until reload.
+    buttons.appendChild(cardDialogButton('Primary', '儲存', 108, state === 'Conflict'));
+    footer = state === 'Conflict' ? avatarFooter(contentWidth, [buttons]) : avatarFooter(contentWidth, [archiveCardButton(), buttons], true);
+  }
+  footer.resize(contentWidth, 48);
+  footerWrap.appendChild(footer);
+  dialog.appendChild(footerWrap);
+  return dialog;
+}
+
+function archiveCardConfirmComponent(): ComponentNode {
+  const confirm = figma.createComponent();
+  confirm.name = 'Archive Card Confirm';
+  confirm.description = 'board/ArchiveCardConfirm · shadcn-vue/AlertDialog · 封存目前無法還原；封存中按鈕顯示「封存中…」並停用';
+  confirm.layoutMode = 'VERTICAL';
+  confirm.itemSpacing = 16;
+  setPadding(confirm, 28);
+  hugHeight(confirm, 440);
+  applyFill(confirm, 'bg/surface');
+  setRadius(confirm, 'radius/xl');
+  confirm.effects = [{ type: 'DROP_SHADOW', color: { ...hex('#111827'), a: 0.18 }, offset: { x: 0, y: 8 }, radius: 28, spread: 0, visible: true, blendMode: 'NORMAL' }];
+  confirm.appendChild(text('Title', '封存這張卡片？', 'Heading / Auth Card'));
+  confirm.appendChild(wrappedText('Body', '「Session Cookie 驗證流程」會從看板上移除。目前無法還原封存的卡片。', 384));
+  const buttons = auto('Buttons', 'HORIZONTAL', { gap: 12 });
+  buttons.appendChild(cardDialogButton('Outline', '取消', 96));
+  buttons.appendChild(cardDialogButton('Primary', '封存', 116));
+  confirm.appendChild(avatarFooter(384, [buttons]));
+  return confirm;
+}
+
+function createBoardPhaseAComponents(root: FrameNode): void {
+  const section = auto('Board Phase A components', 'VERTICAL', { gap: 24 });
+  tag(section, 'board-phase-a-components');
+  section.appendChild(text('Section title', 'Board / Phase A Cards', 'Heading / H2'));
+
+  const fieldRow = auto('Card Form Field', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(fieldRow);
+  componentSets['Card Form Field'] = componentSet(
+    'Card Form Field',
+    [
+      cardFieldVariant('Title', 'Default'),
+      cardFieldVariant('Title', 'Focused'),
+      cardFieldVariant('Title', 'Error'),
+      cardFieldVariant('Description', 'Default'),
+    ],
+    fieldRow,
+  );
+
+  const dialogRow = auto('Card Dialog', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(dialogRow);
+  componentSets['Card Dialog'] = componentSet('Card Dialog', CARD_DIALOG_VARIANTS.map(([mode, state]) => cardDialogVariant(mode, state)), dialogRow);
+
+  const confirmRow = auto('Archive Card Confirm row', 'HORIZONTAL', { gap: 24 });
+  section.appendChild(confirmRow);
+  const confirm = archiveCardConfirmComponent();
+  tag(confirm, 'component');
+  standaloneComponents[confirm.name] = confirm;
+  confirmRow.appendChild(confirm);
+
+  root.appendChild(section);
+}
+
+/** Phase A board: cards show the title only. */
+function phaseABoardCard(titleValue: string, selected = false): FrameNode {
+  const card = auto(`Card / ${titleValue}`, 'VERTICAL', { padding: [16], fill: 'bg/surface', radius: 'radius/lg' });
+  hugHeight(card, 248);
+  if (selected) applyStroke(card, 'action/primary', 2);
+  card.appendChild(text('Title', titleValue, 'Label / Medium'));
+  return card;
+}
+
+function phaseABoardBackdrop(selectedTitle?: string): FrameNode {
+  const screen = auto('Board backdrop', 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.appendChild(appHeader());
+  const content = auto('Main content', 'VERTICAL', { gap: 28, padding: [32] });
+  const heading = auto('Board name', 'VERTICAL', { gap: 6 });
+  heading.appendChild(text('Breadcrumb', 'Jeffery 的工作區 / Flowboard 即時協作', 'Label / Small', 'text/secondary'));
+  heading.appendChild(text('Title', '產品開發看板', 'Heading / H2'));
+  content.appendChild(heading);
+  const columns = auto('Kanban columns', 'HORIZONTAL', { gap: 16 });
+  const data: Array<[string, string, string[]]> = [
+    ['準備開始', 'flow/ready', ['規劃工作區首頁資訊架構', '建立新增看板 API']],
+    ['正在進行', 'flow/active', ['Session Cookie 驗證流程']],
+    ['等待檢視', 'flow/review', []],
+    ['已完成', 'flow/done', []],
+  ];
+  data.forEach(([name, colorName, titles]) => {
+    const column = boardColumn(name, String(titles.length).padStart(2, '0'), colorName, []);
+    titles.forEach((titleValue, index) => column.insertChild(1 + index, phaseABoardCard(titleValue, titleValue === selectedTitle)));
+    columns.appendChild(column);
+  });
+  content.appendChild(columns);
+  screen.appendChild(content);
+  return screen;
+}
+
+function cardDialogScreenPhaseA(mode: CardDialogMode): FrameNode {
+  const screen = auto(`${mode === 'Create' ? 'Create Card' : 'Card Detail'} · Phase A / Desktop / 1440×900`, 'VERTICAL', { fill: 'bg/canvas' });
+  fixed(screen, 1440, 900);
+  screen.clipsContent = true;
+
+  const background = phaseABoardBackdrop(mode === 'Detail' ? 'Session Cookie 驗證流程' : undefined);
+  screen.appendChild(background);
+  background.layoutPositioning = 'ABSOLUTE';
+  background.x = 0;
+  background.y = 0;
+
+  const scrim = auto('Dialog scrim', 'VERTICAL', { fill: 'bg/dark' });
+  fixed(scrim, 1440, 900);
+  scrim.opacity = 0.62;
+  screen.appendChild(scrim);
+  scrim.layoutPositioning = 'ABSOLUTE';
+  scrim.x = 0;
+  scrim.y = 0;
+
+  const dialog = instance(componentVariant('Card Dialog', `Mode=${mode}, State=Default`), 'Card dialog');
+  screen.appendChild(dialog);
+  dialog.layoutPositioning = 'ABSOLUTE';
+  dialog.x = Math.round((1440 - dialog.width) / 2);
+  dialog.y = Math.max(32, Math.round((900 - dialog.height) / 2));
+  return screen;
+}
+
+function cardStatesScreenPhaseA(): FrameNode {
+  const screen = auto('Card States · Phase A / Spec', 'VERTICAL', { gap: 24, padding: [40], fill: 'bg/canvas' });
+  hugHeight(screen, 1440);
+  screen.appendChild(text('Title', 'CARD STATES / PHASE A / SPEC PAGE', 'Heading / H2'));
+  screen.appendChild(text('Description', 'A 階段卡片只有標題與描述；每個面板只呈現會改變的部分。', 'Body / Medium', 'text/secondary'));
+
+  const panels: Array<{ name: string; note: string; build: () => SceneNode }> = [
+    {
+      name: '1　標題錯誤',
+      note: '標題 trim 後為空或超過 200 字。前端先擋，後端 400 時同樣顯示在欄位下方；不清除使用者已輸入的描述。',
+      build: () => instance(componentVariant('Card Dialog', 'Mode=Create, State=TitleError'), 'Card dialog title error'),
+    },
+    {
+      name: '2　版本衝突（409）',
+      note: '儲存或封存時別人已先修改。顯示提示，不覆蓋對方；「重新載入」會重新取得看板並以最新內容重開這張卡片。',
+      build: () => instance(componentVariant('Card Dialog', 'Mode=Detail, State=Conflict'), 'Card dialog conflict'),
+    },
+    {
+      name: '3　檢視者（VIEWER）唯讀',
+      note: '內容以純文字呈現，沒有輸入框、儲存與封存；看板上也不顯示「＋ 新增卡片」。後端對 VIEWER 的修改一律回 404。',
+      build: () => instance(componentVariant('Card Dialog', 'Mode=Detail, State=ReadOnly'), 'Card dialog read only'),
+    },
+    {
+      name: '4　封存確認',
+      note: '從卡片詳情按「封存卡片」後開啟。封存目前無法還原，所以一定要確認；封存中按鈕顯示「封存中…」並停用。',
+      build: () => {
+        // A plain frame (no Auto Layout) holds the scrim and centres the confirm dialog.
+        const stage = figma.createFrame();
+        stage.name = 'Archive confirm stage';
+        stage.resize(640, 420);
+        stage.fills = [{ ...solid(colors['bg/dark']), opacity: 0.62 }];
+        stage.cornerRadius = radii['radius/xl'];
+        const confirm = instance(localComponent('Archive Card Confirm'), 'Archive card confirm');
+        stage.appendChild(confirm);
+        confirm.x = Math.round((640 - confirm.width) / 2);
+        confirm.y = Math.round((420 - confirm.height) / 2);
+        return stage;
+      },
+    },
+  ];
+
+  for (let index = 0; index < panels.length; index += 2) {
+    const row = auto(`State row ${index / 2 + 1}`, 'HORIZONTAL', { gap: 40 });
+    row.counterAxisAlignItems = 'MIN';
+    panels.slice(index, index + 2).forEach(({ name, note, build }) => {
+      const panel = auto(`State / ${name}`, 'VERTICAL', { gap: 12 });
+      panel.appendChild(text('State label', name, 'Heading / H3'));
+      panel.appendChild(wrappedText('State note', note, 600, 'Body / Small', 'text/secondary'));
+      panel.appendChild(build());
+      row.appendChild(panel);
+    });
+    screen.appendChild(row);
+  }
+  return screen;
+}
+
+function boardPhaseAScreenFactories(): Array<() => FrameNode> {
+  return [() => cardDialogScreenPhaseA('Create'), () => cardDialogScreenPhaseA('Detail'), cardStatesScreenPhaseA];
+}
+
+function boardPhaseASection(): FrameNode {
+  const section = auto('Section / Board / Phase A Cards', 'VERTICAL', { gap: 24 });
+  tag(section, 'board-phase-a-screens');
+  section.appendChild(text('Section title', 'Board / Phase A Cards', 'Heading / H2'));
+  const row = auto('Screens / Board / Phase A Cards', 'HORIZONTAL', { gap: 48 });
+  row.counterAxisAlignItems = 'MIN';
+  boardPhaseAScreenFactories().forEach((create) => {
+    const screen = create();
+    tag(screen, 'screen');
+    row.appendChild(screen);
+  });
+  section.appendChild(row);
+  return section;
+}
+
+async function generateBoardPhaseAOnly(): Promise<FrameNode> {
+  const screensRoot = await existingGeneratedRoot('03 · Screens', 'Flowboard Screens');
+  const componentsRoot = await existingGeneratedRoot('02 · Components', 'Flowboard Components');
+  if (!screensRoot || !componentsRoot) throw new Error('Existing Flowboard Screens and Components are required; run Generate All first.');
+  await buildFoundations();
+  await hydrateComponentCache();
+  if (!componentSets.Button || !componentSets['Task Card'] || !componentSets['Notification Trigger'] || !componentSets.Avatar) {
+    throw new Error('Button, Task Card, Notification Trigger and Avatar components are required; run Generate All first.');
+  }
+
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  screensRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'board-phase-a-screens')?.remove();
+  await figma.setCurrentPageAsync(componentsRoot.parent as PageNode);
+  componentsRoot.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'board-phase-a-components')?.remove();
+  createBoardPhaseAComponents(componentsRoot);
+
+  await figma.setCurrentPageAsync(screensRoot.parent as PageNode);
+  screensRoot.appendChild(boardPhaseASection());
+  return screensRoot;
+}
+
 async function buildScreens(): Promise<FrameNode> {
   const generatedPageNames = [
     '03 · Auth · Login · Desktop', '04 · Auth · Login · Mobile', '05 · Auth · Signup · Desktop', '06 · Auth · Signup · Mobile',
@@ -4131,6 +4589,7 @@ async function buildScreens(): Promise<FrameNode> {
     { name: 'Create Card', screens: [fullCreateCardDialog, responsiveDialogScreen] },
     { name: 'Card Detail', screens: [() => cardDetailScreen(false), () => cardDetailScreen(true)] },
     { name: 'Board States', screens: [dragStatesScreen, operationalStatesScreen] },
+    { name: 'Board / Phase A Cards', screens: boardPhaseAScreenFactories() },
   ];
 
   for (const group of groups) {
@@ -4138,6 +4597,7 @@ async function buildScreens(): Promise<FrameNode> {
     const section = auto(`Section / ${group.name}`, 'VERTICAL', { gap: 24 });
     if (group.name === 'Auth / Email Verification') tag(section, 'email-verification-screens');
     if (group.name === 'Account / Avatar Settings') tag(section, 'avatar-settings-screens');
+    if (group.name === 'Board / Phase A Cards') tag(section, 'board-phase-a-screens');
     section.appendChild(text('Section title', group.name, 'Heading / H2'));
     const row = auto(`Screens / ${group.name}`, 'HORIZONTAL', { gap: 48 });
     group.screens.forEach((create) => { const screen = create(); tag(screen, 'screen'); row.appendChild(screen); });
@@ -4166,6 +4626,15 @@ async function generate(action: GeneratorAction): Promise<void> {
     figma.notify('Flowboard Avatar Settings design is ready.', { timeout: 3000 });
     return;
   }
+  if (action === 'board-phase-a') {
+    postStatus('Updating Board phase A card components and screens…');
+    const result = await generateBoardPhaseAOnly();
+    await figma.setCurrentPageAsync(result.parent as PageNode);
+    figma.viewport.scrollAndZoomIntoView([result.children.find((child) => child.getPluginData(PLUGIN_KEY) === 'board-phase-a-screens') as SceneNode]);
+    postStatus('Completed: Board phase A card components, create/detail dialogs and states spec.');
+    figma.notify('Flowboard Board phase A card design is ready.', { timeout: 3000 });
+    return;
+  }
   let result: FrameNode | undefined;
   if (action === 'components' || action === 'screens') {
     postStatus('Preparing foundations…');
@@ -4182,7 +4651,7 @@ async function generate(action: GeneratorAction): Promise<void> {
   if (action === 'all' || action === 'screens') {
     postStatus(action === 'all' ? '3/3 Building screens…' : 'Building screens…');
     await hydrateComponentCache();
-    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop'] || !componentSets['Avatar Settings Dialog'] || !standaloneComponents['User Menu']) await buildComponents();
+    if (!componentSets['Task Card'] || !componentSets['Project Card'] || !componentSets['Project Member Candidate'] || !componentSets['Project Role Option'] || !componentSets['Project Add Member Dialog'] || !componentSets['Notification Read Action'] || !componentSets['Notification Dropdown'] || !componentSets['Workspace Invitation Detail Dialog'] || !componentSets['Project Member Added Notification Detail Dialog'] || !standaloneComponents['Selected Project Members'] || !standaloneComponents['Workspace Invite Dialog / Desktop'] || !componentSets['Avatar Settings Dialog'] || !standaloneComponents['User Menu'] || !componentSets['Card Dialog'] || !standaloneComponents['Archive Card Confirm']) await buildComponents();
     result = await buildScreens();
   }
   if (result) {

@@ -190,6 +190,8 @@ export class BoardService {
     }
     return {
       boardRevision: result.boardRevision.toString(),
+      // The where clause guarantees the membership exists.
+      currentUserRole: result.members[0].role,
       columns: result.boardColumns.map(({ cards, ...column }) => ({
         id: column.id,
         title: column.title,

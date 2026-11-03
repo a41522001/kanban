@@ -26,9 +26,11 @@ npm run watch
 2. 在 Canvas 按右鍵，選擇 `Plugins` → `Development` → `Import plugin from manifest…`。
 3. 選取 `/Volumes/Crucial X9/practice/websocket/kanban/figma-plugin/manifest.json`。
 4. 選擇 `Plugins` → `Development` → `Flowboard Native Design Generator`。
-5. 本次頭像設定畫面按 `Avatar Settings · dialog, states, entry`；它只更新頭像區塊。驗證信畫面按 `Email Verification · 4 desktop screens`。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
+5. 本次 Board 階段 A 的卡片畫面按 `Board Phase A · card dialogs, states`；它只更新階段 A 卡片區塊。頭像設定畫面按 `Avatar Settings · dialog, states, entry`；它只更新頭像區塊。驗證信畫面按 `Email Verification · 4 desktop screens`。`Generate All` 會重建全部 Generator 畫面，僅在要同步整個設計系統時使用。
 
-目前 UI 版本標記為 `v15`。新增 `Avatar Settings · dialog, states, entry` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Avatar Settings components` 區塊與 `03 · Screens` 的 `Account / Avatar Settings` 區塊；需要既有的 Button 與 Project Card components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
+目前 UI 版本標記為 `v16`。新增 `Board Phase A · card dialogs, states` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Board Phase A components` 區塊與 `03 · Screens` 的 `Board / Phase A Cards` 區塊；需要既有的 Button、Task Card、Notification Trigger、Avatar components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
+
+v15 曾新增 `Avatar Settings · dialog, states, entry` 按鈕：更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components` 的 `Avatar Settings components` 區塊與 `03 · Screens` 的 `Account / Avatar Settings` 區塊；需要既有的 Button 與 Project Card components（先前執行過 `Generate All` 即可）。`Generate All` 也包含這些畫面。
 
 v14 曾新增驗證信畫面。新增 `Email Verification · 4 desktop screens` 按鈕，更新 `01 · Foundations` 的共用 tokens／styles，並只替換 `02 · Components`、`03 · Screens` 裡的驗證信區塊；不重建登入、註冊或其他功能畫面。`Generate All` 也包含這四個狀態。
 
@@ -46,6 +48,24 @@ v12 新增 `Project Member Candidate`、`Project Role Option`、`Project Add Mem
 
 2026-09-20 已在 Figma Desktop 的既有 `Flowboard — Native Design System` 連續執行兩次 v13 `Generate All`；兩次皆完成 Foundations、Components 與 Screens，`Flowboard Screens` 未累積重複 generated roots。已確認 `Project Member Added Notification Detail Dialog` 有 Desktop／Mobile 兩個 variants，兩個 Screen 均使用 Instances，並完成 runtime／visual check。
 
+
+## v16 Board Phase A Cards source-to-output manifest
+
+Board 階段 A 的卡片只有標題與描述（`docs/features/board.md` §2）。卡片詳情以對話框呈現，取代完整的 `card-detail.svg` 頁面；完整版設計保留給之後的階段。手機由 Vue 響應式處理，沒有另建手機版。
+
+| Source | Viewport／state | Figma output |
+| --- | --- | --- |
+| `../design/card-create-dialog-phase-a.svg` | Desktop `1440 × 900` | `03 · Screens` → `Board / Phase A Cards` → `Create Card · Phase A / Desktop / 1440×900`（標題列只有標題的看板 backdrop + scrim + `Card Dialog` `Mode=Create, State=Default` Instance） |
+| `../design/card-detail-dialog-phase-a.svg` | Desktop `1440 × 900` | 同上 → `Card Detail · Phase A / Desktop / 1440×900`（被開啟的卡片有選取外框 + `Mode=Detail, State=Default`） |
+| `../design/card-states-phase-a.svg` | 規格頁，4 states | 同上 → `Card States · Phase A / Spec`：TitleError、Conflict、ReadOnly 三個 `Card Dialog` Instances，以及 `Archive Card Confirm` Instance |
+
+`02 · Components` → `Board Phase A components` 新增：
+
+- `Card Form Field`：`Kind=Title` × `State=Default|Focused|Error`，以及 `Kind=Description, State=Default`。標題有字數 `/ 200` 與錯誤文字；描述為多行、`/ 5000`。
+- `Card Dialog`：`Mode=Create` × `State=Default|TitleError`、`Mode=Detail` × `State=Default|Conflict|ReadOnly`。Conflict 停用「儲存」並提供「重新載入」；ReadOnly 為純文字、只有「關閉」。
+- `Archive Card Confirm`：AlertDialog，封存目前無法還原。
+
+2026-11-03：v16 通過 TypeScript typecheck 與 production build；尚待使用者在 Figma Desktop 執行並確認畫面。
 
 ## v15 Avatar Settings source-to-output manifest
 

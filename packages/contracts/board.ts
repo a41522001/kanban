@@ -1,3 +1,5 @@
+import type { ProjectRole } from './project.js';
+
 /** BoardColumn 可持久化並跨前後端傳遞的色票 key。 */
 export const BOARD_COLUMN_COLOR_KEYS = ['coral', 'mint', 'amber', 'violet'] as const;
 
@@ -74,6 +76,8 @@ export interface BoardColumnSnapshot {
 export interface BoardSnapshot {
   /** Project.boardRevision；BigInt 無法直接 JSON 序列化，以字串傳輸。 */
   boardRevision: string;
+  /** 目前使用者在此專案的角色；VIEWER 在前端只能查看。 */
+  currentUserRole: ProjectRole;
   columns: BoardColumnSnapshot[];
 }
 

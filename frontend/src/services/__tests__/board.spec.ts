@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiCode } from '@kanban/contracts/api';
 import api from '@/services/http';
-import { getBoardSnapshotApi } from '@/services/board';
+import {
+  addCardApi,
+  archiveCardApi,
+  getBoardSnapshotApi,
+  updateCardApi,
+} from '@/services/board';
 
 vi.mock('@/services/http', () => ({
   default: vi.fn<typeof api>(),
@@ -29,6 +34,36 @@ describe('board service', () => {
     expect(mockedApi).toHaveBeenCalledWith({
       url: '/board/project-1',
       method: 'get',
+    });
+  });
+
+  it('新增卡片', async () => {
+    await addCardApi({ columnId: 'column-1', title: '標題' });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/addCard',
+      method: 'post',
+      data: { columnId: 'column-1', title: '標題' },
+    });
+  });
+
+  it('以 expectedVersion 修改卡片', async () => {
+    await updateCardApi({ cardId: 'card-1', title: '新標題', expectedVersion: 2 });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/updateCard',
+      method: 'patch',
+      data: { cardId: 'card-1', title: '新標題', expectedVersion: 2 },
+    });
+  });
+
+  it('以 expectedVersion 封存卡片', async () => {
+    await archiveCardApi({ cardId: 'card-1', expectedVersion: 3 });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/archiveCard',
+      method: 'patch',
+      data: { cardId: 'card-1', expectedVersion: 3 },
     });
   });
 });

@@ -91,3 +91,11 @@
 .board__column--dragging {
   @apply rotate-1 shadow-card;
 }
+
+.board__card-button {
+  @apply cursor-pointer rounded-xl text-left outline-none ring-action-primary transition-shadow hover:ring-1 focus-visible:ring-3 focus-visible:ring-action-primary/30;
+}
+
+.board__card-button--selected {
+  @apply ring-2;
+}

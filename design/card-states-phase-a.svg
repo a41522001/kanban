@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1180" viewBox="0 0 1440 1180">
+  <defs>
+    <filter id="dialog-shadow" x="-15%" y="-12%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#111827" flood-opacity=".18"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}
+      .spec{font-size:14px;font-weight:700;letter-spacing:.1em;fill:#697287}
+      .state{font-size:16px;font-weight:700}
+      .note{font-size:12px;fill:#697287}
+      .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;fill:#697287}
+      .title{font-size:20px;font-weight:700}
+      .section{font-size:14px;font-weight:700}
+      .body{font-size:14px}
+      .small{font-size:12px;fill:#697287}
+      .tiny{font-size:11px;fill:#697287}
+      .button{font-size:14px;font-weight:700;fill:#FFF9F4}
+      .button-secondary{font-size:14px;font-weight:700;fill:#29324A}
+      .button-muted{font-size:14px;font-weight:700;fill:#9AA2B3}
+    </style>
+    <g id="close-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m5 5 14 14M19 5 5 19"/></g>
+    <g id="alert-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="8"/><path d="M10 6v5M10 14h.01"/></g>
+    <g id="eye-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z"/><circle cx="10" cy="10" r="2.5"/></g>
+  </defs>
+
+  <!-- Flowboard / Card states / Board phase A. Each panel shows only the part of the dialog that changes. -->
+  <rect width="1440" height="1180" fill="#E9ECF1"/>
+  <text x="48" y="44" class="spec">CARD STATES / PHASE A / SPEC PAGE</text>
+
+  <!-- 1. Title validation -->
+  <g id="state-title-error" transform="translate(48 80)">
+    <text class="state">1　標題錯誤</text>
+    <text y="24" class="note">標題 trim 後為空或超過 200 字。前端先擋，後端 400 時同樣顯示在欄位下方；不清除使用者已輸入的描述。</text>
+    <g transform="translate(0 48)" filter="url(#dialog-shadow)">
+      <rect width="656" height="420" rx="16" fill="#FFF"/>
+      <g transform="translate(32 32)">
+        <text class="eyebrow">卡片</text><text y="28" class="title">新增卡片</text>
+        <line x1="-32" y1="52" x2="624" y2="52" stroke="#D7DCE5"/>
+        <g transform="translate(0 76)">
+          <text class="section">卡片標題</text><text x="70" class="section" style="fill:#C4573E">＊</text>
+          <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#C4573E" stroke-width="2"/>
+          <text y="88" class="small" style="fill:#C4573E">卡片標題不可為空</text>
+          <text x="592" y="88" text-anchor="end" class="tiny">0 / 200</text>
+        </g>
+        <g transform="translate(0 196)">
+          <text class="section">描述</text><text x="42" class="small">選填</text>
+          <rect y="16" width="592" height="88" rx="10" fill="#FFF" stroke="#CDD3DE"/>
+          <text x="16" y="44" class="body">完成註冊 API 與 DTO 驗證。</text>
+        </g>
+        <g transform="translate(376 316)">
+          <rect width="96" height="44" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="48" y="28" text-anchor="middle" class="button-secondary">取消</text>
+          <rect x="108" width="108" height="44" rx="10" fill="#B94B36"/><text x="162" y="28" text-anchor="middle" class="button">建立</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- 2. Version conflict (409 / CardVersionConflict) -->
+  <g id="state-version-conflict" transform="translate(736 80)">
+    <text class="state">2　版本衝突（409）</text>
+    <text y="24" class="note">儲存或封存時別人已先修改。顯示提示，不覆蓋對方；「重新載入」會重新取得看板並以最新內容重開這張卡片。</text>
+    <g transform="translate(0 48)" filter="url(#dialog-shadow)">
+      <rect width="656" height="420" rx="16" fill="#FFF"/>
+      <g transform="translate(32 32)">
+        <text class="eyebrow">卡片 · 位於「正在進行」</text><text y="28" class="title">卡片詳情</text>
+        <line x1="-32" y1="52" x2="624" y2="52" stroke="#D7DCE5"/>
+        <g transform="translate(0 72)" color="#7A4D00">
+          <rect width="592" height="84" rx="10" fill="#FFF1D8" stroke="#E6B960"/>
+          <use href="#alert-icon" transform="translate(16 16)"/>
+          <text x="48" y="30" class="section" style="fill:#7A4D00">這張卡片已被其他成員修改</text>
+          <text x="48" y="54" class="small" style="fill:#7A4D00">你這次的修改沒有儲存。重新載入後會顯示最新內容。</text>
+          <rect x="452" y="20" width="124" height="44" rx="10" fill="#FFF" stroke="#E6B960"/>
+          <text x="514" y="47" text-anchor="middle" class="button-secondary" style="fill:#7A4D00">重新載入</text>
+        </g>
+        <g transform="translate(0 180)">
+          <text class="section">卡片標題</text>
+          <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#CDD3DE"/>
+          <text x="16" y="49" class="body">Session Cookie 驗證流程（我的修改）</text>
+        </g>
+        <g transform="translate(376 316)">
+          <rect width="96" height="44" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="48" y="28" text-anchor="middle" class="button-secondary">取消</text>
+          <!-- Save stays disabled until the user reloads, so the stale version is never resent. -->
+          <rect x="108" width="108" height="44" rx="10" fill="#EEF0F4"/><text x="162" y="28" text-anchor="middle" class="button-muted">儲存</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- 3. VIEWER read-only -->
+  <g id="state-viewer-read-only" transform="translate(48 600)">
+    <text class="state">3　檢視者（VIEWER）唯讀</text>
+    <text y="24" class="note">內容以純文字呈現，沒有輸入框、儲存與封存；看板上也不顯示「＋ 新增卡片」。後端對 VIEWER 的修改一律回 404。</text>
+    <g transform="translate(0 48)" filter="url(#dialog-shadow)">
+      <rect width="656" height="420" rx="16" fill="#FFF"/>
+      <g transform="translate(32 32)">
+        <text class="eyebrow">卡片 · 位於「正在進行」</text><text y="28" class="title">卡片詳情</text>
+        <g transform="translate(548 -8)" color="#697287"><rect width="44" height="44" rx="10" fill="#F7F8FA"/><use href="#close-icon" transform="translate(10 10)"/></g>
+        <line x1="-32" y1="52" x2="624" y2="52" stroke="#D7DCE5"/>
+        <g transform="translate(0 72)" color="#465066">
+          <rect width="200" height="32" rx="16" fill="#E8EBF0"/>
+          <use href="#eye-icon" transform="translate(12 6)"/>
+          <text x="40" y="21" class="small" font-weight="700" style="fill:#465066">檢視者 · 只能查看</text>
+        </g>
+        <text y="148" class="title">Session Cookie 驗證流程</text>
+        <text y="188" class="section">描述</text>
+        <text y="216" class="body">使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。</text>
+        <text y="240" class="body">完成後由 Socket handshake middleware 驗證登入狀態。</text>
+        <text y="284" class="small">建立於 2026/11/03 10:42　·　最後更新 2026/11/03 11:05</text>
+        <g transform="translate(496 316)">
+          <rect width="96" height="44" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="48" y="28" text-anchor="middle" class="button-secondary">關閉</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- 4. Archive confirmation -->
+  <g id="state-archive-confirm" transform="translate(736 600)">
+    <text class="state">4　封存確認</text>
+    <text y="24" class="note">從卡片詳情按「封存卡片」後開啟。封存目前無法還原，所以一定要確認；封存中按鈕顯示「封存中…」並停用。</text>
+    <g transform="translate(0 48)">
+      <rect width="656" height="420" rx="16" fill="#29324A" opacity=".62"/>
+      <g transform="translate(108 96)" filter="url(#dialog-shadow)">
+        <rect width="440" height="228" rx="16" fill="#FFF"/>
+        <g transform="translate(28 28)">
+          <text y="16" class="title">封存這張卡片？</text>
+          <text y="56" class="body">「Session Cookie 驗證流程」會從看板上移除。</text>
+          <text y="80" class="body">目前無法還原封存的卡片。</text>
+          <g transform="translate(160 124)">
+            <rect width="96" height="48" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="48" y="30" text-anchor="middle" class="button-secondary">取消</text>
+            <rect x="108" width="116" height="48" rx="10" fill="#B94B36"/><text x="166" y="30" text-anchor="middle" class="button">封存</text>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
