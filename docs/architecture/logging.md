@@ -21,13 +21,13 @@
 
 ```text
 API process ──┐
-              ├─ nestjs-pino（共用 config/logger.config.ts）
+              ├─ nestjs-pino（共用 infrastructure/logger/logger.factory.ts）
 worker process┘        │
                        ├─ 終端機：開發用 pino-pretty，正式為 JSON（一律輸出）
                        └─ Seq：只有設定 SEQ_URL 時才送（pino-seq）
 ```
 
-- （Q2）worker 也接 nestjs-pino，與 API 共用 `logger.config.ts`；每筆 log 帶 `service: 'api' | 'worker'`。
+- （Q2）worker 也接 nestjs-pino，與 API 共用 `infrastructure/logger/logger.factory.ts`（2026-11-03 由 `config/logger.config.ts` 搬移改名；下方 §9 實作紀錄保留當時的路徑）；每筆 log 帶 `service: 'api' | 'worker'`。
 - （Q11）level 門檻：開發 `debug`，正式 `info`。
 - （Q12）`compose.yml` 加入 `seq` 服務（image `datalust/seq`，需 `ACCEPT_EULA=Y`，後台在容器 port 80）。未設定 `SEQ_URL` 時只印終端機，E2E 與 CI 不受影響。
 - （Q13）使用 Datalust 官方維護的 `pino-seq`（4.0.0，peer `pino` 10.x；後端目前為 pino 10.3.1）。它是 stream 而非 pino transport，且**只提供 ESM**：`package.json` 的 `exports` 只有 `import` 條件。後端編譯為 CommonJS，一般 `import` 會被轉成 `require()` 而失敗（`ERR_PACKAGE_PATH_NOT_EXPORTED`），因此以 `await import('pino-seq')` 載入（2026-10-27 驗證；與 Node 版本無關）。

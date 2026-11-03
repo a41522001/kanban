@@ -11,7 +11,7 @@ import { AvatarRepository } from '@/modules/avatar/avatar.repository';
 import { StorageModule } from '@/infrastructure/storage/storage.module';
 import { ImageProcessingService } from '@/modules/avatar/image/imageProcessing.service';
 import { LoggerModule } from 'nestjs-pino';
-import { loggerFactory } from '@/config/logger.config';
+import { loggerFactory } from '@/infrastructure/logger/logger.factory';
 const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
 @Module({
   imports: [

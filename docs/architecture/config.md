@@ -26,7 +26,7 @@
 - 保留單位（`expireDay`、`rotateMinute`）；
 - namespace 內只有一層，不再巢狀。
 
-每個 namespace 一個檔案：`backend/src/config/namespaces/<namespace>.config.ts`（Q1）。2026-11-03 修訂：原為 `src/config/<namespace>.config.ts`，但 `src/config/logger.config.ts` 已是 pino 設定，與 `logger` namespace 撞名，因此集中放在 `namespaces/`，既有檔案不動。
+每個 namespace 一個檔案：`backend/src/config/namespaces/<namespace>.config.ts`（Q1）。2026-11-03 修訂：原為 `src/config/<namespace>.config.ts`，但當時 `src/config/logger.config.ts` 是 pino 設定，與 `logger` namespace 撞名，因此集中放在 `namespaces/`。pino 設定已於同日搬到 `src/infrastructure/logger/logger.factory.ts`。
 
 | Namespace | 環境變數 | 程式內路徑 |
 | --- | --- | --- |

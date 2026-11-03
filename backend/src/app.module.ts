@@ -6,7 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
 import { envSchema } from './config/env';
 import { type AppConfig, configNamespaces } from './config';
-import { loggerFactory } from './config/logger.config';
+import { loggerFactory } from './infrastructure/logger/logger.factory';
 import { PrismaModule } from '@/infrastructure/prisma/prisma.module';
 import { RedisModule } from '@/infrastructure/redis/redis.module';
 import { SessionModule } from '@/modules/session/session.module';
