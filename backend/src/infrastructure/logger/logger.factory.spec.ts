@@ -4,8 +4,9 @@ import { Writable } from 'node:stream';
 import type { ConfigService } from '@nestjs/config';
 import pino from 'pino';
 import type { Params } from 'nestjs-pino';
-import type { Env } from './env';
-import { loggerFactory } from './logger.config';
+import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
+import { loggerFactory } from './logger.factory';
 
 // pino-http 不是 backend 的直接依賴，改由 nestjs-pino 的 Params 推導型別：
 // loggerFactory 回傳 pinoHttp: [設定, 輸出目的地]。
@@ -16,11 +17,15 @@ type MultiStreamLike = {
   streams: { level: number; stream: { flush?: () => Promise<void> } }[];
 };
 
-const createConfig = (nodeEnv: Env['NODE_ENV'], seqUrl?: string) =>
-  ({
-    getOrThrow: () => nodeEnv,
-    get: (key: string) => (key === 'SEQ_URL' ? seqUrl : undefined),
-  }) as unknown as ConfigService<Env>;
+const createConfig = (nodeEnv: Env['NODE_ENV'], seqUrl?: string) => {
+  const values: Record<string, unknown> = {
+    'app.nodeEnv': nodeEnv,
+    'logger.seqUrl': seqUrl,
+  };
+  return {
+    get: (key: string) => values[key],
+  } as unknown as ConfigService<AppConfig, true>;
+};
 
 /** 取出 loggerFactory 產生的 [設定, 輸出目的地]。 */
 const getPinoHttp = async (

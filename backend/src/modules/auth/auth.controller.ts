@@ -23,7 +23,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response, Request } from 'express';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { clearCookie, getCookieOptions } from '@/common/utils/cookie';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -40,7 +40,7 @@ import { AppException } from '@/common/exceptions/app.exception';
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly authService: AuthService,
   ) {
     this.sessionCookieMaxAge =
@@ -48,7 +48,7 @@ export class AuthController {
       60 *
       60 *
       24 *
-      this.configService.getOrThrow('SESSION_EXPIRE_DAY', { infer: true });
+      this.configService.get('session.expireDay', { infer: true });
   }
   private sessionCookieName: string = 'sessionId';
   private sessionCookieMaxAge: number;

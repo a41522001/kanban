@@ -29,8 +29,9 @@ describe('authController', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('test'),
-            getOrThrow: jest.fn().mockReturnValue(7),
+            get: jest.fn((key: string) =>
+              key === 'session.expireDay' ? 7 : 'test',
+            ),
           },
         },
         {

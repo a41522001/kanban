@@ -4,8 +4,9 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
-import { type Env, envSchema } from './config/env';
-import { loggerFactory } from './config/logger.config';
+import { envSchema } from './config/env';
+import { type AppConfig, configNamespaces } from './config';
+import { loggerFactory } from './infrastructure/logger/logger.factory';
 import { PrismaModule } from '@/infrastructure/prisma/prisma.module';
 import { RedisModule } from '@/infrastructure/redis/redis.module';
 import { SessionModule } from '@/modules/session/session.module';
@@ -31,10 +32,11 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
       isGlobal: true,
       envFilePath,
       validate: (config) => envSchema.parse(config),
+      load: configNamespaces,
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<Env>) =>
+      useFactory: (configService: ConfigService<AppConfig, true>) =>
         loggerFactory(configService, 'api'),
     }),
     ScheduleModule.forRoot(),

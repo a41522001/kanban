@@ -48,7 +48,7 @@ describe('UserService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn().mockReturnValue(4),
+            get: jest.fn().mockReturnValue(4),
           },
         },
         {

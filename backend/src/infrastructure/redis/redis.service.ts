@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { createClient, RedisClientType } from 'redis';
 import {
   SESSION_SCRIPTS,
@@ -28,9 +28,9 @@ export class RedisService
   private readonly client: AppRedisClient;
   private readonly mqRedisClient: IRedisClient;
   private readonly logger = new Logger(RedisService.name);
-  constructor(configService: ConfigService<Env>) {
+  constructor(configService: ConfigService<AppConfig, true>) {
     this.client = createClient({
-      url: configService.getOrThrow('REDIS_URL', {
+      url: configService.get('redis.url', {
         infer: true,
       }),
       scripts: SESSION_SCRIPTS,
@@ -45,7 +45,7 @@ export class RedisService
 
     this.mqRedisClient = createNodeRedisClient(
       createClient({
-        url: configService.getOrThrow('REDIS_URL', {
+        url: configService.get('redis.url', {
           infer: true,
         }),
       }),

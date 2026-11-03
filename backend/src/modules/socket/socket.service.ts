@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Server as HttpServer } from 'node:http';
 import { Server, type DefaultEventsMap, type Socket } from 'socket.io';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
@@ -33,7 +33,7 @@ export class SocketService implements OnModuleDestroy {
   > | null = null;
   private readonly logger = new Logger(SocketService.name);
   constructor(
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionService: SessionService,
     private readonly workspacesService: WorkspacesService,
   ) {}
@@ -52,7 +52,7 @@ export class SocketService implements OnModuleDestroy {
     if (this.io) {
       return;
     }
-    const frontendURL = this.configService.getOrThrow('FRONTEND_URL', {
+    const frontendURL = this.configService.get('app.frontendUrl', {
       infer: true,
     });
 
