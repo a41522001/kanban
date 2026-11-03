@@ -1,4 +1,5 @@
-import { type Env, envSchema } from '@/config/env';
+import { envSchema } from '@/config/env';
+import { type AppConfig, configNamespaces } from '@/config';
 import { RedisModule } from '@/infrastructure/redis/redis.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -18,10 +19,11 @@ const envFilePath = process.env.E2E_ENV === 'true' ? '.env.e2e' : '.env';
       isGlobal: true,
       envFilePath,
       validate: (config) => envSchema.parse(config),
+      load: configNamespaces,
     }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<Env>) =>
+      useFactory: (configService: ConfigService<AppConfig, true>) =>
         loggerFactory(configService, 'worker'),
     }),
     RedisModule,

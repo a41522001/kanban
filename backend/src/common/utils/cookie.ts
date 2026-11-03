@@ -1,10 +1,10 @@
 import type { Response } from 'express';
-import { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { ConfigService } from '@nestjs/config';
 
-const getCookieOptions = (configService: ConfigService<Env>) => {
+const getCookieOptions = (configService: ConfigService<AppConfig, true>) => {
   const isProduction =
-    configService.get('NODE_ENV', { infer: true }) === 'production';
+    configService.get('app.nodeEnv', { infer: true }) === 'production';
   return {
     httpOnly: true,
     secure: isProduction,
@@ -14,7 +14,7 @@ const getCookieOptions = (configService: ConfigService<Env>) => {
 };
 
 const clearCookie = (
-  configService: ConfigService<Env>,
+  configService: ConfigService<AppConfig, true>,
   res: Response,
   key: string,
 ): void => {

@@ -1,6 +1,6 @@
 # Backend Config Namespace
 
-日期：2026-11-03。由使用者以 grill 逐項確認（Q1–Q11）。
+日期：2026-11-03。由使用者以 grill 逐項確認（Q1–Q11）。狀態：**已實作**（2026-11-03）；`gcs` namespace 於 [頭像規格](../features/avatar.md) 步驟 11-2 新增 `GCS_*` 變數時一併建立，目前為 8 個。
 
 把目前扁平的環境變數依領域分成 namespace（`registerAs`），程式內以 `avatar.storageRoot` 這類路徑讀值，取代 `AVATAR_STORAGE_ROOT` 這類環境變數名稱。API（`app.module.ts`）與 worker（`worker/worker.module.ts`）共用同一套設定。
 
@@ -26,7 +26,7 @@
 - 保留單位（`expireDay`、`rotateMinute`）；
 - namespace 內只有一層，不再巢狀。
 
-每個 namespace 一個檔案：`backend/src/config/<namespace>.config.ts`（Q1）。
+每個 namespace 一個檔案：`backend/src/config/namespaces/<namespace>.config.ts`（Q1）。2026-11-03 修訂：原為 `src/config/<namespace>.config.ts`，但 `src/config/logger.config.ts` 已是 pino 設定，與 `logger` namespace 撞名，因此集中放在 `namespaces/`，既有檔案不動。
 
 | Namespace | 環境變數 | 程式內路徑 |
 | --- | --- | --- |
@@ -68,7 +68,7 @@
 - 每個 namespace 的 factory 只透過 `getValidatedEnv()` 取值，**不直接讀 `process.env`**（理由見 §1）。
 
 ```ts
-// backend/src/config/session.config.ts
+// backend/src/config/namespaces/session.config.ts
 export const sessionConfig = registerAs('session', () => {
   const env = getValidatedEnv();
   return {
@@ -81,7 +81,7 @@ export const sessionConfig = registerAs('session', () => {
 
 ## 4. 註冊（Q5）
 
-`backend/src/config/index.ts` 匯出：
+`backend/src/config/index.ts`（不在 `namespaces/` 內，使用端以 `@/config` 匯入）匯出：
 
 - `configNamespaces`：9 個 namespace 的陣列；
 - `AppConfig`：總型別（Q8）。

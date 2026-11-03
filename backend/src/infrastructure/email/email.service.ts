@@ -1,18 +1,17 @@
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { type Mail, type SMTPSentMessageInfo } from 'nodemailer';
 @Injectable()
 export class EmailService implements OnModuleInit {
-  constructor(private readonly configService: ConfigService<Env>) {}
+  constructor(private readonly configService: ConfigService<AppConfig, true>) {}
   private transporter!: Mail<SMTPSentMessageInfo>;
   async sendVerifyEmail(email: string, url: string) {
-    const expireMinute = this.configService.getOrThrow(
-      'VERIFY_MAIL_EXPIRE_MINUTE',
-      { infer: true },
-    );
+    const expireMinute = this.configService.get('auth.verifyMailExpireMinute', {
+      infer: true,
+    });
     await this.transporter.sendMail({
-      from: this.configService.getOrThrow('MAIL_FROM', { infer: true }),
+      from: this.configService.get('mail.from', { infer: true }),
       to: email,
       subject: 'Flowboard - 驗證你的帳號',
       html: `<h3>歡迎註冊 Flowboard App</h3>
@@ -22,13 +21,14 @@ export class EmailService implements OnModuleInit {
     });
   }
   onModuleInit() {
+    const mail = this.configService.get('mail', { infer: true });
     this.transporter = nodemailer.createTransport({
-      host: this.configService.getOrThrow('SMTP_HOST', { infer: true }),
-      port: this.configService.getOrThrow('SMTP_PORT', { infer: true }),
+      host: mail.smtpHost,
+      port: mail.smtpPort,
       secure: true,
       auth: {
-        user: this.configService.getOrThrow('SMTP_USER', { infer: true }),
-        pass: this.configService.getOrThrow('SMTP_PASSWORD', { infer: true }),
+        user: mail.smtpUser,
+        pass: mail.smtpPassword,
       },
     });
   }

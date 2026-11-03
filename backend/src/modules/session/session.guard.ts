@@ -1,6 +1,6 @@
 import { AppException } from '@/common/exceptions/app.exception';
 import { getCookieOptions } from '@/common/utils/cookie';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { SessionService } from '@/modules/session/session.service';
 import { ApiCode } from '@kanban/contracts/api';
 import {
@@ -16,7 +16,7 @@ export class SessionGuard implements CanActivate {
   private sessionCookieName: string = 'sessionId';
   private sessionCookieMaxAge: number;
   constructor(
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionService: SessionService,
   ) {
     this.sessionCookieMaxAge =
@@ -24,7 +24,7 @@ export class SessionGuard implements CanActivate {
       60 *
       60 *
       24 *
-      this.configService.getOrThrow('SESSION_EXPIRE_DAY', { infer: true });
+      this.configService.get('session.expireDay', { infer: true });
   }
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const httpContext = context.switchToHttp();

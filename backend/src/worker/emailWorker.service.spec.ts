@@ -92,8 +92,8 @@ describe('EmailWorkerService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: (key: string) =>
-              key === 'VERIFY_MAIL_EXPIRE_MINUTE' ? 30 : 'http://app.test',
+            get: (key: string) =>
+              key === 'auth.verifyMailExpireMinute' ? 30 : 'http://app.test',
           },
         },
       ],

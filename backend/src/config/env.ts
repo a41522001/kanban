@@ -31,5 +31,11 @@ export const envSchema = z.object({
   // 設定時 log 會同時送進 Seq；未設定則只輸出到終端機（E2E、CI、正式環境預設不設定）。
   SEQ_URL: z.url().optional(),
 });
-
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * 以 envSchema 解析 process.env，取得轉型後的值（number、default、transform）。
+ * namespace factory 只能透過這裡取值：process.env 內的數字是字串，且 Docker 預先放入的變數不會套用 zod transform。
+ * 不快取：測試在案例之間修改 process.env 時，才不會讀到舊結果。
+ */
+export const getValidatedEnv = (): Env => envSchema.parse(process.env);

@@ -8,11 +8,11 @@ import type {
 } from './session.type';
 import { DateTime } from 'luxon';
 import { ConfigService } from '@nestjs/config';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 @Injectable()
 export class SessionService {
   constructor(
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionRepository: SessionRepository,
   ) {}
   /** hash session id */
@@ -22,20 +22,18 @@ export class SessionService {
 
   /** 儲存最新的session */
   async saveCurrentSession(userId: string): Promise<string> {
-    const sessionExpireDay = this.configService.getOrThrow(
-      'SESSION_EXPIRE_DAY',
-      { infer: true },
-    );
+    const sessionExpireDay = this.configService.get('session.expireDay', {
+      infer: true,
+    });
 
-    const sessionRotateMinute = this.configService.getOrThrow(
-      'SESSION_ROTATE_MINUTE',
-      { infer: true },
-    );
+    const sessionRotateMinute = this.configService.get('session.rotateMinute', {
+      infer: true,
+    });
     const now = DateTime.utc();
     const nowMs = now.toMillis();
     const expiresAtMs = now.plus({ days: sessionExpireDay }).toMillis();
     const rotateAtMs = now.plus({ minutes: sessionRotateMinute }).toMillis();
-    const maxDevice = this.configService.getOrThrow('MAX_DEVICE', {
+    const maxDevice = this.configService.get('session.maxDevice', {
       infer: true,
     });
     const sessionId = randomBytes(32).toString('base64url');
@@ -82,15 +80,13 @@ export class SessionService {
       };
     }
 
-    const sessionExpireDay = this.configService.getOrThrow(
-      'SESSION_EXPIRE_DAY',
-      { infer: true },
-    );
+    const sessionExpireDay = this.configService.get('session.expireDay', {
+      infer: true,
+    });
 
-    const sessionRotateMinute = this.configService.getOrThrow(
-      'SESSION_ROTATE_MINUTE',
-      { infer: true },
-    );
+    const sessionRotateMinute = this.configService.get('session.rotateMinute', {
+      infer: true,
+    });
     const newSessionId = randomBytes(32).toString('base64url');
     const newSessionIdHash = this.hashSessionId(newSessionId);
     const newRotateAtMs = now.plus({ minutes: sessionRotateMinute }).toMillis();

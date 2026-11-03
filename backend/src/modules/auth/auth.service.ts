@@ -10,7 +10,7 @@ import { ApiCode } from '@kanban/contracts/api';
 import { AppException } from '@/common/exceptions/app.exception';
 import { decodePassword, saltPassword } from '@/common/utils';
 import { ConfigService } from '@nestjs/config';
-import { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { SessionService } from '@/modules/session/session.service';
 import { UserService } from '@/modules/user/user.service';
 import { SocketService } from '@/modules/socket/socket.service';
@@ -27,22 +27,22 @@ export class AuthService {
   // 要在開發環境測試送信時記得改成false
   private readonly devAutoVerifyEmail: boolean = true;
   constructor(
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionService: SessionService,
     private readonly userService: UserService,
     private readonly socketService: SocketService,
     private readonly queueService: QueueService,
     private readonly redisService: RedisService,
   ) {
-    this.rateLimitEmailVerifySeconds = this.configService.getOrThrow(
-      'RATE_LIMIT_VERIFY_EMAIL_SECONDS',
+    this.rateLimitEmailVerifySeconds = this.configService.get(
+      'auth.rateLimitVerifyEmailSeconds',
       { infer: true },
     );
   }
 
   /** 註冊 */
   async signup(data: SignupRequest): Promise<SignupResult | false> {
-    const nodeEnv = this.configService.getOrThrow('NODE_ENV', { infer: true });
+    const nodeEnv = this.configService.get('app.nodeEnv', { infer: true });
     const { email, password, name } = data;
     const user = await this.userService.getByEmail(email);
     if (user) {
