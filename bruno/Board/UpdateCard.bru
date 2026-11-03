@@ -1,0 +1,65 @@
+meta {
+  name: UpdateCard
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/board/updateCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{cardId}}",
+    "title": "  建立看板 API（已編輯）  ",
+    "description": "   ",
+    "expectedVersion": {{cardVersion}}
+  }
+}
+
+script:post-response {
+  // Keep the latest version so this request can be run again.
+  const card = res.getBody()?.data?.card;
+  if (card) {
+    bru.setVar('cardVersion', card.version);
+  }
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('version 大於 1（每次編輯 +1）', () => {
+    expect(res.getBody().data.card.version).to.be.above(1);
+  });
+
+  test('標題 trim，只有空白的描述被清空為 null', () => {
+    const card = res.getBody().data.card;
+    expect(card.title).to.equal('建立看板 API（已編輯）');
+    expect(card.description).to.equal(null);
+  });
+
+  test('回傳新的 boardRevision 字串', () => {
+    expect(res.getBody().data.boardRevision).to.be.a('string');
+  });
+}
+
+docs {
+  # 編輯卡片
+
+  - Route: `PATCH /v1/api/board/updateCard`
+  - Auth: 有效 Session，且為卡片所屬 Project 的 OWNER 或 EDITOR
+  - Body: `{ cardId, title?, description?, expectedVersion }`
+    - title、description 只送要改的欄位，至少要送一個（都沒送回 400 / ValidationError）
+    - description：不送＝不改；空字串或只有空白＝清空（null）；有內容＝更新
+  - 成功：200 / `CardMutationResult`：`{ card, boardRevision }`，卡片 `version` +1，`boardRevision` +1
+  - 版本不符：409 / CardVersionConflict (7001)（見 `UpdateCardVersionConflict`）
+  - 非成員、VIEWER、卡片／欄位／Project／Workspace 已封存：404 / ResourceNotFound (3001)
+
+  `cardId`、`cardVersion` 由 `AddCard` 存入 runtime 變數。成功後會更新 `cardVersion`，可以連續執行。
+
+  2026-11-03 Board 規格 A-4。
+}

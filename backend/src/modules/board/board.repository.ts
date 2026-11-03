@@ -1,7 +1,35 @@
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
-import type { BoardColumn, Prisma } from '@/generated/prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
+import { DateTime } from 'luxon';
+
+/** 寫入資料庫的卡片內容；與 API request 分開定義，description 已正規化為 null。 */
+export interface CreateCardData {
+  columnId: string;
+  title: string;
+  description: string | null;
+  position: number;
+  userId: string;
+}
+
+/** 編輯卡片時要寫入的內容；沒有出現的欄位代表不改，description 為 null 代表清空。 */
+export interface UpdateCardContentData {
+  title?: string;
+  description?: string | null;
+}
+
+/** 回傳給前端的卡片欄位（對應 contracts 的 BoardCardSnapshot，日期由 service 轉字串）。 */
+const CARD_SNAPSHOT_SELECT = {
+  id: true,
+  columnId: true,
+  title: true,
+  description: true,
+  position: true,
+  version: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.CardSelect;
 
 @Injectable()
 export class BoardRepository {
@@ -22,11 +50,23 @@ export class BoardRepository {
     });
   }
 
+  /** 建立卡片 */
+  async createCard(data: CreateCardData, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    return await db.card.create({
+      data: {
+        columnId: data.columnId,
+        title: data.title,
+        description: data.description,
+        createdById: data.userId,
+        position: data.position,
+      },
+      select: CARD_SNAPSHOT_SELECT,
+    });
+  }
+
   /** 取得所有看板欄 by projectId */
-  async getAllBoardColumn(
-    projectId: string,
-    userId: string,
-  ): Promise<BoardColumn[] | null> {
+  async getAllBoardColumn(projectId: string, userId: string) {
     const result = await this.prismaService.project.findFirst({
       where: {
         id: projectId,
@@ -37,9 +77,36 @@ export class BoardRepository {
         },
       },
       select: {
+        boardRevision: true,
+        // Only the current user's membership, to tell the frontend its role.
+        members: {
+          where: { userId },
+          select: { role: true },
+        },
         boardColumns: {
           where: {
             archivedAt: null,
+          },
+          select: {
+            id: true,
+            title: true,
+            colorKey: true,
+            position: true,
+            version: true,
+            cards: {
+              select: CARD_SNAPSHOT_SELECT,
+              where: {
+                archivedAt: null,
+              },
+              orderBy: [
+                {
+                  position: 'asc',
+                },
+                {
+                  updatedAt: 'desc',
+                },
+              ],
+            },
           },
           orderBy: [
             {
@@ -52,7 +119,116 @@ export class BoardRepository {
         },
       },
     });
-    return result?.boardColumns ?? null;
+    return result;
+  }
+
+  /** 找尋可編輯的欄位 */
+  async findEditableColumn(columnId: string, userId: string) {
+    const result = await this.prismaService.boardColumn.findFirst({
+      where: {
+        id: columnId,
+        archivedAt: null,
+        project: {
+          archivedAt: null,
+          workspace: {
+            archivedAt: null,
+          },
+          members: {
+            some: {
+              userId,
+              role: {
+                in: ['EDITOR', 'OWNER'],
+              },
+            },
+          },
+        },
+      },
+      select: { id: true, projectId: true },
+    });
+
+    return result;
+  }
+
+  /** 找尋可編輯的卡片 */
+  async findEditableCard(cardId: string, userId: string) {
+    const result = await this.prismaService.card.findFirst({
+      where: {
+        id: cardId,
+        archivedAt: null,
+        column: {
+          archivedAt: null,
+          project: {
+            archivedAt: null,
+            workspace: {
+              archivedAt: null,
+            },
+            members: {
+              some: {
+                userId,
+                role: {
+                  in: ['EDITOR', 'OWNER'],
+                },
+              },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        columnId: true,
+        column: {
+          select: {
+            projectId: true,
+          },
+        },
+      },
+    });
+
+    return result;
+  }
+
+  /**
+   * 以 expectedVersion 為條件更新卡片內容，成功時 version +1。
+   * 版本檢查與更新在同一個 SQL 完成，不會被其他請求插隊。
+   * @returns 更新筆數；0 代表版本不符或卡片已被封存。
+   */
+  async updateCardContent(
+    cardId: string,
+    expectedVersion: number,
+    data: UpdateCardContentData,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    const db = tx ?? this.prismaService;
+    const result = await db.card.updateMany({
+      where: { id: cardId, version: expectedVersion, archivedAt: null },
+      data: { ...data, version: { increment: 1 } },
+    });
+    return result.count;
+  }
+
+  /** 取得單張卡片的 snapshot 欄位；只在確定卡片存在時呼叫，查不到會丟錯。 */
+  async findCardSnapshot(cardId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    return await db.card.findUniqueOrThrow({
+      where: { id: cardId },
+      select: CARD_SNAPSHOT_SELECT,
+    });
+  }
+
+  /** 取得卡片最大position by columnId*/
+  async getCardMaxPosition(columnId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    const result = await db.card.aggregate({
+      where: {
+        columnId,
+        archivedAt: null,
+      },
+      _max: {
+        position: true,
+      },
+    });
+
+    return result._max.position;
   }
 
   /** 取得看板最大position by projectId*/
@@ -95,5 +271,22 @@ export class BoardRepository {
     });
 
     return project.boardRevision;
+  }
+
+  /** 封存卡片 */
+  async archiveCard(
+    cardId: string,
+    expectedVersion: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    const db = tx ?? this.prismaService;
+    const result = await db.card.updateMany({
+      where: { id: cardId, version: expectedVersion, archivedAt: null },
+      data: {
+        archivedAt: DateTime.utc().toJSDate(),
+        version: { increment: 1 },
+      },
+    });
+    return result.count;
   }
 }

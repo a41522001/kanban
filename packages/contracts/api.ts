@@ -41,6 +41,8 @@ export enum ApiCode {
   AvatarRateLimited = 6004,
   /** Avatar 寫檔或資料庫暫時失敗 */
   AvatarStorageUnavailable = 6005,
+  /** 卡片已被其他人修改，expectedVersion 與目前版本不符 */
+  CardVersionConflict = 7001,
 }
 /** 以欄位名稱索引的驗證錯誤集合。 */
 export type FieldErrors = Record<string, FieldError>;

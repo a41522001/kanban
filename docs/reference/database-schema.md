@@ -1,12 +1,12 @@
 # Flowboard 資料庫 Schema
 
-最後核對：2026-10-30，依 `backend/prisma/schema.prisma`（共 15 個 migrations）。本文只描述目前的資料表；尚未建立的資料表見各功能規格（例如 Card 見 [Board 規格](../features/board.md)）。
+最後核對：2026-10-30，依 `backend/prisma/schema.prisma`（共 16 個 migrations）。本文只描述目前的資料表；尚未建立的資料表見各功能規格（例如 Card 見 [Board 規格](../features/board.md)）。
 
 `backend/prisma/schema.prisma` 是資料模型的唯一 source of truth。本文件說明目前資料表的業務意義、關聯、約束與查詢意圖；型別、欄位名稱與 migration 內容應以 Prisma schema 為準。
 
 ## 1. 目前範圍
 
-目前已定義九張業務資料表：User、Avatar、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember、BoardColumn。
+目前已定義十張業務資料表：User、Avatar、Workspace、WorkspaceMember、Notification、WorkspaceInvitation、Project、ProjectMember、BoardColumn、Card。
 
 ```text
 User
@@ -27,10 +27,11 @@ Workspace
 Project
 ├── ProjectMember
 └── BoardColumn
+    └── Card
 ```
 
 ```text
-avatars ── users ──< workspace_members >── workspaces ──< projects ──< board_columns
+avatars ── users ──< workspace_members >── workspaces ──< projects ──< board_columns ──< cards
   │                                  │              │
   ├────< notifications (recipient)   └─< workspace_invitations
   ├────< notifications (actor)
@@ -307,15 +308,34 @@ Project 看板中的欄位。Board 是 UI／read-model 概念，不是資料表�
 
 `backend/prisma/migrations/20260921120000_rename_board_column_color_keys/migration.sql` 將舊的 `ready／active／review／done` data tokens 轉為中性的 `coral／mint／amber／violet`，避免自訂或拖曳 Column 後把顏色誤解為固定狀態。
 
-## 11. 後續資料模型
+## 11. `cards`
+
+Kanban 卡片，透過 `column_id` 歸屬欄位，再由欄位歸屬 Project；**不存 `project_id`**，權限以 card → column → project 關聯檢查。規則見 [Board 規格](../features/board.md) §4.2。Migration：`20261102070348_add_card_model`。
+
+| 欄位 | 型別 | Null | 說明 |
+| --- | --- | --- | --- |
+| `id` | UUID | 否 | 主鍵。 |
+| `column_id` | UUID | 否 | FK → board_columns，刪除欄位時 cascade（一般只封存欄位）。 |
+| `title` | VARCHAR(200) | 否 | 標題。 |
+| `description` | TEXT | 是 | 描述；5000 字上限由 DTO 驗證。 |
+| `position` | INT | 否 | 欄位內排序，間隔 1024。 |
+| `version` | INT | 否 | 預設 1；編輯內容時 +1，移動卡片不改變。 |
+| `created_by_id` | UUID | 否 | FK → users，restrict。 |
+| `archived_at` | TIMESTAMP(3) | 是 | 封存時間；只能封存，不能刪除。 |
+| `created_at` | TIMESTAMP(3) | 否 | 建立時間。 |
+| `updated_at` | TIMESTAMP(3) | 否 | 最後更新時間。 |
+
+索引：`column_id, archived_at, position, id`、`created_by_id`。
+
+## 12. 後續資料模型
 
 下列是已規劃、但尚未建立的資料表；新增時需同步更新本文件、Prisma schema、contracts、migration 與測試：
 
-- `cards`：Kanban 卡片與協作指令的持久化資料；直接透過 `column_id` 歸屬 Project。
+- `card_categories`、`card_labels`：卡片類別與標籤（Board 規格 §4.5，A+）。
 - `reminders`：負責未來排程時間；到期時才建立 `CARD_REMINDER` Notification。
 - `outbox_messages`：需要可靠背景投遞與 message queue 時才加入。
 
-## 12. Migration 規則
+## 13. Migration 規則
 
 1. 先修改 `backend/prisma/schema.prisma`。
 2. 產生可審閱的 Prisma migration，確認 SQL 的 enum、index、FK 與 delete behavior。

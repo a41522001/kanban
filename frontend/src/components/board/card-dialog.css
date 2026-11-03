@@ -1,0 +1,149 @@
+@reference '../../styles/index.css';
+
+.card-dialog {
+  @apply max-h-[calc(100dvh-2rem)] max-w-150 overflow-y-auto rounded-surface border-border bg-surface p-6 shadow-card lg:p-8;
+}
+
+.card-dialog__header {
+  @apply gap-1 border-b border-border pb-5;
+}
+
+.card-dialog__eyebrow {
+  @apply text-xs font-bold tracking-wider text-content-secondary;
+}
+
+.card-dialog__title {
+  @apply text-2xl text-content-primary;
+}
+
+.card-dialog__close {
+  @apply absolute top-6 right-6 cursor-pointer rounded-control bg-board-page p-2.5 text-content-secondary transition-colors hover:text-content-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20 disabled:cursor-not-allowed disabled:opacity-50 lg:top-8 lg:right-8;
+}
+
+.card-dialog__form {
+  @apply grid gap-6;
+}
+
+.card-dialog__target {
+  @apply flex items-center gap-3 rounded-control border border-border bg-auth-page px-3 py-2;
+}
+
+.card-dialog__target-text {
+  @apply flex flex-1 flex-col;
+}
+
+.card-dialog__target-title {
+  @apply text-sm font-bold text-content-primary;
+}
+
+.card-dialog__meta {
+  @apply text-xs text-content-secondary;
+}
+
+.card-dialog__accent {
+  @apply h-8 w-1 shrink-0 rounded-full;
+}
+
+.card-dialog__accent--coral {
+  @apply bg-flow-ready;
+}
+
+.card-dialog__accent--mint {
+  @apply bg-flow-active;
+}
+
+.card-dialog__accent--amber {
+  @apply bg-flow-review;
+}
+
+.card-dialog__accent--violet {
+  @apply bg-flow-done;
+}
+
+.card-dialog__counter {
+  @apply self-end text-xs text-content-secondary tabular-nums;
+}
+
+.card-dialog__textarea {
+  @apply min-h-36 w-full resize-y rounded-control border border-border bg-surface px-3 py-2 text-sm text-content-primary outline-none placeholder:text-content-secondary focus:border-action-primary focus:ring-3 focus:ring-action-primary/20;
+}
+
+.card-dialog__footer {
+  @apply mt-1 items-center gap-3 border-t border-border pt-5 sm:justify-end;
+}
+
+.card-dialog__footer-hint {
+  @apply mr-auto text-xs text-content-secondary;
+}
+
+.card-dialog--detail {
+  @apply max-w-170;
+}
+
+.card-dialog__textarea--tall {
+  @apply min-h-48;
+}
+
+.card-dialog__section-label {
+  @apply text-sm font-bold text-content-primary;
+}
+
+.card-dialog__conflict {
+  @apply flex items-start gap-3 rounded-control border border-flow-review bg-flow-review-soft p-4 text-content-primary;
+}
+
+.card-dialog__conflict-icon {
+  @apply mt-0.5 shrink-0;
+}
+
+.card-dialog__conflict-text {
+  @apply flex flex-1 flex-col gap-1;
+}
+
+.card-dialog__conflict-title {
+  @apply text-sm font-bold;
+}
+
+.card-dialog__conflict-detail {
+  @apply text-xs;
+}
+
+.card-dialog__conflict-button {
+  @apply shrink-0 border-flow-review;
+}
+
+.card-dialog__archive-button {
+  @apply mr-auto gap-2 bg-action-primary-soft text-feedback-danger hover:bg-action-primary-soft/80 hover:text-feedback-danger;
+}
+
+.card-dialog__read-only {
+  @apply grid gap-5;
+}
+
+.card-dialog__viewer-badge {
+  @apply inline-flex w-fit items-center gap-2 rounded-full bg-surface-subtle px-3 py-1.5 text-xs font-bold text-content-secondary;
+}
+
+.card-dialog__read-title {
+  @apply text-xl font-bold text-content-primary;
+}
+
+.card-dialog__read-section {
+  @apply grid gap-2;
+}
+
+.card-dialog__read-description {
+  @apply text-sm leading-6 whitespace-pre-line text-content-primary;
+}
+
+.card-dialog__confirm {
+  @apply max-w-110 rounded-surface border-border bg-surface p-7 shadow-card;
+}
+
+.card-dialog__confirm-title {
+  @apply text-xl text-content-primary;
+}
+
+.card-dialog__confirm-description {
+  @apply text-sm leading-6 text-content-primary;
+}

@@ -10,25 +10,25 @@
 
 ## 功能狀態
 
-| 領域 | 狀態 | 已完成 | 未完成 |
-| --- | --- | --- | --- |
-| Auth（LOCAL） | ✅ | 註冊、登入、登出、驗證信、重寄冷卻、未驗證登入限制 | Google OAuth、忘記密碼、修改 Email；開發環境以 `devAutoVerifyEmail` 跳過驗證信 |
-| Session | ✅ 核心 | HttpOnly Cookie、Redis SHA-256 hash、15 分鐘輪轉、20 秒 Grace、5 裝置上限、logout 撤銷本次 Session | 撤銷整個 Session family；idle timeout |
-| Workspace | 🔄 | 建立、列表、切換、成員清單（含頭像） | 修改、封存、成員角色調整、移除、離開 |
-| Workspace 邀請 | 🔄 | 發送、詳情、接受、拒絕、每分鐘過期排程 | Owner 取消邀請；PENDING 唯一性與併發驗收 |
-| 通知 | 🔄 | 列表、未讀數、單筆／全部已讀、Socket 即時推送 | cursor／filters（目前只回最新 20 筆）、重連後補抓、跨分頁同步 |
-| Project | 🔄 | 建立、列表、置頂、成員清單、候選人、新增成員、成員加入通知（成員與候選人含頭像） | 詳情、編輯、封存、角色調整、移除成員 |
-| Board | 🔄 | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位 | 見 [Board 規格](features/board.md) §9：Card（階段 A）、拖曳存檔（B）、多人同步（C）、拖曳衝突（D） |
-| 頭像 | 🔄 本機完成 | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示 | 步驟 11 GCP Cloud Storage（2026-11-03 規格已確認，見 [頭像規格](features/avatar.md) §0.4；11-1 待實作）、步驟 12 部署 |
-| Logging | ✅ 開發環境 | API 與 worker 共用 pino、`event` 欄位、`requestId`、5xx 由 Filter 統一記錄、Worker job 記錄、本機 Seq（[Logging 規格](architecture/logging.md)） | 正式環境的 Seq；上線前待辦見該文件 §9.1 |
-| Config Namespace | 🔄 規格已確認 | 2026-11-03 規格（[Config Namespace](architecture/config.md)）：9 個 namespace、`ConfigService<AppConfig, true>` 點路徑讀值 | 實作；19 個使用端一次遷移（含 `socket.service.ts`，完成後盡快推 `dev`） |
-| Socket.IO | 🔄 | Session Cookie handshake、user／session／workspace room、通知與成員異動推送 | project room（Board 階段 C）；reconnect 後 rejoin、快速切換競速、成員移除後清理 room |
-| 部署與 CI/CD | 🔄 MVP | Docker 化、`compose.prod.yml`、CI 測試 `dev`／`feature/*`、CD 於 `main` 推 GHCR 並部署到 GCP VM、`IMAGE_TAG` 版本（[部署](operations/deployment.md)） | 網域與 HTTPS（未完成前正式環境無法登入）、靜態 IP、`restart: unless-stopped`、CI 未跑前端測試 |
-| API 測試 | ✅ | Bruno collection 移入 repo（`bruno/`），涵蓋全部 API 與頭像錯誤案例 | — |
+| 領域             | 狀態          | 已完成                                                                                                                                                | 未完成                                                                                                                |
+| ---------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Auth（LOCAL）    | ✅            | 註冊、登入、登出、驗證信、重寄冷卻、未驗證登入限制                                                                                                    | Google OAuth、忘記密碼、修改 Email；開發環境以 `devAutoVerifyEmail` 跳過驗證信                                        |
+| Session          | ✅ 核心       | HttpOnly Cookie、Redis SHA-256 hash、15 分鐘輪轉、20 秒 Grace、5 裝置上限、logout 撤銷本次 Session                                                    | 撤銷整個 Session family；idle timeout                                                                                 |
+| Workspace        | 🔄            | 建立、列表、切換、成員清單（含頭像）                                                                                                                  | 修改、封存、成員角色調整、移除、離開                                                                                  |
+| Workspace 邀請   | 🔄            | 發送、詳情、接受、拒絕、每分鐘過期排程                                                                                                                | Owner 取消邀請；PENDING 唯一性與併發驗收                                                                              |
+| 通知             | 🔄            | 列表、未讀數、單筆／全部已讀、Socket 即時推送                                                                                                         | cursor／filters（目前只回最新 20 筆）、重連後補抓、跨分頁同步                                                         |
+| Project          | 🔄            | 建立、列表、置頂、成員清單、候選人、新增成員、成員加入通知（成員與候選人含頭像）                                                                      | 詳情、編輯、封存、角色調整、移除成員                                                                                  |
+| Board            | 🔄            | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位                                                                                                         | 見 [Board 規格](features/board.md) §9：Card（階段 A）、拖曳存檔（B）、多人同步（C）、拖曳衝突（D）                    |
+| 頭像             | 🔄 本機完成   | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示                                                                | 步驟 11 GCP Cloud Storage（2026-11-03 規格已確認，見 [頭像規格](features/avatar.md) §0.4；11-1 待實作）、步驟 12 部署 |
+| Logging          | ✅ 開發環境   | API 與 worker 共用 pino、`event` 欄位、`requestId`、5xx 由 Filter 統一記錄、Worker job 記錄、本機 Seq（[Logging 規格](architecture/logging.md)）      | 正式環境的 Seq；上線前待辦見該文件 §9.1                                                                               |
+| Config Namespace | 🔄 規格已確認 | 2026-11-03 規格（[Config Namespace](architecture/config.md)）：9 個 namespace、`ConfigService<AppConfig, true>` 點路徑讀值                            | 實作；19 個使用端一次遷移（含 `socket.service.ts`，完成後盡快推 `dev`）                                               |
+| Socket.IO        | 🔄            | Session Cookie handshake、user／session／workspace room、通知與成員異動推送                                                                           | project room（Board 階段 C）；reconnect 後 rejoin、快速切換競速、成員移除後清理 room                                  |
+| 部署與 CI/CD     | 🔄 MVP        | Docker 化、`compose.prod.yml`、CI 測試 `dev`／`feature/*`、CD 於 `main` 推 GHCR 並部署到 GCP VM、`IMAGE_TAG` 版本（[部署](operations/deployment.md)） | 網域與 HTTPS（未完成前正式環境無法登入）、靜態 IP、`restart: unless-stopped`、CI 未跑前端測試                         |
+| API 測試         | ✅            | Bruno collection 移入 repo（`bruno/`），涵蓋全部 API 與頭像錯誤案例                                                                                   | —                                                                                                                     |
 
 ## 下一步
 
-1. **Board 階段 A**：A-1 `Card` schema 與 migration（[Board 規格](features/board.md) §9）。A-0 讀取權限已寫好，尚待以 Bruno 驗證。
+1. **Board 階段 A+**：卡片類別與標籤，開始前先 grill（[Board 規格](features/board.md) §4.5、§9）。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
 2. **Config Namespace**（本機）：先於頭像 GCS 步驟 11-2 完成，11-2 直接使用 `avatar.*`、`gcs.*`。
 3. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
 4. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
@@ -70,12 +70,12 @@
 
 ## 最近一次驗證
 
-| 日期 | 範圍 | 結果 |
-| --- | --- | --- |
-| 2026-10-28 | Backend `pnpm test`（Windows） | 29 suites／294 tests 通過，4 skipped |
-| 2026-10-28 | Backend `tsc --noEmit` | 通過；ESLint 剩 5 個既有錯誤（`board.controller.ts`、`common/utils`） |
-| 2026-10-24 | Frontend Vitest | 20 files 中 19 通過、77 tests 通過；`email-verification.spec.ts` 為上述既有 Windows 問題 |
-| 2026-10-30 | Board service 單元測試 | 3 tests 通過 |
+| 日期       | 範圍                           | 結果                                                                                     |
+| ---------- | ------------------------------ | ---------------------------------------------------------------------------------------- |
+| 2026-10-28 | Backend `pnpm test`（Windows） | 29 suites／294 tests 通過，4 skipped                                                     |
+| 2026-10-28 | Backend `tsc --noEmit`         | 通過；ESLint 剩 5 個既有錯誤（`board.controller.ts`、`common/utils`）                    |
+| 2026-10-24 | Frontend Vitest                | 20 files 中 19 通過、77 tests 通過；`email-verification.spec.ts` 為上述既有 Windows 問題 |
+| 2026-10-30 | Board service 單元測試         | 3 tests 通過                                                                             |
 
 Backend E2E（`pnpm test:backend:e2e`）自 2026-09-28 後未重跑。
 

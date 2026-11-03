@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <filter id="dialog-shadow" x="-15%" y="-12%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#111827" flood-opacity=".24"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}
+      .spec{font-size:14px;font-weight:700;letter-spacing:.1em;fill:#697287}
+      .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;fill:#697287}
+      .title{font-size:24px;font-weight:700}
+      .section{font-size:14px;font-weight:700}
+      .body{font-size:14px}
+      .small{font-size:12px;fill:#697287}
+      .tiny{font-size:11px;fill:#697287}
+      .button{font-size:14px;font-weight:700;fill:#FFF9F4}
+      .button-secondary{font-size:14px;font-weight:700;fill:#29324A}
+      .button-danger{font-size:14px;font-weight:700;fill:#9F3F2C}
+    </style>
+    <g id="close-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m5 5 14 14M19 5 5 19"/></g>
+    <g id="archive-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="4" rx="1"/><path d="M4.5 8v8h11V8M8 11h4"/></g>
+  </defs>
+
+  <!-- Flowboard / Card detail / desktop / Board phase A. A dialog over the board instead of the full card-detail page. -->
+  <rect width="1440" height="900" fill="#E9ECF1"/>
+  <text x="48" y="44" class="spec">DESKTOP / CARD DETAIL DIALOG / PHASE A / 1440 × 900</text>
+
+  <g id="board-context" transform="translate(48 76)">
+    <rect width="1344" height="776" rx="20" fill="#E9ECF1"/>
+    <path d="M0 20Q0 0 20 0h1304q20 0 20 20v56H0z" fill="#29324A"/>
+    <text x="32" y="36" font-size="20" font-weight="700" style="fill:#F7F8FA">Flowboard</text>
+    <text x="32" y="112" class="small">Jeffery 的工作區　/　Flowboard 即時協作</text>
+    <text x="32" y="148" class="title">產品開發看板</text>
+    <g transform="translate(32 188)">
+      <g>
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#DF6E51"/>
+        <text x="32" y="36" class="section">準備開始</text>
+        <rect x="12" y="64" width="256" height="56" rx="10" fill="#FFF"/>
+        <text x="28" y="98" class="body" font-weight="700">規劃工作區首頁資訊架構</text>
+      </g>
+      <g transform="translate(296 0)">
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#A9D2C8"/>
+        <text x="32" y="36" class="section">正在進行</text>
+        <!-- The opened card keeps a visible selected state behind the overlay. -->
+        <rect x="12" y="64" width="256" height="56" rx="10" fill="#FFF" stroke="#DF6E51" stroke-width="2"/>
+        <text x="28" y="98" class="body" font-weight="700">Session Cookie 驗證流程</text>
+      </g>
+      <g transform="translate(592 0)">
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#E6B960"/>
+        <text x="32" y="36" class="section">等待檢視</text>
+      </g>
+      <g transform="translate(888 0)">
+        <rect width="280" height="520" rx="12" fill="#F7F8FA" stroke="#D7DCE5"/>
+        <rect x="16" y="16" width="4" height="28" rx="2" fill="#907ECE"/>
+        <text x="32" y="36" class="section">已完成</text>
+      </g>
+    </g>
+  </g>
+  <rect width="1440" height="900" fill="#29324A" opacity=".62"/>
+
+  <g id="card-detail-dialog" filter="url(#dialog-shadow)">
+    <rect x="380" y="136" width="680" height="628" rx="16" fill="#FFFFFF"/>
+
+    <g id="dialog-header" transform="translate(412 168)">
+      <text class="eyebrow">卡片 · 位於「正在進行」</text>
+      <text y="32" class="title">卡片詳情</text>
+      <g transform="translate(572 -8)" color="#697287">
+        <rect width="44" height="44" rx="10" fill="#F7F8FA"/>
+        <use href="#close-icon" transform="translate(10 10)"/>
+      </g>
+    </g>
+    <line x1="380" y1="224" x2="1060" y2="224" stroke="#D7DCE5"/>
+
+    <g id="card-title-field" transform="translate(412 248)">
+      <text class="section">卡片標題</text><text x="70" class="section" style="fill:#C4573E">＊</text>
+      <rect y="16" width="616" height="52" rx="10" fill="#FFFFFF" stroke="#DF6E51" stroke-width="2"/>
+      <text x="16" y="49" class="body">Session Cookie 驗證流程</text>
+      <text x="616" y="88" text-anchor="end" class="tiny">19 / 200</text>
+    </g>
+
+    <g id="card-description-field" transform="translate(412 360)">
+      <text class="section">描述</text><text x="42" class="small">選填，清空即移除描述</text>
+      <rect y="16" width="616" height="200" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+      <text x="16" y="44" class="body">使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。</text>
+      <text x="16" y="68" class="body">完成後由 Socket handshake middleware 驗證登入狀態。</text>
+      <text x="616" y="236" text-anchor="end" class="tiny">62 / 5000</text>
+    </g>
+
+    <g id="card-meta" transform="translate(412 628)">
+      <text class="small">建立於 2026/11/03 10:42　·　最後更新 2026/11/03 11:05</text>
+    </g>
+
+    <line x1="380" y1="660" x2="1060" y2="660" stroke="#D7DCE5"/>
+    <g id="dialog-footer" transform="translate(412 684)">
+      <!-- Archive is separated from save so it cannot be hit by accident; it opens a confirm dialog. -->
+      <g color="#9F3F2C">
+        <rect width="132" height="48" rx="10" fill="#FCE5DF"/>
+        <use href="#archive-icon" transform="translate(16 14)"/>
+        <text x="80" y="30" text-anchor="middle" class="button-danger">封存卡片</text>
+      </g>
+      <g transform="translate(400 0)">
+        <rect width="96" height="48" rx="10" fill="#FFFFFF" stroke="#CDD3DE"/>
+        <text x="48" y="30" text-anchor="middle" class="button-secondary">取消</text>
+      </g>
+      <g transform="translate(508 0)">
+        <rect width="108" height="48" rx="10" fill="#B94B36"/>
+        <text x="54" y="30" text-anchor="middle" class="button">儲存</text>
+      </g>
+    </g>
+  </g>
+</svg>
