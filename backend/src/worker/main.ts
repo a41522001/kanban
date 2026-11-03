@@ -11,7 +11,7 @@ const bootstrap = async (): Promise<void> => {
   app.enableShutdownHooks();
   new NestLogger('WorkerBootstrap').log(
     { event: LOG_EVENTS.workerProcessStarted },
-    'Worker 已啟動',
+    'Worker Bootstrap!!',
   );
 };
 void bootstrap();

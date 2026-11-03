@@ -5,6 +5,12 @@ import { ProjectService } from '@/modules/project/project.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
+import type {
+  BoardColumnColorKey,
+  BoardSnapshot,
+  CardMutationResult,
+} from '@kanban/contracts/board';
+import { AddCardDto } from './dto/addCard.dto';
 // import { redisKeys } from '@/infrastructure/redis/redis.keys';
 
 @Injectable()
@@ -62,8 +68,57 @@ export class BoardService {
     return result;
   }
 
+  /** 創建卡片 */
+  async createCard(
+    dto: AddCardDto,
+    userId: string,
+  ): Promise<CardMutationResult> {
+    const cardAuth = await this.boardRepository.findEditableColumn(
+      dto.columnId,
+      userId,
+    );
+    if (cardAuth === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到欄位或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    const projectId = cardAuth.projectId;
+    return await this.prismaService.$transaction(async (tx) => {
+      const revision = await this.boardRepository.incrementBoardRevision(
+        projectId,
+        tx,
+      );
+      const maxPosition = await this.boardRepository.getCardMaxPosition(
+        dto.columnId,
+        tx,
+      );
+      const card = await this.boardRepository.createCard(
+        {
+          ...dto,
+          description: dto.description || null,
+          userId,
+          position: (maxPosition ?? 0) + 1024,
+        },
+        tx,
+      );
+      return {
+        boardRevision: revision.toString(),
+        card: {
+          ...card,
+          createdAt: card.createdAt.toISOString(),
+          updatedAt: card.updatedAt.toISOString(),
+        },
+      };
+    });
+  }
+
   /** 取得看板欄 */
-  async getBoardColumn(projectId: string, userId: string) {
+  async getBoardColumn(
+    projectId: string,
+    userId: string,
+  ): Promise<BoardSnapshot> {
     const result = await this.boardRepository.getAllBoardColumn(
       projectId,
       userId,
@@ -75,7 +130,20 @@ export class BoardService {
         code: ApiCode.ResourceNotFound,
       });
     }
-    return result;
+    return {
+      boardRevision: result.boardRevision.toString(),
+      columns: result.boardColumns.map(({ cards, ...column }) => ({
+        id: column.id,
+        title: column.title,
+        colorKey: column.colorKey as BoardColumnColorKey,
+        position: column.position,
+        cards: cards.map((card) => ({
+          ...card,
+          createdAt: card.createdAt.toISOString(),
+          updatedAt: card.updatedAt.toISOString(),
+        })),
+      })),
+    };
   }
 
   /** 移動看板 */

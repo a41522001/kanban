@@ -10,13 +10,29 @@ get {
   auth: inherit
 }
 
+script:post-response {
+  // Save the first column so AddCard can create a card in it.
+  const columns = res.getBody()?.data?.columns ?? [];
+  if (columns.length > 0) {
+    bru.setVar('columnId', columns[0].id);
+  }
+}
+
 tests {
   test('回應 200', () => {
     expect(res.getStatus()).to.equal(200);
   });
 
-  test('data 為欄位陣列', () => {
-    expect(res.getBody().data).to.be.an('array');
+  test('data 為 BoardSnapshot：boardRevision 字串與 columns 陣列', () => {
+    const data = res.getBody().data;
+    expect(data.boardRevision).to.be.a('string');
+    expect(data.columns).to.be.an('array');
+  });
+
+  test('每個欄位都有 cards 陣列', () => {
+    for (const column of res.getBody().data.columns) {
+      expect(column.cards).to.be.an('array');
+    }
   });
 }
 
@@ -25,10 +41,10 @@ docs {
 
   - Route: `GET /v1/api/board/:projectId`
   - Auth: 有效 Session，且必須是該 Project 的成員（任何角色，含 VIEWER）
-  - 成功：200 / 未封存的 BoardColumn 陣列，依 `position` 排序；所有欄位都封存時為空陣列
+  - 成功：200 / `BoardSnapshot`：`{ boardRevision, columns: [{ id, title, colorKey, position, cards }] }`，只含未封存的欄位與卡片，依 `position` 排序；所有欄位都封存時 `columns` 為空陣列
   - 非成員、Project 或 Workspace 已封存：404 / ResourceNotFound (3001)，不透露 Project 是否存在（見 `GetBoardColumnsNotMember`）
 
-  `projectId` 由 `Project/ListProjects` 存入 runtime 變數，請先執行它。
+  `projectId` 由 `Project/ListProjects` 存入 runtime 變數，請先執行它。執行後會把第一個欄位的 id 存成 runtime 變數 `columnId`，供 `AddCard` 使用。
 
   2026-10-30 補上權限檢查：以 `project.findFirst` 的 `where`（未封存、Workspace 未封存、`members.some.userId`）一次查出權限與欄位。
 }

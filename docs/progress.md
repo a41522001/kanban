@@ -27,7 +27,7 @@
 
 ## 下一步
 
-1. **Board 階段 A**：A-1 `Card` schema 與 migration（[Board 規格](features/board.md) §9）。A-0 讀取權限已寫好，尚待以 Bruno 驗證。
+1. **Board 階段 A**：A-4 `PATCH /board/updateCard`（[Board 規格](features/board.md) §9）。A-0 讀取權限、A-1 Card schema、A-2 看板回傳卡片、A-3 新增卡片已完成。
 2. **頭像上線**：GCP Cloud Storage 與 Cloudflare `media.<網域>`，之後才能 merge 到 `main`。
 3. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
 

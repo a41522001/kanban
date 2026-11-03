@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiCode } from '@kanban/contracts/api';
 import api from '@/services/http';
-import { getBoardColumnsApi } from '@/services/board';
+import { getBoardSnapshotApi } from '@/services/board';
 
 vi.mock('@/services/http', () => ({
   default: vi.fn<typeof api>(),
@@ -23,8 +23,8 @@ describe('board service', () => {
     } as Awaited<ReturnType<typeof api>>);
   });
 
-  it('以 projectId 取得目前看板欄位', async () => {
-    await getBoardColumnsApi('project-1');
+  it('以 projectId 取得整個看板', async () => {
+    await getBoardSnapshotApi('project-1');
 
     expect(mockedApi).toHaveBeenCalledWith({
       url: '/board/project-1',

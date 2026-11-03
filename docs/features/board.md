@@ -33,6 +33,7 @@
 
 - Project 或 Workspace 已封存時，任何人都不能修改。
 - 非成員、Project／Workspace 已封存、資源不存在，一律回 **404 / ResourceNotFound (3001)**，不透露資源是否存在。
+- **修改卡片時，VIEWER 也回 404**（2026-11-02 決定）：權限以單一查詢檢查「OWNER 或 EDITOR」，分不出 VIEWER 與非成員。前端不對 VIEWER 顯示修改入口，正常使用不會遇到。與 `addColumn` 對 VIEWER 回 403 的既有行為不同。
 - 讀取權限以 `project.findFirst` 的 `where`（`archivedAt: null`、`workspace.archivedAt: null`、`members.some.userId`）一次查出（2026-10-30 已實作於 `GET /board/:projectId`）。
 
 ## 4. 資料模型
@@ -157,10 +158,10 @@
 
 | 步驟 | 內容 | 狀態 |
 | --- | --- | --- |
-| A-0 | `GET /board/:projectId` 讀取權限 | ✅ 2026-10-30：`project.findFirst` 一次查出權限與欄位，無權限回 404 / 3001；service 3 個單元測試，Bruno 新增 `GetBoardColumnsNotMember`（待使用者驗證） |
-| A-1 | `Card` schema 與 migration | ⬜ |
-| A-2 | 看板回傳 `{ boardRevision, columns[].cards }`（含前端改用新格式） | ⬜ |
-| A-3 | `POST /board/addCard` | ⬜ |
+| A-0 | `GET /board/:projectId` 讀取權限 | ✅ 2026-10-30：`project.findFirst` 一次查出權限與欄位，無權限回 404 / 3001；service 3 個單元測試，Bruno 新增 `GetBoardColumnsNotMember`；2026-11-02 使用者以 Bruno 驗證通過 |
+| A-1 | `Card` schema 與 migration | ✅ 2026-11-02：migration `20261102070348_add_card_model`；`description` 為 `Text`（5000 字上限放在 DTO）、欄位刪除時 cascade、建立者 restrict、索引 `column_id, archived_at, position, id` |
+| A-2 | 看板回傳 `{ boardRevision, columns[].cards }`（含前端改用新格式） | ✅ 2026-11-02：contracts `BoardSnapshot`／`BoardColumnSnapshot`／`BoardCardSnapshot`；repository 一次查出權限、`boardRevision`、欄位與卡片（各自 `select` 需要的欄位）；service 轉字串與 ISO 日期；前端 `getBoardSnapshotApi`、`BoardCard` 先只顯示標題。後端 5 個、前端 2 個測試；2026-11-02 使用者以 Bruno 與瀏覽器驗證通過 |
+| A-3 | `POST /board/addCard` | ✅ 2026-11-03：`AddCardDto`（title trim 1–200、description 最多 5000）、`findEditableColumn` 以單一查詢檢查 OWNER／EDITOR 與封存狀態（VIEWER 也回 404）、transaction 內先遞增 revision 再查最大 position 並建立卡片、空白描述存成 null；repository 以 `CreateCardData` 與 API request 分開。DTO 10 個、service 6 個測試；Bruno `AddCard`、`AddCardColumnNotFound`；使用者以 Bruno 驗證通過 |
 | A-4 | `PATCH /board/updateCard`（`expectedVersion`） | ⬜ |
 | A-5 | `PATCH /board/archiveCard` | ⬜ |
 | A-6 | 前端：新增、編輯、封存卡片（依設計稿） | ⬜ |

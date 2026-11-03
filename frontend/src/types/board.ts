@@ -1,4 +1,5 @@
-import type { BoardColumnColorKey } from '@kanban/contracts/board';
+// Board columns and cards use the shared contracts (`BoardSnapshot` etc.).
+// Category types stay here until categories are persisted (Board spec A+).
 
 export type CardCategoryColorKey =
   | 'coral'
@@ -19,29 +20,4 @@ export type CardCategoryColorKey =
 export interface CardCategoryData {
   name: string;
   colorKey: CardCategoryColorKey;
-}
-
-export interface BoardCardData {
-  id: string;
-  columnId: string;
-  title: string;
-  category: CardCategoryData;
-  labels: string[];
-  position: number;
-  version: number;
-}
-
-/** 後端 `GET /board/:projectId` 目前回傳的欄位資料。 */
-export interface BoardColumnRecord {
-  id: string;
-  projectId: string;
-  title: string;
-  position: number;
-  colorKey: BoardColumnColorKey;
-  version: number;
-}
-
-/** Board 畫面使用的欄位資料；Card persistence 接上前 cards 維持空陣列。 */
-export interface BoardColumnData extends BoardColumnRecord {
-  cards: BoardCardData[];
 }

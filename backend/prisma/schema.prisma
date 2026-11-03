@@ -115,6 +115,7 @@ model User {
   createdProjects          Project[]             @relation("ProjectCreatedBy")
   projectMemberships       ProjectMember[]
   avatar                   Avatar?
+  createdCards             Card[]                @relation("CardCreatedBy")
 
   @@map("users")
 }
@@ -326,7 +327,29 @@ model BoardColumn {
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cards   Card[]
 
   @@index([projectId, archivedAt, position, id])
   @@map("board_columns")
+}
+
+model Card {
+  id          String    @id @default(uuid()) @db.Uuid
+  columnId    String    @map("column_id") @db.Uuid
+  title       String    @db.VarChar(200)
+  description String?   @db.Text
+  position    Int
+  // 編輯內容時 +1；移動卡片不改變（Board 規格 §5.3）。
+  version     Int       @default(1)
+  createdById String    @map("created_by_id") @db.Uuid
+  archivedAt  DateTime? @map("archived_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  column    BoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  createdBy User        @relation("CardCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([columnId, archivedAt, position, id])
+  @@index([createdById])
+  @@map("cards")
 }

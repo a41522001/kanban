@@ -1,0 +1,58 @@
+meta {
+  name: AddCard
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/board/addCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "{{columnId}}",
+    "title": "  建立看板 API  ",
+    "description": "先完成新增卡片"
+  }
+}
+
+tests {
+  test('回應 201', () => {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test('回傳 boardRevision 字串與完整卡片', () => {
+    const data = res.getBody().data;
+    expect(data.boardRevision).to.be.a('string');
+    expect(data.card.columnId).to.equal(bru.getVar('columnId'));
+    expect(data.card.version).to.equal(1);
+    expect(data.card.position % 1024).to.equal(0);
+  });
+
+  test('標題的前後空白被去掉', () => {
+    expect(res.getBody().data.card.title).to.equal('建立看板 API');
+  });
+
+  test('不公開建立者與封存欄位', () => {
+    const card = res.getBody().data.card;
+    expect(card).to.not.have.property('createdById');
+    expect(card).to.not.have.property('archivedAt');
+  });
+}
+
+docs {
+  # 新增卡片
+
+  - Route: `POST /v1/api/board/addCard`
+  - Auth: 有效 Session，且為該欄位所屬 Project 的 OWNER 或 EDITOR
+  - Body: `{ columnId, title, description? }`；title 去掉前後空白後 1–200 字，description 最多 5000 字，只有空白時存成 null
+  - 成功：201 / `CardMutationResult`：`{ card, boardRevision }`；卡片放在欄位最下面（最大 position + 1024，空欄為 1024），`boardRevision` +1
+  - 非成員、VIEWER、欄位或 Project／Workspace 已封存、欄位不存在：404 / ResourceNotFound (3001)（見 `AddCardColumnNotFound`）
+  - DTO 錯誤：400 / ValidationError (1000)
+
+  `columnId` 由 `GetBoardColumns` 存入 runtime 變數，請先執行它。新增後再跑一次 `GetBoardColumns`，可以在第一個欄位看到這張卡片。
+
+  2026-11-03 Board 規格 A-3。
+}
