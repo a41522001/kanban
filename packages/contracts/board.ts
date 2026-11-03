@@ -88,3 +88,14 @@ export interface CardMutationResult {
   card: BoardCardSnapshot;
   boardRevision: string;
 }
+
+/** 編輯卡片；title、description 只送要改的欄位，至少要送一個。 */
+export interface UpdateCardRequest {
+  cardId: string;
+  /** 不送代表不改；有送時不可為空。 */
+  title?: string;
+  /** 不送代表不改；空字串或只有空白代表清空。 */
+  description?: string;
+  /** 使用者開始編輯時看到的 version；與目前版本不符時回 409 / CardVersionConflict。 */
+  expectedVersion: number;
+}

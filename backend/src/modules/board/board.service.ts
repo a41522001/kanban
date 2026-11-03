@@ -6,11 +6,26 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import type {
+  BoardCardSnapshot,
   BoardColumnColorKey,
   BoardSnapshot,
   CardMutationResult,
 } from '@kanban/contracts/board';
 import { AddCardDto } from './dto/addCard.dto';
+import { UpdateCardDto } from './dto/updateCard.dto';
+
+/** Prisma 查出的卡片欄位（日期仍是 Date）。 */
+type CardRecord = Omit<BoardCardSnapshot, 'createdAt' | 'updatedAt'> & {
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** 轉成回傳給前端的格式：日期改為 ISO 8601 字串。 */
+const toCardSnapshot = (card: CardRecord): BoardCardSnapshot => ({
+  ...card,
+  createdAt: card.createdAt.toISOString(),
+  updatedAt: card.updatedAt.toISOString(),
+});
 // import { redisKeys } from '@/infrastructure/redis/redis.keys';
 
 @Injectable()
@@ -73,18 +88,18 @@ export class BoardService {
     dto: AddCardDto,
     userId: string,
   ): Promise<CardMutationResult> {
-    const cardAuth = await this.boardRepository.findEditableColumn(
+    const projectAuth = await this.boardRepository.findEditableColumn(
       dto.columnId,
       userId,
     );
-    if (cardAuth === null) {
+    if (projectAuth === null) {
       throw new AppException({
         status: HttpStatus.NOT_FOUND,
         message: '找不到欄位或你沒有存取權限',
         code: ApiCode.ResourceNotFound,
       });
     }
-    const projectId = cardAuth.projectId;
+    const projectId = projectAuth.projectId;
     return await this.prismaService.$transaction(async (tx) => {
       const revision = await this.boardRepository.incrementBoardRevision(
         projectId,
@@ -105,11 +120,7 @@ export class BoardService {
       );
       return {
         boardRevision: revision.toString(),
-        card: {
-          ...card,
-          createdAt: card.createdAt.toISOString(),
-          updatedAt: card.updatedAt.toISOString(),
-        },
+        card: toCardSnapshot(card),
       };
     });
   }
@@ -137,13 +148,66 @@ export class BoardService {
         title: column.title,
         colorKey: column.colorKey as BoardColumnColorKey,
         position: column.position,
-        cards: cards.map((card) => ({
-          ...card,
-          createdAt: card.createdAt.toISOString(),
-          updatedAt: card.updatedAt.toISOString(),
-        })),
+        cards: cards.map(toCardSnapshot),
       })),
     };
+  }
+
+  /** 編輯卡片標題／描述；版本不符時回 409 */
+  async updateCard(
+    dto: UpdateCardDto,
+    userId: string,
+  ): Promise<CardMutationResult> {
+    if (dto.title === undefined && dto.description === undefined) {
+      throw new AppException({
+        status: HttpStatus.BAD_REQUEST,
+        message: '請至少修改標題或描述其中一項',
+        code: ApiCode.ValidationError,
+      });
+    }
+
+    const editableCard = await this.boardRepository.findEditableCard(
+      dto.cardId,
+      userId,
+    );
+    if (editableCard === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到卡片或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    const projectId = editableCard.column.projectId;
+
+    return await this.prismaService.$transaction(async (tx) => {
+      const revision = await this.boardRepository.incrementBoardRevision(
+        projectId,
+        tx,
+      );
+      const count = await this.boardRepository.updateCardContent(
+        dto.cardId,
+        dto.expectedVersion,
+        {
+          title: dto.title,
+          description:
+            dto.description === undefined ? undefined : dto.description || null,
+        },
+        tx,
+      );
+
+      if (count === 0) {
+        throw new AppException({
+          status: HttpStatus.CONFLICT,
+          message: '卡片已被其他人修改，請重新載入',
+          code: ApiCode.CardVersionConflict,
+        });
+      }
+      const card = await this.boardRepository.findCardSnapshot(dto.cardId, tx);
+      return {
+        boardRevision: revision.toString(),
+        card: toCardSnapshot(card),
+      };
+    });
   }
 
   /** 移動看板 */

@@ -18,6 +18,15 @@ body:json {
   }
 }
 
+script:post-response {
+  // Save the new card so UpdateCard can edit it.
+  const card = res.getBody()?.data?.card;
+  if (card) {
+    bru.setVar('cardId', card.id);
+    bru.setVar('cardVersion', card.version);
+  }
+}
+
 tests {
   test('回應 201', () => {
     expect(res.getStatus()).to.equal(201);
@@ -52,7 +61,7 @@ docs {
   - 非成員、VIEWER、欄位或 Project／Workspace 已封存、欄位不存在：404 / ResourceNotFound (3001)（見 `AddCardColumnNotFound`）
   - DTO 錯誤：400 / ValidationError (1000)
 
-  `columnId` 由 `GetBoardColumns` 存入 runtime 變數，請先執行它。新增後再跑一次 `GetBoardColumns`，可以在第一個欄位看到這張卡片。
+  `columnId` 由 `GetBoardColumns` 存入 runtime 變數，請先執行它。新增後再跑一次 `GetBoardColumns`，可以在第一個欄位看到這張卡片。執行後會把新卡片的 id、version 存成 runtime 變數 `cardId`、`cardVersion`，供 `UpdateCard` 使用。
 
   2026-11-03 Board 規格 A-3。
 }

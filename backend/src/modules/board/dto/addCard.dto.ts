@@ -1,6 +1,6 @@
 import type { AddCardRequest } from '@kanban/contracts/board';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, type TransformFnParams } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsOptional,
@@ -8,11 +8,7 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
-
-const trimString = (params: TransformFnParams): unknown => {
-  const rawValue: unknown = params.value;
-  return typeof rawValue === 'string' ? rawValue.trim() : rawValue;
-};
+import { trimString } from './transforms';
 
 export class AddCardDto implements AddCardRequest {
   @ApiProperty({

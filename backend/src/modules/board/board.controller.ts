@@ -16,7 +16,8 @@ import { MoveBoardColumnDto } from './dto/moveBoardColumn.dto';
 import { SessionGuard } from '@/modules/session/session.guard';
 import { BoardService } from './board.service';
 import { AddCardDto } from './dto/addCard.dto';
-import { CardMutationResult } from '@kanban/contracts/board';
+import { UpdateCardDto } from './dto/updateCard.dto';
+import type { CardMutationResult } from '@kanban/contracts/board';
 
 @Controller('board')
 @UseGuards(SessionGuard)
@@ -59,6 +60,21 @@ export class BoardController {
     @Req() req: Request,
   ): Promise<ApiResult<CardMutationResult>> {
     const result = await this.boardService.createCard(addCardDto, req.userId!);
+    return {
+      data: result,
+      message: '',
+    };
+  }
+
+  @Patch('updateCard')
+  async updateCard(
+    @Body() updateCardDto: UpdateCardDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<CardMutationResult>> {
+    const result = await this.boardService.updateCard(
+      updateCardDto,
+      req.userId!,
+    );
     return {
       data: result,
       message: '',
