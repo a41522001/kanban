@@ -1,0 +1,40 @@
+meta {
+  name: UpdateCardVersionConflict
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/board/updateCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{cardId}}",
+    "title": "不應該被寫入",
+    "expectedVersion": 999999
+  }
+}
+
+tests {
+  test('回應 409', () => {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test('code 為 CardVersionConflict (7001)', () => {
+    expect(res.getBody().code).to.equal(7001);
+  });
+}
+
+docs {
+  # 編輯卡片：版本衝突（錯誤案例）
+
+  - Route: `PATCH /v1/api/board/updateCard`
+  - 預期：409 / CardVersionConflict (7001)
+
+  用一個不可能的 `expectedVersion`，模擬「打開卡片後別人先改過了」。版本檢查與更新在同一個 SQL 完成（`updateMany where version = expectedVersion`），更新 0 筆就回 409，transaction rollback，`boardRevision` 不會增加。
+
+  執行後再跑 `GetBoardColumns`，卡片標題不應該變成「不應該被寫入」。
+}

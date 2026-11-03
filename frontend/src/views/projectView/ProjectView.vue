@@ -70,9 +70,9 @@ import DialogAddCard from '@/components/board/DialogAddCard.vue';
 import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/stores/user';
-import type { BoardColumnData } from '@/types/board';
+import type { BoardColumnSnapshot } from '@kanban/contracts/board';
 import { boardColumnColorMap } from '@/constants/boardColumnColors';
-import { getBoardColumnsApi } from '@/services/board';
+import { getBoardSnapshotApi } from '@/services/board';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { GripVertical, Plus } from 'lucide-vue-next';
@@ -80,7 +80,10 @@ import { VueDraggable } from 'vue-draggable-plus';
 const dialog = ref<boolean>(false);
 const userStore = useUserStore();
 const route = useRoute();
-const boardColumns = ref<BoardColumnData[]>([]);
+const boardColumns = ref<BoardColumnSnapshot[]>([]);
+// Kept for later phases: card mutations return the new revision, and phase C
+// compares it with Socket events to detect missed updates.
+const boardRevision = ref<string | null>(null);
 const isLoading = ref<boolean>(true);
 const loadError = ref<boolean>(false);
 let loadSequence = 0;
@@ -96,6 +99,7 @@ const loadBoard = async () => {
 
   if (!currentProjectId) {
     boardColumns.value = [];
+    boardRevision.value = null;
     isLoading.value = false;
     return;
   }
@@ -103,14 +107,12 @@ const loadBoard = async () => {
   isLoading.value = true;
   loadError.value = false;
   try {
-    const response = await getBoardColumnsApi(currentProjectId);
+    const response = await getBoardSnapshotApi(currentProjectId);
     if (requestId !== loadSequence) {
       return;
     }
-    boardColumns.value = (response.data ?? []).map((column) => ({
-      ...column,
-      cards: [],
-    }));
+    boardColumns.value = response.data?.columns ?? [];
+    boardRevision.value = response.data?.boardRevision ?? null;
   } catch {
     if (requestId === loadSequence) {
       loadError.value = true;

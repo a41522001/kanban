@@ -1,0 +1,37 @@
+meta {
+  name: ArchiveCardAgain
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/board/archiveCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{cardId}}",
+    "expectedVersion": {{cardVersion}}
+  }
+}
+
+tests {
+  test('回應 404（已封存的卡片視為不存在）', () => {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test('code 為 ResourceNotFound (3001)', () => {
+    expect(res.getBody().code).to.equal(3001);
+  });
+}
+
+docs {
+  # 封存卡片：重複封存（錯誤案例）
+
+  - Route: `PATCH /v1/api/board/archiveCard`
+  - 預期：404 / ResourceNotFound (3001)
+
+  在 `ArchiveCard` 之後執行。卡片已封存，`findEditableCard` 的條件 `archivedAt: null` 找不到它，所以回 404；即使繞過這一步，`updateMany` 的 `where` 也有 `archivedAt: null`，不會封存第二次。
+}

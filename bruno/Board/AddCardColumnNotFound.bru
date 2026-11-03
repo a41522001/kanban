@@ -1,0 +1,39 @@
+meta {
+  name: AddCardColumnNotFound
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/board/addCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "00000000-0000-4000-8000-000000000000",
+    "title": "不應該被建立"
+  }
+}
+
+tests {
+  test('回應 404', () => {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test('code 為 ResourceNotFound (3001)', () => {
+    expect(res.getBody().code).to.equal(3001);
+  });
+}
+
+docs {
+  # 新增卡片：沒有權限（錯誤案例）
+
+  - Route: `POST /v1/api/board/addCard`
+  - 預期：404 / ResourceNotFound (3001)
+
+  使用不存在的 columnId。非成員、VIEWER、欄位或 Project／Workspace 已封存時，回應與這支完全相同，不透露欄位是否存在。
+
+  要測 VIEWER：用 VIEWER 帳號登入，把 columnId 換成該專案的欄位 id，結果應與這支相同。
+}

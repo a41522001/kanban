@@ -1,0 +1,50 @@
+meta {
+  name: ArchiveCard
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/board/archiveCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{cardId}}",
+    "expectedVersion": {{cardVersion}}
+  }
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('回傳 cardId、columnId 與 boardRevision', () => {
+    const data = res.getBody().data;
+    expect(data.cardId).to.equal(bru.getVar('cardId'));
+    expect(data.columnId).to.be.a('string');
+    expect(data.boardRevision).to.be.a('string');
+  });
+
+  test('不回傳卡片內容', () => {
+    expect(res.getBody().data).to.not.have.property('card');
+  });
+}
+
+docs {
+  # 封存卡片
+
+  - Route: `PATCH /v1/api/board/archiveCard`
+  - Auth: 有效 Session，且為卡片所屬 Project 的 OWNER 或 EDITOR
+  - Body: `{ cardId, expectedVersion }`
+  - 成功：200 / `ArchiveCardResult`：`{ cardId, columnId, boardRevision }`；卡片設定 `archivedAt`、`version` +1，`boardRevision` +1。前端用 cardId、columnId 把卡片從畫面上移除
+  - 版本不符：409 / CardVersionConflict (7001)
+  - 非成員、VIEWER、卡片已封存、欄位／Project／Workspace 已封存：404 / ResourceNotFound (3001)（見 `ArchiveCardAgain`）
+
+  只能封存，不能刪除；目前沒有還原。`cardId`、`cardVersion` 由 `AddCard`／`UpdateCard` 存入 runtime 變數。執行後再跑 `GetBoardColumns`，這張卡片不會再出現。
+
+  2026-11-03 Board 規格 A-5。
+}
