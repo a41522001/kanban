@@ -6,7 +6,7 @@
 
 | 範圍 | 指令 | 備註 |
 | --- | --- | --- |
-| Backend unit | `pnpm test:backend` | 腳本會加上 `node --experimental-vm-modules`；直接執行 `npx jest` 時 `logger.config.spec.ts` 會因動態 `import()` 失敗 |
+| Backend unit | `pnpm test:backend` | 腳本會加上 `node --experimental-vm-modules`；直接執行 `npx jest` 時 `logger.factory.spec.ts` 會因動態 `import()` 失敗 |
 | Backend E2E | `pnpm test:backend:e2e` | 首次先複製 `backend/.env.e2e.example` 為 `backend/.env.e2e`；runner 會建立並移除隔離的 PostgreSQL／Redis |
 | Frontend unit | `pnpm --filter frontend test:unit --run` | `email-verification.spec.ts` 在 Windows 有既有的圖檔路徑問題 |
 | 型別檢查 | `pnpm --filter backend exec tsc --noEmit -p tsconfig.json`、`pnpm --filter frontend type-check` | 前端讀取編譯後的 contracts，改了 `packages/contracts` 要先 `pnpm --filter @kanban/contracts build` |

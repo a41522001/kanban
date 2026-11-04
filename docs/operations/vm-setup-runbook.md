@@ -35,6 +35,8 @@ GCP Console → Compute Engine → 建立 VM 執行個體。
 | 開機磁碟 | 30 GB 以上 | 每次部署會下載新 image，舊版由 `docker image prune -af` 清除 |
 | 防火牆 | 勾選「允許 HTTP 流量」與「允許 HTTPS 流量」 | 未勾選時外部連不到 80／443 |
 | 外部 IP | **建立時即保留靜態 IP** | 臨時 IP 在 VM 停止再啟動後會改變，連帶需要更新 Secret 與 `FRONTEND_URL` |
+| 服務帳號 | `kanban-app`（先依 §10.1 建立） | 頭像存取 GCS 用；不使用預設的 Compute 服務帳號。變更服務帳號必須先停機，建立時就要選好 |
+| 存取範圍（scope） | `cloud-platform`（完整存取所有 Cloud API） | 預設 scope 的 storage 只有唯讀，即使 IAM 已授權仍無法上傳；實際權限由 IAM 控制 |
 
 靜態 IP 未綁定執行中的 VM 時仍會計費；刪除 VM 時一併釋放。
 
@@ -205,7 +207,40 @@ Worker log 會印出 job 資料（含驗證 token），分享 log 前先移除 t
 
 - 網域與 HTTPS：規劃使用 Cloudflare（Proxy、SSL 模式 Full (strict)、Origin Certificate 裝在 Nginx），compose 開放 443，`FRONTEND_URL` 改為 `https://`。未完成前，以 `http://IP` 存取時 secure Cookie 不會被儲存，無法登入。
 - `compose.prod.yml` 加入 `restart: unless-stopped`，否則 VM 重開機後容器不會自動啟動。
-- Avatar 上線前（見 [avatar 規格 §0](../features/avatar.md) 步驟 11–12）：正式環境使用 GCP Cloud Storage，backend 與 worker 都直接存取 GCS，**不需共用 volume**，Nginx 也不需 `/media`。需建立 media（公開）與 temp（私有、1 天生命週期）兩個 bucket，授權 VM 的服務帳號存取，Cloudflare 設定 `media.<網域>` 指向 media bucket，並在 `.env.prod` 加入儲存設定；`AVATAR_PUBLIC_BASE_URL` 設為 `https://media.<網域>`。
+- Avatar 上線前（見 [avatar 規格 §0.4](../features/avatar.md) 步驟 11–12）：正式環境使用 GCP Cloud Storage，backend 與 worker 都直接存取 GCS，**不需共用 volume**，Nginx 也不需 `/media`。GCS 設定見 §10.1；Cloudflare `media.<網域>` 以 Worker 代理到 media bucket，需在網域與 HTTPS 完成後進行，細節待定。
+
+### 10.1 Avatar 的 GCS 設定清單（Console 手動建立）
+
+規則與理由見 [avatar 規格 §0.4.4](../features/avatar.md)。全部 bucket 位置為 `asia-east1` 單一區域。Bucket 名稱全球唯一，已被使用時在名稱後加上 GCP 專案 ID，並同步修改此表與 avatar 規格。
+
+**Bucket**
+
+| Bucket | 存取控管 | 公開存取 | 生命週期 | Soft delete |
+| --- | --- | --- | --- | --- |
+| `flowboard-prod-avatar-media` | Uniform | 不強制 public access prevention；`allUsers` 授予 `roles/storage.objectViewer` | 無 | 預設 7 天 |
+| `flowboard-prod-avatar-temp` | Uniform | 強制 public access prevention | Delete，`age: 1` | 關閉 |
+| `flowboard-dev-avatar-media` | Uniform | 同 prod media | 無 | 關閉 |
+| `flowboard-dev-avatar-temp` | Uniform | 同 prod temp | Delete，`age: 1` | 關閉 |
+
+生命週期規則修改後最多 24 小時才生效，刪除時間不保證。
+
+**服務帳號**
+
+| 服務帳號 | 授權（在 bucket 上設定，不在專案層級） | 用途 |
+| --- | --- | --- |
+| `kanban-app` | 兩個 prod bucket：`roles/storage.objectUser` | 正式 VM（§2：建立 VM 時選擇，scope `cloud-platform`） |
+| `kanban-dev` | 兩個 dev bucket：`roles/storage.objectUser` | 本機開發；在 Console 建立 JSON 金鑰，`client_email`、`private_key` 填入本機 `backend/.env` 的 `GCS_CLIENT_EMAIL`、`GCS_PRIVATE_KEY`，金鑰檔不放進 repo。**不可**放進 `.env.prod`（啟動驗證會失敗） |
+
+**`.env.prod` 新增（步驟 12 部署時）**
+
+```env
+AVATAR_STORAGE_DRIVER=gcs
+AVATAR_MEDIA_BUCKET=flowboard-prod-avatar-media
+AVATAR_TEMP_BUCKET=flowboard-prod-avatar-temp
+AVATAR_PUBLIC_BASE_URL=https://media.<網域>
+```
+
+修改後依 §9 重新建立 backend 與 worker 容器。
 
 ## 11. 下線 VM
 

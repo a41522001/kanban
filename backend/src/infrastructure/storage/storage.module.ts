@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolve } from 'node:path';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { LocalStorageService } from './localStorage.service';
 import { MEDIA_STORAGE, TEMP_STORAGE } from './storage.tokens';
 
@@ -10,22 +10,18 @@ import { MEDIA_STORAGE, TEMP_STORAGE } from './storage.tokens';
     {
       provide: MEDIA_STORAGE,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<Env>) =>
+      useFactory: (configService: ConfigService<AppConfig, true>) =>
         new LocalStorageService(
-          resolve(
-            configService.getOrThrow('AVATAR_STORAGE_ROOT', { infer: true }),
-          ),
-          configService.getOrThrow('AVATAR_PUBLIC_BASE_URL', { infer: true }),
+          resolve(configService.get('avatar.storageRoot', { infer: true })),
+          configService.get('avatar.publicBaseUrl', { infer: true }),
         ),
     },
     {
       provide: TEMP_STORAGE,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService<Env>) =>
+      useFactory: (configService: ConfigService<AppConfig, true>) =>
         new LocalStorageService(
-          resolve(
-            configService.getOrThrow('AVATAR_TEMP_ROOT', { infer: true }),
-          ),
+          resolve(configService.get('avatar.tempRoot', { infer: true })),
           null,
         ),
     },

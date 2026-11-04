@@ -9,7 +9,7 @@ import { Worker } from 'bullmq';
 import { RedisService } from '@/infrastructure/redis/redis.service';
 import { EmailService } from '@/infrastructure/email/email.service';
 import { ConfigService } from '@nestjs/config';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { redisKeys } from '@/infrastructure/redis/redis.keys';
 import { jobLogFields } from './jobLogFields';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
@@ -18,7 +18,7 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
   ) {}
   private readonly logger = new Logger(EmailWorkerService.name);
   private emailWorker!: Worker<SendVerificationEmailData>;
@@ -62,10 +62,10 @@ export class EmailWorkerService implements OnModuleInit, OnModuleDestroy {
     const redisClient = this.redisService.getClient();
     const redisKey = redisKeys.verifyEmail(token);
     const expireSeconds =
-      this.configService.getOrThrow('VERIFY_MAIL_EXPIRE_MINUTE', {
+      this.configService.get('auth.verifyMailExpireMinute', {
         infer: true,
       }) * 60;
-    const host = this.configService.getOrThrow('FRONTEND_URL', { infer: true });
+    const host = this.configService.get('app.frontendUrl', { infer: true });
     const url = `${host}/verifyEmail/${token}`;
     await redisClient
       .multi()

@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createHash } from 'node:crypto';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { SessionRepository } from './session.repository';
 import { SessionService } from './session.service';
 import type {
@@ -13,7 +13,7 @@ import type {
 describe('SessionService', () => {
   let sessionService: SessionService;
   let sessionRepository: SessionRepository;
-  let configService: ConfigService<Env>;
+  let configService: ConfigService<AppConfig, true>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,7 +32,7 @@ describe('SessionService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn(),
+            get: jest.fn(),
           },
         },
       ],
@@ -61,8 +61,8 @@ describe('SessionService', () => {
       jest.useFakeTimers();
       jest.setSystemTime(now);
 
-      const getOrThrowSpy = jest
-        .spyOn(configService, 'getOrThrow')
+      const getSpy = jest
+        .spyOn(configService, 'get')
         .mockReturnValueOnce(7)
         .mockReturnValueOnce(15)
         .mockReturnValueOnce(5);
@@ -100,16 +100,14 @@ describe('SessionService', () => {
         expiresAtMs: nowMs + 7 * 24 * 60 * 60 * 1000,
       });
       expect(maxDevices).toBe(5);
-      expect(getOrThrowSpy).toHaveBeenCalledTimes(3);
-      expect(getOrThrowSpy).toHaveBeenNthCalledWith(1, 'SESSION_EXPIRE_DAY', {
+      expect(getSpy).toHaveBeenCalledTimes(3);
+      expect(getSpy).toHaveBeenNthCalledWith(1, 'session.expireDay', {
         infer: true,
       });
-      expect(getOrThrowSpy).toHaveBeenNthCalledWith(
-        2,
-        'SESSION_ROTATE_MINUTE',
-        { infer: true },
-      );
-      expect(getOrThrowSpy).toHaveBeenNthCalledWith(3, 'MAX_DEVICE', {
+      expect(getSpy).toHaveBeenNthCalledWith(2, 'session.rotateMinute', {
+        infer: true,
+      });
+      expect(getSpy).toHaveBeenNthCalledWith(3, 'session.maxDevice', {
         infer: true,
       });
     });
@@ -117,7 +115,7 @@ describe('SessionService', () => {
     it('Repository 儲存失敗時將錯誤往上拋出', async () => {
       // Arrange
       jest
-        .spyOn(configService, 'getOrThrow')
+        .spyOn(configService, 'get')
         .mockReturnValueOnce(7)
         .mockReturnValueOnce(15)
         .mockReturnValueOnce(5);
@@ -170,7 +168,7 @@ describe('SessionService', () => {
         .spyOn(sessionRepository, 'getSession')
         .mockResolvedValue(null);
       const rotateSessionSpy = jest.spyOn(sessionRepository, 'rotateSession');
-      const getOrThrowSpy = jest.spyOn(configService, 'getOrThrow');
+      const getSpy = jest.spyOn(configService, 'get');
 
       // Act
       const result = await sessionService.authenticateSession(sessionId);
@@ -179,7 +177,7 @@ describe('SessionService', () => {
       expect(result).toBeNull();
       expect(getSessionSpy).toHaveBeenCalledWith(sessionIdHash);
       expect(rotateSessionSpy).not.toHaveBeenCalled();
-      expect(getOrThrowSpy).not.toHaveBeenCalled();
+      expect(getSpy).not.toHaveBeenCalled();
     });
 
     it('Grace Session 僅回傳 userId，不再次輪轉', async () => {
@@ -188,7 +186,7 @@ describe('SessionService', () => {
         .spyOn(sessionRepository, 'getSession')
         .mockResolvedValue(graceSession);
       const rotateSessionSpy = jest.spyOn(sessionRepository, 'rotateSession');
-      const getOrThrowSpy = jest.spyOn(configService, 'getOrThrow');
+      const getSpy = jest.spyOn(configService, 'get');
 
       // Act
       const result = await sessionService.authenticateSession(sessionId);
@@ -196,7 +194,7 @@ describe('SessionService', () => {
       // Assert
       expect(result).toEqual({ userId: graceSession.userId });
       expect(rotateSessionSpy).not.toHaveBeenCalled();
-      expect(getOrThrowSpy).not.toHaveBeenCalled();
+      expect(getSpy).not.toHaveBeenCalled();
     });
 
     it('Current Session 尚未到輪轉時間時直接通過', async () => {
@@ -206,7 +204,7 @@ describe('SessionService', () => {
         rotateAtMs: nowMs + 1,
       });
       const rotateSessionSpy = jest.spyOn(sessionRepository, 'rotateSession');
-      const getOrThrowSpy = jest.spyOn(configService, 'getOrThrow');
+      const getSpy = jest.spyOn(configService, 'get');
 
       // Act
       const result = await sessionService.authenticateSession(sessionId);
@@ -214,7 +212,7 @@ describe('SessionService', () => {
       // Assert
       expect(result).toEqual({ userId: currentSession.userId });
       expect(rotateSessionSpy).not.toHaveBeenCalled();
-      expect(getOrThrowSpy).not.toHaveBeenCalled();
+      expect(getSpy).not.toHaveBeenCalled();
     });
 
     it('到達輪轉時間且成功輪轉時，回傳新 Session ID 並傳入正確的 hash 與期限', async () => {
@@ -222,8 +220,8 @@ describe('SessionService', () => {
       jest
         .spyOn(sessionRepository, 'getSession')
         .mockResolvedValue(currentSession);
-      const getOrThrowSpy = jest
-        .spyOn(configService, 'getOrThrow')
+      const getSpy = jest
+        .spyOn(configService, 'get')
         .mockReturnValueOnce(7)
         .mockReturnValueOnce(15);
       const rotateSessionSpy = jest
@@ -256,14 +254,12 @@ describe('SessionService', () => {
         newExpiresAtMs: nowMs + 7 * 24 * 60 * 60 * 1000,
         graceUntilMs: nowMs + 20 * 1000,
       });
-      expect(getOrThrowSpy).toHaveBeenNthCalledWith(1, 'SESSION_EXPIRE_DAY', {
+      expect(getSpy).toHaveBeenNthCalledWith(1, 'session.expireDay', {
         infer: true,
       });
-      expect(getOrThrowSpy).toHaveBeenNthCalledWith(
-        2,
-        'SESSION_ROTATE_MINUTE',
-        { infer: true },
-      );
+      expect(getSpy).toHaveBeenNthCalledWith(2, 'session.rotateMinute', {
+        infer: true,
+      });
     });
 
     it('輪轉時 Session 已不存在則回傳 null', async () => {
@@ -272,7 +268,7 @@ describe('SessionService', () => {
         .spyOn(sessionRepository, 'getSession')
         .mockResolvedValue(currentSession);
       jest
-        .spyOn(configService, 'getOrThrow')
+        .spyOn(configService, 'get')
         .mockReturnValueOnce(7)
         .mockReturnValueOnce(15);
       const rotateSessionSpy = jest
@@ -295,7 +291,7 @@ describe('SessionService', () => {
           .spyOn(sessionRepository, 'getSession')
           .mockResolvedValue(currentSession);
         jest
-          .spyOn(configService, 'getOrThrow')
+          .spyOn(configService, 'get')
           .mockReturnValueOnce(7)
           .mockReturnValueOnce(15);
         const rotateSessionSpy = jest
@@ -317,7 +313,7 @@ describe('SessionService', () => {
         .spyOn(sessionRepository, 'getSession')
         .mockResolvedValue(currentSession);
       jest
-        .spyOn(configService, 'getOrThrow')
+        .spyOn(configService, 'get')
         .mockReturnValueOnce(7)
         .mockReturnValueOnce(15);
       const repositoryError = new Error('Redis rotation failed');

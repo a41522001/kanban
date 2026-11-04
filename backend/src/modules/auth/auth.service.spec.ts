@@ -48,8 +48,8 @@ describe('AuthService', () => {
         {
           provide: ConfigService,
           useValue: {
-            getOrThrow: jest.fn((key: string) =>
-              key === 'RATE_LIMIT_VERIFY_EMAIL_SECONDS' ? 60 : 3,
+            get: jest.fn((key: string) =>
+              key === 'auth.rateLimitVerifyEmailSeconds' ? 60 : 3,
             ),
           },
         },

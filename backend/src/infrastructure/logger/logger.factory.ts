@@ -1,17 +1,17 @@
 import type { ConfigService } from '@nestjs/config';
-import type { Env } from './env';
+import type { AppConfig } from '@/config';
 import type { Params } from 'nestjs-pino';
 import pino from 'pino';
 import { hostname } from 'node:os';
 import { randomUUID } from 'node:crypto';
 
 export const loggerFactory = async (
-  configService: ConfigService<Env>,
+  configService: ConfigService<AppConfig, true>,
   service: 'api' | 'worker',
 ): Promise<Params> => {
   const isProduction =
-    configService.getOrThrow('NODE_ENV', { infer: true }) === 'production';
-  const seqUrl = configService.get('SEQ_URL', { infer: true });
+    configService.get('app.nodeEnv', { infer: true }) === 'production';
+  const seqUrl = configService.get('logger.seqUrl', { infer: true });
   const level = isProduction ? 'info' : 'debug';
 
   // 終端機輸出：開發用 pino-pretty（devDependency，只在開發時載入），正式環境直接輸出 JSON 到 stdout。

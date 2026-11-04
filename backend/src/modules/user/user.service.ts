@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { ConfigService } from '@nestjs/config';
-import type { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import { CreateUserData } from './user.type';
 import type { User } from '@/generated/prisma/client';
 import type { PublicUser } from '@kanban/contracts/user';
@@ -9,7 +9,7 @@ import { DateTime } from 'luxon';
 @Injectable()
 export class UserService {
   constructor(
-    private readonly configService: ConfigService<Env>,
+    private readonly configService: ConfigService<AppConfig, true>,
     private userRepository: UserRepository,
   ) {}
   /** 創建User */

@@ -1,4 +1,4 @@
-import { Env } from '@/config/env';
+import type { AppConfig } from '@/config';
 import bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import type { FieldErrors } from '@kanban/contracts/api';
@@ -6,14 +6,14 @@ import type { ValidationError } from 'class-validator';
 /**
  * 對密碼進行加鹽hash處理。
  * @param {string} password - 需要hash處理的純文字密碼。
- * @param {ConfigService<Env>} configService - 用來取得 bcrypt salt rounds 的設定服務。
+ * @param {ConfigService<AppConfig, true>} configService - 用來取得 bcrypt salt rounds 的設定服務。
  * @returns {Promise<string>} hash過的密碼字串。
  */
 export const saltPassword = async (
   password: string,
-  configService: ConfigService<Env>,
+  configService: ConfigService<AppConfig, true>,
 ): Promise<string> => {
-  const saltRounds: number = configService.getOrThrow('SALT_ROUNDS', {
+  const saltRounds: number = configService.get('auth.saltRounds', {
     infer: true,
   });
   const bcryptPassword = await bcrypt.hash(password, saltRounds);
