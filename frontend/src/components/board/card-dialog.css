@@ -147,3 +147,7 @@
 .card-dialog__confirm-description {
   @apply text-sm leading-6 text-content-primary;
 }
+
+.card-dialog__read-row {
+  @apply flex items-center gap-4;
+}

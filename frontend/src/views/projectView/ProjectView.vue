@@ -55,7 +55,7 @@
               :class="{ 'board__card-button--selected': isCardOpen && card.id === selectedCardId }"
               @click="openCard(card)"
             >
-              <BoardCard :card="card" />
+              <BoardCard :card="card" :category="findCategory(card.categoryId)" />
             </button>
             <p v-if="column.cards.length === 0" class="board__empty-cards">尚無卡片</p>
           </div>
@@ -75,6 +75,9 @@
     <DialogAddCard
       v-model:open="isAddCardOpen"
       :column="addCardColumn"
+      :project-id="projectId"
+      :categories="categories"
+      @category-created="handleCategoryCreated"
       @created="handleCardCreated"
       @stale="loadBoard"
     />
@@ -83,6 +86,9 @@
       :card="selectedCard?.card ?? null"
       :column-title="selectedCard?.column.title ?? ''"
       :can-edit="canEdit"
+      :project-id="projectId"
+      :categories="categories"
+      @category-created="handleCategoryCreated"
       @updated="handleCardUpdated"
       @archived="handleCardArchived"
       @reload="loadBoard"
@@ -100,9 +106,11 @@ import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/stores/user';
 import type {
+  AddCategoryResult,
   ArchiveCardResult,
   BoardCardSnapshot,
   BoardColumnSnapshot,
+  CardCategorySnapshot,
   CardMutationResult,
 } from '@kanban/contracts/board';
 import type { ProjectRole } from '@kanban/contracts/project';
@@ -121,6 +129,23 @@ const boardColumns = ref<BoardColumnSnapshot[]>([]);
 // Kept for later phases: card mutations return the new revision, and phase C
 // compares it with Socket events to detect missed updates.
 const boardRevision = ref<string | null>(null);
+const categories = ref<CardCategorySnapshot[]>([]);
+// Cards only carry categoryId; look the category up once per render instead of scanning the array.
+const categoryById = computed(
+  () => new Map(categories.value.map((category) => [category.id, category])),
+);
+const findCategory = (categoryId: string | null) =>
+  categoryId ? (categoryById.value.get(categoryId) ?? null) : null;
+
+// A reused (already existing) category is a no-op; a new one is inserted in name order (Board spec Q15).
+const handleCategoryCreated = ({ category, boardRevision: nextRevision }: AddCategoryResult) => {
+  if (!categoryById.value.has(category.id)) {
+    categories.value = [...categories.value, category].sort((a, b) =>
+      a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1,
+    );
+  }
+  boardRevision.value = nextRevision;
+};
 const currentUserRole = ref<ProjectRole | null>(null);
 // VIEWER can only read the board; the backend also rejects their mutations with 404.
 const canEdit = computed<boolean>(
@@ -143,6 +168,7 @@ const loadBoard = async () => {
     boardColumns.value = [];
     boardRevision.value = null;
     currentUserRole.value = null;
+    categories.value = [];
     isLoading.value = false;
     return;
   }
@@ -157,6 +183,7 @@ const loadBoard = async () => {
     boardColumns.value = response.data?.columns ?? [];
     boardRevision.value = response.data?.boardRevision ?? null;
     currentUserRole.value = response.data?.currentUserRole ?? null;
+    categories.value = response.data?.categories ?? [];
   } catch {
     if (requestId === loadSequence) {
       loadError.value = true;

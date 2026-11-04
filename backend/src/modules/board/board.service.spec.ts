@@ -18,6 +18,7 @@ type ColumnRecord = BoardRecord['boardColumns'][number];
 type CardRecord = ColumnRecord['cards'][number];
 
 const projectId = 'project-1';
+const CATEGORY_ID = 'category-1';
 const userId = 'user-1';
 const createdAt = new Date('2026-11-01T08:00:00.000Z');
 const updatedAt = new Date('2026-11-02T09:30:00.000Z');
@@ -27,6 +28,7 @@ const createCard = (overrides: Partial<CardRecord> = {}): CardRecord => ({
   columnId: 'column-1',
   title: '建立看板 API',
   description: null,
+  categoryId: null,
   position: 1024,
   version: 1,
   createdAt,
@@ -82,6 +84,9 @@ describe('BoardService', () => {
   let createCategoryRecord: jest.MockedFunction<
     BoardRepository['createCategory']
   >;
+  let findCategoryInProject: jest.MockedFunction<
+    BoardRepository['findCategoryInProject']
+  >;
   let transaction: jest.Mock;
   // Stand-in for the Prisma transaction client passed to the callback.
   const tx = { isTransaction: true };
@@ -113,6 +118,7 @@ describe('BoardService', () => {
       name: 'Backend',
       colorKey: 'mint',
     });
+    findCategoryInProject = jest.fn().mockResolvedValue({ id: CATEGORY_ID });
     transaction = jest.fn((callback: (client: unknown) => unknown) =>
       callback(tx),
     );
@@ -137,6 +143,7 @@ describe('BoardService', () => {
             getBoardRevision,
             countCategories,
             createCategory: createCategoryRecord,
+            findCategoryInProject,
           },
         },
         { provide: ProjectService, useValue: {} },
@@ -151,6 +158,7 @@ describe('BoardService', () => {
     it('以 projectId 與 userId 查詢，並轉成 BoardSnapshot', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 12n,
+        cardCategories: [],
         members: [{ role: 'EDITOR' }],
         boardColumns: [
           createColumn({
@@ -169,6 +177,7 @@ describe('BoardService', () => {
       expect(snapshot).toEqual({
         boardRevision: '12',
         currentUserRole: 'EDITOR',
+        categories: [],
         columns: [
           {
             id: 'column-1',
@@ -181,6 +190,7 @@ describe('BoardService', () => {
                 columnId: 'column-1',
                 title: '建立看板 API',
                 description: null,
+                categoryId: null,
                 position: 1024,
                 version: 1,
                 createdAt: '2026-11-01T08:00:00.000Z',
@@ -203,6 +213,7 @@ describe('BoardService', () => {
     it('回傳內容可被 JSON 序列化（BigInt 已轉為字串）', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 9007199254740993n, // beyond Number.MAX_SAFE_INTEGER
+        cardCategories: [],
         members: [{ role: 'EDITOR' }],
         boardColumns: [createColumn({ cards: [createCard()] })],
       });
@@ -216,6 +227,7 @@ describe('BoardService', () => {
     it('回傳目前使用者在專案的角色', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 1n,
+        cardCategories: [],
         members: [{ role: 'VIEWER' }],
         boardColumns: [],
       });
@@ -228,6 +240,7 @@ describe('BoardService', () => {
     it('不公開欄位的 version 等內部欄位', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 0n,
+        cardCategories: [],
         members: [{ role: 'EDITOR' }],
         boardColumns: [createColumn()],
       });
@@ -246,6 +259,7 @@ describe('BoardService', () => {
     it('成員但所有欄位都已封存時回傳空的 columns，不視為沒有權限', async () => {
       getAllBoardColumn.mockResolvedValue({
         boardRevision: 3n,
+        cardCategories: [],
         members: [{ role: 'EDITOR' }],
         boardColumns: [],
       });
@@ -253,6 +267,7 @@ describe('BoardService', () => {
       await expect(service.getBoardColumn(projectId, userId)).resolves.toEqual({
         boardRevision: '3',
         currentUserRole: 'EDITOR',
+        categories: [],
         columns: [],
       });
     });
@@ -288,6 +303,7 @@ describe('BoardService', () => {
           columnId: 'column-1',
           title: '建立看板 API',
           description: '先完成新增卡片',
+          categoryId: null,
           userId,
           position: 2048 + 1024,
         },
@@ -300,6 +316,7 @@ describe('BoardService', () => {
           columnId: 'column-1',
           title: '建立看板 API',
           description: null,
+          categoryId: null,
           position: 1024,
           version: 1,
           createdAt: '2026-11-01T08:00:00.000Z',
@@ -591,6 +608,138 @@ describe('BoardService', () => {
       expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
       expect(exception.code).toBe(ApiCode.ResourceNotFound);
       expect(transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('卡片類別（A+1-3）', () => {
+    const expect404WithoutTransaction = async (promise: Promise<unknown>) => {
+      const error: unknown = await promise.catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(AppException);
+      const exception = error as AppException;
+      expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
+      expect(exception.code).toBe(ApiCode.ResourceNotFound);
+      expect(transaction).not.toHaveBeenCalled();
+    };
+
+    it('看板回傳專案的類別清單（只有 id、name、colorKey）與卡片的 categoryId', async () => {
+      getAllBoardColumn.mockResolvedValue({
+        boardRevision: 5n,
+        cardCategories: [
+          { id: 'category-2', name: '前端', colorKey: 'lavender' },
+          { id: CATEGORY_ID, name: '後端', colorKey: 'mint' },
+        ],
+        members: [{ role: 'EDITOR' }],
+        boardColumns: [
+          createColumn({ cards: [createCard({ categoryId: CATEGORY_ID })] }),
+        ],
+      });
+
+      const snapshot = await service.getBoardColumn(projectId, userId);
+
+      expect(snapshot.categories).toEqual([
+        { id: 'category-2', name: '前端', colorKey: 'lavender' },
+        { id: CATEGORY_ID, name: '後端', colorKey: 'mint' },
+      ]);
+      expect(snapshot.columns[0].cards[0].categoryId).toBe(CATEGORY_ID);
+    });
+
+    it('新增卡片帶類別：確認類別屬於同一專案後寫入 categoryId', async () => {
+      const dto: AddCardDto = {
+        columnId: 'column-1',
+        title: '標題',
+        categoryId: CATEGORY_ID,
+      };
+
+      await service.createCard(dto, userId);
+
+      expect(findCategoryInProject).toHaveBeenCalledWith(
+        CATEGORY_ID,
+        projectId,
+      );
+      expect(createCardRecord).toHaveBeenCalledWith(
+        expect.objectContaining({ categoryId: CATEGORY_ID }),
+        tx,
+      );
+    });
+
+    it('新增卡片沒帶類別時不查類別，categoryId 存成 null', async () => {
+      await service.createCard({ columnId: 'column-1', title: '標題' }, userId);
+
+      expect(findCategoryInProject).not.toHaveBeenCalled();
+      expect(createCardRecord).toHaveBeenCalledWith(
+        expect.objectContaining({ categoryId: null }),
+        tx,
+      );
+    });
+
+    it('新增卡片的類別屬於別的專案（或不存在）時丟 404，且不開 transaction', async () => {
+      findCategoryInProject.mockResolvedValue(null);
+
+      await expect404WithoutTransaction(
+        service.createCard(
+          { columnId: 'column-1', title: '標題', categoryId: CATEGORY_ID },
+          userId,
+        ),
+      );
+      expect(createCardRecord).not.toHaveBeenCalled();
+    });
+
+    it('編輯時只送 categoryId 也算有修改，不回 400', async () => {
+      const dto: UpdateCardDto = {
+        cardId: 'card-1',
+        categoryId: CATEGORY_ID,
+        expectedVersion: 3,
+      };
+
+      await service.updateCard(dto, userId);
+
+      expect(findCategoryInProject).toHaveBeenCalledWith(
+        CATEGORY_ID,
+        projectId,
+      );
+      expect(updateCardContent).toHaveBeenCalledWith(
+        'card-1',
+        3,
+        expect.objectContaining({ categoryId: CATEGORY_ID }),
+        tx,
+      );
+    });
+
+    it('編輯時 categoryId 為 null 代表移除類別，不需要查類別', async () => {
+      await service.updateCard(
+        { cardId: 'card-1', categoryId: null, expectedVersion: 3 },
+        userId,
+      );
+
+      expect(findCategoryInProject).not.toHaveBeenCalled();
+      expect(updateCardContent).toHaveBeenCalledWith(
+        'card-1',
+        3,
+        expect.objectContaining({ categoryId: null }),
+        tx,
+      );
+    });
+
+    it('編輯時沒送 categoryId 代表不改', async () => {
+      await service.updateCard(
+        { cardId: 'card-1', title: '新標題', expectedVersion: 3 },
+        userId,
+      );
+
+      const data = updateCardContent.mock.calls[0][2];
+      expect(data.categoryId).toBeUndefined();
+    });
+
+    it('編輯時類別屬於別的專案時丟 404，且不開 transaction', async () => {
+      findCategoryInProject.mockResolvedValue(null);
+
+      await expect404WithoutTransaction(
+        service.updateCard(
+          { cardId: 'card-1', categoryId: CATEGORY_ID, expectedVersion: 3 },
+          userId,
+        ),
+      );
+      expect(updateCardContent).not.toHaveBeenCalled();
     });
   });
 });

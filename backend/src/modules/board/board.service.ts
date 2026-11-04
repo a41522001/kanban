@@ -117,6 +117,9 @@ export class BoardService {
       });
     }
     const projectId = projectAuth.projectId;
+    if (dto.categoryId) {
+      await this.assertCategoryInProject(dto.categoryId, projectId);
+    }
     return await this.prismaService.$transaction(async (tx) => {
       const revision = await this.boardRepository.incrementBoardRevision(
         projectId,
@@ -128,8 +131,10 @@ export class BoardService {
       );
       const card = await this.boardRepository.createCard(
         {
-          ...dto,
+          columnId: dto.columnId,
+          title: dto.title,
           description: dto.description || null,
+          categoryId: dto.categoryId ?? null,
           userId,
           position: (maxPosition ?? 0) + 1024,
         },
@@ -206,6 +211,7 @@ export class BoardService {
     return {
       boardRevision: result.boardRevision.toString(),
       currentUserRole: result.members[0].role,
+      categories: result.cardCategories.map(toCategorySnapshot),
       columns: result.boardColumns.map(({ cards, ...column }) => ({
         id: column.id,
         title: column.title,
@@ -216,15 +222,19 @@ export class BoardService {
     };
   }
 
-  /** 編輯卡片標題／描述；版本不符時回 409 */
+  /** 編輯卡片標題／描述／類別；版本不符時回 409 */
   async updateCard(
     dto: UpdateCardDto,
     userId: string,
   ): Promise<CardMutationResult> {
-    if (dto.title === undefined && dto.description === undefined) {
+    if (
+      dto.title === undefined &&
+      dto.description === undefined &&
+      dto.categoryId === undefined
+    ) {
       throw new AppException({
         status: HttpStatus.BAD_REQUEST,
-        message: '請至少修改標題或描述其中一項',
+        message: '請至少修改標題、描述或類別其中一項',
         code: ApiCode.ValidationError,
       });
     }
@@ -241,6 +251,10 @@ export class BoardService {
       });
     }
     const projectId = editableCard.column.projectId;
+    // null removes the category; only a real id needs the same-project check.
+    if (dto.categoryId) {
+      await this.assertCategoryInProject(dto.categoryId, projectId);
+    }
 
     return await this.prismaService.$transaction(async (tx) => {
       const revision = await this.boardRepository.incrementBoardRevision(
@@ -254,6 +268,7 @@ export class BoardService {
           title: dto.title,
           description:
             dto.description === undefined ? undefined : dto.description || null,
+          categoryId: dto.categoryId,
         },
         tx,
       );
@@ -311,7 +326,6 @@ export class BoardService {
         };
       }
 
-      // Increment first: it locks the project row, so the count below cannot race.
       const boardRevision = await this.boardRepository.incrementBoardRevision(
         data.projectId,
         tx,
@@ -343,6 +357,27 @@ export class BoardService {
       };
     });
     return result;
+  }
+
+  /**
+   * 類別必須屬於卡片所在專案（Board 規格 Q12），否則一律 404，不透露 id 是否存在於別的專案。
+   * 類別不能刪除（Q7），所以在 transaction 外檢查即可，不會有檢查後被刪掉的競態。
+   */
+  private async assertCategoryInProject(
+    categoryId: string,
+    projectId: string,
+  ): Promise<void> {
+    const category = await this.boardRepository.findCategoryInProject(
+      categoryId,
+      projectId,
+    );
+    if (category === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到類別',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
   }
 
   /** 移動看板 */

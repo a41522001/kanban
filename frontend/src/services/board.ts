@@ -1,6 +1,8 @@
 import type { ApiResponse } from '@kanban/contracts/api';
 import type {
   AddCardRequest,
+  AddCategoryRequest,
+  AddCategoryResult,
   ArchiveCardRequest,
   ArchiveCardResult,
   BoardSnapshot,
@@ -54,6 +56,19 @@ export const archiveCardApi = async (
   const response = await api<ApiResponse<ArchiveCardResult>, ArchiveCardRequest>({
     url: '/board/archiveCard',
     method: 'patch',
+    data: payload,
+  });
+
+  return response.data;
+};
+
+/** 建立類別；名稱已存在（不分大小寫）時回傳既有的那一筆，boardRevision 不變。 */
+export const addCategoryApi = async (
+  payload: AddCategoryRequest,
+): Promise<ApiResponse<AddCategoryResult>> => {
+  const response = await api<ApiResponse<AddCategoryResult>, AddCategoryRequest>({
+    url: '/board/addCategory',
+    method: 'post',
     data: payload,
   });
 

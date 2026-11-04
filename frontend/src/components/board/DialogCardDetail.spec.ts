@@ -7,6 +7,7 @@ import type {
   ArchiveCardRequest,
   ArchiveCardResult,
   BoardCardSnapshot,
+  CardCategorySnapshot,
   CardMutationResult,
   UpdateCardRequest,
 } from '@kanban/contracts/board';
@@ -26,6 +27,7 @@ const card: BoardCardSnapshot = {
   columnId: 'column-1',
   title: 'Session Cookie 驗證流程',
   description: '使用隨機 session id',
+  categoryId: null,
   position: 1024,
   version: 3,
   createdAt: '2026-11-03T02:42:00.000Z',
@@ -49,10 +51,15 @@ const apiError = (status: number, code: ApiCode, message: string) =>
     data: { code, data: null, message, time: '', error: null },
   });
 
+const categories: CardCategorySnapshot[] = [
+  { id: 'category-1', name: '後端', colorKey: 'mint' },
+  { id: 'category-2', name: '前端', colorKey: 'lavender' },
+];
+
 const passthroughStub = { template: '<div><slot /></div>' };
-const mountDialog = (canEdit = true) =>
+const mountDialog = (canEdit = true, cardValue: BoardCardSnapshot = card) =>
   mount(DialogCardDetail, {
-    props: { open: true, card, columnTitle: '正在進行', canEdit },
+    props: { open: true, card: cardValue, columnTitle: '正在進行', canEdit, projectId: 'project-1', categories },
     global: {
       stubs: {
         Dialog: passthroughStub,
@@ -219,5 +226,44 @@ describe('DialogCardDetail', () => {
     expect(wrapper.find('#card-detail-title').exists()).toBe(false);
     expect(wrapper.text()).toContain('檢視者 · 只能查看');
     expect(wrapper.text()).not.toContain('封存卡片');
+  });
+
+  it('改選類別時只送 categoryId', async () => {
+    const wrapper = mountDialog();
+
+    await wrapper.get('#card-category').trigger('click');
+    await wrapper.findAll('[role="option"]').find((option) => option.text() === '前端')!.trigger('click');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(updateCardApi).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      expectedVersion: 3,
+      categoryId: 'category-2',
+    });
+  });
+
+  it('選「不設定類別」時送 categoryId: null', async () => {
+    const wrapper = mountDialog(true, { ...card, categoryId: 'category-1' });
+
+    await wrapper.get('#card-category').trigger('click');
+    await wrapper.findAll('[role="option"]')[0]!.trigger('click');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(updateCardApi).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      expectedVersion: 3,
+      categoryId: null,
+    });
+  });
+
+  it('VIEWER 以 chip 顯示類別，沒有類別時顯示「沒有類別」', () => {
+    const withCategory = mountDialog(false, { ...card, categoryId: 'category-1' });
+    expect(withCategory.get('[data-testid="read-only"]').text()).toContain('後端');
+    expect(withCategory.find('#card-category').exists()).toBe(false);
+
+    const withoutCategory = mountDialog(false);
+    expect(withoutCategory.get('[data-testid="read-only"]').text()).toContain('沒有類別');
   });
 });

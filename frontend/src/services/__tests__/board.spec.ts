@@ -3,6 +3,7 @@ import { ApiCode } from '@kanban/contracts/api';
 import api from '@/services/http';
 import {
   addCardApi,
+  addCategoryApi,
   archiveCardApi,
   getBoardSnapshotApi,
   updateCardApi,
@@ -64,6 +65,16 @@ describe('board service', () => {
       url: '/board/archiveCard',
       method: 'patch',
       data: { cardId: 'card-1', expectedVersion: 3 },
+    });
+  });
+
+  it('建立類別', async () => {
+    await addCategoryApi({ projectId: 'project-1', name: '後端', colorKey: 'mint' });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/addCategory',
+      method: 'post',
+      data: { projectId: 'project-1', name: '後端', colorKey: 'mint' },
     });
   });
 });

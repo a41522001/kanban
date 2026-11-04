@@ -74,6 +74,8 @@ export interface BoardCardSnapshot {
   columnId: string;
   title: string;
   description: string | null;
+  /** 沒有類別時為 null；類別內容從 BoardSnapshot.categories 以 id 查找（Board 規格 Q10）。 */
+  categoryId: string | null;
   position: number;
   /** 編輯內容時 +1，編輯與封存需帶回作為 expectedVersion。 */
   version: number;
@@ -98,6 +100,8 @@ export interface BoardSnapshot {
   boardRevision: string;
   /** 目前使用者在此專案的角色；VIEWER 在前端只能查看。 */
   currentUserRole: ProjectRole;
+  /** 專案內所有類別，依 normalizedName 排序；類別選單與卡片 chip 共用（Board 規格 Q10、Q15）。 */
+  categories: CardCategorySnapshot[];
   columns: BoardColumnSnapshot[];
 }
 
@@ -105,6 +109,8 @@ export interface AddCardRequest {
   columnId: string;
   title: string;
   description?: string;
+  /** 必須屬於卡片所在專案，否則 404；不送代表沒有類別。 */
+  categoryId?: string;
 }
 
 /** 新增、編輯卡片的回傳：完整卡片與新的 boardRevision（Board 規格 Q14）。 */
@@ -113,13 +119,15 @@ export interface CardMutationResult {
   boardRevision: string;
 }
 
-/** 編輯卡片；title、description 只送要改的欄位，至少要送一個。 */
+/** 編輯卡片；title、description、categoryId 只送要改的欄位，至少要送一個。 */
 export interface UpdateCardRequest {
   cardId: string;
   /** 不送代表不改；有送時不可為空。 */
   title?: string;
   /** 不送代表不改；空字串或只有空白代表清空。 */
   description?: string;
+  /** 不送代表不改；null 代表移除類別；必須屬於卡片所在專案，否則 404。 */
+  categoryId?: string | null;
   /** 使用者開始編輯時看到的 version；與目前版本不符時回 409 / CardVersionConflict。 */
   expectedVersion: number;
 }

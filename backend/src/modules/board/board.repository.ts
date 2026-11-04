@@ -12,6 +12,8 @@ export interface CreateCardData {
   description: string | null;
   position: number;
   userId: string;
+  /** 已由 service 確認屬於同一專案；沒有類別時為 null。 */
+  categoryId: string | null;
 }
 
 /** 建立類別時寫入的內容；normalizedName 由 service 計算（trim 後轉小寫），查重與寫入共用同一個值。 */
@@ -22,10 +24,11 @@ export interface CreateCategoryData {
   colorKey: CardCategoryColorKey;
 }
 
-/** 編輯卡片時要寫入的內容；沒有出現的欄位代表不改，description 為 null 代表清空。 */
+/** 編輯卡片時要寫入的內容；沒有出現的欄位代表不改，description／categoryId 為 null 代表清空。 */
 export interface UpdateCardContentData {
   title?: string;
   description?: string | null;
+  categoryId?: string | null;
 }
 
 /** 回傳給前端的卡片欄位（對應 contracts 的 BoardCardSnapshot，日期由 service 轉字串）。 */
@@ -38,6 +41,7 @@ const CARD_SNAPSHOT_SELECT = {
   version: true,
   createdAt: true,
   updatedAt: true,
+  categoryId: true,
 } satisfies Prisma.CardSelect;
 
 const CATEGORY_SNAPSHOT_SELECT = {
@@ -75,6 +79,7 @@ export class BoardRepository {
         description: data.description,
         createdById: data.userId,
         position: data.position,
+        categoryId: data.categoryId,
       },
       select: CARD_SNAPSHOT_SELECT,
     });
@@ -92,6 +97,11 @@ export class BoardRepository {
         },
       },
       select: {
+        // Categories are project-wide; the frontend looks up card.categoryId in this list.
+        cardCategories: {
+          select: CATEGORY_SNAPSHOT_SELECT,
+          orderBy: { normalizedName: 'asc' },
+        },
         boardRevision: true,
         // Only the current user's membership, to tell the frontend its role.
         members: {
@@ -320,6 +330,21 @@ export class BoardRepository {
         },
       },
       select: CATEGORY_SNAPSHOT_SELECT,
+    });
+  }
+
+  /**
+   * 確認類別屬於指定專案；不存在或屬於其他專案時回 null（service 回 404，不透露 id 是否存在於別的專案）。
+   */
+  async findCategoryInProject(
+    categoryId: string,
+    projectId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.findFirst({
+      where: { id: categoryId, projectId },
+      select: { id: true },
     });
   }
 

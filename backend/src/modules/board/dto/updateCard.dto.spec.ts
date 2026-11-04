@@ -138,4 +138,46 @@ describe('UpdateCardDto', () => {
     // Assert
     expect(errorFields(errors)).toEqual(['columnId']);
   });
+
+  it('接受新的類別 UUID', async () => {
+    const { dto, errors } = await validateUpdateCard({
+      cardId: CARD_ID,
+      categoryId: CARD_ID,
+      expectedVersion: 1,
+    });
+
+    expect(errors).toHaveLength(0);
+    expect(dto.categoryId).toBe(CARD_ID);
+  });
+
+  it('categoryId 為 null 時通過並保留 null，代表移除類別', async () => {
+    const { dto, errors } = await validateUpdateCard({
+      cardId: CARD_ID,
+      categoryId: null,
+      expectedVersion: 1,
+    });
+
+    expect(errors).toHaveLength(0);
+    expect(dto.categoryId).toBeNull();
+  });
+
+  it('沒送 categoryId 時維持 undefined，代表不改', async () => {
+    const { dto } = await validateUpdateCard({
+      cardId: CARD_ID,
+      title: '標題',
+      expectedVersion: 1,
+    });
+
+    expect(dto.categoryId).toBeUndefined();
+  });
+
+  it('categoryId 不是 UUID 時驗證失敗', async () => {
+    const { errors } = await validateUpdateCard({
+      cardId: CARD_ID,
+      categoryId: '',
+      expectedVersion: 1,
+    });
+
+    expect(errorFields(errors)).toEqual(['categoryId']);
+  });
 });

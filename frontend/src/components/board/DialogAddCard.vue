@@ -47,6 +47,16 @@
           </template>
         </FormField>
 
+        <FormField input-id="card-category" label="類別" hint="選填">
+          <CategorySelect
+            v-model="categoryId"
+            :project-id="projectId"
+            :categories="categories"
+            :disabled="isCreating"
+            @created="emit('categoryCreated', $event)"
+          />
+        </FormField>
+
         <FormField input-id="card-description" label="描述">
           <textarea
             id="card-description"
@@ -86,7 +96,12 @@ import { computed, ref } from 'vue';
 import { Plus, X } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { ApiCode } from '@kanban/contracts/api';
-import type { BoardColumnSnapshot, CardMutationResult } from '@kanban/contracts/board';
+import type {
+  AddCategoryResult,
+  BoardColumnSnapshot,
+  CardCategorySnapshot,
+  CardMutationResult,
+} from '@kanban/contracts/board';
 import FormField from '@/components/shared/FormField/FormField.vue';
 import Input from '@/components/shared/Input/Input.vue';
 import { Button } from '@/components/ui/button';
@@ -101,13 +116,19 @@ import {
 } from '@/components/ui/dialog';
 import { addCardApi } from '@/services/board';
 import { getApiErrorResponse } from '@/services/http';
+import CategorySelect from './CategorySelect.vue';
 
 const TITLE_MAX_LENGTH = 200;
 const DESCRIPTION_MAX_LENGTH = 5000;
 
-const props = defineProps<{ column: BoardColumnSnapshot | null }>();
+const props = defineProps<{
+  column: BoardColumnSnapshot | null;
+  projectId: string;
+  categories: CardCategorySnapshot[];
+}>();
 const emit = defineEmits<{
   created: [result: CardMutationResult];
+  categoryCreated: [result: AddCategoryResult];
   // The column is gone or the user lost edit access; the board should reload.
   stale: [];
 }>();
@@ -115,6 +136,7 @@ const open = defineModel<boolean>('open', { required: true });
 
 const title = ref('');
 const description = ref('');
+const categoryId = ref<string | null>(null);
 const hasTriedSubmit = ref(false);
 const serverTitleError = ref<string | undefined>(undefined);
 const isCreating = ref(false);
@@ -131,6 +153,7 @@ const titleError = computed<string | undefined>(() => {
 const reset = () => {
   title.value = '';
   description.value = '';
+  categoryId.value = null;
   hasTriedSubmit.value = false;
   serverTitleError.value = undefined;
 };
@@ -153,6 +176,7 @@ const handleSubmit = async () => {
       columnId: props.column.id,
       title: title.value.trim(),
       ...(trimmedDescription ? { description: trimmedDescription } : {}),
+      ...(categoryId.value ? { categoryId: categoryId.value } : {}),
     });
     if (response.data) emit('created', response.data);
     isCreating.value = false;

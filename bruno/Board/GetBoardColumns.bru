@@ -23,6 +23,12 @@ tests {
     expect(res.getStatus()).to.equal(200);
   });
 
+  test('回傳 categories 陣列，卡片帶 categoryId', () => {
+    const data = res.getBody().data;
+    expect(data.categories).to.be.an('array');
+    data.columns.forEach((column) => column.cards.forEach((card) => expect(card).to.have.property('categoryId')));
+  });
+
   test('data 為 BoardSnapshot：boardRevision 字串與 columns 陣列', () => {
     const data = res.getBody().data;
     expect(data.boardRevision).to.be.a('string');
