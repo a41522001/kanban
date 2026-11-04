@@ -9,6 +9,7 @@ import { BoardService } from './board.service';
 import type { AddCardDto } from './dto/addCard.dto';
 import type { UpdateCardDto } from './dto/updateCard.dto';
 import type { ArchiveCardDto } from './dto/archiveCard.dto';
+import type { AddCategoryDto } from './dto/addCategory.dto';
 
 type BoardRecord = NonNullable<
   Awaited<ReturnType<BoardRepository['getAllBoardColumn']>>
@@ -68,6 +69,19 @@ describe('BoardService', () => {
     BoardRepository['findCardSnapshot']
   >;
   let archiveCardRecord: jest.MockedFunction<BoardRepository['archiveCard']>;
+  let findEditableProject: jest.MockedFunction<
+    BoardRepository['findEditableProject']
+  >;
+  let findCategoryByNormalizedName: jest.MockedFunction<
+    BoardRepository['findCategoryByNormalizedName']
+  >;
+  let getBoardRevision: jest.MockedFunction<
+    BoardRepository['getBoardRevision']
+  >;
+  let countCategories: jest.MockedFunction<BoardRepository['countCategories']>;
+  let createCategoryRecord: jest.MockedFunction<
+    BoardRepository['createCategory']
+  >;
   let transaction: jest.Mock;
   // Stand-in for the Prisma transaction client passed to the callback.
   const tx = { isTransaction: true };
@@ -90,6 +104,15 @@ describe('BoardService', () => {
     findCardSnapshot = jest
       .fn()
       .mockResolvedValue(createCard({ title: '新標題', version: 4 }));
+    findEditableProject = jest.fn().mockResolvedValue({ id: projectId });
+    findCategoryByNormalizedName = jest.fn().mockResolvedValue(null);
+    getBoardRevision = jest.fn().mockResolvedValue(12n);
+    countCategories = jest.fn().mockResolvedValue(3);
+    createCategoryRecord = jest.fn().mockResolvedValue({
+      id: 'category-1',
+      name: 'Backend',
+      colorKey: 'mint',
+    });
     transaction = jest.fn((callback: (client: unknown) => unknown) =>
       callback(tx),
     );
@@ -109,6 +132,11 @@ describe('BoardService', () => {
             updateCardContent,
             findCardSnapshot,
             archiveCard: archiveCardRecord,
+            findEditableProject,
+            findCategoryByNormalizedName,
+            getBoardRevision,
+            countCategories,
+            createCategory: createCategoryRecord,
           },
         },
         { provide: ProjectService, useValue: {} },
@@ -466,6 +494,103 @@ describe('BoardService', () => {
       expect((error as AppException).getStatus()).toBe(HttpStatus.NOT_FOUND);
       expect(transaction).not.toHaveBeenCalled();
       expect(archiveCardRecord).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('addCategory', () => {
+    const dto: AddCategoryDto = {
+      projectId,
+      name: 'Backend',
+      colorKey: 'mint',
+    };
+
+    it('新名稱：遞增 revision、檢查上限後建立，normalizedName 為小寫', async () => {
+      const result = await service.addCategory(dto, userId);
+
+      expect(findEditableProject).toHaveBeenCalledWith(projectId, userId);
+      expect(findCategoryByNormalizedName).toHaveBeenCalledWith(
+        projectId,
+        'backend',
+        tx,
+      );
+      expect(incrementBoardRevision).toHaveBeenCalledWith(projectId, tx);
+      expect(countCategories).toHaveBeenCalledWith(projectId, tx);
+      expect(createCategoryRecord).toHaveBeenCalledWith(
+        {
+          projectId,
+          name: 'Backend',
+          normalizedName: 'backend',
+          colorKey: 'mint',
+        },
+        tx,
+      );
+      expect(result).toEqual({
+        category: { id: 'category-1', name: 'Backend', colorKey: 'mint' },
+        boardRevision: '13',
+      });
+    });
+
+    it('先遞增 revision（鎖住 Project）再數類別數量', async () => {
+      await service.addCategory(dto, userId);
+
+      expect(incrementBoardRevision.mock.invocationCallOrder[0]).toBeLessThan(
+        countCategories.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('名稱已存在（不分大小寫）時沿用既有類別，revision 不變也不檢查上限', async () => {
+      findCategoryByNormalizedName.mockResolvedValue({
+        id: 'category-9',
+        name: 'backend',
+        colorKey: 'teal',
+      });
+
+      const result = await service.addCategory(dto, userId);
+
+      expect(result).toEqual({
+        category: { id: 'category-9', name: 'backend', colorKey: 'teal' },
+        boardRevision: '12',
+      });
+      expect(getBoardRevision).toHaveBeenCalledWith(projectId, tx);
+      expect(incrementBoardRevision).not.toHaveBeenCalled();
+      expect(countCategories).not.toHaveBeenCalled();
+      expect(createCategoryRecord).not.toHaveBeenCalled();
+    });
+
+    it('已達 50 個時丟 409 / CardCategoryLimitExceeded，且不建立', async () => {
+      countCategories.mockResolvedValue(50);
+
+      const error: unknown = await service
+        .addCategory(dto, userId)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppException);
+      const exception = error as AppException;
+      expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
+      expect(exception.code).toBe(ApiCode.CardCategoryLimitExceeded);
+      expect(createCategoryRecord).not.toHaveBeenCalled();
+    });
+
+    it('49 個時仍可建立第 50 個', async () => {
+      countCategories.mockResolvedValue(49);
+
+      await service.addCategory(dto, userId);
+
+      expect(createCategoryRecord).toHaveBeenCalled();
+    });
+
+    it('沒有編輯權限時丟 404，且不開 transaction', async () => {
+      findEditableProject.mockResolvedValue(null);
+
+      const error: unknown = await service
+        .addCategory(dto, userId)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(AppException);
+      const exception = error as AppException;
+      expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
+      expect(exception.code).toBe(ApiCode.ResourceNotFound);
+      expect(transaction).not.toHaveBeenCalled();
     });
   });
 });

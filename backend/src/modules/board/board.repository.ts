@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import type { Prisma } from '@/generated/prisma/client';
 import { DateTime } from 'luxon';
+import type { CardCategoryColorKey } from '@kanban/contracts/board';
 
 /** 寫入資料庫的卡片內容；與 API request 分開定義，description 已正規化為 null。 */
 export interface CreateCardData {
@@ -11,6 +12,14 @@ export interface CreateCardData {
   description: string | null;
   position: number;
   userId: string;
+}
+
+/** 建立類別時寫入的內容；normalizedName 由 service 計算（trim 後轉小寫），查重與寫入共用同一個值。 */
+export interface CreateCategoryData {
+  projectId: string;
+  name: string;
+  normalizedName: string;
+  colorKey: CardCategoryColorKey;
 }
 
 /** 編輯卡片時要寫入的內容；沒有出現的欄位代表不改，description 為 null 代表清空。 */
@@ -30,6 +39,12 @@ const CARD_SNAPSHOT_SELECT = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.CardSelect;
+
+const CATEGORY_SNAPSHOT_SELECT = {
+  id: true,
+  name: true,
+  colorKey: true,
+} satisfies Prisma.CardCategorySelect;
 
 @Injectable()
 export class BoardRepository {
@@ -288,5 +303,81 @@ export class BoardRepository {
       },
     });
     return result.count;
+  }
+
+  /** 以正規化名稱找同專案內既有的類別；不存在時回 null。 */
+  async findCategoryByNormalizedName(
+    projectId: string,
+    normalizedName: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.findUnique({
+      where: {
+        projectId_normalizedName: {
+          projectId,
+          normalizedName,
+        },
+      },
+      select: CATEGORY_SNAPSHOT_SELECT,
+    });
+  }
+
+  /**
+   * 使用者可編輯（OWNER／EDITOR）且專案、工作區都未封存時回傳 { id }，否則 null。
+   * 用於建立類別、標籤等專案層級的看板資料；VIEWER、非成員、已封存一律查不到（service 回 404）。
+   */
+  async findEditableProject(projectId: string, userId: string) {
+    return await this.prismaService.project.findFirst({
+      where: {
+        id: projectId,
+        archivedAt: null,
+        members: {
+          some: {
+            userId,
+            role: {
+              in: ['OWNER', 'EDITOR'],
+            },
+          },
+        },
+        workspace: {
+          archivedAt: null,
+        },
+      },
+      select: { id: true },
+    });
+  }
+
+  /** 專案目前的類別數，用於 50 個上限檢查。 */
+  async countCategories(projectId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.count({ where: { projectId } });
+  }
+
+  /** 創建類別 */
+  async createCategory(
+    data: CreateCategoryData,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.create({
+      data: {
+        projectId: data.projectId,
+        name: data.name,
+        normalizedName: data.normalizedName,
+        colorKey: data.colorKey,
+      },
+      select: CATEGORY_SNAPSHOT_SELECT,
+    });
+  }
+
+  /** 讀取目前的 boardRevision（不遞增），用於沿用既有類別時回傳。 */
+  async getBoardRevision(projectId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { boardRevision: true },
+    });
+    return project.boardRevision;
   }
 }

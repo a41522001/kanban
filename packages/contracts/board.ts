@@ -137,3 +137,24 @@ export interface ArchiveCardResult {
   columnId: string;
   boardRevision: string;
 }
+
+/** 卡片類別（Board 規格 §4.5）；同一專案內共用，名稱不分大小寫不可重複。 */
+export interface CardCategorySnapshot {
+  id: string;
+  name: string;
+  colorKey: CardCategoryColorKey;
+}
+
+/** 建立類別；名稱已存在（trim 後不分大小寫）時回傳既有的那一筆。 */
+export interface AddCategoryRequest {
+  projectId: string;
+  /** trim 後 1–20 字。 */
+  name: string;
+  colorKey: CardCategoryColorKey;
+}
+
+/** 建立類別的回傳；沿用既有類別時 boardRevision 不變。 */
+export interface AddCategoryResult {
+  category: CardCategorySnapshot;
+  boardRevision: string;
+}

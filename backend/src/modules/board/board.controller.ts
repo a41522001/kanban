@@ -18,7 +18,9 @@ import { BoardService } from './board.service';
 import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
 import { ArchiveCardDto } from './dto/archiveCard.dto';
+import { AddCategoryDto } from './dto/addCategory.dto';
 import type {
+  AddCategoryResult,
   ArchiveCardResult,
   CardMutationResult,
 } from '@kanban/contracts/board';
@@ -92,6 +94,22 @@ export class BoardController {
   ): Promise<ApiResult<ArchiveCardResult>> {
     const result = await this.boardService.archiveCard(
       archiveCardDto,
+      req.userId!,
+    );
+    return {
+      data: result,
+      message: '',
+    };
+  }
+
+  /** 建立類別；名稱已存在時回傳既有的那一筆（同樣是 201，boardRevision 不變）。 */
+  @Post('addCategory')
+  async addCategory(
+    @Body() addCategoryDto: AddCategoryDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<AddCategoryResult>> {
+    const result = await this.boardService.addCategory(
+      addCategoryDto,
       req.userId!,
     );
     return {

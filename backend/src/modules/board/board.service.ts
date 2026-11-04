@@ -6,15 +6,19 @@ import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import type {
+  AddCategoryResult,
   ArchiveCardResult,
   BoardCardSnapshot,
   BoardColumnColorKey,
   BoardSnapshot,
+  CardCategoryColorKey,
+  CardCategorySnapshot,
   CardMutationResult,
 } from '@kanban/contracts/board';
 import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
 import { ArchiveCardDto } from './dto/archiveCard.dto';
+import { AddCategoryDto } from './dto/addCategory.dto';
 
 /** Prisma 查出的卡片欄位（日期仍是 Date）。 */
 type CardRecord = Omit<BoardCardSnapshot, 'createdAt' | 'updatedAt'> & {
@@ -27,6 +31,17 @@ const toCardSnapshot = (card: CardRecord): BoardCardSnapshot => ({
   ...card,
   createdAt: card.createdAt.toISOString(),
   updatedAt: card.updatedAt.toISOString(),
+});
+
+/** colorKey is stored as a string; the DTO only ever writes contract keys. */
+const toCategorySnapshot = (category: {
+  id: string;
+  name: string;
+  colorKey: string;
+}): CardCategorySnapshot => ({
+  id: category.id,
+  name: category.name,
+  colorKey: category.colorKey as CardCategoryColorKey,
 });
 // import { redisKeys } from '@/infrastructure/redis/redis.keys';
 
@@ -190,7 +205,6 @@ export class BoardService {
     }
     return {
       boardRevision: result.boardRevision.toString(),
-      // The where clause guarantees the membership exists.
       currentUserRole: result.members[0].role,
       columns: result.boardColumns.map(({ cards, ...column }) => ({
         id: column.id,
@@ -257,6 +271,78 @@ export class BoardService {
         card: toCardSnapshot(card),
       };
     });
+  }
+
+  /**
+   * 建立類別；名稱（trim 後不分大小寫）已存在時沿用既有的那一筆，boardRevision 不變（Board 規格 §4.5）。
+   */
+  async addCategory(
+    data: AddCategoryDto,
+    userId: string,
+  ): Promise<AddCategoryResult> {
+    const projectAuth = await this.boardRepository.findEditableProject(
+      data.projectId,
+      userId,
+    );
+    if (projectAuth === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到專案或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+
+    const normalizedName = data.name.toLowerCase();
+
+    const result = await this.prismaService.$transaction(async (tx) => {
+      const existing = await this.boardRepository.findCategoryByNormalizedName(
+        data.projectId,
+        normalizedName,
+        tx,
+      );
+      if (existing) {
+        const currentRevision = await this.boardRepository.getBoardRevision(
+          data.projectId,
+          tx,
+        );
+        return {
+          category: toCategorySnapshot(existing),
+          boardRevision: currentRevision.toString(),
+        };
+      }
+
+      // Increment first: it locks the project row, so the count below cannot race.
+      const boardRevision = await this.boardRepository.incrementBoardRevision(
+        data.projectId,
+        tx,
+      );
+      const count = await this.boardRepository.countCategories(
+        data.projectId,
+        tx,
+      );
+      if (count >= 50) {
+        throw new AppException({
+          status: HttpStatus.CONFLICT,
+          message: '這個專案的類別已達 50 個上限',
+          code: ApiCode.CardCategoryLimitExceeded,
+        });
+      }
+
+      const category = await this.boardRepository.createCategory(
+        {
+          projectId: data.projectId,
+          name: data.name,
+          normalizedName,
+          colorKey: data.colorKey,
+        },
+        tx,
+      );
+      return {
+        category: toCategorySnapshot(category),
+        boardRevision: boardRevision.toString(),
+      };
+    });
+    return result;
   }
 
   /** 移動看板 */
