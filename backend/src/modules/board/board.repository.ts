@@ -350,7 +350,7 @@ export class BoardRepository {
 
   /**
    * 使用者可編輯（OWNER／EDITOR）且專案、工作區都未封存時回傳 { id }，否則 null。
-   * 用於建立類別、標籤等專案層級的看板資料；VIEWER、非成員、已封存一律查不到（service 回 404）。
+   * 用於建立類別等專案層級的看板資料；VIEWER、非成員、已封存一律查不到（service 回 404）。
    */
   async findEditableProject(projectId: string, userId: string) {
     return await this.prismaService.project.findFirst({

@@ -76,8 +76,8 @@ const PROJECTS: SeedProject[] = [
             '設計',
           ],
           [
-            '建立標籤 API',
-            'POST /board/addLabel，名稱不分大小寫不可重複。',
+            '移動卡片 API',
+            'PATCH /board/moveCard，以 afterCardId 計算 position。',
             '後端',
           ],
           ['卡片拖曳把手樣式', null, '前端'],

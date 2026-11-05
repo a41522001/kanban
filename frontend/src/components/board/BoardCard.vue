@@ -1,6 +1,5 @@
 <template>
   <div class="board-card">
-    <!-- Labels return with Board spec A+2. -->
     <CategoryChip
       v-if="category"
       :name="category.name"

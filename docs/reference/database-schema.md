@@ -331,7 +331,7 @@ Kanban 卡片，透過 `column_id` 歸屬欄位，再由欄位歸屬 Project；*
 
 下列是已規劃、但尚未建立的資料表；新增時需同步更新本文件、Prisma schema、contracts、migration 與測試：
 
-- `card_categories`、`card_labels`：卡片類別與標籤（Board 規格 §4.5，A+）。
+- `card_categories`：卡片類別（Board 規格 §4.5，A+）。
 - `reminders`：負責未來排程時間；到期時才建立 `CARD_REMINDER` Notification。
 - `outbox_messages`：需要可靠背景投遞與 message queue 時才加入。
 

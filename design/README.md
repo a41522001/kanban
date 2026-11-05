@@ -36,8 +36,8 @@ Current 表示目前採用的視覺參考，不代表畫面中的每項操作都
 | Create card · phase A | `card-create-dialog-phase-a.svg` | — | — | Current · Figma v16 已產生；Board 階段 A 只有標題與描述，手機由 Vue 響應式處理 |
 | Card detail · phase A | `card-detail-dialog-phase-a.svg` | — | — | Current · Figma v16 已產生；以對話框取代完整卡片詳情頁，可編輯標題、描述與封存 |
 | Card states · phase A | `card-states-phase-a.svg` | — | — | Current spec page · Figma v16 已產生 · 標題錯誤、版本衝突 409、VIEWER 唯讀、封存確認 |
-| Card dialog · phase A+ | `card-dialog-phase-a-plus.svg` | — | — | Current · Figma v17 已產生；新增／編輯 Dialog 加上類別選單與標籤輸入（Board 規格 §4.5） |
-| Card category + label states · phase A+ | `card-taxonomy-states-phase-a-plus.svg` | — | — | Current spec page · Figma v17 已產生 · 看板卡片顯示、類別選單、建立類別與色票、標籤建議、標籤上限與錯誤、VIEWER 唯讀 |
+| Card dialog · phase A+ | `card-dialog-phase-a-plus.svg` | — | — | Current · Figma v17 已產生；新增／編輯 Dialog 加上類別選單與標籤輸入（Board 規格 §4.5）；**標籤已於 2026-11-05 取消，標籤輸入不採用** |
+| Card category + label states · phase A+ | `card-taxonomy-states-phase-a-plus.svg` | — | — | Current spec page · Figma v17 已產生 · 看板卡片顯示、類別選單、建立類別與色票、標籤建議、標籤上限與錯誤、VIEWER 唯讀；**標籤相關的 state 不採用（標籤已取消）** |
 | Drag and collaboration | `board-drag-states.svg` | — | — | Current spec page |
 | System states | `board-system-states.svg` | — | — | Current spec page |
 | Avatar settings dialog | `avatar-settings-dialog.svg` | — | `avatar-settings-dialog-mobile.svg` | Current · 2026-10-19 使用者確認；Figma v15 已產生，前端已實作 |
@@ -70,16 +70,15 @@ Current 表示目前採用的視覺參考，不代表畫面中的每項操作都
 
 ## Card data contract
 
-資料模型與 `frontend/src/types/board.ts` 對齊：
+資料模型與 `packages/contracts/board.ts` 對齊：
 
 ```text
 Card
 ├── title (required)
-├── category? { name, colorKey }
-└── labels[]
+└── category? { name, colorKey }
 ```
 
-類別色彩使用 `frontend/src/constants/cardCategoryColors.ts` 的 14 個限定色：`coral`、`rose`、`orange`、`amber`、`lime`、`mint`、`teal`、`cyan`、`blue`、`indigo`、`lavender`、`violet`、`pink`、`slate`。色彩屬於 Category，不是獨立 Card 欄位；Labels 為可多選 token input。
+類別色彩使用 contracts `CARD_CATEGORY_COLOR_KEYS` 的 14 個限定色（前端對應的顏色在 `frontend/src/constants/cardCategoryColors.ts`）：`coral`、`rose`、`orange`、`mint`、`amber`、`lime`、`teal`、`cyan`、`lavender`、`indigo`、`violet`、`pink`、`blue`、`slate`。色彩屬於 Category，不是獨立 Card 欄位。標籤已於 2026-11-05 取消，舊設計稿與 Figma v17 中的標籤畫面不採用。
 
 ## Workspace invitation contract
 

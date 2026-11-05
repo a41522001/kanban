@@ -28,7 +28,7 @@
 
 ## 下一步
 
-1. **Board 階段 A+**：卡片類別與標籤，2026-11-03 已 grill 確認；A+1-0 設計稿與 Figma v17 已完成，A+1-1 schema 與色票、A+1-2 `addCategory`、A+1-3、A+1-4 已完成（A+1 類別全部完成），下一步 A+2-1 `CardLabel` schema（[Board 規格](features/board.md) §4.5、§9）。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
+1. **Board 階段 A+**：類別全部完成；標籤 2026-11-05 決定取消（[Board 規格](features/board.md) §4.5、§9）。下一步階段 B：B-1 `PATCH /board/moveCard`。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
 2. **Config Namespace 推到 `dev`**：已完成（含 `socket.service.ts`），提醒另一台修改 `socket.service.ts` 前先 pull。頭像 GCS 步驟 11-2 直接使用 `avatar.*` 並新增 `gcs` namespace。
 3. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
 4. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
