@@ -81,7 +81,7 @@
 - [ ] Event 有 rate limit 或基本節流策略。
 - [ ] Ack 不暴露內部 exception。
 - [x] 現有 Workspace Invitation notification 僅在 Prisma transaction callback 成功完成後 emit；接受邀請建立 WorkspaceMember 後的 `workspace:memberChanged` 也在 transaction commit 後 emit。未來 Board／Project commands 仍需各自驗證此規則。
-- [ ] Socket reconnect 後重新加入 Workspace room；目前 room subscription 只在 Workspace View 初次選取／切換時 emit。
+- [x] Socket reconnect 後重新加入 Workspace room（2026-11-06：`services/socket.ts` 記住目前的 Workspace，每次 `connect` 補送 `workspace:into`；登出 `disconnect()` 時清除）。
 - [ ] Workspace member 被移除後，既有 Socket 必須被強制移出 Workspace room。
 
 ## 8. Database 與 Redis

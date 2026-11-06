@@ -17,12 +17,12 @@
 
 建議型別：
 
-~~~ts
+```ts
 type SocketData = {
   userId: string;
   session: string;
 };
-~~~
+```
 
 禁止從事件 payload 接受 userId 作為操作身分。事件內一律使用 socket.data.userId。
 
@@ -40,7 +40,7 @@ type SocketData = {
 
 每個會修改資料的事件都應回傳 ack，讓前端知道操作是否已提交，而不是只等待 broadcast。
 
-~~~ts
+```ts
 type SocketAck<T> =
   | { success: true; data: T }
   | {
@@ -51,7 +51,7 @@ type SocketAck<T> =
         fields?: Record<string, unknown>;
       };
     };
-~~~
+```
 
 建議 error code：
 
@@ -88,6 +88,13 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 3. 前端比對 `boardRevision`：發現跳號或剛重連，就重新載入整個看板（[Board 規格](../features/board.md) §7）。
 
 第一版可採簡化方案：任何重連成功都重新查詢目前 Board snapshot；資料量變大後再導入 event replay。
+
+目前實作（2026-11-06，Workspace room）：
+
+- `services/socket.ts` 記住目前的 `currentWorkspaceId`，每次 `connect` 事件（含自動重連）補送 `workspace:into`。
+- `onReconnected`／`offReconnected`：只在第二次以後的 `connect` 呼叫，供頁面重新載入錯過的資料；WorkspaceView 用它重新載入成員清單。
+- `disconnect()`（登出、Session 過期）清除 `currentWorkspaceId` 並重設「是否連過」，下一個帳號的第一次連線不會被當成重連。
+- `project:{projectId}` room 尚未實作，Board 階段 C 沿用同一套做法。
 
 ## 7. Session 過期與登出
 
