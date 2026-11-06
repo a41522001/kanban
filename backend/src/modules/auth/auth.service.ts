@@ -131,8 +131,10 @@ export class AuthService {
   }
   /** 登出 */
   async logout(sessionId: string): Promise<void> {
-    await this.sessionService.revokeSession(sessionId);
-    this.socketService.disconnectSession(sessionId);
+    const familyId = await this.sessionService.revokeSession(sessionId);
+    if (familyId !== null) {
+      this.socketService.disconnectFamily(familyId);
+    }
   }
   /** 驗證信箱 */
   async verifyEmail(token: string) {
