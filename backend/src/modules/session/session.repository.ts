@@ -101,6 +101,7 @@ export class SessionRepository {
       sessionKey,
       userSessionsKey,
       sessionIdHash,
+      sessionKeyPrefix: redisKeys.session(''),
     });
     return result;
   }

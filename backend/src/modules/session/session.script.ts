@@ -29,6 +29,7 @@ type RevokeSessionScriptInput = {
   sessionKey: string;
   userSessionsKey: string;
   sessionIdHash: string;
+  sessionKeyPrefix: string;
 };
 type RawRotateSessionReply =
   ['MISSING'] | ['GRACE', string] | ['CURRENT', string] | ['ROTATED', string];
@@ -386,9 +387,16 @@ const REVOKE_SESSION_SCRIPT = defineScript({
     local sessionKey = KEYS[1]
     local userSessionsKey = KEYS[2]
     local sessionIdHash = ARGV[1]
-
+    local sessionKeyPrefix = ARGV[2]
+    local previousSessionIdHash = redis.call('HGET', sessionKey, 'previousSessionIdHash')
     local isDelete = redis.call('DEL', sessionKey)
+
     redis.call('ZREM', userSessionsKey, sessionIdHash)
+
+    if previousSessionIdHash then
+      redis.call('DEL', sessionKeyPrefix .. previousSessionIdHash)
+    end
+
     if isDelete == 1 then
       return 'REVOKED'
     end
@@ -401,6 +409,7 @@ const REVOKE_SESSION_SCRIPT = defineScript({
     parser.pushKey(input.userSessionsKey);
 
     parser.push(input.sessionIdHash);
+    parser.push(input.sessionKeyPrefix);
   },
   transformReply(reply: string): string {
     return reply;
