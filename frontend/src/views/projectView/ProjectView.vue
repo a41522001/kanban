@@ -158,7 +158,7 @@ import { boardColumnColorMap } from '@/constants/boardColumnColors';
 import { getBoardSnapshotApi, moveCardApi } from '@/services/board';
 import { getApiErrorResponse } from '@/services/http';
 import { ApiCode } from '@kanban/contracts/api';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
 import { GripVertical, Plus } from 'lucide-vue-next';
@@ -169,6 +169,12 @@ import {
   maxRevision,
   moveCardToColumnEnd,
 } from './cardMove';
+import {
+  emitProjectInto,
+  emitProjectLeave,
+  offReconnected,
+  onReconnected,
+} from '@/services/socket';
 const isAddCardOpen = ref<boolean>(false);
 const addCardColumn = ref<BoardColumnSnapshot | null>(null);
 const userStore = useUserStore();
@@ -366,12 +372,39 @@ watch(selectedCard, (value) => {
   }
 });
 
+// Board events sent while disconnected are lost, so reload after reconnecting (Board spec §7.4).
+const handleReconnected = () => {
+  void loadBoard();
+};
+
 onMounted(() => {
+  onReconnected(handleReconnected);
   void loadBoard();
 });
 
 watch(projectId, () => {
   void loadBoard();
+});
+
+// The room this view joined. Kept separately because on unmount the route may already point elsewhere.
+let joinedProjectId: string | null = null;
+
+// The route can switch projects without remounting, so follow projectId rather than mount/unmount only.
+watch(
+  projectId,
+  (nextProjectId) => {
+    if (joinedProjectId === nextProjectId) return;
+    if (joinedProjectId) emitProjectLeave(joinedProjectId);
+    joinedProjectId = nextProjectId || null;
+    if (joinedProjectId) emitProjectInto(joinedProjectId);
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  offReconnected(handleReconnected);
+  if (joinedProjectId) emitProjectLeave(joinedProjectId);
+  joinedProjectId = null;
 });
 </script>
 

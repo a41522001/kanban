@@ -1,9 +1,14 @@
-import type { ServerToClientEvents, ClientToServerEvents } from '@kanban/contracts/socket';
+import type {
+  ServerToClientEvents,
+  ClientToServerEvents,
+  ProjectRoomPayload,
+} from '@kanban/contracts/socket';
 import { io, type Socket } from 'socket.io-client';
 import { ref } from 'vue';
 // #region 斷線重連需要添加的內容
 let hasConnectedBefore = false;
 let currentWorkspaceId: string | null = null;
+let currentProjectId: string | null = null;
 // 存放所有登記進來的函式
 const reconnectedHandlers = new Set<() => void>();
 // #endregion
@@ -23,6 +28,9 @@ socket.on('connect', () => {
   if (currentWorkspaceId !== null) {
     emitWorkspaceInto(currentWorkspaceId);
   }
+  if (currentProjectId !== null) {
+    emitProjectInto(currentProjectId);
+  }
   if (hasConnectedBefore) {
     reconnectedHandlers.forEach((handler) => handler());
   }
@@ -41,6 +49,7 @@ export const disconnect = () => {
   socket.disconnect();
   hasConnectedBefore = false;
   currentWorkspaceId = null;
+  currentProjectId = null;
 };
 
 export const ensureConnected = () => {
@@ -75,6 +84,26 @@ export const emitWorkspaceLeave = (workspaceId: string) => {
   socket.emit('workspace:leave', payload);
   if (workspaceId === currentWorkspaceId) {
     currentWorkspaceId = null;
+  }
+};
+
+/** 進入專案（看板） */
+export const emitProjectInto = (projectId: string) => {
+  const payload: ProjectRoomPayload = {
+    projectId,
+  };
+  socket.emit('project:into', payload);
+  currentProjectId = projectId;
+};
+
+/** 離開專案（看板） */
+export const emitProjectLeave = (projectId: string) => {
+  const payload: ProjectRoomPayload = {
+    projectId,
+  };
+  socket.emit('project:leave', payload);
+  if (projectId === currentProjectId) {
+    currentProjectId = null;
   }
 };
 
