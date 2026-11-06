@@ -3,8 +3,10 @@ import { ApiCode } from '@kanban/contracts/api';
 import api from '@/services/http';
 import {
   addCardApi,
+  addCategoryApi,
   archiveCardApi,
   getBoardSnapshotApi,
+  moveCardApi,
   updateCardApi,
 } from '@/services/board';
 
@@ -47,6 +49,16 @@ describe('board service', () => {
     });
   });
 
+  it('以 afterCardId 移動卡片（null 代表放在最上面）', async () => {
+    await moveCardApi({ cardId: 'card-1', toColumnId: 'column-2', afterCardId: null });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/moveCard',
+      method: 'patch',
+      data: { cardId: 'card-1', toColumnId: 'column-2', afterCardId: null },
+    });
+  });
+
   it('以 expectedVersion 修改卡片', async () => {
     await updateCardApi({ cardId: 'card-1', title: '新標題', expectedVersion: 2 });
 
@@ -64,6 +76,16 @@ describe('board service', () => {
       url: '/board/archiveCard',
       method: 'patch',
       data: { cardId: 'card-1', expectedVersion: 3 },
+    });
+  });
+
+  it('建立類別', async () => {
+    await addCategoryApi({ projectId: 'project-1', name: '後端', colorKey: 'mint' });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/addCategory',
+      method: 'post',
+      data: { projectId: 'project-1', name: '後端', colorKey: 'mint' },
     });
   });
 });

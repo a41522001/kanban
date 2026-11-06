@@ -1,4 +1,4 @@
-import type { CardCategoryColorKey } from '@/types/board';
+import type { CardCategoryColorKey } from '@kanban/contracts/board';
 
 interface CardCategoryColorClasses {
   backgroundClass: string;

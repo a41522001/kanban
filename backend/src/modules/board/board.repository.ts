@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import type { Prisma } from '@/generated/prisma/client';
 import { DateTime } from 'luxon';
+import type { CardCategoryColorKey } from '@kanban/contracts/board';
 
 /** 寫入資料庫的卡片內容；與 API request 分開定義，description 已正規化為 null。 */
 export interface CreateCardData {
@@ -11,12 +12,23 @@ export interface CreateCardData {
   description: string | null;
   position: number;
   userId: string;
+  /** 已由 service 確認屬於同一專案；沒有類別時為 null。 */
+  categoryId: string | null;
 }
 
-/** 編輯卡片時要寫入的內容；沒有出現的欄位代表不改，description 為 null 代表清空。 */
+/** 建立類別時寫入的內容；normalizedName 由 service 計算（trim 後轉小寫），查重與寫入共用同一個值。 */
+export interface CreateCategoryData {
+  projectId: string;
+  name: string;
+  normalizedName: string;
+  colorKey: CardCategoryColorKey;
+}
+
+/** 編輯卡片時要寫入的內容；沒有出現的欄位代表不改，description／categoryId 為 null 代表清空。 */
 export interface UpdateCardContentData {
   title?: string;
   description?: string | null;
+  categoryId?: string | null;
 }
 
 /** 回傳給前端的卡片欄位（對應 contracts 的 BoardCardSnapshot，日期由 service 轉字串）。 */
@@ -29,7 +41,14 @@ const CARD_SNAPSHOT_SELECT = {
   version: true,
   createdAt: true,
   updatedAt: true,
+  categoryId: true,
 } satisfies Prisma.CardSelect;
+
+const CATEGORY_SNAPSHOT_SELECT = {
+  id: true,
+  name: true,
+  colorKey: true,
+} satisfies Prisma.CardCategorySelect;
 
 @Injectable()
 export class BoardRepository {
@@ -60,6 +79,7 @@ export class BoardRepository {
         description: data.description,
         createdById: data.userId,
         position: data.position,
+        categoryId: data.categoryId,
       },
       select: CARD_SNAPSHOT_SELECT,
     });
@@ -77,6 +97,11 @@ export class BoardRepository {
         },
       },
       select: {
+        // Categories are project-wide; the frontend looks up card.categoryId in this list.
+        cardCategories: {
+          select: CATEGORY_SNAPSHOT_SELECT,
+          orderBy: { normalizedName: 'asc' },
+        },
         boardRevision: true,
         // Only the current user's membership, to tell the frontend its role.
         members: {
@@ -288,5 +313,182 @@ export class BoardRepository {
       },
     });
     return result.count;
+  }
+
+  /** 以正規化名稱找同專案內既有的類別；不存在時回 null。 */
+  async findCategoryByNormalizedName(
+    projectId: string,
+    normalizedName: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.findUnique({
+      where: {
+        projectId_normalizedName: {
+          projectId,
+          normalizedName,
+        },
+      },
+      select: CATEGORY_SNAPSHOT_SELECT,
+    });
+  }
+
+  /**
+   * 確認類別屬於指定專案；不存在或屬於其他專案時回 null（service 回 404，不透露 id 是否存在於別的專案）。
+   */
+  async findCategoryInProject(
+    categoryId: string,
+    projectId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.findFirst({
+      where: { id: categoryId, projectId },
+      select: { id: true },
+    });
+  }
+
+  /**
+   * 使用者可編輯（OWNER／EDITOR）且專案、工作區都未封存時回傳 { id }，否則 null。
+   * 用於建立類別等專案層級的看板資料；VIEWER、非成員、已封存一律查不到（service 回 404）。
+   */
+  async findEditableProject(projectId: string, userId: string) {
+    return await this.prismaService.project.findFirst({
+      where: {
+        id: projectId,
+        archivedAt: null,
+        members: {
+          some: {
+            userId,
+            role: {
+              in: ['OWNER', 'EDITOR'],
+            },
+          },
+        },
+        workspace: {
+          archivedAt: null,
+        },
+      },
+      select: { id: true },
+    });
+  }
+
+  /** 專案目前的類別數，用於 50 個上限檢查。 */
+  async countCategories(projectId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.count({ where: { projectId } });
+  }
+
+  /** 創建類別 */
+  async createCategory(
+    data: CreateCategoryData,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    return await db.cardCategory.create({
+      data: {
+        projectId: data.projectId,
+        name: data.name,
+        normalizedName: data.normalizedName,
+        colorKey: data.colorKey,
+      },
+      select: CATEGORY_SNAPSHOT_SELECT,
+    });
+  }
+
+  /**
+   * 卡片在指定欄位、且未封存時回傳它的 position，否則 null。
+   * moveCard 用來確認 afterCardId 還在目標欄位（null → 409 / CardMoveConflict）。
+   */
+  async findCardPositionInColumn(
+    cardId: string,
+    columnId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const db = tx ?? this.prismaService;
+    const card = await db.card.findFirst({
+      where: { id: cardId, columnId, archivedAt: null },
+      select: { position: true },
+    });
+    return card?.position ?? null;
+  }
+
+  /**
+   * 欄位中 position 大於 afterPosition 的第一張未封存卡片的 position；沒有時回 null（代表放在最後）。
+   * excludeCardId 是正在移動的卡片：同欄內移動時它還留在原位置，不能被當成「下一張」。
+   */
+  async findNextCardPosition(
+    columnId: string,
+    afterPosition: number,
+    excludeCardId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const db = tx ?? this.prismaService;
+    const card = await db.card.findFirst({
+      where: {
+        columnId,
+        archivedAt: null,
+        position: { gt: afterPosition },
+        id: { not: excludeCardId },
+      },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+      select: { position: true },
+    });
+    return card?.position ?? null;
+  }
+
+  /**
+   * 把卡片放到指定欄位與 position；不檢查、也不改變 version（Board 規格 §5.3）。
+   * @returns 更新筆數；0 代表卡片在檢查權限後被封存。
+   */
+  async moveCard(
+    cardId: string,
+    columnId: string,
+    position: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    const db = tx ?? this.prismaService;
+    const result = await db.card.updateMany({
+      where: { id: cardId, archivedAt: null },
+      data: { columnId, position },
+    });
+    return result.count;
+  }
+
+  /**
+   * 把欄位內所有未封存的卡片（排除 excludeCardId）依目前順序重新編號為 1024、2048、3072……
+   * （Board 規格 §4.3）；順序是 position asc，position 相同時再依 id asc。
+   * 只在「前後兩張相鄰、中間沒有整數可用」時呼叫。tx 必填：重新編號必須與移動卡片在同一個
+   * transaction，移動失敗時才會一起 rollback。
+   */
+  async renumberColumnCards(
+    columnId: string,
+    excludeCardId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await tx.$executeRaw`
+      UPDATE cards AS c
+      SET position = r.rn * 1024
+      FROM(
+        SELECT id,
+          position,
+          ROW_NUMBER() OVER (ORDER BY position, id) AS rn
+          FROM cards
+          WHERE column_id = ${columnId}::uuid
+            AND archived_at IS NULL
+            AND id <> ${excludeCardId}::uuid
+      ) AS r
+      WHERE c.id = r.id;
+    `;
+  }
+
+  /** 讀取目前的 boardRevision（不遞增），用於沿用既有類別時回傳。 */
+  async getBoardRevision(projectId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    const project = await db.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { boardRevision: true },
+    });
+    return project.boardRevision;
   }
 }

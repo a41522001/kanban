@@ -1,6 +1,8 @@
 @reference '../../styles/index.css';
 
-.card-dialog {
+/* DialogContent and AlertDialogContent render through a portal, so their root needs :global. */
+
+:global(.card-dialog) {
   @apply max-h-[calc(100dvh-2rem)] max-w-150 overflow-y-auto rounded-surface border-border bg-surface p-6 shadow-card lg:p-8;
 }
 
@@ -76,7 +78,7 @@
   @apply mr-auto text-xs text-content-secondary;
 }
 
-.card-dialog--detail {
+:global(.card-dialog--detail) {
   @apply max-w-170;
 }
 
@@ -136,7 +138,7 @@
   @apply text-sm leading-6 whitespace-pre-line text-content-primary;
 }
 
-.card-dialog__confirm {
+:global(.card-dialog__confirm) {
   @apply max-w-110 rounded-surface border-border bg-surface p-7 shadow-card;
 }
 
@@ -146,4 +148,24 @@
 
 .card-dialog__confirm-description {
   @apply text-sm leading-6 text-content-primary;
+}
+
+.card-dialog__move-row {
+  @apply flex flex-wrap items-center justify-between gap-3;
+}
+
+.card-dialog__move-button {
+  @apply gap-2;
+}
+
+.card-dialog__move-label {
+  @apply text-xs text-content-secondary;
+}
+
+.card-dialog__move-current {
+  @apply text-xs text-content-secondary;
+}
+
+.card-dialog__read-row {
+  @apply flex items-center gap-4;
 }

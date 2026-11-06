@@ -46,17 +46,55 @@
             ></span>
             <span class="board__column-title">{{ column.title }}</span>
           </div>
-          <div class="board__cards">
-            <button
-              v-for="card in column.cards"
-              :key="card.id"
-              type="button"
-              class="board__card-button"
-              :class="{ 'board__card-button--selected': isCardOpen && card.id === selectedCardId }"
-              @click="openCard(card)"
+          <div class="board__cards-area">
+            <!-- Board spec §6: only the handle drags; mobile needs a 220ms long press. -->
+            <VueDraggable
+              v-model="column.cards"
+              class="board__cards"
+              :class="{ 'board__cards--drop-target': dragOverColumnId === column.id }"
+              :data-column-id="column.id"
+              tag="div"
+              group="board-cards"
+              draggable=".board__card"
+              handle=".board__card-handle"
+              :delay="220"
+              :delay-on-touch-only="true"
+              :animation="dragAnimation"
+              :disabled="!canEdit"
+              chosen-class="board__card--chosen"
+              ghost-class="board__card--ghost"
+              drag-class="board__card--dragging"
+              @start="handleCardDragStart"
+              @move="handleCardDragMove"
+              @end="handleCardDragEnd"
             >
-              <BoardCard :card="card" />
-            </button>
+              <div
+                v-for="card in column.cards"
+                :key="card.id"
+                class="board__card"
+                :class="{ 'board__card--editable': canEdit }"
+                :data-card-id="card.id"
+              >
+                <button
+                  type="button"
+                  class="board__card-button"
+                  :class="{
+                    'board__card-button--selected': isCardOpen && card.id === selectedCardId,
+                  }"
+                  @click="openCard(card)"
+                >
+                  <BoardCard :card="card" :category="findCategory(card.categoryId)" />
+                </button>
+                <button
+                  v-if="canEdit"
+                  type="button"
+                  class="board__card-handle"
+                  :aria-label="`拖曳卡片「${card.title}」`"
+                >
+                  <GripVertical :size="18" aria-hidden="true" />
+                </button>
+              </div>
+            </VueDraggable>
             <p v-if="column.cards.length === 0" class="board__empty-cards">尚無卡片</p>
           </div>
           <Button
@@ -75,6 +113,9 @@
     <DialogAddCard
       v-model:open="isAddCardOpen"
       :column="addCardColumn"
+      :project-id="projectId"
+      :categories="categories"
+      @category-created="handleCategoryCreated"
       @created="handleCardCreated"
       @stale="loadBoard"
     />
@@ -83,6 +124,11 @@
       :card="selectedCard?.card ?? null"
       :column-title="selectedCard?.column.title ?? ''"
       :can-edit="canEdit"
+      :project-id="projectId"
+      :categories="categories"
+      :columns="boardColumns"
+      @category-created="handleCategoryCreated"
+      @move="handleMoveFromDialog"
       @updated="handleCardUpdated"
       @archived="handleCardArchived"
       @reload="loadBoard"
@@ -100,19 +146,29 @@ import UserMenu from '@/components/account/UserMenu/UserMenu.vue';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/stores/user';
 import type {
+  AddCategoryResult,
   ArchiveCardResult,
   BoardCardSnapshot,
   BoardColumnSnapshot,
+  CardCategorySnapshot,
   CardMutationResult,
 } from '@kanban/contracts/board';
 import type { ProjectRole } from '@kanban/contracts/project';
 import { boardColumnColorMap } from '@/constants/boardColumnColors';
-import { getBoardSnapshotApi } from '@/services/board';
+import { getBoardSnapshotApi, moveCardApi } from '@/services/board';
+import { getApiErrorResponse } from '@/services/http';
+import { ApiCode } from '@kanban/contracts/api';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
 import { GripVertical, Plus } from 'lucide-vue-next';
-import { VueDraggable } from 'vue-draggable-plus';
+import { VueDraggable, type MoveEvent, type SortableEvent } from 'vue-draggable-plus';
+import {
+  findCardLocation,
+  getAfterCardId,
+  maxRevision,
+  moveCardToColumnEnd,
+} from './cardMove';
 const isAddCardOpen = ref<boolean>(false);
 const addCardColumn = ref<BoardColumnSnapshot | null>(null);
 const userStore = useUserStore();
@@ -121,6 +177,23 @@ const boardColumns = ref<BoardColumnSnapshot[]>([]);
 // Kept for later phases: card mutations return the new revision, and phase C
 // compares it with Socket events to detect missed updates.
 const boardRevision = ref<string | null>(null);
+const categories = ref<CardCategorySnapshot[]>([]);
+// Cards only carry categoryId; look the category up once per render instead of scanning the array.
+const categoryById = computed(
+  () => new Map(categories.value.map((category) => [category.id, category])),
+);
+const findCategory = (categoryId: string | null) =>
+  categoryId ? (categoryById.value.get(categoryId) ?? null) : null;
+
+// A reused (already existing) category is a no-op; a new one is inserted in name order (Board spec Q15).
+const handleCategoryCreated = ({ category, boardRevision: nextRevision }: AddCategoryResult) => {
+  if (!categoryById.value.has(category.id)) {
+    categories.value = [...categories.value, category].sort((a, b) =>
+      a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1,
+    );
+  }
+  boardRevision.value = nextRevision;
+};
 const currentUserRole = ref<ProjectRole | null>(null);
 // VIEWER can only read the board; the backend also rejects their mutations with 404.
 const canEdit = computed<boolean>(
@@ -143,6 +216,7 @@ const loadBoard = async () => {
     boardColumns.value = [];
     boardRevision.value = null;
     currentUserRole.value = null;
+    categories.value = [];
     isLoading.value = false;
     return;
   }
@@ -157,6 +231,7 @@ const loadBoard = async () => {
     boardColumns.value = response.data?.columns ?? [];
     boardRevision.value = response.data?.boardRevision ?? null;
     currentUserRole.value = response.data?.currentUserRole ?? null;
+    categories.value = response.data?.categories ?? [];
   } catch {
     if (requestId === loadSequence) {
       loadError.value = true;
@@ -215,6 +290,72 @@ const handleCardArchived = ({ cardId, columnId, boardRevision: nextRevision }: A
   const column = boardColumns.value.find((item) => item.id === columnId);
   if (column) column.cards = column.cards.filter((item) => item.id !== cardId);
   boardRevision.value = nextRevision;
+};
+
+// ---- Moving cards (Board spec B-2, §6) ----
+// The board is already updated locally (by the drag library or the dialog menu); this only
+// saves it. Any failure reloads the whole board instead of trying to roll back (spec §6).
+const saveCardMove = async (cardId: string) => {
+  const location = findCardLocation(boardColumns.value, cardId);
+  if (!location) return;
+  const { column, index } = location;
+  const card = column.cards[index];
+  // A card dragged across columns still carries its old columnId until the response arrives.
+  if (card && card.columnId !== column.id) column.cards[index] = { ...card, columnId: column.id };
+
+  try {
+    const response = await moveCardApi({
+      cardId,
+      toColumnId: column.id,
+      afterCardId: getAfterCardId(column, index),
+    });
+    if (!response.data) return;
+    const { card: movedCard, boardRevision: nextRevision } = response.data;
+    // Replace the card where it is now; a later move may already have changed its place.
+    const current = findCardLocation(boardColumns.value, cardId);
+    if (current) current.column.cards[current.index] = movedCard;
+    boardRevision.value = maxRevision(boardRevision.value, nextRevision);
+  } catch (error) {
+    const apiError = getApiErrorResponse(error);
+    toast.error(
+      apiError?.code === ApiCode.CardMoveConflict
+        ? '看板已被其他人變更，已重新載入。'
+        : '移動卡片失敗，已重新載入看板。',
+    );
+    void loadBoard();
+  }
+};
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+const dragAnimation = prefersReducedMotion ? 0 : 200;
+const draggingCardId = ref<string | null>(null);
+const dragOverColumnId = ref<string | null>(null);
+
+const handleCardDragStart = (event: SortableEvent) => {
+  draggingCardId.value = event.item.dataset.cardId ?? null;
+};
+
+const handleCardDragMove = (event: MoveEvent) => {
+  dragOverColumnId.value = event.to.dataset.columnId ?? null;
+};
+
+// By the time `end` fires, the library has already updated column.cards.
+const handleCardDragEnd = (event: SortableEvent) => {
+  const cardId = draggingCardId.value;
+  draggingCardId.value = null;
+  dragOverColumnId.value = null;
+  if (!cardId) return;
+  if (event.from === event.to && event.oldIndex === event.newIndex) return;
+  void saveCardMove(cardId);
+};
+
+const handleMoveFromDialog = (toColumnId: string) => {
+  if (!selectedCardId.value) return;
+  const cardId = selectedCardId.value;
+  if (!moveCardToColumnEnd(boardColumns.value, cardId, toColumnId)) return;
+  void saveCardMove(cardId);
 };
 
 // After a reload the opened card may have been archived by someone else.

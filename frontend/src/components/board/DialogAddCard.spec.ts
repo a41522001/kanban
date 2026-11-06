@@ -31,6 +31,7 @@ const result: CardMutationResult = {
     columnId: 'column-1',
     title: '建立使用者註冊 API',
     description: null,
+    categoryId: null,
     position: 1024,
     version: 1,
     createdAt: '2026-11-03T00:00:00.000Z',
@@ -49,9 +50,18 @@ const apiError = (status: number, code: ApiCode, message: string) =>
   });
 
 const passthroughStub = { template: '<div><slot /></div>' };
+const dialogStubs = {
+  Dialog: passthroughStub,
+  DialogContent: passthroughStub,
+  DialogHeader: passthroughStub,
+  DialogTitle: passthroughStub,
+  DialogDescription: passthroughStub,
+  DialogFooter: passthroughStub,
+  DialogClose: passthroughStub,
+};
 const mountDialog = () =>
   mount(DialogAddCard, {
-    props: { open: true, column },
+    props: { open: true, column, projectId: 'project-1', categories: [] },
     global: {
       stubs: {
         Dialog: passthroughStub,
@@ -130,5 +140,29 @@ describe('DialogAddCard', () => {
 
     expect(wrapper.emitted('stale')).toHaveLength(1);
     expect(wrapper.emitted('update:open')).toEqual([[false]]);
+  });
+
+  it('選了類別時一併送出 categoryId', async () => {
+    const wrapper = mount(DialogAddCard, {
+      props: {
+        open: true,
+        column,
+        projectId: 'project-1',
+        categories: [{ id: 'category-1', name: '後端', colorKey: 'mint' }],
+      },
+      global: { stubs: dialogStubs },
+    });
+
+    await wrapper.get('#card-title').setValue('標題');
+    await wrapper.get('#card-category').trigger('click');
+    await wrapper.findAll('[role="option"]').find((option) => option.text() === '後端')!.trigger('click');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(addCardApi).toHaveBeenCalledWith({
+      columnId: 'column-1',
+      title: '標題',
+      categoryId: 'category-1',
+    });
   });
 });

@@ -40,4 +40,13 @@ export class AddCardDto implements AddCardRequest {
   @MaxLength(5000, { message: '卡片描述不可超過 5000 個字元' })
   @IsString({ message: '卡片描述必須是字串' })
   description?: string;
+
+  @ApiPropertyOptional({
+    description: '卡片類別的 UUID；必須屬於卡片所在專案，不送代表沒有類別',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    format: 'uuid',
+  })
+  @IsOptional()
+  @IsUUID('4', { message: 'categoryId 格式不正確' })
+  categoryId?: string;
 }

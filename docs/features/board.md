@@ -1,6 +1,6 @@
 # Board 與 Card 規格
 
-日期：2026-10-30。狀態：**階段 A、B 已確認，實作中**；階段 C、D 為提案（§7、§8）。
+日期：2026-10-30。狀態：**階段 A、A+（類別）、B 完成**（2026-11-06）；階段 C、D 為提案（§7、§8）。
 
 本文取代 2026-09 撰寫、彼此衝突的四份舊規格（Board API 與 WebSocket、看板拖曳與滑動、Project 拖曳與 Redis Lock、Kanban Domain）。規則由使用者以 grill 逐項確認（Q1–Q19）。舊規格仍有用的內容已併入本文（§4.5、§6.1、§8），2026-10-30 刪除，需要時可從 git 歷史查看。
 
@@ -15,7 +15,7 @@
 | 階段 | 內容 | 完成後 |
 | --- | --- | --- |
 | **A** | Card 新增、編輯、封存；看板一次載入欄位與卡片 | 單人可正常使用 |
-| A+ | Card 類別（`CardCategory`）與標籤（`CardLabel`）（Q2：緊接 A 之後，不等 C、D） | 卡片顯示類別與標籤 |
+| A+ | Card 類別（`CardCategory`）（Q2：緊接 A 之後，不等 C、D；規格 §4.5） | 卡片顯示類別 |
 | **B** | 拖曳卡片（同欄、跨欄）並存檔 | 重新整理後順序保留 |
 | C | 多人即時同步 | 看到別人的修改 |
 | D | 兩人同時拖曳的衝突處理 | 協作時不亂 |
@@ -68,13 +68,36 @@
 
 `Project.boardRevision`（已存在）在每次修改欄位或卡片時，於**同一個 transaction** 內 +1，並回傳給前端。階段 C 用它判斷是否漏掉更新。
 
-### 4.5 類別與標籤（A+，尚未 grill）
+### 4.5 類別（A+，2026-11-03 grill Q1–Q21 確認）
 
-來自舊規格的方向，開始 A+ 之前再確認：
+> **標籤已取消（2026-11-05 決定）**：原本 A+2 要做多選、沒有顏色的標籤（`CardLabel`）。但看板沒有篩選或搜尋，標籤只是卡片上的一行文字，分類已經由類別處理，所以取消。之後若要做看板篩選，再重新討論是否需要標籤。
 
-- `CardCategory`、`CardLabel` 都直接帶 `projectId`，在同一個專案內共用；`projectId + 正規化後的名稱` 不可重複。
-- 一張卡片最多一個類別，可以有多個標籤（設計稿 `create-card-dialog.svg` 也是如此）。
-- 類別、標籤必須與卡片所在欄位屬於同一個專案，由 service 驗證。
+**範圍**
+- 在卡片 Dialog 內直接選取或建立，不做管理頁面（Q3）；A+ 不做刪除、改名、改色，沒有卡片使用的類別仍留在選單裡（Q7）。
+
+**資料（Q2、Q4、Q5、Q19、Q20）**
+
+| Model | 欄位 | 說明 |
+| --- | --- | --- |
+| `CardCategory` | id, projectId, name, normalizedName, colorKey | 一張卡片最多一個類別；`Card.categoryId` 可為 null，`onDelete: SetNull` |
+
+- 名稱 trim 後 1–20 字；`normalizedName` 為 trim 後轉小寫，`(projectId, normalizedName)` unique，所以 `Backend` 與 `backend` 視為同一個。
+- 類別對 Project `onDelete: Cascade`（與 BoardColumn 相同）；卡片封存時保留關聯。
+- 類別色票為 14 色，放在 contracts：`CARD_CATEGORY_COLOR_KEYS`／`CardCategoryColorKey`（與 `BOARD_COLUMN_COLOR_KEYS` 同寫法），DTO 以 `IsIn` 驗證，資料庫存字串。
+
+**上限（Q13）**：每個專案最多 50 個類別；超過回 409 / `CardCategoryLimitExceeded = 7002`。
+
+**權限與版本（Q8、Q14）**
+- 建立類別、修改卡片的類別：只有 OWNER、EDITOR，VIEWER 回 404。
+- 修改卡片的類別是「編輯卡片」：帶 `expectedVersion`，`version` +1、`boardRevision` +1，不符回 409 / 7001。
+- 新建立類別時 `boardRevision` +1；名稱已存在、直接沿用時不變。
+
+**排序（Q15）**：選單依 `normalizedName` 排序。
+
+**前端（Q16、Q21）**
+- 看板卡片：類別為標題上方的色塊 chip；沒有時不顯示。
+- 類別：可輸入篩選的下拉選單；名稱不存在時最下面出現「建立「xxx」」，展開色票，預設第一個尚未使用的顏色。
+- VIEWER 只看到純文字。細節以 A+ 設計稿為準（設計稿中的標籤畫面不採用）。
 
 ## 5. API
 
@@ -107,6 +130,17 @@
 | 移動（B） | `PATCH /board/moveCard` | `{ cardId, toColumnId, afterCardId }` | 完整卡片、`boardRevision` |
 
 - 對已封存的欄位新增卡片：404。
+
+A+ 追加（§4.5，Q9–Q12、Q18）：
+
+| 動作 | API | Body | 回應 |
+| --- | --- | --- | --- |
+| 建立類別 | `POST /board/addCategory` | `{ projectId, name, colorKey }` | 類別、`boardRevision`；名稱已存在時回傳既有的那一筆 |
+
+- `addCard`／`updateCard` 增加可選的 `categoryId`，只接收 id。在 Dialog 輸入新名稱時先呼叫建立 API 取得 id，存卡片時再送出；使用者取消時已建立的類別保留（Q7）。
+- `updateCard`：`categoryId` 沒送＝不改、`null`＝移除。
+- `categoryId` 必須屬於卡片所在專案，否則（含不存在）回 404 / ResourceNotFound。
+- `BoardSnapshot` 最外層加 `categories: [{ id, name, colorKey }]`；每張卡片帶 `categoryId: string | null`。
 - 修改類 API 一律回傳完整資料與 `boardRevision`，前端據此更新畫面（§6）。
 
 ### 5.3 版本衝突（Q9、Q17）
@@ -115,7 +149,7 @@
 - 版本衝突回 **409 / CardVersionConflict (7001)**（2026-11-03 決定）；Board 相關錯誤碼使用 7xxx。
 - 編輯時 `description` 分三種情況（2026-11-03 決定）：沒有送這個欄位＝不改；空字串或只有空白＝清空（存成 null）；有內容＝更新。標題與描述都沒送時回 400，避免什麼都沒改卻讓 `version` +1。
 - **移動不檢查、也不改變 `version`**：拖曳不應讓正在編輯內容的人收到 409。
-- 移動以 `afterCardId`（`null` 代表放在最上面）讓後端計算 position（Q15）。`afterCardId` 已不在目標欄位（被移走或封存）時回 409。
+- 移動以 `afterCardId`（`null` 代表放在最上面）讓後端計算 position（Q15）。`afterCardId` 已不在目標欄位（被移走或封存）時回 409 / `CardMoveConflict (7003)`（2026-11-05 決定；7003 原本預留給已取消的標籤上限，未曾上線）。`afterCardId` 等於 `cardId` 回 400；目標欄位不存在、已封存或屬於別的專案回 404。移到原本的位置不特別判斷，照常寫入、`boardRevision` +1。
 
 ## 6. 前端更新策略（Q14、Q18、Q19）
 
@@ -167,6 +201,10 @@
 | A-4 | `PATCH /board/updateCard`（`expectedVersion`） | ✅ 2026-11-03：`CardVersionConflict = 7001`、`UpdateCardRequest`、`UpdateCardDto`；`findEditableCard`（卡片 → 欄位 → 專案）；`updateCardContent` 以 `updateMany where { id, version: expectedVersion }` 在同一個 SQL 比對版本並更新，0 筆回 409（transaction rollback，revision 不增加）；標題與描述都沒送回 400；描述 undefined＝不改、空字串＝null。DTO 13 個、service 8 個測試；Bruno `UpdateCard`、`UpdateCardVersionConflict`；使用者以 Bruno 驗證通過 |
 | A-5 | `PATCH /board/archiveCard` | ✅ 2026-11-03：`ArchiveCardRequest`／`ArchiveCardResult`、`ArchiveCardDto`；`findEditableCard` 多帶 `columnId`；`archiveCard` 以 `updateMany where { id, version, archivedAt: null }` 設定 `archivedAt` 並讓 version +1，0 筆回 409；回傳 `{ cardId, columnId, boardRevision }`，不回傳卡片內容。DTO 6 個、service 4 個測試；Bruno `ArchiveCard`、`ArchiveCardAgain`；2026-11-03 以 curl 對本機後端跑完整流程驗證：新增 → 編輯 → 409（revision 不變）→ 都沒送 400 → 清空描述 → 封存 200 → 重複封存 404 → 看板上不再出現 |
 | A-6 | 前端：新增、編輯、封存卡片（依設計稿） | ✅ 2026-11-03：`BoardSnapshot` 加 `currentUserRole`（repository 只 select 目前使用者的 membership），VIEWER 不顯示「＋ 新增卡片」、卡片詳情為唯讀；`DialogAddCard` 帶入目標欄位；`DialogCardDetail` 只送有變更的欄位與 `expectedVersion`，409 顯示衝突提示並停用儲存、「重新載入」後以最新版本重填，404 關閉並重新載入看板；封存經 AlertDialog 確認；成功後直接套用回傳結果與 `boardRevision`（Q14），不重新 GET。後端 1 個、前端 18 個測試；2026-11-03 使用者以瀏覽器驗證通過 |
-| A+ | 類別與標籤 | ⬜ |
-| B-1 | `PATCH /board/moveCard`（position 計算、重新編號） | ⬜ |
-| B-2 | 前端拖曳（把手、手機長按、失敗重新載入） | ⬜ |
+| A+1-0 | 設計稿：類別選單（含建立與色票）、卡片上的類別 | ✅ 2026-11-03：`design/card-dialog-phase-a-plus.svg`、`card-taxonomy-states-phase-a-plus.svg`；Figma plugin v17 已產生並由使用者確認（其中的標籤畫面因標籤取消而不採用） |
+| A+1-1 | `CardCategory` schema 與 migration；contracts 色票 | ✅ 2026-11-03：migration `20261103072139_add_card_category`（`card_categories`、`(project_id, normalized_name)` unique、`cards.category_id` SetNull＋索引）；contracts `CARD_CATEGORY_COLOR_KEYS`／`CardCategoryColorKey`，前端 `types/board.ts` 刪除、`cardCategoryColors.ts` 改由 contracts 匯入 |
+| A+1-2 | `POST /board/addCategory` | ✅ 2026-11-04：contracts `CardCategorySnapshot`／`AddCategoryRequest`／`AddCategoryResult`、`CardCategoryLimitExceeded = 7002`；`AddCategoryDto`（name trim 1–20、colorKey `IsIn`）；repository `findEditableProject`、`findCategoryByNormalizedName`（複合鍵 `projectId_normalizedName`）、`getBoardRevision`、`countCategories`、`createCategory`（`CreateCategoryData`）；service 先查同名（沿用時 revision 不變、不檢查上限），新名稱才 +1（鎖 Project）→ 數量 ≥ 50 回 409 → 建立。DTO 11 個、service 6 個測試；Bruno `AddCategory`、`AddCategoryExisting`、`AddCategoryInvalidColor`；使用者以 Bruno 驗證通過 |
+| A+1-3 | `addCard`／`updateCard`／看板回傳支援類別 | ✅ 2026-11-04（後端）：contracts `BoardCardSnapshot.categoryId`、`BoardSnapshot.categories`、`AddCardRequest`／`UpdateCardRequest.categoryId`；DTO `IsOptional`＋`IsUUID`（null 原樣傳到 service 代表移除）；repository `CARD_SNAPSHOT_SELECT` 加 `categoryId`、`getAllBoardColumn` 選 `cardCategories`（3 欄、依 `normalizedName`）、`findCategoryInProject`、`CreateCardData`／`UpdateCardContentData.categoryId`；service `assertCategoryInProject`（不同專案或不存在 404，類別不能刪除所以在 transaction 外檢查）、`updateCard` 只送 `categoryId` 也算修改。DTO 7 個、service 8 個測試；Bruno `AddCardWithCategory`、`UpdateCardRemoveCategory`，`GetBoardColumns` 檢查 `categories`。2026-11-04 以 seed 資料跑 25 項 API 端對端檢查全部通過（含別專案類別 404、VIEWER／非成員 404、null 移除、過期 version 409） |
+| A+1-4 | 前端：類別選單與卡片 chip | ✅ 2026-11-04：`CategoryChip`（14 色，未知色票退回 slate）、`BoardCard` 標題上方顯示類別、`ProjectView` 以 `categoryId` 對照 `categories`；`CategorySelect`（展開式面板：篩選不分大小寫、「不設定類別」送 null、名稱不存在時「建立」＋14 色預設第一個未使用顏色、7002／400 錯誤顯示在面板內）接到新增與詳情 Dialog，只送有變更的 `categoryId`；VIEWER 以 chip 或「沒有類別」顯示；建立後 `ProjectView` 依名稱插入並更新 `boardRevision`。前端 17 個新測試；以 Chrome 實際操作驗證：看板 chip、新增卡片時建立新類別（預設第一個未使用顏色）、詳情改類別與「不設定類別」、重新整理後保留、VIEWER 唯讀，console 無錯誤 |
+| B-1 | `PATCH /board/moveCard`（position 計算、重新編號） | ✅ 2026-11-06：contracts `MoveCardRequest`、`CardMoveConflict = 7003`；`MoveCardDto`（`afterCardId` 必須明確送 UUID 或 null）；repository `findCardPositionInColumn`、`findNextCardPosition`（排除正在移動的卡片）、`moveCard`（不動 version）；service：自己後面 400 → 卡片與目標欄位權限、同專案 404 → transaction（先 +1 revision 鎖 Project → 查 afterCard 位置，不在目標欄位 409 → 計算 position → 移動，0 筆 404 → snapshot）。DTO 7 個、service 18 個測試；Bruno `MoveCard`、`MoveCardSameColumn`、`MoveCardAfterArchived`、`MoveCardAfterSelf`。使用者實作 service `calculateMovePosition`（三種情況；重新編號後重新查 after 與下一張，after 卡片查不到時丟 500，因為正常流程不會發生）與 repository `renumberColumnCards`（一句 `UPDATE ... FROM` 子查詢 `ROW_NUMBER() OVER (ORDER BY position, id) * 1024`，參數 `::uuid`，`tx` 必填）。2026-11-06 驗證：board 測試 116 通過／1 skipped（含 11 個 position 驗收測試）；在開發 DB 的 transaction 內把 15 張卡片設成相鄰 position 後呼叫 `renumberColumnCards`，未封存卡片依序變成 1024…13312，移動中與已封存卡片不變，最後 rollback；Bruno Login→Workspaces→Project→Board 30 個請求、42 個測試全部通過 |
+| B-2 | 前端拖曳（把手、手機長按、失敗重新載入） | ✅ 2026-11-06：`services/board.ts` `moveCardApi`；`ProjectView` 每欄卡片改為 `VueDraggable`（`group: 'board-cards'`、`handle: '.board__card-handle'`、`delay: 220`、`delayOnTouchOnly`、VIEWER `disabled`；`prefers-reduced-motion` 時 animation 0），卡片右上角 44×44 把手（accessible name「拖曳卡片「標題」」，VIEWER 不顯示）；放開時套件已更新 `column.cards`，`end` 以上一張卡片為 `afterCardId`（最上面為 null）呼叫 API，位置沒變不呼叫；成功時以回應取代卡片、`boardRevision` 取較大值，任何失敗都提示並 `reloadBoard`（7003 提示「看板已被其他人變更」）。原位置虛線 placeholder、滑過的欄位綠底外框、空欄位可放入。卡片詳情加「移動至…」選單（移到該欄最下面，目前欄位停用，VIEWER 不顯示），與拖曳共用存檔流程。純函式放在 `views/projectView/cardMove.ts`。前端 14 個新測試（`cardMove` 9、「移動至…」4、service 1）。順手修正：`DialogContent`／`AlertDialogContent` 經 portal 渲染，scoped 的 `.card-dialog`、`.card-dialog--detail`、`.card-dialog__confirm` 從未生效（對話框沒有 `max-h`，矮視窗時按鈕在畫面外），改為 `:global(...)`。以 Chrome 驗證：跨欄放最上面、拖進空欄、同欄換順序、「移動至…」，畫面與 DB position 一致；背景封存 after 卡片後拖曳 → 409 提示並重新載入；VIEWER 無把手；651px 高視窗三個對話框都在畫面內。**未完成**：手機長按未在實機測試；拖到看板左右邊緣自動跨欄未做（§6.1 允許）；斷線停止拖曳等階段 C 的 Socket |

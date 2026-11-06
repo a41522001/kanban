@@ -19,6 +19,15 @@
             檢視者 · 只能查看
           </span>
           <h3 class="card-dialog__read-title">{{ card.title }}</h3>
+          <div class="card-dialog__read-row">
+            <h4 class="card-dialog__section-label">類別</h4>
+            <CategoryChip
+              v-if="currentCategory"
+              :name="currentCategory.name"
+              :color-key="currentCategory.colorKey"
+            />
+            <p v-else class="card-dialog__meta">沒有類別</p>
+          </div>
           <section class="card-dialog__read-section">
             <h4 class="card-dialog__section-label">描述</h4>
             <p v-if="card.description" class="card-dialog__read-description">
@@ -51,6 +60,40 @@
             </Button>
           </div>
 
+          <!-- Board spec §6.1: dragging must not be the only way to move a card. -->
+          <div class="card-dialog__move-row">
+            <p class="card-dialog__meta">目前位於「{{ columnTitle }}」</p>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button
+                  type="button"
+                  variant="outline"
+                  class="card-dialog__move-button"
+                  :disabled="isBusy || !hasMoveTarget"
+                >
+                  <ArrowRight :size="16" aria-hidden="true" />
+                  移動至…
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-60">
+                <DropdownMenuLabel class="card-dialog__move-label">
+                  移到欄位的最下面
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  v-for="column in columns"
+                  :key="column.id"
+                  :disabled="column.id === card.columnId"
+                  @select="emit('move', column.id)"
+                >
+                  {{ column.title
+                  }}<span v-if="column.id === card.columnId" class="card-dialog__move-current"
+                    >（目前位置）</span
+                  >
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
           <FormField input-id="card-detail-title" label="卡片標題" required :error="titleError">
             <template #default="{ invalid, describedBy }">
               <Input
@@ -64,6 +107,16 @@
                 {{ title.trim().length }} / {{ TITLE_MAX_LENGTH }}
               </span>
             </template>
+          </FormField>
+
+          <FormField input-id="card-category" label="類別" hint="選填">
+            <CategorySelect
+              v-model="categoryId"
+              :project-id="projectId"
+              :categories="categories"
+              :disabled="isBusy"
+              @created="emit('categoryCreated', $event)"
+            />
           </FormField>
 
           <FormField input-id="card-detail-description" label="描述" hint="選填，清空即移除描述">
@@ -131,12 +184,15 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Archive, CircleAlert, Eye, X } from 'lucide-vue-next';
+import { Archive, ArrowRight, CircleAlert, Eye, X } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { ApiCode } from '@kanban/contracts/api';
 import type {
+  AddCategoryResult,
   ArchiveCardResult,
   BoardCardSnapshot,
+  BoardColumnSnapshot,
+  CardCategorySnapshot,
   CardMutationResult,
   UpdateCardRequest,
 } from '@kanban/contracts/board';
@@ -161,8 +217,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { archiveCardApi, updateCardApi } from '@/services/board';
 import { getApiErrorResponse } from '@/services/http';
+import CategoryChip from './CategoryChip.vue';
+import CategorySelect from './CategorySelect.vue';
 
 const TITLE_MAX_LENGTH = 200;
 const DESCRIPTION_MAX_LENGTH = 5000;
@@ -171,19 +236,27 @@ const props = defineProps<{
   card: BoardCardSnapshot | null;
   columnTitle: string;
   canEdit: boolean;
+  projectId: string;
+  categories: CardCategorySnapshot[];
+  // Targets for the "移動至…" menu, in board order.
+  columns: Pick<BoardColumnSnapshot, 'id' | 'title'>[];
 }>();
 const emit = defineEmits<{
   updated: [result: CardMutationResult];
+  // The parent moves the card to the bottom of this column and saves it (same flow as dragging).
+  move: [toColumnId: string];
   archived: [result: ArchiveCardResult];
   // 409: the parent reloads the board; the dialog then reopens with the latest card.
   reload: [];
   // 404: the card is gone or the user lost edit access.
   stale: [];
+  categoryCreated: [result: AddCategoryResult];
 }>();
 const open = defineModel<boolean>('open', { required: true });
 
 const title = ref('');
 const description = ref('');
+const categoryId = ref<string | null>(null);
 const hasTriedSubmit = ref(false);
 const serverTitleError = ref<string | undefined>(undefined);
 const hasConflict = ref(false);
@@ -219,6 +292,7 @@ const titleError = computed<string | undefined>(() => {
 const fillForm = () => {
   title.value = props.card?.title ?? '';
   description.value = props.card?.description ?? '';
+  categoryId.value = props.card?.categoryId ?? null;
   hasTriedSubmit.value = false;
   serverTitleError.value = undefined;
   hasConflict.value = false;
@@ -243,13 +317,24 @@ const handleArchiveConfirmChange = (value: boolean) => {
   isArchiveConfirmOpen.value = value;
 };
 
-/** Only send fields that actually changed; '' clears the description. */
-const buildChanges = (card: BoardCardSnapshot): Pick<UpdateCardRequest, 'title' | 'description'> => {
+const hasMoveTarget = computed(() =>
+  props.columns.some((column) => column.id !== props.card?.columnId),
+);
+
+const currentCategory = computed(
+  () => props.categories.find((category) => category.id === props.card?.categoryId) ?? null,
+);
+
+/** Only send fields that actually changed; '' clears the description, null removes the category. */
+const buildChanges = (
+  card: BoardCardSnapshot,
+): Pick<UpdateCardRequest, 'title' | 'description' | 'categoryId'> => {
   const nextTitle = title.value.trim();
   const nextDescription = description.value.trim();
   return {
     ...(nextTitle !== card.title ? { title: nextTitle } : {}),
     ...(nextDescription !== (card.description ?? '') ? { description: nextDescription } : {}),
+    ...(categoryId.value !== card.categoryId ? { categoryId: categoryId.value } : {}),
   };
 };
 
