@@ -19,6 +19,7 @@ import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
 import { ArchiveCardDto } from './dto/archiveCard.dto';
 import { AddCategoryDto } from './dto/addCategory.dto';
+import { MoveCardDto } from './dto/moveCard.dto';
 import type {
   AddCategoryResult,
   ArchiveCardResult,
@@ -112,6 +113,19 @@ export class BoardController {
       addCategoryDto,
       req.userId!,
     );
+    return {
+      data: result,
+      message: '',
+    };
+  }
+
+  /** 移動卡片；不帶 expectedVersion，afterCardId 已不在目標欄位時回 409 / CardMoveConflict。 */
+  @Patch('moveCard')
+  async moveCard(
+    @Body() moveCardDto: MoveCardDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<CardMutationResult>> {
+    const result = await this.boardService.moveCard(moveCardDto, req.userId!);
     return {
       data: result,
       message: '',

@@ -1,0 +1,38 @@
+meta {
+  name: MoveCardSameColumn
+  type: http
+  seq: 16
+}
+
+patch {
+  url: {{baseUrl}}/board/moveCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{categoryCardId}}",
+    "toColumnId": "{{secondColumnId}}",
+    "afterCardId": null
+  }
+}
+
+tests {
+  test('回應 200，同欄內移動也可以', () => {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().data.card.columnId).to.equal(bru.getVar('secondColumnId'));
+  });
+
+  test('移動不改變 version', () => {
+    expect(res.getBody().data.card.version).to.equal(Number(bru.getVar('movedCardVersion')));
+  });
+}
+
+docs {
+  # 移動卡片（同欄內）
+
+  再把同一張卡片放到同一欄的最上面。找「下一張卡片」時會排除正在移動的這張，所以不會拿自己的舊位置來算。
+
+  `version` 必須與 `MoveCard` 回傳的相同：移動不檢查、也不改變 `version`，拖曳不會讓正在編輯內容的人收到 409（Board 規格 §5.3）。請先執行 `MoveCard`。
+}

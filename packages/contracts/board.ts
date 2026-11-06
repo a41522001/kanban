@@ -146,6 +146,21 @@ export interface ArchiveCardResult {
   boardRevision: string;
 }
 
+/**
+ * 移動卡片（Board 規格 §5.2、§5.3）；回傳 CardMutationResult。
+ * 不檢查也不改變 version：拖曳不應讓正在編輯內容的人收到 409。
+ */
+export interface MoveCardRequest {
+  cardId: string;
+  /** 目標欄位；可以是卡片目前所在的欄位（同欄內調整順序）。必須屬於同一專案，否則 404。 */
+  toColumnId: string;
+  /**
+   * 放在這張卡片後面；null 代表放在目標欄位最上面。不可等於 cardId（400）；
+   * 已不在目標欄位（被移走或封存）時回 409 / CardMoveConflict。
+   */
+  afterCardId: string | null;
+}
+
 /** 卡片類別（Board 規格 §4.5）；同一專案內共用，名稱不分大小寫不可重複。 */
 export interface CardCategorySnapshot {
   id: string;

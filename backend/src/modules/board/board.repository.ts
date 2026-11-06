@@ -396,6 +396,92 @@ export class BoardRepository {
     });
   }
 
+  /**
+   * 卡片在指定欄位、且未封存時回傳它的 position，否則 null。
+   * moveCard 用來確認 afterCardId 還在目標欄位（null → 409 / CardMoveConflict）。
+   */
+  async findCardPositionInColumn(
+    cardId: string,
+    columnId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const db = tx ?? this.prismaService;
+    const card = await db.card.findFirst({
+      where: { id: cardId, columnId, archivedAt: null },
+      select: { position: true },
+    });
+    return card?.position ?? null;
+  }
+
+  /**
+   * 欄位中 position 大於 afterPosition 的第一張未封存卡片的 position；沒有時回 null（代表放在最後）。
+   * excludeCardId 是正在移動的卡片：同欄內移動時它還留在原位置，不能被當成「下一張」。
+   */
+  async findNextCardPosition(
+    columnId: string,
+    afterPosition: number,
+    excludeCardId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const db = tx ?? this.prismaService;
+    const card = await db.card.findFirst({
+      where: {
+        columnId,
+        archivedAt: null,
+        position: { gt: afterPosition },
+        id: { not: excludeCardId },
+      },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+      select: { position: true },
+    });
+    return card?.position ?? null;
+  }
+
+  /**
+   * 把卡片放到指定欄位與 position；不檢查、也不改變 version（Board 規格 §5.3）。
+   * @returns 更新筆數；0 代表卡片在檢查權限後被封存。
+   */
+  async moveCard(
+    cardId: string,
+    columnId: string,
+    position: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    const db = tx ?? this.prismaService;
+    const result = await db.card.updateMany({
+      where: { id: cardId, archivedAt: null },
+      data: { columnId, position },
+    });
+    return result.count;
+  }
+
+  /**
+   * 把欄位內所有未封存的卡片（排除 excludeCardId）依目前順序重新編號為 1024、2048、3072……
+   * （Board 規格 §4.3）；順序是 position asc，position 相同時再依 id asc。
+   * 只在「前後兩張相鄰、中間沒有整數可用」時呼叫。tx 必填：重新編號必須與移動卡片在同一個
+   * transaction，移動失敗時才會一起 rollback。
+   */
+  async renumberColumnCards(
+    columnId: string,
+    excludeCardId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await tx.$executeRaw`
+      UPDATE cards AS c
+      SET position = r.rn * 1024
+      FROM(
+        SELECT id,
+          position,
+          ROW_NUMBER() OVER (ORDER BY position, id) AS rn
+          FROM cards
+          WHERE column_id = ${columnId}::uuid
+            AND archived_at IS NULL
+            AND id <> ${excludeCardId}::uuid
+      ) AS r
+      WHERE c.id = r.id;
+    `;
+  }
+
   /** 讀取目前的 boardRevision（不遞增），用於沿用既有類別時回傳。 */
   async getBoardRevision(projectId: string, tx?: Prisma.TransactionClient) {
     const db = tx ?? this.prismaService;

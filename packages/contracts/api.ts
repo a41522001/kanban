@@ -45,6 +45,8 @@ export enum ApiCode {
   CardVersionConflict = 7001,
   /** 專案的卡片類別已達 50 個上限 */
   CardCategoryLimitExceeded = 7002,
+  /** 移動卡片時 afterCardId 已不在目標欄位（被移走或封存），看板需要重新載入 */
+  CardMoveConflict = 7003,
 }
 /** 以欄位名稱索引的驗證錯誤集合。 */
 export type FieldErrors = Record<string, FieldError>;

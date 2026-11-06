@@ -1,0 +1,37 @@
+meta {
+  name: MoveCardAfterArchived
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/board/moveCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{categoryCardId}}",
+    "toColumnId": "{{columnId}}",
+    "afterCardId": "{{cardId}}"
+  }
+}
+
+tests {
+  test('回應 409', () => {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test('code 為 CardMoveConflict (7003)', () => {
+    expect(res.getBody().code).to.equal(7003);
+  });
+}
+
+docs {
+  # 移動卡片：afterCardId 已不在目標欄位（錯誤案例）
+
+  - 預期：409 / CardMoveConflict (7003)
+
+  `afterCardId` 用 `ArchiveCard` 封存掉的那張卡片，模擬「拖曳時，前一張卡片已經被別人封存或移走」。transaction rollback，`boardRevision` 不增加，卡片留在原欄位。前端收到後重新載入看板。請先執行 `AddCard` 與 `ArchiveCard`。
+}

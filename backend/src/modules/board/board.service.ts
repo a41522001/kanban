@@ -19,6 +19,8 @@ import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
 import { ArchiveCardDto } from './dto/archiveCard.dto';
 import { AddCategoryDto } from './dto/addCategory.dto';
+import { MoveCardDto } from './dto/moveCard.dto';
+import type { Prisma } from '@/generated/prisma/client';
 
 /** Prisma 查出的卡片欄位（日期仍是 Date）。 */
 type CardRecord = Omit<BoardCardSnapshot, 'createdAt' | 'updatedAt'> & {
@@ -378,6 +380,170 @@ export class BoardService {
         code: ApiCode.ResourceNotFound,
       });
     }
+  }
+
+  /**
+   * 移動卡片到目標欄位的 afterCardId 後面（null 為最上面），Board 規格 §4.3、§5.3。
+   * 不檢查也不改變 version；afterCardId 已不在目標欄位時回 409 / CardMoveConflict。
+   */
+  async moveCard(
+    dto: MoveCardDto,
+    userId: string,
+  ): Promise<CardMutationResult> {
+    if (dto.afterCardId === dto.cardId) {
+      throw new AppException({
+        status: HttpStatus.BAD_REQUEST,
+        message: '不能把卡片放在自己後面',
+        code: ApiCode.ValidationError,
+      });
+    }
+
+    const editableCard = await this.boardRepository.findEditableCard(
+      dto.cardId,
+      userId,
+    );
+    if (editableCard === null) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到卡片或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+    const projectId = editableCard.column.projectId;
+
+    // Same query as addCard; a column in another project is treated as not found.
+    const targetColumn = await this.boardRepository.findEditableColumn(
+      dto.toColumnId,
+      userId,
+    );
+    if (targetColumn === null || targetColumn.projectId !== projectId) {
+      throw new AppException({
+        status: HttpStatus.NOT_FOUND,
+        message: '找不到欄位或你沒有存取權限',
+        code: ApiCode.ResourceNotFound,
+      });
+    }
+
+    return await this.prismaService.$transaction(async (tx) => {
+      // Lock the project first: everything below reads positions that other moves could change.
+      const revision = await this.boardRepository.incrementBoardRevision(
+        projectId,
+        tx,
+      );
+
+      // 0 stands for "above the first card"; real positions are always >= 1.
+      let afterPosition = 0;
+      if (dto.afterCardId !== null) {
+        const position = await this.boardRepository.findCardPositionInColumn(
+          dto.afterCardId,
+          dto.toColumnId,
+          tx,
+        );
+        if (position === null) {
+          throw new AppException({
+            status: HttpStatus.CONFLICT,
+            message: '看板已被其他人變更，請重新載入',
+            code: ApiCode.CardMoveConflict,
+          });
+        }
+        afterPosition = position;
+      }
+
+      const position = await this.calculateMovePosition(
+        dto.cardId,
+        dto.toColumnId,
+        dto.afterCardId,
+        afterPosition,
+        tx,
+      );
+
+      const count = await this.boardRepository.moveCard(
+        dto.cardId,
+        dto.toColumnId,
+        position,
+        tx,
+      );
+      // Archived after the permission check; rollback keeps the revision unchanged.
+      if (count === 0) {
+        throw new AppException({
+          status: HttpStatus.NOT_FOUND,
+          message: '找不到卡片或你沒有存取權限',
+          code: ApiCode.ResourceNotFound,
+        });
+      }
+
+      const card = await this.boardRepository.findCardSnapshot(dto.cardId, tx);
+      return {
+        boardRevision: revision.toString(),
+        card: toCardSnapshot(card),
+      };
+    });
+  }
+
+  /**
+   * 算出卡片在目標欄位的新 position（Board 規格 §4.3）。
+   * - afterPosition：前一張卡片的 position；放在最上面時為 0。
+   * - 查下一張時一律排除正在移動的卡片（同欄移動時它還佔著舊 position）。
+   * 三種情況：
+   *   1. 沒有下一張（放最後、或欄位是空的）→ afterPosition + 1024
+   *   2. 中間有整數可用 → 取中間值（整數）
+   *   3. 相鄰、沒有整數可用 → 整欄重新編號，再重新查 after 與下一張的 position 後計算
+   */
+  private async calculateMovePosition(
+    cardId: string,
+    toColumnId: string,
+    afterCardId: string | null,
+    afterPosition: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    const nextPosition = await this.boardRepository.findNextCardPosition(
+      toColumnId,
+      afterPosition,
+      cardId,
+      tx,
+    );
+    // 情況1 後面沒有更大的position
+    if (nextPosition === null) {
+      return afterPosition + 1024;
+    }
+    // 情況2 下一張有大於1的位置 取平均+下一張的position
+    if (nextPosition - afterPosition > 1) {
+      return afterPosition + Math.floor((nextPosition - afterPosition) / 2);
+    }
+    // 情況3 前後兩張相鄰間距為1
+    // 重新編排整個column的position
+    await this.boardRepository.renumberColumnCards(toColumnId, cardId, tx);
+
+    let renumberAfterPosition: number | null = 0;
+    if (afterCardId !== null) {
+      renumberAfterPosition =
+        await this.boardRepository.findCardPositionInColumn(
+          afterCardId,
+          toColumnId,
+          tx,
+        );
+    }
+
+    if (renumberAfterPosition === null) {
+      // 正常流程不會發生：after 卡片已在同一個 transaction 中查到、project row 已被鎖住，
+      // 且重新編號只改 position。若發生代表程式有 bug，因此丟 500 而不是 409。
+      throw new Error('重新編號後找不到 after卡片');
+    }
+    const renumberNextPosition =
+      await this.boardRepository.findNextCardPosition(
+        toColumnId,
+        renumberAfterPosition,
+        cardId,
+        tx,
+      );
+
+    if (renumberNextPosition === null) {
+      return renumberAfterPosition + 1024;
+    }
+    return (
+      renumberAfterPosition +
+      Math.floor((renumberNextPosition - renumberAfterPosition) / 2)
+    );
   }
 
   /** 移動看板 */

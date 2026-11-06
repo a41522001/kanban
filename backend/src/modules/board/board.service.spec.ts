@@ -10,6 +10,7 @@ import type { AddCardDto } from './dto/addCard.dto';
 import type { UpdateCardDto } from './dto/updateCard.dto';
 import type { ArchiveCardDto } from './dto/archiveCard.dto';
 import type { AddCategoryDto } from './dto/addCategory.dto';
+import type { MoveCardDto } from './dto/moveCard.dto';
 
 type BoardRecord = NonNullable<
   Awaited<ReturnType<BoardRepository['getAllBoardColumn']>>
@@ -87,6 +88,16 @@ describe('BoardService', () => {
   let findCategoryInProject: jest.MockedFunction<
     BoardRepository['findCategoryInProject']
   >;
+  let findCardPositionInColumn: jest.MockedFunction<
+    BoardRepository['findCardPositionInColumn']
+  >;
+  let findNextCardPosition: jest.MockedFunction<
+    BoardRepository['findNextCardPosition']
+  >;
+  let moveCardRecord: jest.MockedFunction<BoardRepository['moveCard']>;
+  let renumberColumnCards: jest.MockedFunction<
+    BoardRepository['renumberColumnCards']
+  >;
   let transaction: jest.Mock;
   // Stand-in for the Prisma transaction client passed to the callback.
   const tx = { isTransaction: true };
@@ -119,6 +130,10 @@ describe('BoardService', () => {
       colorKey: 'mint',
     });
     findCategoryInProject = jest.fn().mockResolvedValue({ id: CATEGORY_ID });
+    findCardPositionInColumn = jest.fn().mockResolvedValue(1024);
+    findNextCardPosition = jest.fn().mockResolvedValue(null);
+    moveCardRecord = jest.fn().mockResolvedValue(1);
+    renumberColumnCards = jest.fn().mockResolvedValue(undefined);
     transaction = jest.fn((callback: (client: unknown) => unknown) =>
       callback(tx),
     );
@@ -144,6 +159,10 @@ describe('BoardService', () => {
             countCategories,
             createCategory: createCategoryRecord,
             findCategoryInProject,
+            findCardPositionInColumn,
+            findNextCardPosition,
+            moveCard: moveCardRecord,
+            renumberColumnCards,
           },
         },
         { provide: ProjectService, useValue: {} },
@@ -740,6 +759,233 @@ describe('BoardService', () => {
         ),
       );
       expect(updateCardContent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('moveCard（B-1）', () => {
+    const dto: MoveCardDto = {
+      cardId: 'card-1',
+      toColumnId: 'column-2',
+      afterCardId: 'card-2',
+    };
+
+    beforeEach(() => {
+      findEditableColumn.mockResolvedValue({ id: 'column-2', projectId });
+    });
+
+    const catchError = async (input: MoveCardDto) => {
+      const error: unknown = await service
+        .moveCard(input, userId)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(AppException);
+      return error as AppException;
+    };
+
+    it('afterCardId 等於 cardId 時丟 400，不查資料庫', async () => {
+      const exception = await catchError({ ...dto, afterCardId: 'card-1' });
+
+      expect(exception.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+      expect(exception.code).toBe(ApiCode.ValidationError);
+      expect(findEditableCard).not.toHaveBeenCalled();
+    });
+
+    it('沒有卡片的編輯權限時丟 404，且不開 transaction', async () => {
+      findEditableCard.mockResolvedValue(null);
+
+      const exception = await catchError(dto);
+
+      expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('目標欄位不存在、已封存或沒有權限時丟 404', async () => {
+      findEditableColumn.mockResolvedValue(null);
+
+      const exception = await catchError(dto);
+
+      expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
+      expect(findEditableColumn).toHaveBeenCalledWith('column-2', userId);
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('目標欄位屬於其他專案時丟 404', async () => {
+      findEditableColumn.mockResolvedValue({
+        id: 'column-2',
+        projectId: 'project-2',
+      });
+
+      const exception = await catchError(dto);
+
+      expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
+      expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('先遞增 revision（鎖住 Project），再查 afterCardId 的位置', async () => {
+      await service.moveCard(dto, userId).catch(() => undefined);
+
+      expect(incrementBoardRevision).toHaveBeenCalledWith(projectId, tx);
+      expect(findCardPositionInColumn).toHaveBeenCalledWith(
+        'card-2',
+        'column-2',
+        tx,
+      );
+      expect(incrementBoardRevision.mock.invocationCallOrder[0]).toBeLessThan(
+        findCardPositionInColumn.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('afterCardId 已不在目標欄位時丟 409 / CardMoveConflict，不移動卡片', async () => {
+      findCardPositionInColumn.mockResolvedValue(null);
+
+      const exception = await catchError(dto);
+
+      expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
+      expect(exception.code).toBe(ApiCode.CardMoveConflict);
+      expect(moveCardRecord).not.toHaveBeenCalled();
+    });
+
+    it('afterCardId 為 null 時不查 afterCardId 的位置', async () => {
+      await service
+        .moveCard({ ...dto, afterCardId: null }, userId)
+        .catch(() => undefined);
+
+      expect(findCardPositionInColumn).not.toHaveBeenCalled();
+    });
+
+    describe('position 計算（使用者練習）', () => {
+      const movedPosition = () => moveCardRecord.mock.calls[0]?.[2];
+
+      it('移到空欄位的最上面：1024', async () => {
+        findNextCardPosition.mockResolvedValue(null);
+
+        await service.moveCard({ ...dto, afterCardId: null }, userId);
+
+        expect(movedPosition()).toBe(1024);
+      });
+
+      it('放在最後一張後面：前一張 + 1024', async () => {
+        findCardPositionInColumn.mockResolvedValue(3072);
+        findNextCardPosition.mockResolvedValue(null);
+
+        await service.moveCard(dto, userId);
+
+        expect(movedPosition()).toBe(4096);
+      });
+
+      it('放在兩張中間：取中間值', async () => {
+        findCardPositionInColumn.mockResolvedValue(1024);
+        findNextCardPosition.mockResolvedValue(2048);
+
+        await service.moveCard(dto, userId);
+
+        expect(movedPosition()).toBe(1536);
+      });
+
+      it('放在最上面、第一張是 2048：取 0 與 2048 的中間值', async () => {
+        findNextCardPosition.mockResolvedValue(2048);
+
+        await service.moveCard({ ...dto, afterCardId: null }, userId);
+
+        expect(movedPosition()).toBe(1024);
+      });
+
+      it('中間值不是整數時取兩者之間的整數', async () => {
+        findCardPositionInColumn.mockResolvedValue(1024);
+        findNextCardPosition.mockResolvedValue(1027);
+
+        await service.moveCard(dto, userId);
+
+        const position = movedPosition();
+        expect(Number.isInteger(position)).toBe(true);
+        expect(position).toBeGreaterThan(1024);
+        expect(position).toBeLessThan(1027);
+      });
+
+      it('找下一張時排除正在移動的卡片', async () => {
+        findCardPositionInColumn.mockResolvedValue(1024);
+
+        await service.moveCard(dto, userId);
+
+        expect(findNextCardPosition).toHaveBeenCalledWith(
+          'column-2',
+          1024,
+          'card-1',
+          tx,
+        );
+      });
+
+      it('前後相鄰時先重新編號，再用新的位置計算', async () => {
+        // Before renumbering: after 1024, next 1025. After: after 2048, next 3072.
+        findCardPositionInColumn
+          .mockResolvedValueOnce(1024)
+          .mockResolvedValue(2048);
+        findNextCardPosition
+          .mockResolvedValueOnce(1025)
+          .mockResolvedValue(3072);
+
+        await service.moveCard(dto, userId);
+
+        expect(renumberColumnCards).toHaveBeenCalledWith(
+          'column-2',
+          'card-1',
+          tx,
+        );
+        expect(renumberColumnCards.mock.invocationCallOrder[0]).toBeLessThan(
+          moveCardRecord.mock.invocationCallOrder[0],
+        );
+        expect(movedPosition()).toBe(2560);
+      });
+
+      it('放在最上面但第一張是 1：重新編號後放在 0 與 1024 之間', async () => {
+        findNextCardPosition.mockResolvedValueOnce(1).mockResolvedValue(1024);
+
+        await service.moveCard({ ...dto, afterCardId: null }, userId);
+
+        expect(renumberColumnCards).toHaveBeenCalledTimes(1);
+        expect(movedPosition()).toBe(512);
+      });
+
+      it('有空間時不重新編號', async () => {
+        findCardPositionInColumn.mockResolvedValue(1024);
+        findNextCardPosition.mockResolvedValue(2048);
+
+        await service.moveCard(dto, userId);
+
+        expect(renumberColumnCards).not.toHaveBeenCalled();
+      });
+
+      it('移動成功：回傳卡片與 boardRevision', async () => {
+        findCardSnapshot.mockResolvedValue(
+          createCard({ columnId: 'column-2', position: 2048 }),
+        );
+
+        const result = await service.moveCard(dto, userId);
+
+        expect(moveCardRecord).toHaveBeenCalledWith(
+          'card-1',
+          'column-2',
+          expect.any(Number),
+          tx,
+        );
+        expect(findCardSnapshot).toHaveBeenCalledWith('card-1', tx);
+        expect(result).toEqual({
+          boardRevision: '13',
+          card: expect.objectContaining({
+            id: 'card-1',
+            columnId: 'column-2',
+            position: 2048,
+          }) as unknown,
+        });
+      });
+
+      it('卡片在檢查後被封存（移動 0 筆）時丟 404', async () => {
+        moveCardRecord.mockResolvedValue(0);
+
+        const exception = await catchError(dto);
+
+        expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
+        expect(findCardSnapshot).not.toHaveBeenCalled();
+      });
     });
   });
 });
