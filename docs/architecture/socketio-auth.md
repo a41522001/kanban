@@ -70,6 +70,7 @@ type SocketAck<T> =
 - 通知使用 `user:{userId}` room；room 名稱只在 server 端由已驗證的 `socket.data.userId` 組成。
 - 目前每條連線另加入 `session:{sessionId}` room，其中 `sessionId` 是握手 Cookie 的原始值。room 僅供 server 端定位連線，不得記錄或對外回傳原始 Session ID。
 - Workspace 使用 `workspace:{workspaceId}` room。Client 只能提出 `workspace:into`／`workspace:leave`，Server 在加入前透過 `WorkspacesService.findMembership()` 驗證 userId 對應的有效 WorkspaceMember 與 archivedAt；client 不可自行選擇 user room。
+- 加入前的成員資格查詢是非同步的，期間可能收到 leave 或下一個 into（快速切換）。Server 以 `socket.data.targetWorkspaceId` 記錄這條連線目前要進入的 Workspace：`workspace:into` 在查詢**前**寫入；`workspace:leave` 只在 id 相同時清除；查詢完成後只有 `targetWorkspaceId` 仍等於這次的 id 才 join，否則放棄（2026-11-06，`socket.service.spec.ts` 以手動控制查詢完成順序驗證）。project room 沿用同一做法。
 - `workspace:memberChanged` 只傳 `{ workspaceId }` 作為 invalidation signal；目前 Workspace View 收到後重新呼叫成員清單 API。
 - Project Board room 命名統一為 `project:{projectId}`；Project 是 Board aggregate root，沒有 Board ID。
 - 加入 project room 前，以 `projectId` 確認使用者是該 Project 的有效成員（含 VIEWER），Project 與 Workspace 皆未封存。
@@ -157,6 +158,7 @@ Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace 
 - Project member 可加入該 Project 的 `project:{projectId}` room。
 - 非 Project member 無法加入 room。
 - Workspace member 可加入未封存 Workspace room；非成員或已封存 Workspace 不可加入。
+- 查詢成員資格期間 leave 或切換到其他 Workspace，查詢完成後不加入舊的 room（單元測試已涵蓋；尚無真實 client 測試）。
 - Viewer 無法修改卡片。
 - 已被移除的成員，即使仍在 room，也無法執行下一個 mutation。
 

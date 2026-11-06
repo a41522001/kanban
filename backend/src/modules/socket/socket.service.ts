@@ -21,6 +21,7 @@ import { LOG_EVENTS } from '@/common/constants/logEvents';
 interface SocketData {
   userId: string;
   session: string;
+  targetWorkspaceId: string | null;
 }
 
 @Injectable()
@@ -94,8 +95,14 @@ export class SocketService implements OnModuleDestroy {
       });
       // 進入工作區
       socket.on('workspace:into', (payload) => {
+        socket.data.targetWorkspaceId = payload.workspaceId;
         void this.authenticateWorkspace(socket, payload.workspaceId)
-          .then(() => socket.join(this.getWorkspaceRoom(payload.workspaceId)))
+          .then(() => {
+            if (payload.workspaceId !== socket.data.targetWorkspaceId) {
+              return;
+            }
+            return socket.join(this.getWorkspaceRoom(payload.workspaceId));
+          })
           .catch((error: unknown) => {
             this.logger.warn(
               {
@@ -110,6 +117,9 @@ export class SocketService implements OnModuleDestroy {
       // 離開工作區
       socket.on('workspace:leave', (payload) => {
         void socket.leave(this.getWorkspaceRoom(payload.workspaceId));
+        if (socket.data.targetWorkspaceId === payload.workspaceId) {
+          socket.data.targetWorkspaceId = null;
+        }
       });
       // 離線
       socket.on('disconnect', () => {
@@ -185,6 +195,7 @@ export class SocketService implements OnModuleDestroy {
     }
     socket.data.session = sessionId;
     socket.data.userId = userId;
+    socket.data.targetWorkspaceId = null;
   };
 
   /** 驗證工作區 */
