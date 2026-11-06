@@ -20,7 +20,7 @@ import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
 interface SocketData {
   userId: string;
-  session: string;
+  familyId: string;
   targetWorkspaceId: string | null;
 }
 
@@ -45,8 +45,8 @@ export class SocketService implements OnModuleDestroy {
   /** 取得workspace room */
   private getWorkspaceRoom = (workspaceId: string): string =>
     `workspace:${workspaceId}`;
-  /** 取得session room */
-  private getSessionRoom = (session: string) => `session:${session}`;
+  /** 取得family room */
+  private getFamilyRoom = (familyId: string) => `family:${familyId}`;
   // #endregion
 
   initialize(httpServer: HttpServer): void {
@@ -79,7 +79,7 @@ export class SocketService implements OnModuleDestroy {
     // 連線
     this.io.on('connection', async (socket) => {
       await socket.join(this.getUserRoom(socket.data.userId));
-      await socket.join(this.getSessionRoom(socket.data.session));
+      await socket.join(this.getFamilyRoom(socket.data.familyId));
       this.logger.log(
         {
           event: LOG_EVENTS.socketConnectionConnected,
@@ -134,9 +134,9 @@ export class SocketService implements OnModuleDestroy {
     });
   }
 
-  /** session撤銷後主動斷開socket連線 */
-  disconnectSession(sessionId: string): void {
-    this.io?.in(this.getSessionRoom(sessionId)).disconnectSockets(true);
+  /** 登出後斷開同一次登入（family）的所有 Socket，包含輪轉前建立的連線 */
+  disconnectFamily(familyId: string): void {
+    this.io?.in(this.getFamilyRoom(familyId)).disconnectSockets(true);
   }
 
   /** 推播工作區成員改變 */
@@ -183,18 +183,18 @@ export class SocketService implements OnModuleDestroy {
       });
     }
 
-    const userId =
+    const sessionResult =
       await this.sessionService.authenticateSocketSession(sessionId);
 
-    if (!userId) {
+    if (sessionResult === null) {
       throw new AppException({
         status: HttpStatus.UNAUTHORIZED,
         code: ApiCode.Unauthenticated,
         message: '登入已失效，請重新登入',
       });
     }
-    socket.data.session = sessionId;
-    socket.data.userId = userId;
+    socket.data.familyId = sessionResult.familyId;
+    socket.data.userId = sessionResult.userId;
     socket.data.targetWorkspaceId = null;
   };
 

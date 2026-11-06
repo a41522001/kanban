@@ -13,7 +13,7 @@
 - [ ] Login 與 signup 有 rate limit，並考慮 IP 與帳號兩個維度。
 - [x] Login 失敗統一回覆帳號或密碼錯誤，不洩漏帳號是否存在。
 - [x] 每次成功登入都產生新的高熵 Session ID，不接受 client 指定 ID。
-- [ ] Logout 原子撤銷 Current、Previous Grace 與 ZSET member，並清除 Cookie；目前只刪除請求攜帶的 Hash。
+- [x] Logout 原子撤銷 Current、Previous Grace 與 ZSET member，並清除 Cookie（2026-11-06，revoke Lua）。以 Grace Cookie 登出時只能刪除 Grace 本身，見 [Socket.IO 驗證](../architecture/socketio-auth.md) 7.2。
 - [x] Current Session 使用 Redis 絕對到期時間，輪轉後重新取得 7 天效期；普通請求不延長 TTL。
 - [ ] 若產品需要 idle timeout 或 family absolute lifetime，另行設計；目前兩者都沒有。
 - [x] Redis 不保存 Raw Session ID，只保存必要 identity／lifecycle 欄位與 SHA-256 Hash 索引。

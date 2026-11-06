@@ -10,6 +10,8 @@ type Handler = (...args: any[]) => unknown;
 
 // Captures the middleware and connection handler registered by SocketService.initialize().
 const mockServerHandlers: { use?: Handler; connection?: Handler } = {};
+const mockDisconnectSockets = jest.fn();
+const mockIn = jest.fn(() => ({ disconnectSockets: mockDisconnectSockets }));
 
 jest.mock('socket.io', () => ({
   Server: jest.fn().mockImplementation(() => ({
@@ -19,6 +21,7 @@ jest.mock('socket.io', () => ({
     on: (event: string, handler: Handler) => {
       if (event === 'connection') mockServerHandlers.connection = handler;
     },
+    in: mockIn,
     close: jest.fn(),
   })),
 }));
@@ -69,6 +72,7 @@ describe('SocketService', () => {
   let findMembership: jest.Mock;
   let authenticateSocketSession: jest.Mock;
   let socket: ReturnType<typeof createFakeSocket>;
+  let service: SocketService;
 
   /** Resolves the pending membership check for one Workspace. */
   const finishCheck = async (
@@ -89,9 +93,11 @@ describe('SocketService', () => {
       deferreds.set(workspaceId, deferred);
       return deferred.promise;
     });
-    authenticateSocketSession = jest.fn().mockResolvedValue('user-1');
+    authenticateSocketSession = jest
+      .fn()
+      .mockResolvedValue({ userId: 'user-1', familyId: 'family-1' });
 
-    const service = new SocketService(
+    service = new SocketService(
       { get: () => 'http://localhost:5173' } as unknown as ConfigService<
         AppConfig,
         true
@@ -113,12 +119,26 @@ describe('SocketService', () => {
     jest.restoreAllMocks();
   });
 
-  it('handshake 驗證後 targetWorkspaceId 初始為 null', () => {
+  it('handshake 驗證後記錄 userId、familyId，targetWorkspaceId 為 null', () => {
     expect(socket.data).toEqual({
       userId: 'user-1',
-      session: 'raw-session',
+      familyId: 'family-1',
       targetWorkspaceId: null,
     });
+  });
+
+  it('連線後加入 user 與 family room，room 名稱不含原始 Session ID', () => {
+    expect([...socket.rooms]).toEqual(['user:user-1', 'family:family-1']);
+    expect([...socket.rooms].some((room) => room.includes('raw-session'))).toBe(
+      false,
+    );
+  });
+
+  it('disconnectFamily 斷開該 family room 的所有 Socket', () => {
+    service.disconnectFamily('family-1');
+
+    expect(mockIn).toHaveBeenCalledWith('family:family-1');
+    expect(mockDisconnectSockets).toHaveBeenCalledWith(true);
   });
 
   it('成員資格確認後加入 Workspace room', async () => {

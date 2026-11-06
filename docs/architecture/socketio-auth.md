@@ -26,7 +26,7 @@ type SocketData = {
 
 禁止從事件 payload 接受 userId 作為操作身分。事件內一律使用 socket.data.userId。
 
-2026-09-25 核對：`SocketService` 已改用 `authenticateSocketSession()`，握手不會觸發輪轉，也不會產生無法回寫瀏覽器的 Session ID。連線依驗證結果加入 `user:{userId}` 與 `session:{sessionId}` room；登出會嘗試斷開後者。Client 不提供 userId，也不能自行選擇 user room。Workspace View 另以 `workspace:into`／`workspace:leave` 管理 Workspace room，加入前由 server 驗證 membership 與 archivedAt。HTTP 輪轉後既有 Socket 的 room 不會同步更新，詳見 7.2；前端 `connect_error`、Origin 的真實驗證與完整 lifecycle tests 也尚未完成。
+2026-09-25 核對：`SocketService` 已改用 `authenticateSocketSession()`，握手不會觸發輪轉，也不會產生無法回寫瀏覽器的 Session ID。連線依驗證結果加入 `user:{userId}` 與 `family:{familyId}` room；登出斷開後者（2026-11-06 起，見 7.2）。Client 不提供 userId，也不能自行選擇 user room。Workspace View 另以 `workspace:into`／`workspace:leave` 管理 Workspace room，加入前由 server 驗證 membership 與 archivedAt。前端 `connect_error`、Origin 的真實驗證與完整 lifecycle tests 也尚未完成。
 
 ## 3. Cookie、CORS 與 Origin
 
@@ -68,7 +68,7 @@ type SocketAck<T> =
 ## 5. Room 與權限
 
 - 通知使用 `user:{userId}` room；room 名稱只在 server 端由已驗證的 `socket.data.userId` 組成。
-- 目前每條連線另加入 `session:{sessionId}` room，其中 `sessionId` 是握手 Cookie 的原始值。room 僅供 server 端定位連線，不得記錄或對外回傳原始 Session ID。
+- 每條連線另加入 `family:{familyId}` room。`familyId` 代表一次裝置登入，輪轉前後不變，登出時用它斷開這次登入的所有 Socket（含輪轉前建立的連線），不影響同一使用者的其他裝置。room 名稱不含原始 Session ID 或其 hash。
 - Workspace 使用 `workspace:{workspaceId}` room。Client 只能提出 `workspace:into`／`workspace:leave`，Server 在加入前透過 `WorkspacesService.findMembership()` 驗證 userId 對應的有效 WorkspaceMember 與 archivedAt；client 不可自行選擇 user room。
 - 加入前的成員資格查詢是非同步的，期間可能收到 leave 或下一個 into（快速切換）。Server 以 `socket.data.targetWorkspaceId` 記錄這條連線目前要進入的 Workspace：`workspace:into` 在查詢**前**寫入；`workspace:leave` 只在 id 相同時清除；查詢完成後只有 `targetWorkspaceId` 仍等於這次的 id 才 join，否則放棄（2026-11-06，`socket.service.spec.ts` 以手動控制查詢完成順序驗證）。project room 沿用同一做法。
 - `workspace:memberChanged` 只傳 `{ workspaceId }` 作為 invalidation signal；目前 Workspace View 收到後重新呼叫成員清單 API。
@@ -100,18 +100,32 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 ## 7. Session 過期與登出
 
 - Session 過期：目前只在握手時拒絕新連線；已建立的連線不會因 Redis TTL 到期而自動斷開或重新驗證。
-- 使用者登出：目前先從 Redis 撤銷 Cookie 指向的 Session，再斷開同一原始 Session ID 的 room。若該登入尚未輪轉，這可找到對應 Socket；輪轉後會漏掉舊 room，詳見 7.2。
+- 使用者登出：`SessionService.revokeSession()` 撤銷 Cookie 指向的 Session 與其 Previous Grace，回傳 `familyId`；`AuthService.logout()` 再以 `SocketService.disconnectFamily(familyId)` 斷開同一次登入的所有 Socket（詳見 7.2）。
 - 若暫時無法維護 Session 到 socketId 的索引，至少讓後續事件重新檢查 Session；安全性較高但 Redis 查詢較多。
 - HTTP Session 輪轉後，舊 Session 會保留固定 20 秒 Grace，供已送出的並行請求完成；不能描述成「立即失效」。
 - 已建立的 Socket 不會因瀏覽器 Cookie 更新而自動改變 `socket.data`，也不會在每個 event 自動重新握手。敏感 command 是否重新驗證 Session、何時要求 reconnect，必須明確實作。
 
 ### 7.1 Socket handshake 不輪轉（已實作）
 
-Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace Session，只回傳 userId，不呼叫輪轉；正常 HTTP request 仍由 Guard 執行輪轉並透過 `Set-Cookie` 回傳新 Session ID。這解決了「Socket 握手輪轉成功，卻無法把新 Cookie 傳給瀏覽器」的問題。SessionService 已有對應 unit tests；真實 Socket.IO lifecycle 仍待測。
+Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace Session，只回傳 `userId` 與 `familyId`，不呼叫輪轉；正常 HTTP request 仍由 Guard 執行輪轉並透過 `Set-Cookie` 回傳新 Session ID。這解決了「Socket 握手輪轉成功，卻無法把新 Cookie 傳給瀏覽器」的問題。SessionService 已有對應 unit tests；真實 Socket.IO lifecycle 仍待測。
 
-### 7.2 輪轉後登出漏斷既有 Socket（待修，2026-09-25）
+### 7.2 輪轉後登出漏斷既有 Socket（2026-09-25 發現，2026-11-06 修正 1、2）
 
-目前 Socket room 以握手時的原始 Session ID 命名，HTTP 輪轉會改變 Cookie，卻不會搬移已連線的 Socket：
+**已修正（2026-11-06）**
+
+- 修復步驟 1：Socket 改加入 `family:{familyId}` room；`revokeSession()` 回傳 `familyId`，`logout()` 呼叫 `disconnectFamily(familyId)`。輪轉前後建立的 Socket 都在同一個 room。
+- 修復步驟 2：`REVOKE_SESSION_SCRIPT` 先 `HGET previousSessionIdHash`，再於同一個 Lua script 內刪除 Current、Previous Grace 與 ZSET member。
+- 驗證：socket／session／auth 單元測試；revoke script 以暫時 spec 對本機 Redis 驗證「建立 A → 輪轉成 B → 以 B 登出，A、B 皆刪除；未輪轉的另一台裝置不受影響」（該 spec 未保留，因 `pnpm test` 不依賴 Redis）。
+
+**尚未處理**
+
+- 修復步驟 3（握手驗證與加入 room 之間的競態）、步驟 4（真實 Socket.IO client 驗證）。
+- 若登出請求帶的是 Grace Session A（輪轉後 20 秒內，並行請求仍帶舊 Cookie）：A 沒有指向 B 的欄位，只會刪除 A，B 會保留到自然過期；Socket 仍會因相同 `familyId` 被斷開，回應也會清除 Cookie。
+- 已建立的 Socket 不會因 Session 自然過期而斷開（見本節開頭）。
+
+以下為原始問題描述（修正前）：
+
+修正前 Socket room 以握手時的原始 Session ID 命名，HTTP 輪轉會改變 Cookie，卻不會搬移已連線的 Socket：
 
 1. Socket 帶 Session **A** 連線並加入 `session:A`。
 2. HTTP Guard 將 A 輪轉成 **B**，以 `Set-Cookie` 更新瀏覽器；Socket 仍在 `session:A`。
@@ -122,7 +136,7 @@ Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace 
 
 目前既有 Socket 可繼續收到 `notification:created`、`workspace:memberChanged`，也可處理 `demo:echo`；`workspace:into` 會檢查 Workspace membership，但不重新檢查 Session。現階段沒有透過 Socket 寫入 Board 的事件。受 SessionGuard 保護、使用已撤銷 B 的 HTTP 請求會被拒絕；若拖曳寫入走這類 HTTP API，此 Socket room 問題不阻擋開發。註冊驗證信與此流程無關。若未來讓 Socket event 直接修改 Board，必須先處理 Session 失效與逐事件授權。
 
-此項暫緩，不將「登出立即使所有既有 Socket 失效」標為完成。修復時：
+修復步驟（1、2 已完成）：
 
 1. 以同一登入家族穩定不變的 `familyId` 定位 room；`authenticateSocketSession()` 提供 familyId，登出撤銷後斷開同一 family 的 Socket。不要用 `userId` room 斷線，以免影響其他裝置。
 2. 撤銷 Current Session 時，以 Redis 原子操作同步刪除其 previous Grace Session，避免 A 在 Grace 期間重新通過驗證。
@@ -182,7 +196,7 @@ Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace 
 - [x] 建立 Socket authentication middleware。
 - [x] socket.data 有明確型別。
 - [x] Socket handshake 使用不輪轉的 Session 驗證，避免產生無法回寫的 Cookie。
-- [ ] HTTP 輪轉後登出可斷開同一登入家族的舊 Socket，並同步撤銷 Previous Grace Session（7.2）。
+- [x] HTTP 輪轉後登出可斷開同一登入家族的舊 Socket，並同步撤銷 Previous Grace Session（7.2，2026-11-06；真實 client 驗證待補）。
 - [x] 定義目前 client/server event map（echo、notification、Workspace room into／leave／memberChanged）；mutation ack 型別仍待 Board command 階段補上。
 - [x] Workspace room subscribe 前驗證 membership 與 archivedAt，接受邀請 commit 後 broadcast `workspace:memberChanged`。
 - [ ] join room 與每個 mutation 都有 authorization。

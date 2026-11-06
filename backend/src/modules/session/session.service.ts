@@ -120,32 +120,37 @@ export class SessionService {
     }
   }
 
-  /** Socket 專用: 不執行輪轉 僅驗證並回傳 userId */
-  async authenticateSocketSession(sessionId: string): Promise<string | null> {
+  /** Socket 專用：不執行輪轉，僅驗證並回傳 userId 與 familyId */
+  async authenticateSocketSession(
+    sessionId: string,
+  ): Promise<{ userId: string; familyId: string } | null> {
     const session = await this.getSession(sessionId);
 
     if (!session) {
       return null;
     }
 
-    return session.userId;
+    return { userId: session.userId, familyId: session.familyId };
   }
 
   /** 撤銷Session */
-  async revokeSession(sessionId: string): Promise<void> {
+  async revokeSession(sessionId: string): Promise<string | null> {
     const sessionIdHash = this.hashSessionId(sessionId);
     const session = await this.sessionRepository.getSession(sessionIdHash);
     if (session === null) {
-      return;
+      return null;
     }
     const userId = session.userId;
     await this.sessionRepository.revokeSession(userId, sessionIdHash);
+    return session.familyId;
   }
+
   /** 取得 */
   async getSession(sessionId: string): Promise<StoredSession | null> {
     const sessionIdHash = this.hashSessionId(sessionId);
     return this.sessionRepository.getSession(sessionIdHash);
   }
+
   /** 刪除 */
   async delete(sessionId: string): Promise<boolean> {
     const sessionIdHash = this.hashSessionId(sessionId);

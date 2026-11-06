@@ -10,15 +10,16 @@
 - 新 Current Session 自輪轉時間起重新取得 7 天效期。
 - 舊 Session 輪轉後保留 20 秒 Grace，讓已送出的並行請求完成。
 
-| 功能 | 狀態 |
-| --- | --- |
-| Current Hash、ZSET 索引與 5 裝置淘汰 | 已實作於 create Lua |
-| Current／Grace runtime schema | 已實作 |
-| 原子輪轉與 20 秒 Grace | 已實作於 rotate Lua |
-| Guard 驗證與輪轉成功後更新 Cookie | 已實作 |
-| 最小 logout／revoke | 已實作於 revoke Lua；原子刪除請求攜帶的 Hash 與 ZSET member |
-| Current、Previous Grace 與整個 family 的完整撤銷 | 尚未完成 |
-| Service／Repository／Lua 整合測試 | 尚未完成 |
+| 功能                                 | 狀態                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Current Hash、ZSET 索引與 5 裝置淘汰 | 已實作於 create Lua                                                                               |
+| Current／Grace runtime schema        | 已實作                                                                                            |
+| 原子輪轉與 20 秒 Grace               | 已實作於 rotate Lua                                                                               |
+| Guard 驗證與輪轉成功後更新 Cookie    | 已實作                                                                                            |
+| logout／revoke                       | 已實作於 revoke Lua；原子刪除請求攜帶的 Current、它的 Previous Grace 與 ZSET member（2026-11-06） |
+| Current、Previous Grace 撤銷         | 已實作（2026-11-06）；以 Grace Cookie 登出時無法找到 Current                                      |
+| `familyId` 的使用                    | 登出時斷開 `family:{familyId}` Socket room（2026-11-06）                                          |
+| Service／Repository／Lua 整合測試    | 尚未完成                                                                                          |
 
 ## 2. 不變條件
 
@@ -33,14 +34,14 @@
 
 ## 3. 核心名詞與時間
 
-| 名詞 | 定義 |
-| --- | --- |
-| Raw Session ID | `randomBytes(32).toString('base64url')` 產生、保存在 Cookie 的高熵字串 |
-| Session ID Hash | `SHA-256(rawSessionId)`，用於 Redis key 與索引 |
-| Session family | 一次裝置登入的邏輯身分，輪轉前後維持相同 `familyId` |
-| Current Session | 目前有效，且可在到達 `rotateAtMs` 後觸發輪轉的 Session |
-| Grace Session | 已被取代、只在 20 秒內接受既有並行請求的舊 Session |
-| Rolling TTL | 成功輪轉後，新 Current 從當下重新取得完整 7 天效期 |
+| 名詞            | 定義                                                                   |
+| --------------- | ---------------------------------------------------------------------- |
+| Raw Session ID  | `randomBytes(32).toString('base64url')` 產生、保存在 Cookie 的高熵字串 |
+| Session ID Hash | `SHA-256(rawSessionId)`，用於 Redis key 與索引                         |
+| Session family  | 一次裝置登入的邏輯身分，輪轉前後維持相同 `familyId`                    |
+| Current Session | 目前有效，且可在到達 `rotateAtMs` 後觸發輪轉的 Session                 |
+| Grace Session   | 已被取代、只在 20 秒內接受既有並行請求的舊 Session                     |
+| Rolling TTL     | 成功輪轉後，新 Current 從當下重新取得完整 7 天效期                     |
 
 所有 `*AtMs` 都是 Unix epoch 的 UTC 絕對毫秒，例如 `DateTime.utc().toMillis()`。Redis Hash 值實際為字串，Repository 讀取後由 Zod 驗證並轉為 number。
 
@@ -88,16 +89,16 @@ key  = session:token:<sessionIdHash>
 type = HASH
 ```
 
-| 欄位 | Runtime 型別 | 說明 |
-| --- | --- | --- |
-| `userId` | string | Session 所屬使用者 |
-| `familyId` | string | 同一次裝置登入的穩定 ID |
-| `state` | `current` | Current discriminator |
-| `generation` | number | 首次登入為 1，每次輪轉加 1 |
-| `familyCreatedAtMs` | number | family 首次建立時間 |
-| `tokenIssuedAtMs` | number | 這一代 Session 的簽發時間 |
-| `rotateAtMs` | number | 到達後由下一個合法請求嘗試輪轉 |
-| `expiresAtMs` | number | Current 絕對到期時間 |
+| 欄位                    | Runtime 型別   | 說明                            |
+| ----------------------- | -------------- | ------------------------------- |
+| `userId`                | string         | Session 所屬使用者              |
+| `familyId`              | string         | 同一次裝置登入的穩定 ID         |
+| `state`                 | `current`      | Current discriminator           |
+| `generation`            | number         | 首次登入為 1，每次輪轉加 1      |
+| `familyCreatedAtMs`     | number         | family 首次建立時間             |
+| `tokenIssuedAtMs`       | number         | 這一代 Session 的簽發時間       |
+| `rotateAtMs`            | number         | 到達後由下一個合法請求嘗試輪轉  |
+| `expiresAtMs`           | number         | Current 絕對到期時間            |
 | `previousSessionIdHash` | string，可省略 | 上一代 Grace Hash；首次登入沒有 |
 
 Hash 使用 `PEXPIREAT(expiresAtMs)` 設定絕對到期時間。
@@ -106,14 +107,14 @@ Hash 使用 `PEXPIREAT(expiresAtMs)` 設定絕對到期時間。
 
 邏輯 schema：
 
-| 欄位 | Runtime 型別 | 說明 |
-| --- | --- | --- |
-| `userId` | string | Session 所屬使用者 |
-| `familyId` | string | 與新 Current 相同 |
-| `state` | `grace` | Grace discriminator |
-| `generation` | number | 舊 Session 的世代 |
-| `familyCreatedAtMs` | number | family 首次建立時間 |
-| `tokenIssuedAtMs` | number | 舊 Session 的簽發時間 |
+| 欄位                | Runtime 型別 | 說明                  |
+| ------------------- | ------------ | --------------------- |
+| `userId`            | string       | Session 所屬使用者    |
+| `familyId`          | string       | 與新 Current 相同     |
+| `state`             | `grace`      | Grace discriminator   |
+| `generation`        | number       | 舊 Session 的世代     |
+| `familyCreatedAtMs` | number       | family 首次建立時間   |
+| `tokenIssuedAtMs`   | number       | 舊 Session 的簽發時間 |
 
 輪轉 Lua 只把舊 Hash 的 `state` 改為 `grace`，再用 `PEXPIREAT(graceUntilMs)` 將 key 設為 20 秒後到期。原本的 Current 專用欄位可能仍物理存在，但 Grace runtime schema 不使用它們；有效期完全由 Redis TTL 決定，所以不需要保存 `graceUntilMs` 或指向新 Current 的欄位。
 
@@ -168,10 +169,10 @@ Rotate Lua 的結果：
 
 ```ts
 type RotateSessionReply =
-  | { status: 'MISSING' }
-  | { status: 'GRACE'; userId: string }
-  | { status: 'CURRENT'; userId: string }
-  | { status: 'ROTATED'; userId: string };
+  | { status: "MISSING" }
+  | { status: "GRACE"; userId: string }
+  | { status: "CURRENT"; userId: string }
+  | { status: "ROTATED"; userId: string };
 
 type AuthenticateSessionResult = {
   userId: string;
@@ -185,11 +186,11 @@ type AuthenticateSessionResult = {
 
 假設 A、B、C 同時攜帶已到輪轉時間的 S0：
 
-| 請求 | Lua 看到的狀態 | 結果 | 新 Cookie |
-| --- | --- | --- | --- |
-| A | Current 且到期 | `ROTATED` | 設定 S1 |
-| B | Grace | `GRACE` | 不設定 |
-| C | Grace | `GRACE` | 不設定 |
+| 請求 | Lua 看到的狀態 | 結果      | 新 Cookie |
+| ---- | -------------- | --------- | --------- |
+| A    | Current 且到期 | `ROTATED` | 設定 S1   |
+| B    | Grace          | `GRACE`   | 不設定    |
+| C    | Grace          | `GRACE`   | 不設定    |
 
 即使三個請求在進 Lua 前都讀到 Current，Lua 仍是原子執行。只有一個腳本能先把 S0 改為 Grace，其他舊 Cookie 請求只在 20 秒內繼續完成，不會產生 S2、S3。
 
@@ -230,11 +231,11 @@ SESSION_ROTATE_MINUTE=15
 MAX_DEVICE=5
 ```
 
-| 設定 | 預設值 | 用途 |
-| --- | --- | --- |
-| `SESSION_EXPIRE_DAY` | 7 | Current TTL 與 Cookie Max-Age |
-| `SESSION_ROTATE_MINUTE` | 15 | 開始允許輪轉的時間 |
-| `MAX_DEVICE` | 5 | 每位使用者最多 Current Sessions |
+| 設定                    | 預設值 | 用途                            |
+| ----------------------- | ------ | ------------------------------- |
+| `SESSION_EXPIRE_DAY`    | 7      | Current TTL 與 Cookie Max-Age   |
+| `SESSION_ROTATE_MINUTE` | 15     | 開始允許輪轉的時間              |
+| `MAX_DEVICE`            | 5      | 每位使用者最多 Current Sessions |
 
 Cookie name `sessionId` 與 Grace 20 秒目前是程式常數，尚未環境變數化。
 
