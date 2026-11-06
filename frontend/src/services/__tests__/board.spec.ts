@@ -6,6 +6,7 @@ import {
   addCategoryApi,
   archiveCardApi,
   getBoardSnapshotApi,
+  moveCardApi,
   updateCardApi,
 } from '@/services/board';
 
@@ -45,6 +46,16 @@ describe('board service', () => {
       url: '/board/addCard',
       method: 'post',
       data: { columnId: 'column-1', title: '標題' },
+    });
+  });
+
+  it('以 afterCardId 移動卡片（null 代表放在最上面）', async () => {
+    await moveCardApi({ cardId: 'card-1', toColumnId: 'column-2', afterCardId: null });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/moveCard',
+      method: 'patch',
+      data: { cardId: 'card-1', toColumnId: 'column-2', afterCardId: null },
     });
   });
 

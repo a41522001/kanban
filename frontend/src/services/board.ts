@@ -7,6 +7,7 @@ import type {
   ArchiveCardResult,
   BoardSnapshot,
   CardMutationResult,
+  MoveCardRequest,
   UpdateCardRequest,
 } from '@kanban/contracts/board';
 import api from './http';
@@ -55,6 +56,22 @@ export const archiveCardApi = async (
 ): Promise<ApiResponse<ArchiveCardResult>> => {
   const response = await api<ApiResponse<ArchiveCardResult>, ArchiveCardRequest>({
     url: '/board/archiveCard',
+    method: 'patch',
+    data: payload,
+  });
+
+  return response.data;
+};
+
+/**
+ * 移動卡片到 toColumnId，放在 afterCardId 後面（null 為最上面）；position 由後端計算。
+ * afterCardId 已不在目標欄位時回 409 / CardMoveConflict。
+ */
+export const moveCardApi = async (
+  payload: MoveCardRequest,
+): Promise<ApiResponse<CardMutationResult>> => {
+  const response = await api<ApiResponse<CardMutationResult>, MoveCardRequest>({
+    url: '/board/moveCard',
     method: 'patch',
     data: payload,
   });

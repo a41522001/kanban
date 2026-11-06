@@ -18,7 +18,7 @@
 | Workspace 邀請   | 🔄          | 發送、詳情、接受、拒絕、每分鐘過期排程                                                                                                                                                                        | Owner 取消邀請；PENDING 唯一性與併發驗收                                                                              |
 | 通知             | 🔄          | 列表、未讀數、單筆／全部已讀、Socket 即時推送                                                                                                                                                                 | cursor／filters（目前只回最新 20 筆）、重連後補抓、跨分頁同步                                                         |
 | Project          | 🔄          | 建立、列表、置頂、成員清單、候選人、新增成員、成員加入通知（成員與候選人含頭像）                                                                                                                              | 詳情、編輯、封存、角色調整、移除成員                                                                                  |
-| Board            | 🔄          | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位、Card 新增／編輯／封存（階段 A）、類別、`PATCH /board/moveCard`（B-1，2026-11-06）                                                                              | 見 [Board 規格](features/board.md) §9：前端拖曳（B-2）、多人同步（C）、拖曳衝突（D）                                  |
+| Board            | 🔄          | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位、Card 新增／編輯／封存（階段 A）、類別、拖曳卡片並存檔（階段 B，2026-11-06：`moveCard` API、把手拖曳、「移動至…」）                                             | 見 [Board 規格](features/board.md) §9：多人同步（C）、拖曳衝突（D）；B-2 手機長按未實機測試                           |
 | 頭像             | 🔄 本機完成 | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示                                                                                                                        | 步驟 11 GCP Cloud Storage（2026-11-03 規格已確認，見 [頭像規格](features/avatar.md) §0.4；11-1 待實作）、步驟 12 部署 |
 | Logging          | ✅ 開發環境 | API 與 worker 共用 pino、`event` 欄位、`requestId`、5xx 由 Filter 統一記錄、Worker job 記錄、本機 Seq（[Logging 規格](architecture/logging.md)）                                                              | 正式環境的 Seq；上線前待辦見該文件 §9.1                                                                               |
 | Config Namespace | ✅          | 2026-11-03：8 個 namespace（`src/config/namespaces/`）、`getValidatedEnv()`、`ConfigService<AppConfig, true>` 點路徑讀值；19 個使用端與 7 個 spec 已遷移（含 `socket.service.ts`），新增 `namespaces.spec.ts` | `gcs` namespace 於頭像 GCS 步驟 11-2 新增；尚未推到 `dev`                                                             |
@@ -28,7 +28,7 @@
 
 ## 下一步
 
-1. **Board 階段 A+**：類別全部完成；標籤 2026-11-05 決定取消（[Board 規格](features/board.md) §4.5、§9）。階段 B：B-1 `PATCH /board/moveCard` 已完成（2026-11-06），下一步 B-2 前端拖曳。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
+1. **Board 階段 A+**：類別全部完成；標籤 2026-11-05 決定取消（[Board 規格](features/board.md) §4.5、§9）。階段 B（B-1 `PATCH /board/moveCard`、B-2 前端拖曳與「移動至…」）2026-11-06 完成。下一步階段 C 多人同步：§7 仍是提案，實作前先 grill 確認。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
 2. **Config Namespace 推到 `dev`**：已完成（含 `socket.service.ts`），提醒另一台修改 `socket.service.ts` 前先 pull。頭像 GCS 步驟 11-2 直接使用 `avatar.*` 並新增 `gcs` namespace。
 3. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
 4. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
@@ -70,17 +70,19 @@
 
 ## 最近一次驗證
 
-| 日期       | 範圍                                                                                          | 結果                                                                                     |
-| ---------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 2026-11-06 | Backend `pnpm test -- src/modules/board`、`tsc --noEmit`、board ESLint（Windows，B-1 完成後） | 7 suites 通過、1 skipped；116 tests 通過、1 skipped；`tsc` 與 ESLint 通過                |
-| 2026-11-06 | Bruno CLI：Auth/Login、Workspaces、Project、Board                                             | 30 個請求、42 個測試全部通過（含 MoveCard 15–18）                                        |
-| 2026-11-03 | Backend `pnpm test`（Mac，Config Namespace 遷移後）                                           | 34 suites／352 tests 通過，3 skipped                                                     |
-| 2026-11-03 | Backend `tsc --noEmit`、ESLint                                                                | `tsc` 通過；ESLint 剩 3 個既有錯誤（`common/utils/index.ts:109`）                        |
-| 2026-11-03 | `nest build` 後啟動 API 與 worker                                                             | 兩個 process 皆正常啟動                                                                  |
-| 2026-10-28 | Backend `pnpm test`（Windows）                                                                | 29 suites／294 tests 通過，4 skipped                                                     |
-| 2026-10-28 | Backend `tsc --noEmit`                                                                        | 通過；ESLint 剩 5 個既有錯誤（`board.controller.ts`、`common/utils`）                    |
-| 2026-10-24 | Frontend Vitest                                                                               | 20 files 中 19 通過、77 tests 通過；`email-verification.spec.ts` 為上述既有 Windows 問題 |
-| 2026-10-30 | Board service 單元測試                                                                        | 3 tests 通過                                                                             |
+| 日期       | 範圍                                                                                          | 結果                                                                                                                     |
+| ---------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 2026-11-06 | Frontend Vitest、`type-check`、ESLint（Windows，B-2 完成後）                                  | 27 files 中 26 通過、129 tests 通過；失敗的是既有 Windows 問題 `email-verification.spec.ts`；`type-check` 與 ESLint 通過 |
+| 2026-11-06 | Chrome 實際操作 B-2（seed「行銷活動」專案）                                                   | 跨欄、空欄、同欄、「移動至…」畫面與 DB 一致；409 重新載入；VIEWER 無把手；651px 高視窗對話框在畫面內                     |
+| 2026-11-06 | Backend `pnpm test -- src/modules/board`、`tsc --noEmit`、board ESLint（Windows，B-1 完成後） | 7 suites 通過、1 skipped；116 tests 通過、1 skipped；`tsc` 與 ESLint 通過                                                |
+| 2026-11-06 | Bruno CLI：Auth/Login、Workspaces、Project、Board                                             | 30 個請求、42 個測試全部通過（含 MoveCard 15–18）                                                                        |
+| 2026-11-03 | Backend `pnpm test`（Mac，Config Namespace 遷移後）                                           | 34 suites／352 tests 通過，3 skipped                                                                                     |
+| 2026-11-03 | Backend `tsc --noEmit`、ESLint                                                                | `tsc` 通過；ESLint 剩 3 個既有錯誤（`common/utils/index.ts:109`）                                                        |
+| 2026-11-03 | `nest build` 後啟動 API 與 worker                                                             | 兩個 process 皆正常啟動                                                                                                  |
+| 2026-10-28 | Backend `pnpm test`（Windows）                                                                | 29 suites／294 tests 通過，4 skipped                                                                                     |
+| 2026-10-28 | Backend `tsc --noEmit`                                                                        | 通過；ESLint 剩 5 個既有錯誤（`board.controller.ts`、`common/utils`）                                                    |
+| 2026-10-24 | Frontend Vitest                                                                               | 20 files 中 19 通過、77 tests 通過；`email-verification.spec.ts` 為上述既有 Windows 問題                                 |
+| 2026-10-30 | Board service 單元測試                                                                        | 3 tests 通過                                                                                                             |
 
 Backend E2E（`pnpm test:backend:e2e`）自 2026-09-28 後未重跑。
 

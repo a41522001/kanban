@@ -56,12 +56,52 @@
   @apply font-bold text-content-primary;
 }
 
-.board__cards {
-  @apply mb-3 flex flex-col gap-3;
+.board__cards-area {
+  @apply relative mb-3;
 }
 
+/* min-h keeps an empty column droppable. */
+.board__cards {
+  @apply flex min-h-16 flex-col gap-3 rounded-xl transition-colors motion-reduce:transition-none;
+}
+
+.board__cards--drop-target {
+  @apply bg-flow-active-soft outline-2 outline-offset-4 outline-flow-active-strong;
+}
+
+/* Overlays the empty list so the list itself still receives the drop. */
 .board__empty-cards {
-  @apply rounded-control border border-dashed border-border px-3 py-5 text-center text-sm text-content-tertiary;
+  @apply pointer-events-none absolute inset-0 flex items-center justify-center rounded-control border border-dashed border-border px-3 text-center text-sm text-content-tertiary;
+}
+
+.board__card {
+  @apply relative rounded-xl;
+}
+
+/* Leave room for the 44 × 44 handle in the top-right corner. */
+.board__card--editable .board-card {
+  @apply pr-12;
+}
+
+.board__card-handle {
+  @apply absolute top-0 right-0 flex size-11 cursor-grab touch-manipulation items-center justify-center rounded-xl text-content-tertiary outline-none select-none hover:text-content-secondary focus-visible:ring-3 focus-visible:ring-action-primary/30;
+}
+
+.board__card--chosen .board__card-handle {
+  @apply cursor-grabbing;
+}
+
+/* Placeholder left at the drop position: dashed outline, content hidden. */
+.board__card--ghost {
+  @apply border-2 border-dashed border-border-strong bg-transparent;
+}
+
+.board__card--ghost > * {
+  @apply invisible;
+}
+
+.board__card--dragging {
+  @apply rotate-1 shadow-card motion-reduce:rotate-0;
 }
 
 .board__add-card-button {
@@ -93,7 +133,7 @@
 }
 
 .board__card-button {
-  @apply cursor-pointer rounded-xl text-left outline-none ring-action-primary transition-shadow hover:ring-1 focus-visible:ring-3 focus-visible:ring-action-primary/30;
+  @apply block w-full cursor-pointer rounded-xl text-left outline-none ring-action-primary transition-shadow hover:ring-1 focus-visible:ring-3 focus-visible:ring-action-primary/30;
 }
 
 .board__card-button--selected {
