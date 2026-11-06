@@ -59,7 +59,7 @@
 - [ ] 不能只依賴前端 route guard、Controller guard 或 Socket room。
 - [ ] WorkspaceRole 與 ProjectRole 的權限集中定義並有測試。
 - [ ] 修改、刪除與邀請成員等敏感操作有 audit log。
-- [ ] 被移除的 ProjectMember 必須離開 `project:{projectId}` room，既有 Socket 不能繼續修改資料。
+- [ ] 被移除的 ProjectMember 必須離開 `project:{projectId}` room，既有 Socket 不能繼續修改資料。Board 階段 C 不處理（目前沒有移除成員功能；[Board 規格](../features/board.md) §7.5），被移除者在此之前仍會收到事件，HTTP 修改會被拒絕。
 
 ## 6. API 與錯誤處理
 

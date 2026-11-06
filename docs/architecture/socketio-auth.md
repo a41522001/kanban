@@ -74,7 +74,7 @@ type SocketAck<T> =
 - `workspace:memberChanged` 只傳 `{ workspaceId }` 作為 invalidation signal；目前 Workspace View 收到後重新呼叫成員清單 API。
 - Project Board room 命名統一為 `project:{projectId}`；Project 是 Board aggregate root，沒有 Board ID。
 - 加入 project room 前，以 `projectId` 確認使用者是該 Project 的有效成員（含 VIEWER），Project 與 Workspace 皆未封存。
-- 不能只依賴已加入 room 來授權修改。依 [Board 規格](../features/board.md) §7 的提案，Board 的修改走 HTTP，由 HTTP 端點逐次檢查權限，Socket 只負責廣播；若日後改用 Socket 指令，每一個指令都必須再次確認資源權限。
+- 不能只依賴已加入 room 來授權修改。依 [Board 規格](../features/board.md) §7.2（2026-11-06 確認），Board 的修改走 HTTP，由 HTTP 端點逐次檢查權限，Socket 只負責廣播；若日後改用 Socket 指令，每一個指令都必須再次確認資源權限。
 - 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Project room；disconnect 時由 Socket.IO 自動清除連線 room。project room 尚未實作，將於 Board 階段 C 完成。
 - 成功寫入 DB 並 commit 後，才向 room broadcast domain event。
 

@@ -12,6 +12,11 @@ export type WorkspaceRoomPayload = {
 export type WorkspaceMemberChangedPayload = {
   workspaceId: string;
 };
+/** 加入或離開 Project room 時使用的資料。 */
+export type ProjectRoomPayload = {
+  projectId: string;
+};
+
 /** Server 傳送給 Client 的 WebSocket 事件契約。 */
 export interface ServerToClientEvents {
   'demo:echoed': (payload: EchoPayload & { serverTime: string }) => void;
@@ -24,4 +29,6 @@ export interface ClientToServerEvents {
   'demo:echo': (payload: EchoPayload) => void;
   'workspace:into': (payload: WorkspaceRoomPayload) => void;
   'workspace:leave': (payload: WorkspaceRoomPayload) => void;
+  'project:into': (payload: ProjectRoomPayload) => void;
+  'project:leave': (payload: ProjectRoomPayload) => void;
 }

@@ -18,10 +18,12 @@ import { ApiCode } from '@kanban/contracts/api';
 import type { PublicNotification } from '@kanban/contracts/notification';
 import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
+import { SocketRepository } from './socket.repository';
 interface SocketData {
   userId: string;
   familyId: string;
   targetWorkspaceId: string | null;
+  targetProjectId: string | null;
 }
 
 @Injectable()
@@ -37,6 +39,7 @@ export class SocketService implements OnModuleDestroy {
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionService: SessionService,
     private readonly workspacesService: WorkspacesService,
+    private readonly socketRepository: SocketRepository,
   ) {}
 
   // #region room
@@ -45,6 +48,9 @@ export class SocketService implements OnModuleDestroy {
   /** 取得workspace room */
   private getWorkspaceRoom = (workspaceId: string): string =>
     `workspace:${workspaceId}`;
+  /** 取得project room */
+  private getProjectRoom = (projectId: string): string =>
+    `project:${projectId}`;
   /** 取得family room */
   private getFamilyRoom = (familyId: string) => `family:${familyId}`;
   // #endregion
@@ -119,6 +125,34 @@ export class SocketService implements OnModuleDestroy {
         void socket.leave(this.getWorkspaceRoom(payload.workspaceId));
         if (socket.data.targetWorkspaceId === payload.workspaceId) {
           socket.data.targetWorkspaceId = null;
+        }
+      });
+      // 進入專案
+      socket.on('project:into', (payload) => {
+        socket.data.targetProjectId = payload.projectId;
+        void this.authenticateProject(socket, payload.projectId)
+          .then(() => {
+            if (payload.projectId !== socket.data.targetProjectId) {
+              return;
+            }
+            return socket.join(this.getProjectRoom(payload.projectId));
+          })
+          .catch((error: unknown) => {
+            this.logger.warn(
+              {
+                event: LOG_EVENTS.socketProjectJoinRejected,
+                err: error,
+                projectId: payload.projectId,
+              },
+              '加入專案失敗',
+            );
+          });
+      });
+      // 離開專案
+      socket.on('project:leave', (payload) => {
+        void socket.leave(this.getProjectRoom(payload.projectId));
+        if (socket.data.targetProjectId === payload.projectId) {
+          socket.data.targetProjectId = null;
         }
       });
       // 離線
@@ -196,6 +230,7 @@ export class SocketService implements OnModuleDestroy {
     socket.data.familyId = sessionResult.familyId;
     socket.data.userId = sessionResult.userId;
     socket.data.targetWorkspaceId = null;
+    socket.data.targetProjectId = null;
   };
 
   /** 驗證工作區 */
@@ -217,6 +252,34 @@ export class SocketService implements OnModuleDestroy {
         status: HttpStatus.FORBIDDEN,
         code: ApiCode.RequestError,
         message: '你沒有存取此工作區的權限',
+      });
+    }
+  };
+
+  /** 驗證專案 */
+  private authenticateProject = async (
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      DefaultEventsMap,
+      SocketData
+    >,
+    projectId: string,
+  ): Promise<void> => {
+    const member = await this.socketRepository.findProjectMembership(
+      socket.data.userId,
+      projectId,
+    );
+
+    if (
+      member === null ||
+      member.project.archivedAt !== null ||
+      member.project.workspace.archivedAt !== null
+    ) {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        code: ApiCode.RequestError,
+        message: '你沒有存取此專案的權限',
       });
     }
   };
