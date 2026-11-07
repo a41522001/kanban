@@ -83,6 +83,7 @@ GHCR 上的 `kanban-frontend`、`kanban-backend` 因連結到 public repo 而為
 - 尚未改用靜態 IP；尚未設定 `restart: unless-stopped`，VM 重開機後容器不會自動啟動。
 - 退版只回復程式碼，不回復 migration。
 - 與下方目標設計的差異：backend 以 root 執行且 runtime 含 devDependencies（Prisma CLI 為 devDependency，migration 需要）；migration 在 backend 容器啟動時執行，非獨立 release job；無 health check、smoke test、vulnerability scan 與 deployment concurrency；Nginx 未傳遞 `X-Forwarded-*` 等 header，NestJS 未設定 trust proxy；未設定 log rotation 與資料庫備份。
+- Socket.IO 使用預設 in-memory adapter，廣播只送到同一個後端 instance。擴充成多個 backend instance 前須改用 `@socket.io/redis-adapter`（[Board 規格](../features/board.md) §7.5）。
 - scp／ssh action 未設定 `fingerprint`，尚未固定 VM 主機身分；第三方 action 以版本號釘選，未釘選 commit SHA。
 
 ## 1. 目標架構

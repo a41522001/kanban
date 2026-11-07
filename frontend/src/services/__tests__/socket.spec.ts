@@ -97,6 +97,60 @@ describe('socket service', () => {
     expect(fakeSocket.emit).not.toHaveBeenCalled();
   });
 
+  describe('project room', () => {
+    it('重連時同時補送 Workspace 與 Project room', async () => {
+      const socket = await loadModule();
+      socket.emitWorkspaceInto('workspace-1');
+      socket.emitProjectInto('project-1');
+      fakeSocket.emit.mockClear();
+
+      fireConnect();
+
+      expect(fakeSocket.emit.mock.calls).toEqual([
+        ['workspace:into', { workspaceId: 'workspace-1' }],
+        ['project:into', { projectId: 'project-1' }],
+      ]);
+    });
+
+    it('切換專案後重連只加入新的 project room', async () => {
+      const socket = await loadModule();
+      socket.emitProjectInto('project-1');
+      socket.emitProjectLeave('project-1');
+      socket.emitProjectInto('project-2');
+      fakeSocket.emit.mockClear();
+
+      fireConnect();
+
+      expect(fakeSocket.emit).toHaveBeenCalledExactlyOnceWith('project:into', {
+        projectId: 'project-2',
+      });
+    });
+
+    it('離開的不是目前的專案時保留目前的 room', async () => {
+      const socket = await loadModule();
+      socket.emitProjectInto('project-2');
+      socket.emitProjectLeave('project-1');
+      fakeSocket.emit.mockClear();
+
+      fireConnect();
+
+      expect(fakeSocket.emit).toHaveBeenCalledExactlyOnceWith('project:into', {
+        projectId: 'project-2',
+      });
+    });
+
+    it('disconnect（登出）後重新連線不補送專案', async () => {
+      const socket = await loadModule();
+      socket.emitProjectInto('project-1');
+      socket.disconnect();
+      fakeSocket.emit.mockClear();
+
+      fireConnect();
+
+      expect(fakeSocket.emit).not.toHaveBeenCalled();
+    });
+  });
+
   describe('onReconnected', () => {
     it('第一次連線不呼叫，之後每次重連都呼叫', async () => {
       const socket = await loadModule();

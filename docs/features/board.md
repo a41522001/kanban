@@ -1,6 +1,6 @@
 # Board 與 Card 規格
 
-日期：2026-10-30。狀態：**階段 A、A+（類別）、B 完成**（2026-11-06）；階段 C、D 為提案（§7、§8）。
+日期：2026-10-30。狀態：**階段 A、A+（類別）、B 完成**（2026-11-06）；階段 C 已確認、待實作（§7），D 未討論（§8）。
 
 本文取代 2026-09 撰寫、彼此衝突的四份舊規格（Board API 與 WebSocket、看板拖曳與滑動、Project 拖曳與 Redis Lock、Kanban Domain）。規則由使用者以 grill 逐項確認（Q1–Q19）。舊規格仍有用的內容已併入本文（§4.5、§6.1、§8），2026-10-30 刪除，需要時可從 git 歷史查看。
 
@@ -170,14 +170,69 @@ A+ 追加（§4.5，Q9–Q12、Q18）：
 - **觸控與滑鼠**：手指在卡片內容短按是開啟卡片，在看板上左右滑動是原生捲動，按住把手約 220ms 才開始拖曳；滑鼠按住把手立即開始。設定方向為 `handle: '.card-drag-handle'`、`delay: 220`、`delayOnTouchOnly: true`、`group: 'board-cards'`，實際屬性名稱實作時依套件文件查證。
 - **邊緣自動捲動**：同一欄內接近上下邊緣時自動垂直捲動。手機拖到看板左右邊緣自動跨欄最難做好，可以不在 B-2 完成；做不好時寧可讓使用者拖到看得到的欄位，**不可以**為了方便改成整張卡片都能拖。
 - **拖曳不能是唯一的移動方式**：卡片詳情要有「移動至…」選單（`card-detail.svg` 已有此項）選擇目標欄位；把手要有可讀的 accessible name；錯誤與衝突不能只用顏色表示；尊重 `prefers-reduced-motion`。
-- **斷線**：拖曳中斷線就停止拖曳，重新連線後重新載入看板，不假設斷線前的順序仍然有效。
+- **斷線**：不中斷拖曳（存檔走 HTTP），顯示「即時同步已中斷」，重新連線後重新載入看板，不假設斷線前的順序仍然有效（2026-11-06 C grill Q11 修改）。
 
-## 7. 階段 C 提案（尚未確認，進行 C 之前再 grill）
+## 7. 階段 C：多人即時同步（2026-11-06 grill Q1–Q12 確認）
 
-- （Q20）進入 `ProjectView` 時加入 Socket room `project:{projectId}`，伺服器檢查是否為專案成員（含 VIEWER），離開頁面時退出。
-- （Q21）修改一律走 HTTP；transaction **完成後**才透過 Socket 廣播給 project room。不採用 Socket 指令＋ack。
-- （Q22）廣播給 room 內所有人（含發送者），前端忽略 `boardRevision` 小於或等於目前版本的事件。事件：`board:cardCreated`、`board:cardUpdated`、`board:cardMoved`、`board:cardArchived`（`cardId`、`columnId`、`boardRevision`）、`board:columnCreated`。
-- （Q23）收到的 `boardRevision` 大於目前 +1（漏掉更新），或 Socket 斷線重連時，重新載入整個看板。
+### 7.1 設計原則：正確性靠 PostgreSQL，Socket 只負責通知
+
+| 層 | 負責 | 出錯時 |
+| --- | --- | --- |
+| PostgreSQL transaction | 資料正確。`incrementBoardRevision` 以 UPDATE 鎖住 Project 列（悲觀鎖），同一專案的修改依序執行、revision 連續且唯一；`expectedVersion`、`afterCardId` 檢查（樂觀鎖）擋下根據舊畫面送出的修改（409） | — |
+| Socket 廣播 | 讓其他人較快看到變更 | 畫面暫時過時 |
+| 前端 `boardRevision` 檢查 | 發現漏號就重新載入 | 多載入一次 |
+
+Socket 事件遺失、亂序或斷線都不會讓資料出錯。因此 C 不需要 Redis、RabbitMQ 或事件重播（2026-11-06 討論）：Redis adapter 留給多 instance，Redis lease lock 留給 D，事件重播留到重新載入慢到可感覺時再評估。
+
+### 7.2 寫入與廣播（Q1–Q4）
+
+- （Q2）修改一律走 HTTP；`BoardService` 在 `$transaction` 成功回傳**之後**才廣播到 `project:{projectId}`，HTTP 回應不變。不採用 Socket 指令＋ack。
+- （Q1）事件帶完整資料，格式與 HTTP 回應相同，前端沿用套用 API 回應的函式；只有漏號或重連時重新載入整個看板。
+- （Q3）**`boardRevision` +1 就一定要發事件**，否則其他人會誤判漏號。目前 6 種：
+
+| 修改 | 事件 | payload |
+| --- | --- | --- |
+| `addColumn` | `board:columnCreated` | 新欄位、`boardRevision` |
+| `addCard` | `board:cardCreated` | 完整卡片、`boardRevision` |
+| `updateCard` | `board:cardUpdated` | 完整卡片、`boardRevision` |
+| `archiveCard` | `board:cardArchived` | `cardId`、`columnId`、`boardRevision` |
+| `moveCard` | `board:cardMoved` | 完整卡片、`boardRevision` |
+| `addCategory`（新名稱） | `board:categoryCreated` | 類別、`boardRevision`；沿用既有名稱時 revision 不變，不發事件 |
+
+之後新增會讓 revision +1 的修改（例如 `moveColumn`）時，同時新增事件。
+
+- （Q4）廣播給 room 內所有人（含發送者）。發送者會同時收到 HTTP 回應與事件，先到的套用，後到的因 `boardRevision` 小於或等於目前值而忽略。不在請求中傳 socket id；同一個人的其他分頁自然收到更新。
+
+### 7.3 前端套用（Q5–Q7、Q9、Q11）
+
+- （Q5、Q6）看板載入中、自己拖曳中（`@start` 到自己的 `moveCard` 成功或失敗）收到的事件放入同一個佇列。結束後丟棄 `boardRevision` 小於或等於目前值的事件，其餘依序走正常流程。
+- 正常流程：`boardRevision` 小於或等於目前值 → 忽略；等於目前 +1 → 套用；大於目前 +1 → 重新載入整個看板。
+- （Q9）兩個請求幾乎同時 commit 時，廣播可能亂序到達（DB commit 有序，但 commit 後各自的 async 流程誰先廣播不一定）。先收到較大的號碼時直接重新載入，較晚到的舊事件被忽略；若實際使用時經常發生，再改為短暫等待缺號。
+- （Q7）卡片詳情開著時：
+
+| 情況 | 處理 |
+| --- | --- |
+| 別人編輯（事件的 `version` 大於對話框開啟時），自己尚未修改 | 直接換成最新內容 |
+| 別人編輯，自己已修改 | 顯示現有的衝突提示（「這張卡片已被其他成員修改」＋「重新載入」），不覆蓋輸入中的內容 |
+| 別人封存 | 關閉對話框，toast「這張卡片已被封存」 |
+| 別人移動（`version` 不變） | 只更新「目前位於…」，不算衝突 |
+
+- （Q11）Socket 斷線時不中斷拖曳（存檔走 HTTP，與 Socket 無關），看板上方顯示「即時同步已中斷，正在重新連線…」（依 `isConnected`），不停用任何操作；重連後提示消失並重新載入看板。
+
+### 7.4 Project room（Q8）
+
+完全沿用 Workspace room（[Socket.IO 驗證](../architecture/socketio-auth.md) §5、§6）：
+
+- 前端 `services/socket.ts` 新增 `emitProjectInto`／`emitProjectLeave`，記住 `currentProjectId`，每次 `connect` 補送、`disconnect()` 清除。`ProjectView` 在 `onMounted` 加入、`onUnmounted` 離開，以 `onReconnected` 重新載入看板。
+- 後端 `project:into` 先寫入 `socket.data.targetProjectId` 再檢查權限，檢查完 id 仍相同才 join；`project:leave` 比對 id 後才清除。
+- 加入條件：Project 的有效成員（含 VIEWER），Project 與 Workspace 皆未封存；不符時記 warn log，不通知前端。
+- 一條 Socket 同時只在一個 project room。
+
+### 7.5 不在範圍內（Q10）
+
+- 成員被移除或改角色後移出 room、更新權限：目前沒有這些功能，屆時處理。在那之前被移除的人仍會收到事件，但 HTTP 修改會被拒絕。
+- 多個後端 instance：目前使用 Socket.IO 預設 adapter，廣播只送到同一個 instance；正式環境目前只有一個後端 container。擴充時改用 Redis adapter，`BoardService` 不需修改。
+- 後端在 commit 之後、廣播之前當機，事件會遺失；其他人的看板停在舊狀態，直到下一個事件（偵測到漏號）或重新整理。發生機率低、影響是暫時不同步，暫不處理；需要時以 PostgreSQL transactional outbox 解決。
 
 ## 8. 階段 D（未討論）
 
@@ -207,4 +262,7 @@ A+ 追加（§4.5，Q9–Q12、Q18）：
 | A+1-3 | `addCard`／`updateCard`／看板回傳支援類別 | ✅ 2026-11-04（後端）：contracts `BoardCardSnapshot.categoryId`、`BoardSnapshot.categories`、`AddCardRequest`／`UpdateCardRequest.categoryId`；DTO `IsOptional`＋`IsUUID`（null 原樣傳到 service 代表移除）；repository `CARD_SNAPSHOT_SELECT` 加 `categoryId`、`getAllBoardColumn` 選 `cardCategories`（3 欄、依 `normalizedName`）、`findCategoryInProject`、`CreateCardData`／`UpdateCardContentData.categoryId`；service `assertCategoryInProject`（不同專案或不存在 404，類別不能刪除所以在 transaction 外檢查）、`updateCard` 只送 `categoryId` 也算修改。DTO 7 個、service 8 個測試；Bruno `AddCardWithCategory`、`UpdateCardRemoveCategory`，`GetBoardColumns` 檢查 `categories`。2026-11-04 以 seed 資料跑 25 項 API 端對端檢查全部通過（含別專案類別 404、VIEWER／非成員 404、null 移除、過期 version 409） |
 | A+1-4 | 前端：類別選單與卡片 chip | ✅ 2026-11-04：`CategoryChip`（14 色，未知色票退回 slate）、`BoardCard` 標題上方顯示類別、`ProjectView` 以 `categoryId` 對照 `categories`；`CategorySelect`（展開式面板：篩選不分大小寫、「不設定類別」送 null、名稱不存在時「建立」＋14 色預設第一個未使用顏色、7002／400 錯誤顯示在面板內）接到新增與詳情 Dialog，只送有變更的 `categoryId`；VIEWER 以 chip 或「沒有類別」顯示；建立後 `ProjectView` 依名稱插入並更新 `boardRevision`。前端 17 個新測試；以 Chrome 實際操作驗證：看板 chip、新增卡片時建立新類別（預設第一個未使用顏色）、詳情改類別與「不設定類別」、重新整理後保留、VIEWER 唯讀，console 無錯誤 |
 | B-1 | `PATCH /board/moveCard`（position 計算、重新編號） | ✅ 2026-11-06：contracts `MoveCardRequest`、`CardMoveConflict = 7003`；`MoveCardDto`（`afterCardId` 必須明確送 UUID 或 null）；repository `findCardPositionInColumn`、`findNextCardPosition`（排除正在移動的卡片）、`moveCard`（不動 version）；service：自己後面 400 → 卡片與目標欄位權限、同專案 404 → transaction（先 +1 revision 鎖 Project → 查 afterCard 位置，不在目標欄位 409 → 計算 position → 移動，0 筆 404 → snapshot）。DTO 7 個、service 18 個測試；Bruno `MoveCard`、`MoveCardSameColumn`、`MoveCardAfterArchived`、`MoveCardAfterSelf`。使用者實作 service `calculateMovePosition`（三種情況；重新編號後重新查 after 與下一張，after 卡片查不到時丟 500，因為正常流程不會發生）與 repository `renumberColumnCards`（一句 `UPDATE ... FROM` 子查詢 `ROW_NUMBER() OVER (ORDER BY position, id) * 1024`，參數 `::uuid`，`tx` 必填）。2026-11-06 驗證：board 測試 116 通過／1 skipped（含 11 個 position 驗收測試）；在開發 DB 的 transaction 內把 15 張卡片設成相鄰 position 後呼叫 `renumberColumnCards`，未封存卡片依序變成 1024…13312，移動中與已封存卡片不變，最後 rollback；Bruno Login→Workspaces→Project→Board 30 個請求、42 個測試全部通過 |
-| B-2 | 前端拖曳（把手、手機長按、失敗重新載入） | ✅ 2026-11-06：`services/board.ts` `moveCardApi`；`ProjectView` 每欄卡片改為 `VueDraggable`（`group: 'board-cards'`、`handle: '.board__card-handle'`、`delay: 220`、`delayOnTouchOnly`、VIEWER `disabled`；`prefers-reduced-motion` 時 animation 0），卡片右上角 44×44 把手（accessible name「拖曳卡片「標題」」，VIEWER 不顯示）；放開時套件已更新 `column.cards`，`end` 以上一張卡片為 `afterCardId`（最上面為 null）呼叫 API，位置沒變不呼叫；成功時以回應取代卡片、`boardRevision` 取較大值，任何失敗都提示並 `reloadBoard`（7003 提示「看板已被其他人變更」）。原位置虛線 placeholder、滑過的欄位綠底外框、空欄位可放入。卡片詳情加「移動至…」選單（移到該欄最下面，目前欄位停用，VIEWER 不顯示），與拖曳共用存檔流程。純函式放在 `views/projectView/cardMove.ts`。前端 14 個新測試（`cardMove` 9、「移動至…」4、service 1）。順手修正：`DialogContent`／`AlertDialogContent` 經 portal 渲染，scoped 的 `.card-dialog`、`.card-dialog--detail`、`.card-dialog__confirm` 從未生效（對話框沒有 `max-h`，矮視窗時按鈕在畫面外），改為 `:global(...)`。以 Chrome 驗證：跨欄放最上面、拖進空欄、同欄換順序、「移動至…」，畫面與 DB position 一致；背景封存 after 卡片後拖曳 → 409 提示並重新載入；VIEWER 無把手；651px 高視窗三個對話框都在畫面內。**未完成**：手機長按未在實機測試；拖到看板左右邊緣自動跨欄未做（§6.1 允許）；斷線停止拖曳等階段 C 的 Socket |
+| B-2 | 前端拖曳（把手、手機長按、失敗重新載入） | ✅ 2026-11-06：`services/board.ts` `moveCardApi`；`ProjectView` 每欄卡片改為 `VueDraggable`（`group: 'board-cards'`、`handle: '.board__card-handle'`、`delay: 220`、`delayOnTouchOnly`、VIEWER `disabled`；`prefers-reduced-motion` 時 animation 0），卡片右上角 44×44 把手（accessible name「拖曳卡片「標題」」，VIEWER 不顯示）；放開時套件已更新 `column.cards`，`end` 以上一張卡片為 `afterCardId`（最上面為 null）呼叫 API，位置沒變不呼叫；成功時以回應取代卡片、`boardRevision` 取較大值，任何失敗都提示並 `reloadBoard`（7003 提示「看板已被其他人變更」）。原位置虛線 placeholder、滑過的欄位綠底外框、空欄位可放入。卡片詳情加「移動至…」選單（移到該欄最下面，目前欄位停用，VIEWER 不顯示），與拖曳共用存檔流程。純函式放在 `views/projectView/cardMove.ts`。前端 14 個新測試（`cardMove` 9、「移動至…」4、service 1）。順手修正：`DialogContent`／`AlertDialogContent` 經 portal 渲染，scoped 的 `.card-dialog`、`.card-dialog--detail`、`.card-dialog__confirm` 從未生效（對話框沒有 `max-h`，矮視窗時按鈕在畫面外），改為 `:global(...)`。以 Chrome 驗證：跨欄放最上面、拖進空欄、同欄換順序、「移動至…」，畫面與 DB position 一致；背景封存 after 卡片後拖曳 → 409 提示並重新載入；VIEWER 無把手；651px 高視窗三個對話框都在畫面內。**未完成**：手機長按未在實機測試；拖到看板左右邊緣自動跨欄未做（§6.1 允許）；斷線處理見 C-3 |
+| C-1 | project room：contracts `project:into`／`project:leave`；後端依 Workspace 做法（`targetProjectId`）；前端 `socket.ts` emit 與重連補送、`ProjectView` 加入與離開 | ✅ 2026-11-06：contracts `ProjectRoomPayload`；後端 `SocketRepository.findProjectMembership`（`projectMember.findUnique` 複合鍵，只 select 封存欄位；放在 Socket 模組內，因為 `ProjectModule` 已依賴 `SocketModule`，反向 inject 會循環依賴）、`targetProjectId`、`LOG_EVENTS.socketProjectJoinRejected`；前端 `emitProjectInto`／`emitProjectLeave`、`currentProjectId` 重連補送、`disconnect()` 清除；`ProjectView` 以 watch `projectId` 加入與切換（另存 `joinedProjectId`，卸載時 route 可能已變更）、`onReconnected` 重新載入看板。後端 socket spec 17 tests（project 10 個）、前端 socket spec 14 tests（project 4 個）；`nest build` 啟動確認 DI。Chrome：進入看板送出 `project:into`、斷線重連補送並重新 GET 看板一次、返回 Workspace 送出 `project:leave` |
+| C-2 | 廣播事件：contracts 6 種事件 payload；`SocketService.emitToProject`；`BoardService` 6 個修改方法於 transaction 後廣播 | 待實作（使用者，測試 Claude） |
+| C-3 | 前端套用：事件佇列（載入、拖曳）、漏號重新載入、6 種事件套用、詳情對話框三種情況、斷線提示 | 待實作（Claude） |
