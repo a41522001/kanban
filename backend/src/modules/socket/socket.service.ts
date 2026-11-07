@@ -16,7 +16,6 @@ import { SessionService } from '@/modules/session/session.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import type { PublicNotification } from '@kanban/contracts/notification';
-import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
 import { SocketRepository } from './socket.repository';
 interface SocketData {
@@ -38,7 +37,6 @@ export class SocketService implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionService: SessionService,
-    private readonly workspacesService: WorkspacesService,
     private readonly socketRepository: SocketRepository,
   ) {}
 
@@ -243,11 +241,11 @@ export class SocketService implements OnModuleDestroy {
     >,
     workspaceId: string,
   ): Promise<void> => {
-    const member = await this.workspacesService.findMembership(
+    const member = await this.socketRepository.findWorkspaceMembership(
       socket.data.userId,
       workspaceId,
     );
-    if (!member || member.workspaceArchivedAt !== null) {
+    if (!member || member.workspace.archivedAt !== null) {
       throw new AppException({
         status: HttpStatus.FORBIDDEN,
         code: ApiCode.RequestError,

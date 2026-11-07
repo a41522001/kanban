@@ -3,7 +3,6 @@ import type { ConfigService } from '@nestjs/config';
 import type { Server as HttpServer } from 'node:http';
 import type { AppConfig } from '@/config';
 import type { SessionService } from '@/modules/session/session.service';
-import type { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { SocketService } from './socket.service';
 import type { SocketRepository } from './socket.repository';
 
@@ -27,7 +26,9 @@ jest.mock('socket.io', () => ({
   })),
 }));
 
-type Membership = Awaited<ReturnType<WorkspacesService['findMembership']>>;
+type Membership = Awaited<
+  ReturnType<SocketRepository['findWorkspaceMembership']>
+>;
 
 /** A promise the test resolves by hand, to control when each DB check finishes. */
 const createDeferred = () => {
@@ -38,7 +39,7 @@ const createDeferred = () => {
   return { promise, resolve };
 };
 
-const activeMember = { workspaceArchivedAt: null } as Membership;
+const activeMember: Membership = { workspace: { archivedAt: null } };
 
 type ProjectMembership = Awaited<
   ReturnType<SocketRepository['findProjectMembership']>
@@ -90,7 +91,7 @@ const projectRooms = (socket: ReturnType<typeof createFakeSocket>) =>
 
 describe('SocketService', () => {
   let deferreds: Map<string, ReturnType<typeof createDeferred>>;
-  let findMembership: jest.Mock;
+  let findWorkspaceMembership: jest.Mock;
   let projectDeferreds: Map<string, ReturnType<typeof createProjectDeferred>>;
   let findProjectMembership: jest.Mock;
   let authenticateSocketSession: jest.Mock;
@@ -120,11 +121,13 @@ describe('SocketService', () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
     deferreds = new Map();
-    findMembership = jest.fn((_userId: string, workspaceId: string) => {
-      const deferred = createDeferred();
-      deferreds.set(workspaceId, deferred);
-      return deferred.promise;
-    });
+    findWorkspaceMembership = jest.fn(
+      (_userId: string, workspaceId: string) => {
+        const deferred = createDeferred();
+        deferreds.set(workspaceId, deferred);
+        return deferred.promise;
+      },
+    );
     projectDeferreds = new Map();
     findProjectMembership = jest.fn((_userId: string, projectId: string) => {
       const deferred = createProjectDeferred();
@@ -141,8 +144,10 @@ describe('SocketService', () => {
         true
       >,
       { authenticateSocketSession } as unknown as SessionService,
-      { findMembership } as unknown as WorkspacesService,
-      { findProjectMembership } as unknown as SocketRepository,
+      {
+        findWorkspaceMembership,
+        findProjectMembership,
+      } as unknown as SocketRepository,
     );
     service.initialize({} as HttpServer);
 
@@ -187,7 +192,7 @@ describe('SocketService', () => {
 
     await finishCheck('A');
 
-    expect(findMembership).toHaveBeenCalledWith('user-1', 'A');
+    expect(findWorkspaceMembership).toHaveBeenCalledWith('user-1', 'A');
     expect(workspaceRooms(socket)).toEqual(['workspace:A']);
   });
 
@@ -195,6 +200,14 @@ describe('SocketService', () => {
     socket.handlers['workspace:into']({ workspaceId: 'A' });
 
     await finishCheck('A', null);
+
+    expect(workspaceRooms(socket)).toEqual([]);
+  });
+
+  it('Workspace 已封存時不加入 room', async () => {
+    socket.handlers['workspace:into']({ workspaceId: 'A' });
+
+    await finishCheck('A', { workspace: { archivedAt: new Date() } });
 
     expect(workspaceRooms(socket)).toEqual([]);
   });

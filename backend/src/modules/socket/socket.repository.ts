@@ -22,4 +22,21 @@ export class SocketRepository {
       },
     });
   }
+
+  /**
+   * 查詢使用者在工作區中的成員資格與封存狀態，供加入 workspace room 前檢查。
+   * 條件須與 WorkspacesRepository.findMembership 一致（有效成員、Workspace 未封存）。
+   */
+  findWorkspaceMembership(userId: string, workspaceId: string) {
+    return this.prismaService.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: {
+        workspace: {
+          select: {
+            archivedAt: true,
+          },
+        },
+      },
+    });
+  }
 }
