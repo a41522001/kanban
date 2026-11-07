@@ -6,11 +6,18 @@ import { ProjectModule } from '@/modules/project/project.module';
 import { SessionModule } from '@/modules/session/session.module';
 import { BoardRepository } from './board.repository';
 import { RedisModule } from '@/infrastructure/redis/redis.module';
+import { SocketModule } from '@/modules/socket/socket.module';
 
 @Module({
   controllers: [BoardController],
   providers: [BoardService, BoardRepository],
-  imports: [PrismaModule, ProjectModule, SessionModule, RedisModule],
+  imports: [
+    PrismaModule,
+    ProjectModule,
+    SessionModule,
+    RedisModule,
+    SocketModule,
+  ],
   exports: [BoardService],
 })
 export class BoardModule {}

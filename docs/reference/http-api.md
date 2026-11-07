@@ -216,7 +216,7 @@ Project list 的存取錯誤如下：
 | Method / path | Request | 現況 response | 完成程度 |
 | --- | --- | --- | --- |
 | GET `/board/:projectId` | UUID path param | 200 / `BoardSnapshot` | 只允許未封存 Project／Workspace 的 ProjectMember（含 VIEWER），否則 404 / ResourceNotFound (3001) |
-| POST `/board/addColumn` | `{ projectId, title, colorKey }` | 201 / `{ column, boardRevision: string }` | 已檢查有效 Project OWNER／EDITOR，transaction 新增 Column 並遞增 revision |
+| POST `/board/addColumn` | `{ projectId, title, colorKey }` | 201 / `AddColumnResult`：`{ column: BoardColumnSnapshot（cards 為空陣列）, boardRevision: string }`（2026-11-07 起不再回傳 version、archivedAt 等內部欄位） | 已檢查有效 Project OWNER／EDITOR，transaction 新增 Column 並遞增 revision |
 | POST `/board/addCard` | `{ columnId, title, description? }`；title trim 後 1–200 字，description 最多 5000 字 | 201 / `CardMutationResult`：`{ card, boardRevision }` | 只允許欄位所屬 Project 的 OWNER／EDITOR，且欄位、Project、Workspace 皆未封存；否則（含 VIEWER）404 / ResourceNotFound (3001)。卡片放在欄位最下面，`boardRevision` +1，只有空白的描述存成 null |
 | PATCH `/board/updateCard` | `{ cardId, title?, description?, expectedVersion }`；title、description 至少送一個 | 200 / `CardMutationResult` | 權限同 addCard（含 VIEWER 回 404）。description 不送＝不改、空字串或只有空白＝清空（null）。版本不符 409 / CardVersionConflict (7001)；都沒送 400 / ValidationError (1000)。成功時卡片 `version` 與 `boardRevision` 各 +1 |
 | PATCH `/board/archiveCard` | `{ cardId, expectedVersion }` | 200 / `ArchiveCardResult`：`{ cardId, columnId, boardRevision }` | 權限同 addCard（含 VIEWER 回 404），已封存的卡片也回 404。版本不符 409 / CardVersionConflict (7001)。只能封存，不能刪除，目前沒有還原 |

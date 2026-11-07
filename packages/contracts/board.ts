@@ -60,6 +60,12 @@ export interface AddBoardColumnRequest {
   colorKey: BoardColumnColorKey;
 }
 
+/** 新增欄位的回傳：新欄位（cards 為空陣列）與新的 boardRevision。 */
+export interface AddColumnResult {
+  column: BoardColumnSnapshot;
+  boardRevision: string;
+}
+
 export interface MoveBoardColumnRequest {
   projectId: string;
   columnId: string;

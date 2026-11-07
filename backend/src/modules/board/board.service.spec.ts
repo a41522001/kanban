@@ -4,6 +4,7 @@ import { ApiCode } from '@kanban/contracts/api';
 import { AppException } from '@/common/exceptions/app.exception';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { ProjectService } from '@/modules/project/project.service';
+import { SocketService } from '@/modules/socket/socket.service';
 import { BoardRepository } from './board.repository';
 import { BoardService } from './board.service';
 import type { AddCardDto } from './dto/addCard.dto';
@@ -99,6 +100,10 @@ describe('BoardService', () => {
     BoardRepository['renumberColumnCards']
   >;
   let transaction: jest.Mock;
+  let emitToProject: jest.Mock;
+  let findMembership: jest.Mock;
+  let getBoardMaxPosition: jest.Mock;
+  let createBoardColumnRecord: jest.Mock;
   // Stand-in for the Prisma transaction client passed to the callback.
   const tx = { isTransaction: true };
 
@@ -134,6 +139,24 @@ describe('BoardService', () => {
     findNextCardPosition = jest.fn().mockResolvedValue(null);
     moveCardRecord = jest.fn().mockResolvedValue(1);
     renumberColumnCards = jest.fn().mockResolvedValue(undefined);
+    emitToProject = jest.fn();
+    findMembership = jest.fn().mockResolvedValue({
+      role: 'EDITOR',
+      projectArchivedAt: null,
+      workspaceArchivedAt: null,
+    });
+    getBoardMaxPosition = jest.fn().mockResolvedValue(2048);
+    createBoardColumnRecord = jest.fn().mockResolvedValue({
+      id: 'column-9',
+      projectId,
+      title: '待辦',
+      colorKey: 'coral',
+      position: 3072,
+      version: 1,
+      archivedAt: null,
+      createdAt: new Date('2026-11-07T00:00:00.000Z'),
+      updatedAt: new Date('2026-11-07T00:00:00.000Z'),
+    });
     transaction = jest.fn((callback: (client: unknown) => unknown) =>
       callback(tx),
     );
@@ -163,10 +186,13 @@ describe('BoardService', () => {
             findNextCardPosition,
             moveCard: moveCardRecord,
             renumberColumnCards,
+            getBoardMaxPosition,
+            createBoardColumn: createBoardColumnRecord,
           },
         },
-        { provide: ProjectService, useValue: {} },
+        { provide: ProjectService, useValue: { findMembership } },
         { provide: PrismaService, useValue: { $transaction: transaction } },
+        { provide: SocketService, useValue: { emitToProject } },
       ],
     }).compile();
 
@@ -498,6 +524,22 @@ describe('BoardService', () => {
       });
     });
 
+    it('commit 後廣播 board:cardArchived（帶 projectId），HTTP 回應不含 projectId', async () => {
+      const result = await service.archiveCard(dto, userId);
+
+      expect(emitToProject).toHaveBeenCalledTimes(1);
+      expect(emitToProject).toHaveBeenCalledWith('board:cardArchived', {
+        projectId,
+        cardId: 'card-1',
+        columnId: 'column-1',
+        boardRevision: '13',
+      });
+      expect(result).not.toHaveProperty('projectId');
+      expect(transaction.mock.invocationCallOrder[0]).toBeLessThan(
+        emitToProject.mock.invocationCallOrder[0],
+      );
+    });
+
     it('先遞增 revision（鎖住 Project）再封存卡片', async () => {
       await service.archiveCard(dto, userId);
 
@@ -517,6 +559,7 @@ describe('BoardService', () => {
       const exception = error as AppException;
       expect(exception.getStatus()).toBe(HttpStatus.CONFLICT);
       expect(exception.code).toBe(ApiCode.CardVersionConflict);
+      expect(emitToProject).not.toHaveBeenCalled();
     });
 
     it('沒有編輯權限時丟 404，且不開 transaction', async () => {
@@ -986,6 +1029,155 @@ describe('BoardService', () => {
         expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
         expect(findCardSnapshot).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('廣播（C-2，Board 規格 §7.2）', () => {
+    /** emit 必須在 transaction 回傳（commit）之後。 */
+    const expectEmittedAfterCommit = () => {
+      expect(transaction.mock.invocationCallOrder[0]).toBeLessThan(
+        emitToProject.mock.invocationCallOrder[0],
+      );
+    };
+
+    it('createBoardColumn：回傳 AddColumnResult（只有 4 個欄位與空 cards），並廣播 board:columnCreated', async () => {
+      const result = await service.createBoardColumn(
+        { projectId, title: '待辦', colorKey: 'coral' },
+        userId,
+      );
+
+      expect(result).toEqual({
+        column: {
+          id: 'column-9',
+          title: '待辦',
+          colorKey: 'coral',
+          position: 3072,
+          cards: [],
+        },
+        boardRevision: '13',
+      });
+      expect(emitToProject).toHaveBeenCalledTimes(1);
+      expect(emitToProject).toHaveBeenCalledWith('board:columnCreated', {
+        ...result,
+        projectId,
+      });
+      expectEmittedAfterCommit();
+    });
+
+    it('createCard：廣播 board:cardCreated', async () => {
+      const result = await service.createCard(
+        { columnId: 'column-1', title: '建立看板 API' },
+        userId,
+      );
+
+      expect(emitToProject).toHaveBeenCalledTimes(1);
+      expect(emitToProject).toHaveBeenCalledWith('board:cardCreated', {
+        ...result,
+        projectId,
+      });
+      expect(result).not.toHaveProperty('projectId');
+      expectEmittedAfterCommit();
+    });
+
+    it('updateCard：廣播 board:cardUpdated', async () => {
+      const result = await service.updateCard(
+        { cardId: 'card-1', title: '新標題', expectedVersion: 3 },
+        userId,
+      );
+
+      expect(emitToProject).toHaveBeenCalledTimes(1);
+      expect(emitToProject).toHaveBeenCalledWith('board:cardUpdated', {
+        ...result,
+        projectId,
+      });
+      expectEmittedAfterCommit();
+    });
+
+    it('updateCard 版本衝突（409）時不廣播', async () => {
+      updateCardContent.mockResolvedValue(0);
+
+      await service
+        .updateCard(
+          { cardId: 'card-1', title: '新標題', expectedVersion: 3 },
+          userId,
+        )
+        .catch(() => undefined);
+
+      expect(emitToProject).not.toHaveBeenCalled();
+    });
+
+    it('moveCard：廣播 board:cardMoved', async () => {
+      findEditableColumn.mockResolvedValue({ id: 'column-2', projectId });
+
+      const result = await service.moveCard(
+        { cardId: 'card-1', toColumnId: 'column-2', afterCardId: null },
+        userId,
+      );
+
+      expect(emitToProject).toHaveBeenCalledTimes(1);
+      expect(emitToProject).toHaveBeenCalledWith('board:cardMoved', {
+        ...result,
+        projectId,
+      });
+      expectEmittedAfterCommit();
+    });
+
+    it('moveCard 衝突（409）時不廣播', async () => {
+      findEditableColumn.mockResolvedValue({ id: 'column-2', projectId });
+      findCardPositionInColumn.mockResolvedValue(null);
+
+      await service
+        .moveCard(
+          { cardId: 'card-1', toColumnId: 'column-2', afterCardId: 'card-2' },
+          userId,
+        )
+        .catch(() => undefined);
+
+      expect(emitToProject).not.toHaveBeenCalled();
+    });
+
+    it('addCategory 建立新類別：廣播 board:categoryCreated，回應與事件都不含 created', async () => {
+      const result = await service.addCategory(
+        { projectId, name: 'Backend', colorKey: 'mint' },
+        userId,
+      );
+
+      expect(result).toEqual({
+        category: { id: 'category-1', name: 'Backend', colorKey: 'mint' },
+        boardRevision: '13',
+      });
+      expect(emitToProject).toHaveBeenCalledTimes(1);
+      expect(emitToProject).toHaveBeenCalledWith('board:categoryCreated', {
+        ...result,
+        projectId,
+      });
+      expectEmittedAfterCommit();
+    });
+
+    it('addCategory 沿用既有類別（revision 不變）時不廣播，回應不含 created', async () => {
+      findCategoryByNormalizedName.mockResolvedValue({
+        id: 'category-9',
+        name: 'backend',
+        colorKey: 'teal',
+      });
+
+      const result = await service.addCategory(
+        { projectId, name: 'Backend', colorKey: 'mint' },
+        userId,
+      );
+
+      expect(result).not.toHaveProperty('created');
+      expect(emitToProject).not.toHaveBeenCalled();
+    });
+
+    it('addCategory 達上限（409）時不廣播', async () => {
+      countCategories.mockResolvedValue(50);
+
+      await service
+        .addCategory({ projectId, name: 'Backend', colorKey: 'mint' }, userId)
+        .catch(() => undefined);
+
+      expect(emitToProject).not.toHaveBeenCalled();
     });
   });
 });
