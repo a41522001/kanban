@@ -119,7 +119,7 @@ Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace 
 
 **尚未處理**
 
-- 修復步驟 3（握手驗證與加入 room 之間的競態）、步驟 4（真實 Socket.IO client 驗證）。
+- 修復步驟 3（握手驗證與加入 room 之間的競態）。步驟 4 已由 `test/socket.e2e.spec.ts` 以真實 client 驗證（2026-11-09）。
 - 若登出請求帶的是 Grace Session A（輪轉後 20 秒內，並行請求仍帶舊 Cookie）：A 沒有指向 B 的欄位，只會刪除 A，B 會保留到自然過期；Socket 仍會因相同 `familyId` 被斷開，回應也會清除 Cookie。
 - 已建立的 Socket 不會因 Session 自然過期而斷開（見本節開頭）。
 
@@ -172,7 +172,7 @@ Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace 
 - Project member 可加入該 Project 的 `project:{projectId}` room。
 - 非 Project member 無法加入 room。
 - Workspace member 可加入未封存 Workspace room；非成員或已封存 Workspace 不可加入。
-- 查詢成員資格期間 leave 或切換到其他 Workspace，查詢完成後不加入舊的 room（單元測試已涵蓋；尚無真實 client 測試）。
+- 查詢成員資格期間 leave 或切換到其他 Workspace，查詢完成後不加入舊的 room（單元測試涵蓋兩種完成順序；E2E 以真實 client 驗證最終只在 B，但無法保證每次都觸發競速）。
 - Viewer 無法修改卡片。
 - 已被移除的成員，即使仍在 room，也無法執行下一個 mutation。
 
@@ -196,10 +196,10 @@ Socket middleware 使用 `authenticateSocketSession()` 查詢 Current 或 Grace 
 - [x] 建立 Socket authentication middleware。
 - [x] socket.data 有明確型別。
 - [x] Socket handshake 使用不輪轉的 Session 驗證，避免產生無法回寫的 Cookie。
-- [x] HTTP 輪轉後登出可斷開同一登入家族的舊 Socket，並同步撤銷 Previous Grace Session（7.2，2026-11-06；真實 client 驗證待補）。
+- [x] HTTP 輪轉後登出可斷開同一登入家族的舊 Socket，並同步撤銷 Previous Grace Session（7.2，2026-11-06；2026-11-09 真實 client E2E 驗證）。
 - [x] 定義目前 client/server event map（echo、notification、Workspace room into／leave／memberChanged）；mutation ack 型別仍待 Board command 階段補上。
 - [x] Workspace room subscribe 前驗證 membership 與 archivedAt，接受邀請 commit 後 broadcast `workspace:memberChanged`。
 - [ ] join room 與每個 mutation 都有 authorization。
 - [ ] 統一 Socket error code 與前端 `connect_error` 處理。
 - [ ] 建立 reconnect recovery 流程。
-- [ ] connection、permission、event、reconnect 測試通過；目前尚缺真實 Socket.IO clients integration tests。
+- [ ] connection、permission、event、reconnect 測試通過。2026-11-09 `test/socket.e2e.spec.ts`（14 tests，真實 `socket.io-client`）涵蓋：handshake（無／無效 Cookie 拒絕、user／family room、room 名稱不含原始 Session ID）、project／workspace room 權限、快速切換、看板事件廣播（含發送者、跨專案隔離、leave 後不收、409 不廣播）、7.2 輪轉後登出。尚缺：reconnect（目前由前端 unit test 與 Chrome 手動驗證）、Origin、多 instance。
