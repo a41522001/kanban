@@ -75,7 +75,7 @@ type SocketAck<T> =
 - Project Board room 命名統一為 `project:{projectId}`；Project 是 Board aggregate root，沒有 Board ID。
 - 加入 project room 前，以 `projectId` 確認使用者是該 Project 的有效成員（含 VIEWER），Project 與 Workspace 皆未封存。
 - 不能只依賴已加入 room 來授權修改。依 [Board 規格](../features/board.md) §7.2（2026-11-06 確認），Board 的修改走 HTTP，由 HTTP 端點逐次檢查權限，Socket 只負責廣播；若日後改用 Socket 指令，每一個指令都必須再次確認資源權限。
-- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Project room；disconnect 時由 Socket.IO 自動清除連線 room。project room 尚未實作，將於 Board 階段 C 完成。
+- 離開 `/projects/:projectId` 的 `ProjectView` 時主動 leave 目前 Project room；disconnect 時由 Socket.IO 自動清除連線 room。project room 已於 Board 階段 C 實作（2026-11-06）。
 - 成功寫入 DB 並 commit 後，才向 room broadcast domain event。
 
 ## 6. 重連與資料恢復
@@ -95,7 +95,7 @@ Socket.IO 自動重連只代表傳輸層恢復，不代表 client 狀態一定�
 - `services/socket.ts` 記住目前的 `currentWorkspaceId`，每次 `connect` 事件（含自動重連）補送 `workspace:into`。
 - `onReconnected`／`offReconnected`：只在第二次以後的 `connect` 呼叫，供頁面重新載入錯過的資料；WorkspaceView 用它重新載入成員清單。
 - `disconnect()`（登出、Session 過期）清除 `currentWorkspaceId` 並重設「是否連過」，下一個帳號的第一次連線不會被當成重連。
-- `project:{projectId}` room 尚未實作，Board 階段 C 沿用同一套做法。
+- `project:{projectId}` room（2026-11-06，Board C-1）沿用同一套做法：`currentProjectId` 重連補送，`ProjectView` 以 `onReconnected` 背景重新載入看板；看板事件的處理見 [Board 規格](../features/board.md) §7.3。
 
 ## 7. Session 過期與登出
 

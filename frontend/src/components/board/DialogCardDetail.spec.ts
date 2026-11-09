@@ -227,7 +227,7 @@ describe('DialogCardDetail', () => {
     expect(wrapper.emitted('reload')).toHaveLength(1);
   });
 
-  it('重新載入拿到新版本後清除衝突並填入最新內容', async () => {
+  it('409 後按重新載入，拿到新版本時清除衝突並填入最新內容', async () => {
     vi.mocked(updateCardApi).mockRejectedValue(
       apiError(409, ApiCode.CardVersionConflict, 'conflict'),
     );
@@ -236,10 +236,69 @@ describe('DialogCardDetail', () => {
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
+    await findButton(wrapper, '重新載入').trigger('click');
     await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
 
     expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
     expect(titleValue(wrapper)).toBe('別人的修改');
+  });
+
+  describe('對話框開著時收到別人的修改（Board 規格 Q7）', () => {
+    it('還沒修改時直接換成最新內容，不顯示衝突', async () => {
+      const wrapper = mountDialog();
+
+      await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
+
+      expect(titleValue(wrapper)).toBe('別人的修改');
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+    });
+
+    it('已經修改時保留輸入內容、顯示衝突並停用儲存', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('我的修改');
+
+      await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
+
+      expect(titleValue(wrapper)).toBe('我的修改');
+      expect(wrapper.text()).toContain('這張卡片已被其他成員修改');
+      expect(findButton(wrapper, '儲存').attributes('disabled')).toBeDefined();
+    });
+
+    it('衝突時按重新載入，新版本已經在畫面上就直接換成最新內容，不再要求重新載入看板', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('我的修改');
+      await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
+
+      await findButton(wrapper, '重新載入').trigger('click');
+
+      expect(titleValue(wrapper)).toBe('別人的修改');
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+      expect(wrapper.emitted('reload')).toBeUndefined();
+    });
+
+    it('自己儲存的結果比 HTTP 回應先以事件送到時，不視為衝突', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('新標題');
+
+      await wrapper.setProps({ card: { ...card, title: '新標題', version: 4 } });
+
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+      expect(titleValue(wrapper)).toBe('新標題');
+    });
+
+    it('別人移動卡片（version 不變）只更新所在欄位，不動表單', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('我的修改');
+
+      await wrapper.setProps({
+        card: { ...card, columnId: 'column-2', position: 4096 },
+        columnTitle: '等待檢視',
+      });
+
+      expect(titleValue(wrapper)).toBe('我的修改');
+      expect(wrapper.text()).toContain('等待檢視');
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+    });
   });
 
   it('確認封存後以 expectedVersion 封存並 emit archived', async () => {

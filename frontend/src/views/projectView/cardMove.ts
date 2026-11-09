@@ -41,7 +41,3 @@ export const moveCardToColumnEnd = (
   toColumn.cards.push({ ...card, columnId: toColumnId });
   return { column: toColumn, index: toColumn.cards.length - 1 };
 };
-
-/** Keeps the larger revision, so a slower response cannot roll boardRevision back. */
-export const maxRevision = (current: string | null, next: string): string =>
-  current !== null && BigInt(current) > BigInt(next) ? current : next;

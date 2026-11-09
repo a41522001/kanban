@@ -2,11 +2,13 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { BoardRepository } from './board.repository';
 import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import { ProjectService } from '@/modules/project/project.service';
+import { SocketService } from '@/modules/socket/socket.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import type {
   AddCategoryResult,
+  AddColumnResult,
   ArchiveCardResult,
   BoardCardSnapshot,
   BoardColumnColorKey,
@@ -53,13 +55,14 @@ export class BoardService {
     private readonly boardRepository: BoardRepository,
     private readonly projectService: ProjectService,
     private readonly prismaService: PrismaService,
+    private readonly socketService: SocketService,
   ) {}
 
   /** 創建看板欄 */
   async createBoardColumn(
     addBoardColumnDto: AddBoardColumnDto,
     userId: string,
-  ) {
+  ): Promise<AddColumnResult> {
     const membership = await this.projectService.findMembership(
       userId,
       addBoardColumnDto.projectId,
@@ -94,11 +97,22 @@ export class BoardService {
       );
 
       return {
-        column,
+        column: {
+          id: column.id,
+          title: column.title,
+          colorKey: column.colorKey as BoardColumnColorKey,
+          position: column.position,
+          cards: [],
+        },
         boardRevision: boardRevision.toString(),
       };
     });
 
+    const payload = {
+      projectId: addBoardColumnDto.projectId,
+      ...result,
+    };
+    this.socketService.emitToProject('board:columnCreated', payload);
     return result;
   }
 
@@ -122,7 +136,7 @@ export class BoardService {
     if (dto.categoryId) {
       await this.assertCategoryInProject(dto.categoryId, projectId);
     }
-    return await this.prismaService.$transaction(async (tx) => {
+    const result = await this.prismaService.$transaction(async (tx) => {
       const revision = await this.boardRepository.incrementBoardRevision(
         projectId,
         tx,
@@ -147,6 +161,12 @@ export class BoardService {
         card: toCardSnapshot(card),
       };
     });
+    const payload = {
+      projectId,
+      ...result,
+    };
+    this.socketService.emitToProject('board:cardCreated', payload);
+    return result;
   }
 
   /** 封存卡片；版本不符時回 409 */
@@ -167,7 +187,7 @@ export class BoardService {
     }
     const projectId = editableCard.column.projectId;
 
-    return await this.prismaService.$transaction(async (tx) => {
+    const result = await this.prismaService.$transaction(async (tx) => {
       const revision = await this.boardRepository.incrementBoardRevision(
         projectId,
         tx,
@@ -185,6 +205,7 @@ export class BoardService {
           code: ApiCode.CardVersionConflict,
         });
       }
+
       // 卡片已封存，前端只需要 cardId、columnId 把它從畫面上移除。
       return {
         cardId: dto.cardId,
@@ -192,6 +213,13 @@ export class BoardService {
         boardRevision: revision.toString(),
       };
     });
+
+    const payload = {
+      ...result,
+      projectId,
+    };
+    this.socketService.emitToProject('board:cardArchived', payload);
+    return result;
   }
 
   /** 取得看板欄 */
@@ -258,7 +286,7 @@ export class BoardService {
       await this.assertCategoryInProject(dto.categoryId, projectId);
     }
 
-    return await this.prismaService.$transaction(async (tx) => {
+    const result = await this.prismaService.$transaction(async (tx) => {
       const revision = await this.boardRepository.incrementBoardRevision(
         projectId,
         tx,
@@ -288,6 +316,13 @@ export class BoardService {
         card: toCardSnapshot(card),
       };
     });
+
+    const payload = {
+      projectId,
+      ...result,
+    };
+    this.socketService.emitToProject('board:cardUpdated', payload);
+    return result;
   }
 
   /**
@@ -311,54 +346,66 @@ export class BoardService {
 
     const normalizedName = data.name.toLowerCase();
 
-    const result = await this.prismaService.$transaction(async (tx) => {
-      const existing = await this.boardRepository.findCategoryByNormalizedName(
-        data.projectId,
-        normalizedName,
-        tx,
-      );
-      if (existing) {
-        const currentRevision = await this.boardRepository.getBoardRevision(
+    const { created, ...categoryResult } =
+      await this.prismaService.$transaction(async (tx) => {
+        const existing =
+          await this.boardRepository.findCategoryByNormalizedName(
+            data.projectId,
+            normalizedName,
+            tx,
+          );
+        if (existing) {
+          const currentRevision = await this.boardRepository.getBoardRevision(
+            data.projectId,
+            tx,
+          );
+          return {
+            created: false,
+            category: toCategorySnapshot(existing),
+            boardRevision: currentRevision.toString(),
+          };
+        }
+
+        const boardRevision = await this.boardRepository.incrementBoardRevision(
           data.projectId,
           tx,
         );
+        const count = await this.boardRepository.countCategories(
+          data.projectId,
+          tx,
+        );
+        if (count >= 50) {
+          throw new AppException({
+            status: HttpStatus.CONFLICT,
+            message: '這個專案的類別已達 50 個上限',
+            code: ApiCode.CardCategoryLimitExceeded,
+          });
+        }
+
+        const category = await this.boardRepository.createCategory(
+          {
+            projectId: data.projectId,
+            name: data.name,
+            normalizedName,
+            colorKey: data.colorKey,
+          },
+          tx,
+        );
         return {
-          category: toCategorySnapshot(existing),
-          boardRevision: currentRevision.toString(),
+          created: true,
+          category: toCategorySnapshot(category),
+          boardRevision: boardRevision.toString(),
         };
-      }
+      });
 
-      const boardRevision = await this.boardRepository.incrementBoardRevision(
-        data.projectId,
-        tx,
-      );
-      const count = await this.boardRepository.countCategories(
-        data.projectId,
-        tx,
-      );
-      if (count >= 50) {
-        throw new AppException({
-          status: HttpStatus.CONFLICT,
-          message: '這個專案的類別已達 50 個上限',
-          code: ApiCode.CardCategoryLimitExceeded,
-        });
-      }
-
-      const category = await this.boardRepository.createCategory(
-        {
-          projectId: data.projectId,
-          name: data.name,
-          normalizedName,
-          colorKey: data.colorKey,
-        },
-        tx,
-      );
-      return {
-        category: toCategorySnapshot(category),
-        boardRevision: boardRevision.toString(),
+    if (created) {
+      const payload = {
+        projectId: data.projectId,
+        ...categoryResult,
       };
-    });
-    return result;
+      this.socketService.emitToProject('board:categoryCreated', payload);
+    }
+    return categoryResult;
   }
 
   /**
@@ -411,7 +458,7 @@ export class BoardService {
     }
     const projectId = editableCard.column.projectId;
 
-    // Same query as addCard; a column in another project is treated as not found.
+    // 與 addCard 使用同一個查詢；屬於其他專案的欄位視為不存在。
     const targetColumn = await this.boardRepository.findEditableColumn(
       dto.toColumnId,
       userId,
@@ -424,14 +471,14 @@ export class BoardService {
       });
     }
 
-    return await this.prismaService.$transaction(async (tx) => {
-      // Lock the project first: everything below reads positions that other moves could change.
+    const result = await this.prismaService.$transaction(async (tx) => {
+      // 先鎖住專案：後面讀取的 position 都可能被其他人的移動改變。
       const revision = await this.boardRepository.incrementBoardRevision(
         projectId,
         tx,
       );
 
-      // 0 stands for "above the first card"; real positions are always >= 1.
+      // 0 代表「第一張卡片之上」；實際的 position 一定 >= 1。
       let afterPosition = 0;
       if (dto.afterCardId !== null) {
         const position = await this.boardRepository.findCardPositionInColumn(
@@ -463,7 +510,7 @@ export class BoardService {
         position,
         tx,
       );
-      // Archived after the permission check; rollback keeps the revision unchanged.
+      // 卡片在權限檢查之後被封存；rollback 會讓 revision 維持不變。
       if (count === 0) {
         throw new AppException({
           status: HttpStatus.NOT_FOUND,
@@ -478,6 +525,13 @@ export class BoardService {
         card: toCardSnapshot(card),
       };
     });
+
+    const payload = {
+      projectId,
+      ...result,
+    };
+    this.socketService.emitToProject('board:cardMoved', payload);
+    return result;
   }
 
   /**

@@ -9,6 +9,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server, type DefaultEventsMap, type Socket } from 'socket.io';
 import type { AppConfig } from '@/config';
 import type {
+  BoardEventPayloads,
   ServerToClientEvents,
   ClientToServerEvents,
 } from '@kanban/contracts/socket';
@@ -192,6 +193,19 @@ export class SocketService implements OnModuleDestroy {
     this.io
       ?.to(this.getUserRoom(inviteeId))
       .emit('notification:created', notification);
+  }
+
+  /** 推播看板事件給正在看這個專案的人；room 由 payload.projectId 決定 */
+  emitToProject<E extends keyof BoardEventPayloads>(
+    event: E,
+    payload: BoardEventPayloads[E],
+  ): void {
+    if (!this.io) {
+      return;
+    }
+    this.io
+      .to(this.getProjectRoom(payload.projectId))
+      .emit(event, ...([payload] as Parameters<ServerToClientEvents[E]>));
   }
 
   /** 驗證socket */

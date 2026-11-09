@@ -60,6 +60,11 @@
   @apply relative mb-3;
 }
 
+/* Shown while the Socket is disconnected; the board stays usable (Board spec Q11). */
+.board__sync-banner {
+  @apply mx-4 mt-4 flex items-center gap-2 rounded-control border border-flow-review bg-flow-review-soft px-4 py-2 text-sm text-content-primary;
+}
+
 /* min-h keeps an empty column droppable. */
 .board__cards {
   @apply flex min-h-16 flex-col gap-3 rounded-xl transition-colors motion-reduce:transition-none;
