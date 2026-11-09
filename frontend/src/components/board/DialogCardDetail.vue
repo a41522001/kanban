@@ -54,7 +54,7 @@
               type="button"
               variant="outline"
               class="card-dialog__conflict-button"
-              @click="emit('reload')"
+              @click="handleConflictReload"
             >
               重新載入
             </Button>
@@ -289,7 +289,15 @@ const titleError = computed<string | undefined>(() => {
   return undefined;
 });
 
+// The card the form was filled from; edits are compared against it to tell whether the user
+// has changed anything.
+let baseCard: BoardCardSnapshot | null = null;
+// Set by the conflict banner's "重新載入": take the next version even if the form was edited.
+let isReloadRequested = false;
+
 const fillForm = () => {
+  baseCard = props.card;
+  isReloadRequested = false;
   title.value = props.card?.title ?? '';
   description.value = props.card?.description ?? '';
   categoryId.value = props.card?.categoryId ?? null;
@@ -298,14 +306,49 @@ const fillForm = () => {
   hasConflict.value = false;
 };
 
-// Refill whenever the dialog opens or a newer version of the card arrives (e.g. after reload).
+/** Whether the form shows exactly this card's content (same rules as buildChanges). */
+const formMatches = (card: BoardCardSnapshot | null) =>
+  card !== null &&
+  title.value.trim() === card.title &&
+  description.value.trim() === (card.description ?? '') &&
+  categoryId.value === card.categoryId;
+
+// Opening the dialog or switching to another card always fills the form. Separate sources are
+// compared one by one, so a new card object with the same id (a move or an update) does not refill.
 watch(
-  () => [open.value, props.card?.id, props.card?.version] as const,
+  [open, () => props.card?.id],
   ([isOpen]) => {
     if (isOpen) fillForm();
   },
   { immediate: true },
 );
+
+// A newer version arrived while the dialog is open (Board spec §7.3 Q7). Moving a card does not
+// change its version, so a move only updates the "目前位於…" row and never lands here.
+watch(
+  () => props.card?.version,
+  () => {
+    if (!open.value || !props.card) return;
+    // Unedited form, our own save arriving as an event first, or the user asked for the latest.
+    if (isReloadRequested || formMatches(baseCard) || formMatches(props.card)) {
+      fillForm();
+      return;
+    }
+    // Someone else changed the card while the user was editing: keep their input, show the conflict.
+    hasConflict.value = true;
+  },
+);
+
+// Conflict banner: if the newer card is already here, take it; otherwise ask the parent to reload
+// and take whatever version arrives next.
+const handleConflictReload = () => {
+  if (props.card && props.card.version !== baseCard?.version) {
+    fillForm();
+    return;
+  }
+  isReloadRequested = true;
+  emit('reload');
+};
 
 const handleOpenChange = (value: boolean) => {
   if (isBusy.value) return;

@@ -7,13 +7,19 @@
       </div>
     </header>
 
+    <!-- Board spec Q11: saving still works over HTTP; only live updates are paused. -->
+    <p v-if="!isConnected && !isLoading" class="board__sync-banner" role="status">
+      <WifiOff :size="16" aria-hidden="true" />
+      即時同步已中斷，正在重新連線…
+    </p>
+
     <div v-if="isLoading" class="board__columns" aria-busy="true" aria-label="載入看板欄位中">
       <div v-for="index in 4" :key="index" class="board__column board__column--skeleton" />
     </div>
 
     <div v-else-if="loadError" class="board__state" role="alert">
       <p>無法載入看板欄位。</p>
-      <Button variant="outline" @click="loadBoard">重新載入</Button>
+      <Button variant="outline" @click="reloadBoard">重新載入</Button>
     </div>
 
     <div v-else-if="boardColumns.length === 0" class="board__state" role="status">
@@ -117,7 +123,7 @@
       :categories="categories"
       @category-created="handleCategoryCreated"
       @created="handleCardCreated"
-      @stale="loadBoard"
+      @stale="reloadBoard"
     />
     <DialogCardDetail
       v-model:open="isCardOpen"
@@ -131,8 +137,8 @@
       @move="handleMoveFromDialog"
       @updated="handleCardUpdated"
       @archived="handleCardArchived"
-      @reload="loadBoard"
-      @stale="loadBoard"
+      @reload="reloadBoard"
+      @stale="reloadBoard"
     />
   </main>
 </template>
@@ -161,27 +167,26 @@ import { ApiCode } from '@kanban/contracts/api';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
-import { GripVertical, Plus } from 'lucide-vue-next';
+import { GripVertical, Plus, WifiOff } from 'lucide-vue-next';
 import { VueDraggable, type MoveEvent, type SortableEvent } from 'vue-draggable-plus';
-import {
-  findCardLocation,
-  getAfterCardId,
-  maxRevision,
-  moveCardToColumnEnd,
-} from './cardMove';
+import { findCardLocation, getAfterCardId, moveCardToColumnEnd } from './cardMove';
+import { applyBoardChange, createBoardSync, type BoardChange } from './boardSync';
 import {
   emitProjectInto,
   emitProjectLeave,
+  isConnected,
+  offBoardEvents,
   offReconnected,
+  onBoardEvents,
   onReconnected,
+  type BoardEventHandlers,
 } from '@/services/socket';
 const isAddCardOpen = ref<boolean>(false);
 const addCardColumn = ref<BoardColumnSnapshot | null>(null);
 const userStore = useUserStore();
 const route = useRoute();
 const boardColumns = ref<BoardColumnSnapshot[]>([]);
-// Kept for later phases: card mutations return the new revision, and phase C
-// compares it with Socket events to detect missed updates.
+// Revision of what is on screen; every change is checked against it (Board spec §7.3).
 const boardRevision = ref<string | null>(null);
 const categories = ref<CardCategorySnapshot[]>([]);
 // Cards only carry categoryId; look the category up once per render instead of scanning the array.
@@ -191,14 +196,11 @@ const categoryById = computed(
 const findCategory = (categoryId: string | null) =>
   categoryId ? (categoryById.value.get(categoryId) ?? null) : null;
 
-// A reused (already existing) category is a no-op; a new one is inserted in name order (Board spec Q15).
-const handleCategoryCreated = ({ category, boardRevision: nextRevision }: AddCategoryResult) => {
-  if (!categoryById.value.has(category.id)) {
-    categories.value = [...categories.value, category].sort((a, b) =>
-      a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1,
-    );
-  }
-  boardRevision.value = nextRevision;
+// A reused category returns the current revision without changing anything, so it must not
+// advance boardRevision; only a category we do not have yet goes through the sync.
+const handleCategoryCreated = (result: AddCategoryResult) => {
+  if (categoryById.value.has(result.category.id)) return;
+  receiveChange({ kind: 'categoryCreated', result });
 };
 const currentUserRole = ref<ProjectRole | null>(null);
 // VIEWER can only read the board; the backend also rejects their mutations with 404.
@@ -214,9 +216,15 @@ const projectId = computed<string>(() => {
   return typeof value === 'string' ? value : '';
 });
 
-const loadBoard = async () => {
+/**
+ * Loads the whole board. Changes received meanwhile wait in the sync queue and are replayed
+ * against the new snapshot (Board spec Q5). `silent` keeps the current board on screen, so a
+ * background reload (missed change, reconnect) does not reset scrolling or close dialogs.
+ */
+const loadBoard = async ({ silent = false }: { silent?: boolean } = {}) => {
   const requestId = ++loadSequence;
   const currentProjectId = projectId.value;
+  sync.pause('loading');
 
   if (!currentProjectId) {
     boardColumns.value = [];
@@ -224,10 +232,12 @@ const loadBoard = async () => {
     currentUserRole.value = null;
     categories.value = [];
     isLoading.value = false;
+    sync.clear();
+    sync.resume('loading');
     return;
   }
 
-  isLoading.value = true;
+  if (!silent || boardRevision.value === null) isLoading.value = true;
   loadError.value = false;
   try {
     const response = await getBoardSnapshotApi(currentProjectId);
@@ -241,12 +251,56 @@ const loadBoard = async () => {
   } catch {
     if (requestId === loadSequence) {
       loadError.value = true;
+      // Replaying against a board that failed to load would only trigger more reloads.
+      sync.clear();
     }
   } finally {
+    // Only the latest request resumes; an older one was superseded and still counts as loading.
     if (requestId === loadSequence) {
       isLoading.value = false;
+      sync.resume('loading');
     }
   }
+};
+
+const reloadBoard = () => {
+  void loadBoard();
+};
+
+const sync = createBoardSync({
+  getProjectId: () => projectId.value,
+  getRevision: () => boardRevision.value,
+  setRevision: (revision) => {
+    boardRevision.value = revision;
+  },
+  apply: (change) =>
+    applyBoardChange({ columns: boardColumns.value, categories: categories.value }, change),
+  reload: () => {
+    void loadBoard({ silent: true });
+  },
+});
+
+/**
+ * Our own HTTP results go through the same path as Socket events: whichever arrives first is
+ * applied and the other is dropped as stale (Board spec Q4).
+ */
+const receiveChange = (change: BoardChange) => {
+  sync.receive(projectId.value, change);
+};
+
+const boardEventHandlers: BoardEventHandlers = {
+  'board:columnCreated': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'columnCreated', result }),
+  'board:cardCreated': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'cardCreated', result }),
+  'board:cardUpdated': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'cardUpdated', result }),
+  'board:cardMoved': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'cardMoved', result }),
+  'board:cardArchived': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'cardArchived', result }),
+  'board:categoryCreated': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'categoryCreated', result }),
 };
 
 const openAddCard = (column: BoardColumnSnapshot) => {
@@ -255,14 +309,8 @@ const openAddCard = (column: BoardColumnSnapshot) => {
 };
 
 // Q14: apply the returned card directly instead of re-fetching the whole board.
-const handleCardCreated = ({ card, boardRevision: nextRevision }: CardMutationResult) => {
-  const column = boardColumns.value.find((item) => item.id === card.columnId);
-  if (!column) {
-    void loadBoard();
-    return;
-  }
-  column.cards.push(card);
-  boardRevision.value = nextRevision;
+const handleCardCreated = (result: CardMutationResult) => {
+  receiveChange({ kind: 'cardCreated', result });
 };
 
 const isCardOpen = ref<boolean>(false);
@@ -281,21 +329,12 @@ const openCard = (card: BoardCardSnapshot) => {
   isCardOpen.value = true;
 };
 
-const handleCardUpdated = ({ card, boardRevision: nextRevision }: CardMutationResult) => {
-  const column = boardColumns.value.find((item) => item.id === card.columnId);
-  const index = column?.cards.findIndex((item) => item.id === card.id) ?? -1;
-  if (!column || index === -1) {
-    void loadBoard();
-    return;
-  }
-  column.cards[index] = card;
-  boardRevision.value = nextRevision;
+const handleCardUpdated = (result: CardMutationResult) => {
+  receiveChange({ kind: 'cardUpdated', result });
 };
 
-const handleCardArchived = ({ cardId, columnId, boardRevision: nextRevision }: ArchiveCardResult) => {
-  const column = boardColumns.value.find((item) => item.id === columnId);
-  if (column) column.cards = column.cards.filter((item) => item.id !== cardId);
-  boardRevision.value = nextRevision;
+const handleCardArchived = (result: ArchiveCardResult) => {
+  receiveChange({ kind: 'cardArchived', result });
 };
 
 // ---- Moving cards (Board spec B-2, §6) ----
@@ -316,11 +355,8 @@ const saveCardMove = async (cardId: string) => {
       afterCardId: getAfterCardId(column, index),
     });
     if (!response.data) return;
-    const { card: movedCard, boardRevision: nextRevision } = response.data;
-    // Replace the card where it is now; a later move may already have changed its place.
-    const current = findCardLocation(boardColumns.value, cardId);
-    if (current) current.column.cards[current.index] = movedCard;
-    boardRevision.value = maxRevision(boardRevision.value, nextRevision);
+    // The card is already in place locally; the result fixes its position and revision.
+    receiveChange({ kind: 'cardMoved', result: response.data });
   } catch (error) {
     const apiError = getApiErrorResponse(error);
     toast.error(
@@ -328,7 +364,7 @@ const saveCardMove = async (cardId: string) => {
         ? '看板已被其他人變更，已重新載入。'
         : '移動卡片失敗，已重新載入看板。',
     );
-    void loadBoard();
+    void loadBoard({ silent: true });
   }
 };
 
@@ -341,6 +377,8 @@ const dragOverColumnId = ref<string | null>(null);
 
 const handleCardDragStart = (event: SortableEvent) => {
   draggingCardId.value = event.item.dataset.cardId ?? null;
+  // Changing column.cards mid-drag would confuse the drag library (Board spec Q6).
+  sync.pause('dragging');
 };
 
 const handleCardDragMove = (event: MoveEvent) => {
@@ -352,9 +390,12 @@ const handleCardDragEnd = (event: SortableEvent) => {
   const cardId = draggingCardId.value;
   draggingCardId.value = null;
   dragOverColumnId.value = null;
-  if (!cardId) return;
-  if (event.from === event.to && event.oldIndex === event.newIndex) return;
-  void saveCardMove(cardId);
+  if (!cardId || (event.from === event.to && event.oldIndex === event.newIndex)) {
+    sync.resume('dragging');
+    return;
+  }
+  // Queued changes are replayed only after our own move has been saved (or reloaded).
+  void saveCardMove(cardId).finally(() => sync.resume('dragging'));
 };
 
 const handleMoveFromDialog = (toColumnId: string) => {
@@ -374,11 +415,12 @@ watch(selectedCard, (value) => {
 
 // Board events sent while disconnected are lost, so reload after reconnecting (Board spec §7.4).
 const handleReconnected = () => {
-  void loadBoard();
+  void loadBoard({ silent: true });
 };
 
 onMounted(() => {
   onReconnected(handleReconnected);
+  onBoardEvents(boardEventHandlers);
   void loadBoard();
 });
 
@@ -403,6 +445,7 @@ watch(
 
 onUnmounted(() => {
   offReconnected(handleReconnected);
+  offBoardEvents(boardEventHandlers);
   if (joinedProjectId) emitProjectLeave(joinedProjectId);
   joinedProjectId = null;
 });

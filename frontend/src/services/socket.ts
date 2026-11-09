@@ -1,4 +1,5 @@
 import type {
+  BoardEventPayloads,
   ServerToClientEvents,
   ClientToServerEvents,
   ProjectRoomPayload,
@@ -149,4 +150,31 @@ export const offWorkspaceMemberChanged = (
   socket.off('workspace:memberChanged', handler);
 };
 
+// #endregion
+
+// #region board
+/** One handler per board event (Board spec §7.2). */
+export type BoardEventHandlers = {
+  [E in keyof BoardEventPayloads]: (payload: BoardEventPayloads[E]) => void;
+};
+
+/** 監聽看板事件 */
+export const onBoardEvents = (handlers: BoardEventHandlers) => {
+  socket.on('board:columnCreated', handlers['board:columnCreated']);
+  socket.on('board:cardCreated', handlers['board:cardCreated']);
+  socket.on('board:cardUpdated', handlers['board:cardUpdated']);
+  socket.on('board:cardMoved', handlers['board:cardMoved']);
+  socket.on('board:cardArchived', handlers['board:cardArchived']);
+  socket.on('board:categoryCreated', handlers['board:categoryCreated']);
+};
+
+/** 移除監聽看板事件；需傳入註冊時的同一組 handlers */
+export const offBoardEvents = (handlers: BoardEventHandlers) => {
+  socket.off('board:columnCreated', handlers['board:columnCreated']);
+  socket.off('board:cardCreated', handlers['board:cardCreated']);
+  socket.off('board:cardUpdated', handlers['board:cardUpdated']);
+  socket.off('board:cardMoved', handlers['board:cardMoved']);
+  socket.off('board:cardArchived', handlers['board:cardArchived']);
+  socket.off('board:categoryCreated', handlers['board:categoryCreated']);
+};
 // #endregion

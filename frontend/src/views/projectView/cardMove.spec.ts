@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BoardCardSnapshot, BoardColumnSnapshot } from '@kanban/contracts/board';
-import { findCardLocation, getAfterCardId, maxRevision, moveCardToColumnEnd } from './cardMove';
+import { findCardLocation, getAfterCardId, moveCardToColumnEnd } from './cardMove';
 
 const makeCard = (id: string, columnId: string, position: number): BoardCardSnapshot => ({
   id,
@@ -73,17 +73,5 @@ describe('moveCardToColumnEnd', () => {
     expect(moveCardToColumnEnd(board, 'missing', 'column-2')).toBeNull();
     expect(moveCardToColumnEnd(board, 'a', 'missing')).toBeNull();
     expect(board[0]!.cards).toHaveLength(2);
-  });
-});
-
-describe('maxRevision', () => {
-  it('較晚回來、但 revision 較小的回應不會讓 revision 倒退', () => {
-    expect(maxRevision('12', '11')).toBe('12');
-    expect(maxRevision('12', '13')).toBe('13');
-    expect(maxRevision(null, '5')).toBe('5');
-  });
-
-  it('以數值比較，不是字串比較', () => {
-    expect(maxRevision('9', '10')).toBe('10');
   });
 });
