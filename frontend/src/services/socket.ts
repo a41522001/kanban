@@ -166,6 +166,7 @@ export const onBoardEvents = (handlers: BoardEventHandlers) => {
   socket.on('board:cardMoved', handlers['board:cardMoved']);
   socket.on('board:cardArchived', handlers['board:cardArchived']);
   socket.on('board:categoryCreated', handlers['board:categoryCreated']);
+  socket.on('board:columnMoved', handlers['board:columnMoved']);
 };
 
 /** 移除監聽看板事件；需傳入註冊時的同一組 handlers */
@@ -176,5 +177,6 @@ export const offBoardEvents = (handlers: BoardEventHandlers) => {
   socket.off('board:cardMoved', handlers['board:cardMoved']);
   socket.off('board:cardArchived', handlers['board:cardArchived']);
   socket.off('board:categoryCreated', handlers['board:categoryCreated']);
+  socket.off('board:columnMoved', handlers['board:columnMoved']);
 };
 // #endregion

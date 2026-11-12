@@ -110,7 +110,7 @@
 - [x] 受邀者標記單筆或全部已讀後，未讀數正確變化。
 - [ ] 不得讀取或修改其他使用者通知的顯式 E2E，以及 Invitation／Notification 真實 transaction rollback。
 - [ ] Socket.IO：有效 Session handshake 才能連線，邀請 transaction commit 後只向受邀者推送 `notification:created`，且 client 可用 notification id 去重。
-- [ ] Workspace room：只有有效 WorkspaceMember 可加入 `workspace:{workspaceId}`；接受邀請 transaction commit 後推送 `workspace:memberChanged`，目前尚缺真實 Socket.IO client authorization／lifecycle test。
+- [ ] Workspace room：只有有效 WorkspaceMember 可加入 `workspace:{workspaceId}`；接受邀請 transaction commit 後推送 `workspace:memberChanged`。2026-11-09 `socket.e2e.spec.ts` 以真實 client 驗證成員可加入、非成員不能加入；`workspace:memberChanged` 推送本身尚未以真實 client 驗證。
 
 Notification 已開放列表、未讀數、單筆／全部已讀、Workspace invitation detail 與 Project member added detail API；邀請與 Project member added flow 都在同一 transaction 建立通知，commit 後以 Socket.IO `notification:created` 推送摘要。Frontend 已補 Project member added detail service／component tests，驗證 notification id 傳遞、detail 顯示、role 翻譯、retry 與前往 Project event。`markReadInvitation.e2e.spec.ts` 覆蓋受邀者單筆已讀、全部已讀與未讀數變化；`project.e2e.spec.ts` 覆蓋 addMember 後讀取通知與 detail。跨使用者收件匣隔離、真實 rollback、Socket.IO handshake、推播去重與 reconnect resync 的 integration tests 尚未完成。NotificationController 目前仍只有 defined smoke test，NotificationService 也只直接覆蓋 `findByRecipient`，是目前 HTTP domain 中較薄弱的 unit 區域。
 
@@ -195,7 +195,7 @@ REDIS_URL=redis://localhost:6379/1
 
 目前 Backend E2E 使用 `compose.e2e.yml` 啟動隔離的 PostgreSQL 與 Redis，並由 `scripts/runBackend.e2e.mjs` 依序執行 health check、migration、Jest 和 teardown。`E2E_ENV=true` 會讓 Prisma 與 Nest 讀取 `backend/.env.e2e`；本機可由 `.env.e2e.example` 複製，GitHub Actions 也會在測試前建立該檔案。
 
-目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts`、`markReadInvitation.e2e.spec.ts` 與 `project.e2e.spec.ts`。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent 驗證接受／拒絕；已讀 suite 覆蓋單筆與全部已讀。Project suite 使用四個 agent 串起 Workspace 邀請、建立 Project、候選人、addMember、通知 detail 與重複加入 409。2026-09-21 四個 suites／九個 tests 在隔離 PostgreSQL／Redis 通過，13 個 migrations 可從空資料庫套用；runner 最後清除 containers、network 與 volumes。Project suite 尚未直接查詢預設 BoardColumns，四個 `it` 也仍共享前面案例建立的 `projectId`／candidate；pin route 尚未加入此 suite。
+目前 E2E 包含 `auth.e2e.spec.ts`、`workspaceInvitation.e2e.spec.ts`、`markReadInvitation.e2e.spec.ts`、`project.e2e.spec.ts` 與 `socket.e2e.spec.ts`。Socket suite（2026-11-09）以 `app.listen(0)` 後呼叫 `SocketService.initialize()`，用真實 `socket.io-client`（backend devDependency）帶 Session Cookie 連線；使用者走 signup／verify／login，Workspace、Project、欄位與卡片直接以 Prisma 建立；`project:into` 沒有 ack，測試輪詢伺服器的 room 狀態。2026-11-09 五個 suites／27 tests 通過；另以兩個暫時的故意改壞（登出不斷線、project room 不檢查權限）確認對應 3 個測試會失敗。注意：config namespace 遷移後環境變數於啟動時驗證，`.env.e2e` 需包含 `.env.e2e.example` 的所有 key（含 `EMAIL_TRANSPORT`、`MAIL_FROM`、`SMTP_*`），否則 Nest 無法啟動。Auth suite 使用同一個 Supertest agent 驗證 signup → login → `GET /user/userInfo` → logout → `GET /user/userInfo` 401 的 HttpOnly Cookie flow；邀請 suite 使用邀請人／受邀人兩個 agent 驗證接受／拒絕；已讀 suite 覆蓋單筆與全部已讀。Project suite 使用四個 agent 串起 Workspace 邀請、建立 Project、候選人、addMember、通知 detail 與重複加入 409。2026-09-21 四個 suites／九個 tests 在隔離 PostgreSQL／Redis 通過，13 個 migrations 可從空資料庫套用；runner 最後清除 containers、network 與 volumes。Project suite 尚未直接查詢預設 BoardColumns，四個 `it` 也仍共享前面案例建立的 `projectId`／candidate；pin route 尚未加入此 suite。
 
 ## 5. Test Data Factory
 
@@ -302,5 +302,5 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 4. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 5. SessionService unit tests：驗證分支與 Lua reply mapping。
 6. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。
-7. Workspace room authorization／lifecycle integration tests，包含 reconnect rejoin 與快速切換競速。
-8. Socket.IO Session handshake integration tests，再加入 Playwright multi-user tests。
+7. Socket reconnect rejoin 的真實 client 測試、`workspace:memberChanged` 推送（room 權限、快速切換、handshake、看板廣播、7.2 已於 2026-11-09 完成）。
+8. Playwright multi-user tests。

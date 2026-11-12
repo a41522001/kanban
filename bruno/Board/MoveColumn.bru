@@ -12,27 +12,51 @@ patch {
 
 body:json {
   {
-    "projectId": "{{projectId}}",
-    "columnId": "",
-    "beforeColumnId": null,
-    "afterColumnId": null,
-    "expectedBoardRevision": "0"
+    "columnId": "{{secondColumnId}}",
+    "afterColumnId": null
   }
 }
 
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('第二個欄位移到最前面', () => {
+    const columns = res.getBody().data.columns;
+    expect(columns[0].id).to.equal(bru.getVar('secondColumnId'));
+    expect(columns[1].id).to.equal(bru.getVar('columnId'));
+  });
+
+  test('回傳全部欄位，依 position 由小到大，position 為整數', () => {
+    const columns = res.getBody().data.columns;
+    expect(columns.length).to.be.at.least(2);
+    for (let i = 0; i < columns.length; i += 1) {
+      expect(Number.isInteger(columns[i].position)).to.equal(true);
+      if (i > 0) {
+        expect(columns[i].position).to.be.above(columns[i - 1].position);
+      }
+    }
+  });
+
+  test('回傳 boardRevision 字串', () => {
+    expect(res.getBody().data.boardRevision).to.be.a('string');
+  });
+}
+
 docs {
-  # 移動看板欄位（未實作）
+  # 移動欄位（放最前面）
 
   - Route: `PATCH /v1/api/board/moveColumn`
-  - Auth: 有效 Session
+  - Auth: 有效 Session，且為欄位所屬 Project 的 OWNER 或 EDITOR
+  - Body: `{ columnId, afterColumnId }`；`afterColumnId: null` 代表放在最前面，必須明確送出（見 `MoveColumnMissingAfter`）
+  - 成功：200 / `MoveColumnResult`：`{ columns: [{ id, position }], boardRevision }`，回傳專案內**所有**未封存欄位的最新 position（依 position 排序）；`boardRevision` +1，並廣播 `board:columnMoved`
+  - `afterColumnId` 已不在同一專案（不存在、封存或屬於別的專案）：409 / ColumnMoveConflict (7004)（見 `MoveColumnAfterNotFound`）
+  - `afterColumnId` 等於 `columnId`：400（見 `MoveColumnAfterSelf`）
+  - 非成員、VIEWER、欄位不存在或已封存：404 / ResourceNotFound (3001)（見 `MoveColumnNotFound`）
+  - 不帶 `projectId`、`beforeColumnId`、`expectedBoardRevision`（舊的佔位格式），帶了會 400
 
-  | 欄位 | 型別 | 說明 |
-  |---|---|---|
-  | projectId | `string` | Project id |
-  | columnId | `string` | 要移動的欄位 |
-  | beforeColumnId | `string \| null` | 移動後前一欄 |
-  | afterColumnId | `string \| null` | 移動後後一欄 |
-  | expectedBoardRevision | `string` | 樂觀鎖用的 board revision |
+  請先執行 `GetBoardColumns`（`columnId`、`secondColumnId`）。執行後欄位順序會改變，`MoveColumnRestore` 會把順序換回來。position 由後端計算，規則與移動卡片相同；沒有整數可用時重新編號整個專案的欄位（Board 規格 §8.3）。
 
-  ⚠️ 目前 handler 是空殼，而且 `MoveBoardColumnDto` 沒有任何 class-validator decorator；在 forbidNonWhitelisted 下，帶任何欄位的 body 都會回 400。
+  2026-11-12 Board 規格 D-1。
 }

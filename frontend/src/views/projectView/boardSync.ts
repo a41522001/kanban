@@ -6,6 +6,7 @@ import type {
   BoardColumnSnapshot,
   CardCategorySnapshot,
   CardMutationResult,
+  MoveColumnResult,
 } from '@kanban/contracts/board';
 
 /**
@@ -16,7 +17,8 @@ export type BoardChange =
   | { kind: 'columnCreated'; result: AddColumnResult }
   | { kind: 'cardCreated' | 'cardUpdated' | 'cardMoved'; result: CardMutationResult }
   | { kind: 'cardArchived'; result: ArchiveCardResult }
-  | { kind: 'categoryCreated'; result: AddCategoryResult };
+  | { kind: 'categoryCreated'; result: AddCategoryResult }
+  | { kind: 'columnMoved'; result: MoveColumnResult };
 
 export interface BoardState {
   columns: BoardColumnSnapshot[];
@@ -95,6 +97,21 @@ export const applyBoardChange = (state: BoardState, change: BoardChange): boolea
       if (state.categories.some((item) => item.id === category.id)) return true;
       state.categories.push(category);
       state.categories.sort((a, b) => (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1));
+      return true;
+    }
+    case 'columnMoved': {
+      // The result lists every column with its latest position, renumbering included (spec §8.3
+      // Q15), so the board is simply re-sorted. A different set of columns means this screen is
+      // out of step (e.g. a column created elsewhere), so reload instead of guessing.
+      const positions = new Map(change.result.columns.map(({ id, position }) => [id, position]));
+      if (
+        positions.size !== state.columns.length ||
+        state.columns.some((column) => !positions.has(column.id))
+      ) {
+        return false;
+      }
+      for (const column of state.columns) column.position = positions.get(column.id)!;
+      state.columns.sort(byPosition);
       return true;
     }
   }

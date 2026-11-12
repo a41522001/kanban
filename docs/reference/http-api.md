@@ -220,13 +220,13 @@ Project list 的存取錯誤如下：
 | POST `/board/addCard` | `{ columnId, title, description? }`；title trim 後 1–200 字，description 最多 5000 字 | 201 / `CardMutationResult`：`{ card, boardRevision }` | 只允許欄位所屬 Project 的 OWNER／EDITOR，且欄位、Project、Workspace 皆未封存；否則（含 VIEWER）404 / ResourceNotFound (3001)。卡片放在欄位最下面，`boardRevision` +1，只有空白的描述存成 null |
 | PATCH `/board/updateCard` | `{ cardId, title?, description?, expectedVersion }`；title、description 至少送一個 | 200 / `CardMutationResult` | 權限同 addCard（含 VIEWER 回 404）。description 不送＝不改、空字串或只有空白＝清空（null）。版本不符 409 / CardVersionConflict (7001)；都沒送 400 / ValidationError (1000)。成功時卡片 `version` 與 `boardRevision` 各 +1 |
 | PATCH `/board/archiveCard` | `{ cardId, expectedVersion }` | 200 / `ArchiveCardResult`：`{ cardId, columnId, boardRevision }` | 權限同 addCard（含 VIEWER 回 404），已封存的卡片也回 404。版本不符 409 / CardVersionConflict (7001)。只能封存，不能刪除，目前沒有還原 |
-| PATCH `/board/moveColumn` | 型別定義有 projectId、columnId、beforeColumnId、afterColumnId、expectedBoardRevision | handler 是 200 / null 佔位 | 未呼叫 Service、未更新排序、未檢查 revision；DTO 無 validation decorators，非空 body 會被全域 whitelist 拒絕 |
+| PATCH `/board/moveColumn` | `{ columnId, afterColumnId }`；`afterColumnId: null` 代表放在最前面，必須明確送出 | 200 / `MoveColumnResult`：`{ columns: [{ id, position }], boardRevision }`，專案內所有未封存欄位的最新 position | 2026-11-12（Board D-1）完成。權限同 addCard（OWNER／EDITOR，VIEWER 與非成員 404）；`afterColumnId === columnId` 400；`afterColumnId` 不存在、封存或屬於別的專案 409 / ColumnMoveConflict (7004)；不檢查 boardRevision；`boardRevision` +1 並廣播 `board:columnMoved`。見 [Board 規格](../features/board.md) §8.3 |
 
 `GET /board/:projectId` 回傳 `BoardSnapshot`（`packages/contracts/board.ts`）：`{ boardRevision: string, currentUserRole: ProjectRole, columns: [{ id, title, colorKey, position, cards: [{ id, columnId, title, description, position, version, createdAt, updatedAt }] }] }`。只含未封存的欄位與卡片；欄位依 position ASC、updatedAt DESC 排序，卡片依 position ASC、updatedAt DESC。`boardRevision` 是 BigInt，以字串傳輸；日期為 ISO 8601。`currentUserRole` 是目前使用者在此專案的角色，前端用來決定 VIEWER 唯讀。成員但所有欄位都已封存時 `columns` 為空陣列；非成員、Project 或 Workspace 已封存、Project 不存在一律 404 / ResourceNotFound (3001)，不透露 Project 是否存在。`addColumn` 仍直接回傳 Prisma 的 BoardColumn。
 
 新增 Column 的 projectId 必須 UUID v4；title trim、非空且最多 80 字元；colorKey 限 coral／mint／amber／violet。position 設為未封存欄位的最大值加 1024（空集合從 1024 開始）。無 membership、VIEWER、Project 或 Workspace 已封存回 403 / RequestError；DTO 錯誤回 400 / ValidationError。
 
-前端 ProjectView 已呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；cards 暫填空陣列。VueDraggable 只更改本機順序，重新載入會回到 DB 順序。Card schema／API、Column 更新／封存、持久化拖曳及 project room 同步尚未完成。Board 的後續 API（Card 新增／編輯／封存／移動）以 [Board 規格](../features/board.md) 為準；舊規格中的 `GET /project/:projectId/board` 已不採用，沿用 `GET /board/:projectId`。
+前端 ProjectView 呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；卡片與欄位拖曳都會存檔（`moveCard`、`moveColumn`），並透過 project room 即時同步（Board 規格 §7、§8）。Column 改名／封存尚未完成。Board 的後續 API（Card 新增／編輯／封存／移動）以 [Board 規格](../features/board.md) 為準；舊規格中的 `GET /project/:projectId/board` 已不採用，沿用 `GET /board/:projectId`。
 
 Project 成員清單補充：`GET /project/:projectId/members` 無 membership 或 Project 已封存時拋一般 NotFoundException，經 Filter 回 404 / RequestError (4000)，目前不是 ResourceNotFound (3001)；Service 尚未拒絕 Workspace 已封存的情況。
 
