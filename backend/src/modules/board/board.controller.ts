@@ -15,6 +15,9 @@ import { AddBoardColumnDto } from './dto/addBoardColumn.dto';
 import { MoveBoardColumnDto } from './dto/moveBoardColumn.dto';
 import { SessionGuard } from '@/modules/session/session.guard';
 import { BoardService } from './board.service';
+import { BoardColumnService } from './column/boardColumn.service';
+import { CardService } from './card/card.service';
+import { CardCategoryService } from './category/cardCategory.service';
 import { AddCardDto } from './dto/addCard.dto';
 import { UpdateCardDto } from './dto/updateCard.dto';
 import { ArchiveCardDto } from './dto/archiveCard.dto';
@@ -30,7 +33,12 @@ import type {
 @Controller('board')
 @UseGuards(SessionGuard)
 export class BoardController {
-  constructor(private readonly boardService: BoardService) {}
+  constructor(
+    private readonly boardService: BoardService,
+    private readonly boardColumnService: BoardColumnService,
+    private readonly cardService: CardService,
+    private readonly cardCategoryService: CardCategoryService,
+  ) {}
 
   @Get(':projectId')
   async getBoardSnapshot(
@@ -52,7 +60,7 @@ export class BoardController {
     @Body() addBoardColumnDto: AddBoardColumnDto,
     @Req() req: Request,
   ) {
-    const result = await this.boardService.createBoardColumn(
+    const result = await this.boardColumnService.createBoardColumn(
       addBoardColumnDto,
       req.userId!,
     );
@@ -67,7 +75,7 @@ export class BoardController {
     @Body() addCardDto: AddCardDto,
     @Req() req: Request,
   ): Promise<ApiResult<CardMutationResult>> {
-    const result = await this.boardService.createCard(addCardDto, req.userId!);
+    const result = await this.cardService.createCard(addCardDto, req.userId!);
     return {
       data: result,
       message: '',
@@ -79,7 +87,7 @@ export class BoardController {
     @Body() updateCardDto: UpdateCardDto,
     @Req() req: Request,
   ): Promise<ApiResult<CardMutationResult>> {
-    const result = await this.boardService.updateCard(
+    const result = await this.cardService.updateCard(
       updateCardDto,
       req.userId!,
     );
@@ -94,7 +102,7 @@ export class BoardController {
     @Body() archiveCardDto: ArchiveCardDto,
     @Req() req: Request,
   ): Promise<ApiResult<ArchiveCardResult>> {
-    const result = await this.boardService.archiveCard(
+    const result = await this.cardService.archiveCard(
       archiveCardDto,
       req.userId!,
     );
@@ -110,7 +118,7 @@ export class BoardController {
     @Body() addCategoryDto: AddCategoryDto,
     @Req() req: Request,
   ): Promise<ApiResult<AddCategoryResult>> {
-    const result = await this.boardService.addCategory(
+    const result = await this.cardCategoryService.addCategory(
       addCategoryDto,
       req.userId!,
     );
@@ -126,7 +134,7 @@ export class BoardController {
     @Body() moveCardDto: MoveCardDto,
     @Req() req: Request,
   ): Promise<ApiResult<CardMutationResult>> {
-    const result = await this.boardService.moveCard(moveCardDto, req.userId!);
+    const result = await this.cardService.moveCard(moveCardDto, req.userId!);
     return {
       data: result,
       message: '',
@@ -139,7 +147,7 @@ export class BoardController {
     @Body() moveBoardColumnDto: MoveBoardColumnDto,
     @Req() req: Request,
   ): Promise<ApiResult<MoveColumnResult>> {
-    const result = await this.boardService.moveBoardColumn(
+    const result = await this.boardColumnService.moveBoardColumn(
       moveBoardColumnDto,
       req.userId!,
     );
