@@ -491,4 +491,113 @@ export class BoardRepository {
     });
     return project.boardRevision;
   }
+
+  /**
+   * 欄位在指定專案、且未封存時回傳它的 position，否則 null。
+   * moveBoardColumn 用來確認 afterColumnId 還在專案內（null → 409 / ColumnMoveConflict）。
+   */
+  async findColumnPositionInProject(
+    columnId: string,
+    projectId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const db = tx ?? this.prismaService;
+    const boardColumn = await db.boardColumn.findFirst({
+      where: {
+        id: columnId,
+        projectId,
+        archivedAt: null,
+      },
+      select: {
+        position: true,
+      },
+    });
+
+    return boardColumn?.position ?? null;
+  }
+
+  /**
+   * 專案中 position 大於 afterPosition 的第一個未封存欄位的 position；沒有時回 null（代表放在最後）。
+   * excludeColumnId 是正在移動的欄位：它還留在原位置，不能被當成「下一欄」。
+   */
+  async findNextColumnPosition(
+    projectId: string,
+    afterPosition: number,
+    excludeColumnId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<number | null> {
+    const db = tx ?? this.prismaService;
+    const nextBoardColumn = await db.boardColumn.findFirst({
+      where: {
+        id: {
+          not: excludeColumnId,
+        },
+        projectId,
+        archivedAt: null,
+        position: {
+          gt: afterPosition,
+        },
+      },
+      select: {
+        position: true,
+      },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
+
+    return nextBoardColumn?.position ?? null;
+  }
+
+  /**
+   * 把專案內所有未封存的欄位（排除 excludeColumnId）依目前順序重新編號為 1024、2048、3072……
+   * （Board 規格 §8.3）；順序是 position asc，position 相同時再依 id asc。
+   * 只在「前後兩欄相鄰、中間沒有整數可用」時呼叫。tx 必填：重新編號必須與移動欄位在同一個
+   * transaction，移動失敗時才會一起 rollback。
+   */
+  async renumberProjectColumns(
+    projectId: string,
+    excludeColumnId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await tx.$executeRaw`
+      UPDATE board_columns AS c
+      SET position = r.rn * 1024
+      FROM(
+        SELECT id,
+          position,
+          ROW_NUMBER() OVER (ORDER BY position, id) AS rn
+          FROM board_columns
+          WHERE project_id = ${projectId}::uuid
+            AND archived_at IS NULL
+            AND id <> ${excludeColumnId}::uuid
+      ) AS r
+      WHERE c.id = r.id;
+    `;
+  }
+
+  /**
+   * 把欄位放到指定 position（Board 規格 §8.3）。
+   * @returns 更新筆數；0 代表欄位在檢查權限後被封存。
+   */
+  async moveColumn(
+    columnId: string,
+    position: number,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? this.prismaService;
+    const result = await db.boardColumn.updateMany({
+      where: { id: columnId, archivedAt: null },
+      data: { position },
+    });
+    return result.count;
+  }
+
+  /** 專案內所有未封存欄位的 id 與 position，依 position、id 排序（moveColumn 的回傳，Q15）。 */
+  async findColumnPositions(projectId: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prismaService;
+    return await db.boardColumn.findMany({
+      where: { projectId, archivedAt: null },
+      select: { id: true, position: true },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
+  }
 }

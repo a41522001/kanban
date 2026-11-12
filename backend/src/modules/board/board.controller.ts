@@ -24,6 +24,7 @@ import type {
   AddCategoryResult,
   ArchiveCardResult,
   CardMutationResult,
+  MoveColumnResult,
 } from '@kanban/contracts/board';
 
 @Controller('board')
@@ -132,14 +133,18 @@ export class BoardController {
     };
   }
 
+  /** 移動欄位；不帶 expectedBoardRevision，afterColumnId 已不在同一專案時回 409 / ColumnMoveConflict。 */
   @Patch('moveColumn')
   async moveBoardColumn(
-    @Body() _moveBoardColumnDto: MoveBoardColumnDto,
-    @Req() _req: Request,
-  ): Promise<ApiResult<null>> {
-    await new Promise((resolve) => resolve(1));
+    @Body() moveBoardColumnDto: MoveBoardColumnDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<MoveColumnResult>> {
+    const result = await this.boardService.moveBoardColumn(
+      moveBoardColumnDto,
+      req.userId!,
+    );
     return {
-      data: null,
+      data: result,
       message: '',
     };
   }

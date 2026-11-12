@@ -166,6 +166,21 @@ describe('applyBoardChange', () => {
 
     expect(state.categories.map((item) => item.id)).toEqual(['cat-a', 'cat-b']);
   });
+
+  it('移動欄位暫時不套用（回傳 false 讓看板重新載入），也不改動畫面；D-2 改為依回傳順序重排', () => {
+    const state = createState();
+    const before = state.columns.map((item) => item.id);
+    const change: BoardChange = {
+      kind: 'columnMoved',
+      result: {
+        columns: [...state.columns].reverse().map(({ id }, index) => ({ id, position: (index + 1) * 1024 })),
+        boardRevision: '11',
+      },
+    };
+
+    expect(applyBoardChange(state, change)).toBe(false);
+    expect(state.columns.map((item) => item.id)).toEqual(before);
+  });
 });
 
 describe('createBoardSync', () => {

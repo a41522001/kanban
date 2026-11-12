@@ -1,0 +1,36 @@
+meta {
+  name: MoveColumnNotFound
+  type: http
+  seq: 24
+}
+
+patch {
+  url: {{baseUrl}}/board/moveColumn
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "00000000-0000-4000-8000-000000000000",
+    "afterColumnId": null
+  }
+}
+
+tests {
+  test('回應 404', () => {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test('code 為 ResourceNotFound (3001)', () => {
+    expect(res.getBody().code).to.equal(3001);
+  });
+}
+
+docs {
+  # 移動欄位：欄位不存在（錯誤案例）
+
+  - 預期：404 / ResourceNotFound (3001)
+
+  欄位不存在、已封存、非成員或 VIEWER 都回同一個 404，不透露欄位是否存在。
+}

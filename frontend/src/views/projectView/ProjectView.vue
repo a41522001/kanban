@@ -301,6 +301,8 @@ const boardEventHandlers: BoardEventHandlers = {
     sync.receive(eventProjectId, { kind: 'cardArchived', result }),
   'board:categoryCreated': ({ projectId: eventProjectId, ...result }) =>
     sync.receive(eventProjectId, { kind: 'categoryCreated', result }),
+  'board:columnMoved': ({ projectId: eventProjectId, ...result }) =>
+    sync.receive(eventProjectId, { kind: 'columnMoved', result }),
 };
 
 const openAddCard = (column: BoardColumnSnapshot) => {

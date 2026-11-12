@@ -1,5 +1,5 @@
 import type { PublicNotification } from './notification.js';
-import type { AddCategoryResult, AddColumnResult, ArchiveCardResult, CardMutationResult } from './board.js';
+import type { AddCategoryResult, AddColumnResult, ArchiveCardResult, CardMutationResult, MoveColumnResult } from './board.js';
 
 /** WebSocket echo 事件的資料。 */
 export type EchoPayload = {
@@ -29,6 +29,7 @@ export interface BoardEventPayloads {
   'board:cardMoved': BoardEvent<CardMutationResult>;
   'board:cardArchived': BoardEvent<ArchiveCardResult>;
   'board:categoryCreated': BoardEvent<AddCategoryResult>;
+  'board:columnMoved': BoardEvent<MoveColumnResult>;
 }
 
 /** Server 傳送給 Client 的 WebSocket 事件契約。 */
@@ -42,6 +43,7 @@ export interface ServerToClientEvents {
   'board:cardMoved': (payload: BoardEventPayloads['board:cardMoved']) => void;
   'board:cardArchived': (payload: BoardEventPayloads['board:cardArchived']) => void;
   'board:categoryCreated': (payload: BoardEventPayloads['board:categoryCreated']) => void;
+  'board:columnMoved': (payload: BoardEventPayloads['board:columnMoved']) => void;
 }
 
 /** Client 傳送給 Server 的 WebSocket 事件契約。 */

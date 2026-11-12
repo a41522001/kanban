@@ -1,0 +1,35 @@
+meta {
+  name: MoveColumnMissingAfter
+  type: http
+  seq: 22
+}
+
+patch {
+  url: {{baseUrl}}/board/moveColumn
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "{{columnId}}"
+  }
+}
+
+tests {
+  test('回應 400', () => {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test('code 為 ValidationError (1000)', () => {
+    expect(res.getBody().code).to.equal(1000);
+  });
+}
+
+docs {
+  # 移動欄位：沒有送 afterColumnId（錯誤案例）
+
+  - 預期：400 / ValidationError (1000)
+
+  放在最前面必須明確送 `"afterColumnId": null`；漏送欄位不會被當成放最前面（DTO `ValidateIf` + `IsUUID`）。
+}

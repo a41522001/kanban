@@ -6,6 +6,7 @@ import type {
   BoardColumnSnapshot,
   CardCategorySnapshot,
   CardMutationResult,
+  MoveColumnResult,
 } from '@kanban/contracts/board';
 
 /**
@@ -16,7 +17,8 @@ export type BoardChange =
   | { kind: 'columnCreated'; result: AddColumnResult }
   | { kind: 'cardCreated' | 'cardUpdated' | 'cardMoved'; result: CardMutationResult }
   | { kind: 'cardArchived'; result: ArchiveCardResult }
-  | { kind: 'categoryCreated'; result: AddCategoryResult };
+  | { kind: 'categoryCreated'; result: AddCategoryResult }
+  | { kind: 'columnMoved'; result: MoveColumnResult };
 
 export interface BoardState {
   columns: BoardColumnSnapshot[];
@@ -97,6 +99,10 @@ export const applyBoardChange = (state: BoardState, change: BoardChange): boolea
       state.categories.sort((a, b) => (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1));
       return true;
     }
+    case 'columnMoved':
+      // TODO(D-2): reorder columns from result.columns instead. Until then another member's
+      // column move reloads the board (in the background, after any drag ends).
+      return false;
   }
 };
 

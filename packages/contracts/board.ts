@@ -66,14 +66,6 @@ export interface AddColumnResult {
   boardRevision: string;
 }
 
-export interface MoveBoardColumnRequest {
-  projectId: string;
-  columnId: string;
-  beforeColumnId: string | null;
-  afterColumnId: string | null;
-  expectedBoardRevision: string;
-}
-
 /** 看板上的一張卡片；已封存的卡片不會出現在看板上。 */
 export interface BoardCardSnapshot {
   id: string;
@@ -185,5 +177,24 @@ export interface AddCategoryRequest {
 /** 建立類別的回傳；沿用既有類別時 boardRevision 不變。 */
 export interface AddCategoryResult {
   category: CardCategorySnapshot;
+  boardRevision: string;
+}
+
+/**
+ * 移動欄位（Board 規格 §8.3）；回傳 MoveColumnResult。
+ * 不檢查 boardRevision：任何人修改卡片都會讓它 +1，檢查的話拖曳欄位會一直 409。
+ */
+export interface MoveBoardColumnRequest {
+  columnId: string;
+  /**
+   * 放在這個欄位後面；null 代表放在最前面。不可等於 columnId（400）；
+   * 已不在同一專案或已封存時回 409 / ColumnMoveConflict。
+   */
+  afterColumnId: string | null;
+}
+
+/** 移動欄位的回傳：專案內所有未封存欄位的最新 position（依 position 排序）。 */
+export interface MoveColumnResult {
+  columns: Array<{ id: string; position: number }>;
   boardRevision: string;
 }
