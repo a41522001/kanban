@@ -226,7 +226,7 @@ Project list 的存取錯誤如下：
 
 新增 Column 的 projectId 必須 UUID v4；title trim、非空且最多 80 字元；colorKey 限 coral／mint／amber／violet。position 設為未封存欄位的最大值加 1024（空集合從 1024 開始）。無 membership、VIEWER、Project 或 Workspace 已封存回 403 / RequestError；DTO 錯誤回 400 / ValidationError。
 
-前端 ProjectView 已呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；cards 暫填空陣列。VueDraggable 只更改本機順序，重新載入會回到 DB 順序。Card schema／API、Column 更新／封存、持久化拖曳及 project room 同步尚未完成。Board 的後續 API（Card 新增／編輯／封存／移動）以 [Board 規格](../features/board.md) 為準；舊規格中的 `GET /project/:projectId/board` 已不採用，沿用 `GET /board/:projectId`。
+前端 ProjectView 呼叫 GET `/board/:projectId`，含載入／空清單／失敗重試；卡片與欄位拖曳都會存檔（`moveCard`、`moveColumn`），並透過 project room 即時同步（Board 規格 §7、§8）。Column 改名／封存尚未完成。Board 的後續 API（Card 新增／編輯／封存／移動）以 [Board 規格](../features/board.md) 為準；舊規格中的 `GET /project/:projectId/board` 已不採用，沿用 `GET /board/:projectId`。
 
 Project 成員清單補充：`GET /project/:projectId/members` 無 membership 或 Project 已封存時拋一般 NotFoundException，經 Filter 回 404 / RequestError (4000)，目前不是 ResourceNotFound (3001)；Service 尚未拒絕 Workspace 已封存的情況。
 

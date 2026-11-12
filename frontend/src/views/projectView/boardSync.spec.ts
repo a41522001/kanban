@@ -167,19 +167,80 @@ describe('applyBoardChange', () => {
     expect(state.categories.map((item) => item.id)).toEqual(['cat-a', 'cat-b']);
   });
 
-  it('移動欄位暫時不套用（回傳 false 讓看板重新載入），也不改動畫面；D-2 改為依回傳順序重排', () => {
-    const state = createState();
-    const before = state.columns.map((item) => item.id);
-    const change: BoardChange = {
+  describe('移動欄位（D-1、Board 規格 §8.3）', () => {
+    const columnMoved = (columns: { id: string; position: number }[]): BoardChange => ({
       kind: 'columnMoved',
-      result: {
-        columns: [...state.columns].reverse().map(({ id }, index) => ({ id, position: (index + 1) * 1024 })),
-        boardRevision: '11',
-      },
-    };
+      result: { columns, boardRevision: '11' },
+    });
 
-    expect(applyBoardChange(state, change)).toBe(false);
-    expect(state.columns.map((item) => item.id)).toEqual(before);
+    it('依回傳的 position 重排欄位，卡片跟著欄位走', () => {
+      const state = createState();
+
+      const applied = applyBoardChange(
+        state,
+        columnMoved([
+          { id: 'done', position: 512 },
+          { id: 'todo', position: 1024 },
+        ]),
+      );
+
+      expect(applied).toBe(true);
+      expect(state.columns.map((item) => item.id)).toEqual(['done', 'todo']);
+      expect(state.columns.map((item) => item.position)).toEqual([512, 1024]);
+      expect(cardIds(state, 'todo')).toEqual(['a', 'b']);
+    });
+
+    it('重新編號時其他欄位的 position 也一起更新（回傳的是全部欄位）', () => {
+      const state: BoardState = {
+        columns: [column('x', 1), column('y', 2), column('z', 3)],
+        categories: [],
+      };
+
+      applyBoardChange(
+        state,
+        columnMoved([
+          { id: 'x', position: 1024 },
+          { id: 'z', position: 1536 },
+          { id: 'y', position: 2048 },
+        ]),
+      );
+
+      expect(state.columns.map((item) => `${item.id}:${item.position}`)).toEqual([
+        'x:1024',
+        'z:1536',
+        'y:2048',
+      ]);
+    });
+
+    it('自己拖曳後已經是相同順序，套用回應只更新 position', () => {
+      const state = createState();
+      state.columns.reverse(); // the drag library already reordered the columns locally
+
+      applyBoardChange(
+        state,
+        columnMoved([
+          { id: 'done', position: 512 },
+          { id: 'todo', position: 1024 },
+        ]),
+      );
+
+      expect(state.columns.map((item) => item.id)).toEqual(['done', 'todo']);
+      expect(state.columns[0]!.position).toBe(512);
+    });
+
+    it.each([
+      ['回傳了畫面上沒有的欄位', [{ id: 'todo', position: 1024 }, { id: 'done', position: 2048 }, { id: 'new', position: 3072 }]],
+      ['畫面上的欄位不在回傳裡', [{ id: 'todo', position: 1024 }]],
+      ['數量相同但 id 不同', [{ id: 'todo', position: 1024 }, { id: 'other', position: 2048 }]],
+    ])('%s時回傳 false（重新載入），不改動畫面', (_label, columns) => {
+      const state = createState();
+
+      expect(applyBoardChange(state, columnMoved(columns))).toBe(false);
+      expect(state.columns.map((item) => `${item.id}:${item.position}`)).toEqual([
+        'todo:1024',
+        'done:2048',
+      ]);
+    });
   });
 });
 

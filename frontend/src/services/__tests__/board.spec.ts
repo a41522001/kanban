@@ -7,6 +7,7 @@ import {
   archiveCardApi,
   getBoardSnapshotApi,
   moveCardApi,
+  moveColumnApi,
   updateCardApi,
 } from '@/services/board';
 
@@ -56,6 +57,16 @@ describe('board service', () => {
       url: '/board/moveCard',
       method: 'patch',
       data: { cardId: 'card-1', toColumnId: 'column-2', afterCardId: null },
+    });
+  });
+
+  it('以 afterColumnId 移動欄位（null 代表放在最前面）', async () => {
+    await moveColumnApi({ columnId: 'column-2', afterColumnId: null });
+
+    expect(mockedApi).toHaveBeenCalledWith({
+      url: '/board/moveColumn',
+      method: 'patch',
+      data: { columnId: 'column-2', afterColumnId: null },
     });
   });
 

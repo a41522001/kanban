@@ -27,23 +27,37 @@
     </div>
 
     <template v-else>
+      <!-- Board spec §8.3 (Q16): columns are reordered on the board itself, like Trello. -->
       <VueDraggable
         v-model="boardColumns"
         class="board__columns"
         tag="div"
-        :animation="250"
+        :animation="columnDragAnimation"
         :delay="150"
         draggable=".board__column"
         direction="horizontal"
         handle=".board__column-handle"
         :delay-on-touch-only="true"
+        :disabled="!canEdit"
         chosen-class="board__column--chosen"
         ghost-class="board__column--ghost"
         drag-class="board__column--dragging"
+        @start="handleColumnDragStart"
+        @end="handleColumnDragEnd"
       >
-        <section v-for="column in boardColumns" :key="column.id" class="board__column">
+        <section
+          v-for="column in boardColumns"
+          :key="column.id"
+          class="board__column"
+          :data-board-column-id="column.id"
+        >
           <div class="board__column-header">
-            <button type="button" class="board__column-handle" aria-label="拖曳欄位">
+            <button
+              v-if="canEdit"
+              type="button"
+              class="board__column-handle"
+              :aria-label="`拖曳欄位「${column.title}」`"
+            >
               <GripVertical :size="18" aria-hidden="true" />
             </button>
             <span
@@ -161,7 +175,7 @@ import type {
 } from '@kanban/contracts/board';
 import type { ProjectRole } from '@kanban/contracts/project';
 import { boardColumnColorMap } from '@/constants/boardColumnColors';
-import { getBoardSnapshotApi, moveCardApi } from '@/services/board';
+import { getBoardSnapshotApi, moveCardApi, moveColumnApi } from '@/services/board';
 import { getApiErrorResponse } from '@/services/http';
 import { ApiCode } from '@kanban/contracts/api';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -170,6 +184,7 @@ import { toast } from 'vue-sonner';
 import { GripVertical, Plus, WifiOff } from 'lucide-vue-next';
 import { VueDraggable, type MoveEvent, type SortableEvent } from 'vue-draggable-plus';
 import { findCardLocation, getAfterCardId, moveCardToColumnEnd } from './cardMove';
+import { getAfterColumnId } from './columnMove';
 import { applyBoardChange, createBoardSync, type BoardChange } from './boardSync';
 import {
   emitProjectInto,
@@ -398,6 +413,47 @@ const handleCardDragEnd = (event: SortableEvent) => {
   }
   // Queued changes are replayed only after our own move has been saved (or reloaded).
   void saveCardMove(cardId).finally(() => sync.resume('dragging'));
+};
+
+// ---- Moving columns (Board spec D-2, §8.3) ----
+// Same flow as cards: the drag library has already reordered boardColumns; this saves it, and
+// any failure reloads the board instead of rolling back.
+const saveColumnMove = async (columnId: string) => {
+  const afterColumnId = getAfterColumnId(boardColumns.value, columnId);
+  if (afterColumnId === undefined) return;
+
+  try {
+    const response = await moveColumnApi({ columnId, afterColumnId });
+    if (!response.data) return;
+    // The result carries every column's position (renumbering included).
+    receiveChange({ kind: 'columnMoved', result: response.data });
+  } catch (error) {
+    const apiError = getApiErrorResponse(error);
+    toast.error(
+      apiError?.code === ApiCode.ColumnMoveConflict
+        ? '看板已被其他人變更，已重新載入。'
+        : '移動欄位失敗，已重新載入看板。',
+    );
+    void loadBoard({ silent: true });
+  }
+};
+
+const columnDragAnimation = prefersReducedMotion ? 0 : 250;
+let draggingColumnId: string | null = null;
+
+const handleColumnDragStart = (event: SortableEvent) => {
+  draggingColumnId = event.item.dataset.boardColumnId ?? null;
+  sync.pause('dragging');
+};
+
+const handleColumnDragEnd = (event: SortableEvent) => {
+  const columnId = draggingColumnId;
+  draggingColumnId = null;
+  if (!columnId || event.oldIndex === event.newIndex) {
+    sync.resume('dragging');
+    return;
+  }
+  void saveColumnMove(columnId).finally(() => sync.resume('dragging'));
 };
 
 const handleMoveFromDialog = (toColumnId: string) => {
