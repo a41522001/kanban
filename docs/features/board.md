@@ -1,6 +1,6 @@
 # Board 與 Card 規格
 
-日期：2026-10-30。狀態：**階段 A、A+（類別）、B、C 完成**（C：2026-11-09）；D 已確認、待實作（§8，2026-11-11 grill Q1–Q14）。
+日期：2026-10-30。狀態：**階段 A、A+（類別）、B、C 完成**（C：2026-11-09）；D 完成（D-3、D-4：2026-11-16）（§8，2026-11-11 grill Q1–Q14，Q15–Q17 於 11-12～11-13 補充）。
 
 本文取代 2026-09 撰寫、彼此衝突的四份舊規格（Board API 與 WebSocket、看板拖曳與滑動、Project 拖曳與 Redis Lock、Kanban Domain）。規則由使用者以 grill 逐項確認（Q1–Q19）。舊規格仍有用的內容已併入本文（§4.5、§6.1、§8），2026-10-30 刪除，需要時可從 git 歷史查看。
 
@@ -250,11 +250,15 @@ D 不改變資料正確性的做法：正確性仍由 PostgreSQL（`boardRevisio
 - （Q2）`afterCardId` 已被移走時 409 / 7003：維持提示並背景重新載入，**不自動重試**（無法得知使用者想放在哪兩張之間）。
 - 舊規格的「鎖整個專案的拖曳」不採用：它要防止的正是 Q1 已接受的情況，多人時又常被擋。
 
-### 8.2 卡片拖曳鎖（Q3、Q5–Q12）
+### 8.2 卡片拖曳鎖（Q3、Q5–Q12、Q17）
 
 **性質（Q7）**：建議鎖（advisory）。只在 Socket 拖曳開始時取得，`moveCard` **不檢查**鎖、B 的 API 不變；「移動至…」不取得鎖。直接打 API 的人仍可移動，最壞結果就是 Q1 的「後放開的勝出」。
 
 **為什麼用 Redis**：`SET NX` 在多 instance 時也只有一個人拿得到；伺服器當機時鎖由 TTL 自動過期。單一 instance 用記憶體也能鎖，Redis 多的是這兩點。
+
+**權限（Q17，2026-11-13）**：`card:dragStart` 時查一次 DB，只有 OWNER、EDITOR（有效成員、Project 與 Workspace 未封存）可取得鎖；其他情況（VIEWER、非成員）ack `locked` 並記 warn log。只檢查 `socket.rooms` 不夠：VIEWER 也能加入 project room，直接 emit 就能讓所有人的卡片顯示「有人正在移動」並停用把手。不把角色存在 `socket.data`：角色被降級後存的值會過期。拖曳開始的頻率低，多一次查詢的成本可忽略。
+
+**共用元件（2026-11-13）**：Redis 操作放在通用的 `infrastructure/redis` `RedisLockService`（`acquire(key, owner, ttlMs)`：`SET NX PX`；`release(key, owner)`：Lua 比對後刪除，回傳是否刪到），之後其他分布式鎖共用。底層不吞 Redis 錯誤，由呼叫端決定 fail-open（拖曳鎖）或 fail-closed。卡片拖曳鎖的取得與釋放分在兩個事件，套不進 `withLock(key, fn)`；`withLock` 等第一個使用者（邀請過期排程的多 instance 互斥）出現時再做，見 `progress.md` 待辦。
 
 **鎖的格式（Q11、Q12）**
 
@@ -263,25 +267,25 @@ D 不改變資料正確性的做法：正確性仍由 PostgreSQL（`boardRevisio
 | Key | `lock:cardDrag:{projectId}:{cardId}`（取代 `redis.keys.ts` 的 `dragSession`） | 伺服器不查 DB 確認卡片屬於哪個專案；key 帶 `projectId`，成員只能鎖到自己所在專案的 key，不能跨專案鎖別人的卡片 |
 | 值 | `socket.id` | 每條連線唯一；同一人兩個分頁算兩個擁有者（兩個分頁本來就會互相覆蓋）；不含 userId |
 | TTL | 30 秒，不續約 | 一般拖曳只要幾秒；過期後別人可取得，最壞結果同 Q1 |
-| 每條連線 | 同時最多一把，記在 `socket.data.draggingCardId` | 斷線時直接知道要放哪一把；再送開始時先放掉舊的 |
+| 每條連線 | 同時最多一把，記在 `socket.data.draggingCard`（`{ projectId, cardId }`） | 斷線時直接知道要放哪一把；再送開始時先放掉舊的。要存 `projectId`：key 與廣播的 room 都需要它（2026-11-16，原本只存 cardId） |
 | 釋放 | Lua 比對值相同才刪除 | 避免 A 的鎖過期被 B 取得後，A 刪掉 B 的鎖 |
 
 **事件**
 
 | 方向 | 事件 | Payload | 說明 |
 | --- | --- | --- | --- |
-| client → server | `card:dragStart` | `{ projectId, cardId }`，帶 ack | 檢查 `socket.rooms` 有 `project:{projectId}`（進 room 時已驗權限，不查 DB）→ 取得鎖 → ack 結果 |
+| client → server | `card:dragStart` | `{ projectId, cardId }`，帶 ack | 查 DB 確認是 OWNER／EDITOR（Q17）→ 取得鎖 → ack 結果 |
 | client → server | `card:dragEnd` | `{ projectId, cardId }` | 比對後釋放；釋放成功才廣播 |
 | server → 同專案其他人 | `board:cardDragStarted`、`board:cardDragEnded` | `{ projectId, cardId }` | `socket.to(room)`，不含發送者；不帶是誰在拖（Q6） |
 
 - 這些事件不讓 `boardRevision` +1，**不經過 `boardSync` 佇列**（§7.3）。
 - 欄位相關的鎖如果以後要做，另外新增 `column:` 開頭的事件，不改這組事件（Q14）。
-- 斷線：`disconnect` handler 依 `socket.data.draggingCardId` 釋放並廣播 `board:cardDragEnded`。斷網要等 Socket.IO 心跳逾時（預設約 45 秒）才觸發，期間提示會多停留，不影響資料。
+- 斷線：`disconnect` handler 依 `socket.data.draggingCard` 釋放並廣播 `board:cardDragEnded`。斷網要等 Socket.IO 心跳逾時（預設約 45 秒）才觸發，期間提示會多停留，不影響資料。
 
 **流程**
 
 1. A 按住把手開始拖曳（`handleCardDragStart`）：同步佇列暫停（既有），送 `card:dragStart` 等 ack。拖曳不等 ack，立即開始（`VueDraggable` 的 `start` 觸發時卡片已被拿起）。
-2. 其他人收到 `board:cardDragStarted`：該卡片顯示「有人正在移動」並停用把手（Q6、Q8）。
+2. 其他人收到 `board:cardDragStarted`：該卡片顯示「有人正在移動」並停用把手（Q6、Q8）。前端同時啟動 30 秒計時器（與 TTL 相同），收到 `board:cardDragEnded` 時取消，時間到就自動清掉提示：鎖因 TTL 過期時伺服器不會廣播結束（2026-11-13，不採用 Redis keyspace notifications：預設關閉、雲端 Redis 不一定能改、過期事件可能延遲、Pub/Sub 送出即不管）。
 3. A 放開：
    - ack 明確回覆「已被別人鎖住」→ 這次不存檔，恢復原位，toast「這張卡片正在被其他人移動」（Q8，處理兩人幾乎同時開始的競速）。
    - 取得鎖，或因斷線、Redis 錯誤、ack 逾時而沒有結果 → **放行**，照常存檔（Q10，fail-open）。
@@ -292,6 +296,7 @@ D 不改變資料正確性的做法：正確性仍由 PostgreSQL（`boardRevisio
 - 晚進專案的人看不到已經在拖的卡片（Q5）：拖曳只有幾秒，錯過只是少一次提示；做的話要 `fetchSockets()` 掃 room。
 - 不顯示是誰在拖（Q6）：不需要多查名字，也不多帶使用者識別資料；之後要加只需在事件多一個欄位。
 - 強制鎖（Q7）：要改 B 的 contracts、DTO、「移動至…」流程，只多擋了直接打 API 的人，而他們本來也不會讓資料壞掉。
+- 多 instance 廣播：鎖本身存在 Redis，多 instance 也互斥；但目前沒有 Socket.IO Redis adapter，`socket.to(room)` 只送到同一台 instance 的連線（所有 board 事件都一樣）。部署多台前要加 `@socket.io/redis-adapter`。
 
 ### 8.3 欄位拖曳存檔（Q4、Q13、Q14）
 
@@ -334,5 +339,5 @@ Command ID 與 idempotency（舊規格為 Socket 指令設計）仍不需要：�
 | C-3 | 前端套用：事件佇列（載入、拖曳）、漏號重新載入、6 種事件套用、詳情對話框三種情況、斷線提示 | ✅ 2026-11-09：`boardSync.ts`（`checkRevision`、`applyBoardChange`、`createBoardSync` 佇列）；`socket.ts` `onBoardEvents`／`offBoardEvents`；`ProjectView` 自己的回應與事件都經 `receiveChange`，拖曳期間暫停，`loadBoard({ silent })` 背景重新載入；移除不再使用的 `maxRevision`。`DialogCardDetail` 記住填入表單時的版本，新版本到達時：未修改或內容等於新版本（自己的儲存）→ 換成最新；已修改 → 衝突提示並保留輸入；順手修正 `watch(() => [open, card.id])` 每次回傳新陣列、任何卡片物件更新都會重新填表的問題（改為多來源 watch）。斷線提示 `board__sync-banner`。前端新增 29 個測試（`boardSync` 24、對話框 5），全部 169 tests 通過（`email-verification.spec.ts` 為既有 Windows 問題）。Chrome 兩個分頁：B 改標題與移動 → A 不重新載入即更新；A 斷線期間 B 修改 → A 重連後背景重新載入一次、無骨架；A 拖曳 → A、B、伺服器順序一致；斷線提示出現與消失；對話框未修改時換成最新、已修改時衝突並保留輸入、按重新載入直接換成最新（無 GET）、別人封存時關閉並提示 |
 | D-1 | `moveColumn` 後端：contracts（`MoveBoardColumnRequest` 改為 `{ columnId, afterColumnId }`、`ColumnMoveConflict = 7004`、`board:columnMoved`）、DTO、repository、service、單元測試、Bruno | ✅ 2026-11-12：contracts `MoveBoardColumnRequest { columnId, afterColumnId }`、`MoveColumnResult { columns: { id, position }[], boardRevision }`（Q15）、`ColumnMoveConflict = 7004`、`board:columnMoved`；`MoveBoardColumnDto`（`afterColumnId` 必須明確送 UUID 或 null，舊佔位的 `projectId`／`beforeColumnId`／`expectedBoardRevision` 會被拒絕）。抽出共用純函式 `boardPosition.ts` `positionBetween(after, next)`（三種情況，相鄰時回 null），`moveCard` 的 `calculateMovePosition` 改用它（行為不變）。使用者實作 repository `findColumnPositionInProject`、`findNextColumnPosition`（排除正在移動的欄位、`orderBy position, id`）、`renumberProjectColumns`（`ROW_NUMBER() * 1024`，`tx` 必填）、`moveColumn`、`findColumnPositions`，以及 service `moveBoardColumn`／`calculateColumnPosition`（權限沿用 `findEditableColumn`；transaction 先 +1 revision 鎖 Project → after 位置，查不到 409 → 計算 position → 寫入，0 筆 404 → 查全部欄位順序 → commit 後廣播）與 controller。DTO 9 個、`positionBetween` 8 個、service 18 個測試（含廣播與 409 不廣播）；故意改壞三處（錯誤碼、重新編號後用舊 after 位置、不查欄位順序）各有 1 個測試失敗。Bruno `MoveColumn`、`MoveColumnRestore`（換回順序，可重複執行）、`MoveColumnAfterSelf`、`MoveColumnMissingAfter`、`MoveColumnAfterNotFound`、`MoveColumnNotFound`；Login→Workspaces→Project→Board 35 個請求、56 個測試通過。重新編號 SQL 在開發 DB 的 transaction 內驗證（相鄰 1…4 → 1024…4096，正在移動的欄位不變，rollback） |
 | D-2 | 欄位拖曳前端：`moveColumnApi`、放開後存檔、`boardSync` 套用 `columnMoved`、拖曳期間暫停佇列、失敗重新載入、測試 | ✅ 2026-11-12：`services/board.ts` `moveColumnApi`；`socket.ts` 註冊 `board:columnMoved`；`boardSync` 新增 `columnMoved`，依回傳的全部欄位 position 重排（欄位集合與畫面不同時回 false → 重新載入）；`columnMove.ts` `getAfterColumnId`；`ProjectView` 外層 `VueDraggable` 加 `@start`／`@end`（拖曳期間 `sync.pause('dragging')`、位置沒變不呼叫、存檔後才 resume）、VIEWER `disabled` 且不顯示把手、把手 accessible name「拖曳欄位「標題」」、`prefers-reduced-motion` 時 animation 0；失敗提示並背景重新載入（7004「看板已被其他人變更」）。前端新增 10 個測試（`boardSync` 6、`columnMove` 3、service 1），全部 179 tests 通過（`email-verification.spec.ts` 為既有 Windows 問題）。Chrome 兩個隔離分頁（OWNER、EDITOR）：A 拖欄位 → B 不重新載入即同步、A 重新整理後順序保留、DB 一致；拖卡片只送 `moveCard`（巢狀拖曳不會觸發欄位存檔）；DB 設為相鄰 1…4 後拖曳 → 後端重新編號，B 依回傳的全部 position 正確重排且無 GET；DB 暫時封存 after 欄位後拖曳 → 409 toast 並背景重新載入一次。測試資料已還原 |
-| D-3 | 卡片拖曳鎖後端：contracts 事件、`redis.keys.ts` `cardDrag`、取得與比對釋放（Lua）、`socket.service` `card:dragStart`／`card:dragEnd` handler、`disconnect` 釋放、LOG_EVENTS、單元與 E2E 測試 | 待實作（使用者） |
-| D-4 | 卡片拖曳鎖前端：`socket.ts` emit（ack、逾時）與事件、「有人正在移動」提示與停用把手、被鎖時恢復原位與 toast、存檔後送結束、測試 | 待實作（Claude） |
+| D-3 | 卡片拖曳鎖後端：contracts 事件、`redis.keys.ts` `cardDrag`、取得與比對釋放（Lua）、`socket.service` `card:dragStart`／`card:dragEnd` handler、`disconnect` 釋放、LOG_EVENTS、單元與 E2E 測試 | ✅ 2026-11-16：contracts `CardDragPayload`、`CardDragAckStatus`／`CardDragStartAck`、`CARD_DRAG_LOCK_TTL_MS = 30_000`（前後端共用）、四個事件；`redisKeys.cardDrag` 取代 `dragSession`。通用 `infrastructure/redis` `RedisLockService`（`acquire`：`SET` `condition: NX`、`expiration: PX`；`release`：`releaseLock` Lua 比對後刪除、回傳是否刪到），script 改由 `redis.scripts.ts` 彙整（`SESSION_SCRIPTS` + `LOCK_SCRIPTS`），`RedisService` 不再直接 import session。使用者實作 `socket.service`：`card:dragStart`（沒帶 ack 忽略；不是目前所在專案、非 OWNER／EDITOR 時 warn + `locked`（Q17，`findProjectMembership` 多 select `role`）；先 `releaseDraggingCard` 釋放舊鎖；取鎖期間斷線則立刻釋放；成功才寫 `socket.data.draggingCard` 並 `socket.to(room)` 廣播只含 `{ projectId, cardId }` 的開始事件；DB／Redis 錯誤由外層 error log + `unavailable`）、`card:dragEnd`（只處理目前持有的卡片）、`disconnect` 釋放；`await` 前先存 `previous` 並清掉 `draggingCard`。`LOG_EVENTS` `socket.card_drag.rejected`／`lock_failed`。單元測試 socket 新增 24 個（共 41）；故意改壞四處（不檢查斷線、dragEnd 不比對卡片、放行 VIEWER、未刪到也廣播結束）各有測試失敗。E2E：`redisLock.e2e.spec.ts` 9 個（真 Redis，含「A 過期被 B 取得後 A 釋放不刪 B」），socket 真實 client 4 個（A 取得 → 其他人收到開始、A 自己收不到、同人另一分頁拿不到也會收到；結束後可再取得；VIEWER `locked`；未進專案 `locked`；斷線釋放並廣播） |
+| D-4 | 卡片拖曳鎖前端：`socket.ts` emit（ack、逾時）與事件、「有人正在移動」提示與停用把手、被鎖時恢復原位與 toast、存檔後送結束、測試 | ✅ 2026-11-16：`socket.ts` `emitCardDragStart`（`timeout(2000).emitWithAck`；斷線時不送出直接回 `unavailable`，避免 socket.io 緩衝到重連後才送；逾時或錯誤回 `unavailable`）、`emitCardDragEnd`（斷線時不送）、`onCardDragEvents`／`offCardDragEvents`（不經 `boardSync`）。`projectView/cardDragLock.ts`：`createRemoteCardDragLocks`（收到開始鎖住並以 `CARD_DRAG_LOCK_TTL_MS` 計時、結束或到期解除、同卡再開始重新計時；切換專案、重新連線、unmount 時清除）與 `resolveCardDrop(status, moved)`（`locked` 有移動 → 重新載入恢復原位 + toast「這張卡片正在被其他人移動」、不存檔、不送結束；`acquired`／`unavailable` → 有移動才存檔，一律送結束）。`ProjectView`：拖曳開始送出 dragStart 不等 ack，放開時才等結果；`saveCardMove` 完成後才送 dragEnd（Q9）；被鎖的卡片加 `board__card--locked`、`VueDraggable` `filter` 擋拖曳、把手 `disabled`、顯示「有人正在移動」（`role="status"`）。「移動至…」不取鎖（Q7）。前端新增 18 個測試（`socket` 7、`cardDragLock` 11）；Chrome 兩個隔離分頁（OWNER、EDITOR）：A 取鎖 → B 顯示提示、把手停用、拖不動，A 自己不顯示；A 結束 → B 解除；A 實際拖曳 → B 依序收到開始、`cardMoved`、結束，Redis 無殘留鎖；Redis 先放別人的鎖後 B 拖曳 → toast、恢復原位、未送 `moveCard`；A 持鎖時關閉分頁 → B 收到結束。測試資料已還原 |

@@ -81,6 +81,8 @@
               :delay-on-touch-only="true"
               :animation="dragAnimation"
               :disabled="!canEdit"
+              filter=".board__card--locked"
+              :prevent-on-filter="false"
               chosen-class="board__card--chosen"
               ghost-class="board__card--ghost"
               drag-class="board__card--dragging"
@@ -88,11 +90,15 @@
               @move="handleCardDragMove"
               @end="handleCardDragEnd"
             >
+              <!-- Board spec §8.2 (Q8): a card someone else is dragging cannot be picked up. -->
               <div
                 v-for="card in column.cards"
                 :key="card.id"
                 class="board__card"
-                :class="{ 'board__card--editable': canEdit }"
+                :class="{
+                  'board__card--editable': canEdit,
+                  'board__card--locked': remoteDragLocks.isLocked(card.id),
+                }"
                 :data-card-id="card.id"
               >
                 <button
@@ -109,10 +115,16 @@
                   v-if="canEdit"
                   type="button"
                   class="board__card-handle"
+                  :disabled="remoteDragLocks.isLocked(card.id)"
                   :aria-label="`拖曳卡片「${card.title}」`"
                 >
                   <GripVertical :size="18" aria-hidden="true" />
                 </button>
+                <!-- Q6: only says that someone is moving it, not who. -->
+                <p v-if="remoteDragLocks.isLocked(card.id)" class="board__card-lock" role="status">
+                  <Move :size="14" aria-hidden="true" />
+                  有人正在移動
+                </p>
               </div>
             </VueDraggable>
             <p v-if="column.cards.length === 0" class="board__empty-cards">尚無卡片</p>
@@ -181,20 +193,27 @@ import { ApiCode } from '@kanban/contracts/api';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
-import { GripVertical, Plus, WifiOff } from 'lucide-vue-next';
+import { GripVertical, Move, Plus, WifiOff } from 'lucide-vue-next';
 import { VueDraggable, type MoveEvent, type SortableEvent } from 'vue-draggable-plus';
 import { findCardLocation, getAfterCardId, moveCardToColumnEnd } from './cardMove';
 import { getAfterColumnId } from './columnMove';
 import { applyBoardChange, createBoardSync, type BoardChange } from './boardSync';
+import { createRemoteCardDragLocks, resolveCardDrop } from './cardDragLock';
+import type { CardDragAckStatus, CardDragPayload } from '@kanban/contracts/socket';
 import {
+  emitCardDragEnd,
+  emitCardDragStart,
   emitProjectInto,
   emitProjectLeave,
   isConnected,
   offBoardEvents,
+  offCardDragEvents,
   offReconnected,
   onBoardEvents,
+  onCardDragEvents,
   onReconnected,
   type BoardEventHandlers,
+  type CardDragEventHandlers,
 } from '@/services/socket';
 const isAddCardOpen = ref<boolean>(false);
 const addCardColumn = ref<BoardColumnSnapshot | null>(null);
@@ -392,10 +411,53 @@ const dragAnimation = prefersReducedMotion ? 0 : 200;
 const draggingCardId = ref<string | null>(null);
 const dragOverColumnId = ref<string | null>(null);
 
+// ---- Card drag lock (Board spec D-4, §8.2) ----
+// Other people's drags: the card shows a hint and cannot be picked up until they finish.
+const remoteDragLocks = createRemoteCardDragLocks();
+
+const cardDragEventHandlers: CardDragEventHandlers = {
+  'board:cardDragStarted': ({ projectId: eventProjectId, cardId }) => {
+    if (eventProjectId === projectId.value) remoteDragLocks.lock(cardId);
+  },
+  'board:cardDragEnded': ({ projectId: eventProjectId, cardId }) => {
+    if (eventProjectId === projectId.value) remoteDragLocks.release(cardId);
+  },
+};
+
+// Our own drag: the lock request goes out when the drag starts and is only awaited on drop,
+// so picking the card up never waits for the server.
+let dragLock: { payload: CardDragPayload; status: Promise<CardDragAckStatus> } | null = null;
+
 const handleCardDragStart = (event: SortableEvent) => {
   draggingCardId.value = event.item.dataset.cardId ?? null;
   // Changing column.cards mid-drag would confuse the drag library (Board spec Q6).
   sync.pause('dragging');
+  if (draggingCardId.value && projectId.value) {
+    const payload = { projectId: projectId.value, cardId: draggingCardId.value };
+    dragLock = { payload, status: emitCardDragStart(payload) };
+  }
+};
+
+/**
+ * Finishes our own drop: a `locked` ack reloads the board instead of saving (someone else got
+ * the card first); otherwise save as before. dragEnd goes out only after the save, so others
+ * receive the new position before their handle is enabled again (Q9).
+ */
+const finishCardDrop = async (cardId: string, moved: boolean) => {
+  const lock = dragLock?.payload.cardId === cardId ? dragLock : null;
+  dragLock = null;
+  const status = lock ? await lock.status : 'unavailable';
+  const action = resolveCardDrop(status, moved);
+
+  try {
+    if (action.restore) {
+      toast.error('這張卡片正在被其他人移動');
+      await loadBoard({ silent: true });
+    }
+    if (action.save) await saveCardMove(cardId);
+  } finally {
+    if (lock && action.sendDragEnd) emitCardDragEnd(lock.payload);
+  }
 };
 
 const handleCardDragMove = (event: MoveEvent) => {
@@ -407,12 +469,13 @@ const handleCardDragEnd = (event: SortableEvent) => {
   const cardId = draggingCardId.value;
   draggingCardId.value = null;
   dragOverColumnId.value = null;
-  if (!cardId || (event.from === event.to && event.oldIndex === event.newIndex)) {
+  if (!cardId) {
     sync.resume('dragging');
     return;
   }
+  const moved = !(event.from === event.to && event.oldIndex === event.newIndex);
   // Queued changes are replayed only after our own move has been saved (or reloaded).
-  void saveCardMove(cardId).finally(() => sync.resume('dragging'));
+  void finishCardDrop(cardId, moved).finally(() => sync.resume('dragging'));
 };
 
 // ---- Moving columns (Board spec D-2, §8.3) ----
@@ -472,17 +535,21 @@ watch(selectedCard, (value) => {
 });
 
 // Board events sent while disconnected are lost, so reload after reconnecting (Board spec §7.4).
+// Drag hints from before the disconnect may be stale; the server still blocks a real conflict.
 const handleReconnected = () => {
+  remoteDragLocks.clear();
   void loadBoard({ silent: true });
 };
 
 onMounted(() => {
   onReconnected(handleReconnected);
   onBoardEvents(boardEventHandlers);
+  onCardDragEvents(cardDragEventHandlers);
   void loadBoard();
 });
 
 watch(projectId, () => {
+  remoteDragLocks.clear();
   void loadBoard();
 });
 
@@ -504,6 +571,8 @@ watch(
 onUnmounted(() => {
   offReconnected(handleReconnected);
   offBoardEvents(boardEventHandlers);
+  offCardDragEvents(cardDragEventHandlers);
+  remoteDragLocks.clear();
   if (joinedProjectId) emitProjectLeave(joinedProjectId);
   joinedProjectId = null;
 });

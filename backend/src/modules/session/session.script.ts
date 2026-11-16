@@ -420,5 +420,3 @@ export const SESSION_SCRIPTS = {
   rotateSession: ROTATE_SESSION_SCRIPT,
   revokeSession: REVOKE_SESSION_SCRIPT,
 };
-
-export type SessionScripts = typeof SESSION_SCRIPTS;

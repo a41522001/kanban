@@ -5,6 +5,7 @@ import type { AppConfig } from '@/config';
 import type { SessionService } from '@/modules/session/session.service';
 import { SocketService } from './socket.service';
 import type { SocketRepository } from './socket.repository';
+import type { RedisLockService } from '@/infrastructure/redis/redisLock.service';
 
 type Handler = (...args: any[]) => unknown;
 
@@ -46,6 +47,7 @@ type ProjectMembership = Awaited<
 >;
 
 const activeProjectMember: ProjectMembership = {
+  role: 'EDITOR',
   project: { archivedAt: null, workspace: { archivedAt: null } },
 };
 
@@ -60,12 +62,24 @@ const createProjectDeferred = () => {
 
 const flushPromises = () => new Promise((resolve) => setImmediate(resolve));
 
+type Broadcast = { room: string; event: string; payload: unknown };
+
 const createFakeSocket = () => {
   const rooms = new Set<string>();
   const handlers: Record<string, Handler> = {};
+  const broadcasts: Broadcast[] = [];
   return {
+    id: 'socket-1',
+    connected: true,
     rooms,
     handlers,
+    /** Everything sent through socket.to(room).emit(...), i.e. to the room except this socket. */
+    broadcasts,
+    to: jest.fn((room: string) => ({
+      emit: (event: string, payload: unknown) => {
+        broadcasts.push({ room, event, payload });
+      },
+    })),
     data: {} as Record<string, unknown>,
     handshake: { headers: { cookie: 'sessionId=raw-session' } },
     join: jest.fn((room: string) => {
@@ -95,6 +109,8 @@ describe('SocketService', () => {
   let projectDeferreds: Map<string, ReturnType<typeof createProjectDeferred>>;
   let findProjectMembership: jest.Mock;
   let authenticateSocketSession: jest.Mock;
+  let acquireLock: jest.Mock;
+  let releaseLock: jest.Mock;
   let socket: ReturnType<typeof createFakeSocket>;
   let service: SocketService;
 
@@ -119,6 +135,7 @@ describe('SocketService', () => {
   beforeEach(async () => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
     deferreds = new Map();
     findWorkspaceMembership = jest.fn(
@@ -137,6 +154,8 @@ describe('SocketService', () => {
     authenticateSocketSession = jest
       .fn()
       .mockResolvedValue({ userId: 'user-1', familyId: 'family-1' });
+    acquireLock = jest.fn().mockResolvedValue(true);
+    releaseLock = jest.fn().mockResolvedValue(true);
 
     service = new SocketService(
       { get: () => 'http://localhost:5173' } as unknown as ConfigService<
@@ -148,6 +167,10 @@ describe('SocketService', () => {
         findWorkspaceMembership,
         findProjectMembership,
       } as unknown as SocketRepository,
+      {
+        acquire: acquireLock,
+        release: releaseLock,
+      } as unknown as RedisLockService,
     );
     service.initialize({} as HttpServer);
 
@@ -169,6 +192,7 @@ describe('SocketService', () => {
       familyId: 'family-1',
       targetWorkspaceId: null,
       targetProjectId: null,
+      draggingCard: null,
     });
   });
 
@@ -272,6 +296,7 @@ describe('SocketService', () => {
       [
         'Project 已封存',
         {
+          role: 'EDITOR',
           project: {
             archivedAt: new Date(),
             workspace: { archivedAt: null },
@@ -281,6 +306,7 @@ describe('SocketService', () => {
       [
         'Workspace 已封存',
         {
+          role: 'EDITOR',
           project: {
             archivedAt: null,
             workspace: { archivedAt: new Date() },
@@ -344,6 +370,363 @@ describe('SocketService', () => {
 
       expect(workspaceRooms(socket)).toEqual(['workspace:A']);
       expect(projectRooms(socket)).toEqual([]);
+    });
+  });
+
+  describe('卡片拖曳鎖', () => {
+    const lockKey = (projectId: string, cardId: string) =>
+      `lock:cardDrag:${projectId}:${cardId}`;
+
+    const memberWithRole = (
+      role: 'OWNER' | 'EDITOR' | 'VIEWER',
+    ): ProjectMembership => ({ ...activeProjectMember, role });
+
+    const enterProject = async (projectId = 'P1') => {
+      socket.handlers['project:into']({ projectId });
+      await finishProjectCheck(projectId);
+    };
+
+    /** Sends card:dragStart and lets the permission query resolve with `member`. */
+    const dragStart = async (
+      payload: Record<string, unknown>,
+      member: ProjectMembership = activeProjectMember,
+    ) => {
+      const ack = jest.fn();
+      socket.handlers['card:dragStart'](payload, ack);
+      projectDeferreds.get(payload.projectId as string)?.resolve(member);
+      await flushPromises();
+      return ack;
+    };
+
+    const dragEnd = async (payload: { projectId: string; cardId: string }) => {
+      socket.handlers['card:dragEnd'](payload);
+      await flushPromises();
+    };
+
+    beforeEach(async () => {
+      await enterProject('P1');
+      findProjectMembership.mockClear();
+    });
+
+    describe('card:dragStart', () => {
+      it.each(['OWNER', 'EDITOR'] as const)(
+        '%s 取得鎖：ack acquired、記錄 draggingCard、廣播給其他人',
+        async (role) => {
+          const ack = await dragStart(
+            { projectId: 'P1', cardId: 'C1' },
+            memberWithRole(role),
+          );
+
+          expect(findProjectMembership).toHaveBeenCalledWith('user-1', 'P1');
+          expect(acquireLock).toHaveBeenCalledWith(
+            lockKey('P1', 'C1'),
+            'socket-1',
+            30000,
+          );
+          expect(ack).toHaveBeenCalledWith({ status: 'acquired' });
+          expect(socket.data.draggingCard).toEqual({
+            projectId: 'P1',
+            cardId: 'C1',
+          });
+          expect(socket.broadcasts).toEqual([
+            {
+              room: 'project:P1',
+              event: 'board:cardDragStarted',
+              payload: { projectId: 'P1', cardId: 'C1' },
+            },
+          ]);
+        },
+      );
+
+      it('廣播只帶 projectId、cardId，不轉發 client 夾帶的其他欄位', async () => {
+        await dragStart({
+          projectId: 'P1',
+          cardId: 'C1',
+          injected: '<script>',
+        });
+
+        expect(socket.broadcasts[0].payload).toEqual({
+          projectId: 'P1',
+          cardId: 'C1',
+        });
+      });
+
+      it.each([
+        ['VIEWER', memberWithRole('VIEWER')],
+        ['不是成員', null],
+        [
+          'Project 已封存',
+          {
+            role: 'EDITOR',
+            project: {
+              archivedAt: new Date(),
+              workspace: { archivedAt: null },
+            },
+          },
+        ],
+        [
+          'Workspace 已封存',
+          {
+            role: 'EDITOR',
+            project: {
+              archivedAt: null,
+              workspace: { archivedAt: new Date() },
+            },
+          },
+        ],
+      ] as const)(
+        '%s：ack locked、不取鎖、不廣播，記錄 warn',
+        async (_case, member) => {
+          const warn = jest.spyOn(Logger.prototype, 'warn');
+
+          const ack = await dragStart(
+            { projectId: 'P1', cardId: 'C1' },
+            member,
+          );
+
+          expect(ack).toHaveBeenCalledWith({ status: 'locked' });
+          expect(acquireLock).not.toHaveBeenCalled();
+          expect(socket.broadcasts).toEqual([]);
+          expect(socket.data.draggingCard).toBeNull();
+          expect(warn).toHaveBeenCalledWith(
+            expect.objectContaining({
+              event: 'socket.card_drag.rejected',
+              projectId: 'P1',
+              cardId: 'C1',
+              userId: 'user-1',
+            }),
+            '拖曳卡片被拒絕：沒有權限',
+          );
+        },
+      );
+
+      it('不是目前所在的專案：ack locked，不查 DB', async () => {
+        const ack = await dragStart({ projectId: 'P2', cardId: 'C1' });
+
+        expect(ack).toHaveBeenCalledWith({ status: 'locked' });
+        expect(findProjectMembership).not.toHaveBeenCalled();
+        expect(acquireLock).not.toHaveBeenCalled();
+      });
+
+      it('卡片已被別人鎖住：ack locked，不記錄、不廣播', async () => {
+        acquireLock.mockResolvedValue(false);
+
+        const ack = await dragStart({ projectId: 'P1', cardId: 'C1' });
+
+        expect(ack).toHaveBeenCalledWith({ status: 'locked' });
+        expect(socket.data.draggingCard).toBeNull();
+        expect(socket.broadcasts).toEqual([]);
+      });
+
+      it('Redis 錯誤：ack unavailable（fail-open），記錄 error', async () => {
+        const error = jest.spyOn(Logger.prototype, 'error');
+        acquireLock.mockRejectedValue(new Error('redis down'));
+
+        const ack = await dragStart({ projectId: 'P1', cardId: 'C1' });
+
+        expect(ack).toHaveBeenCalledWith({ status: 'unavailable' });
+        expect(socket.broadcasts).toEqual([]);
+        expect(error).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'socket.card_drag.lock_failed',
+            projectId: 'P1',
+            cardId: 'C1',
+          }),
+          '取得卡片拖曳鎖失敗',
+        );
+      });
+
+      it('DB 錯誤：ack unavailable', async () => {
+        findProjectMembership.mockRejectedValueOnce(new Error('db down'));
+        const ack = jest.fn();
+
+        socket.handlers['card:dragStart'](
+          { projectId: 'P1', cardId: 'C1' },
+          ack,
+        );
+        await flushPromises();
+
+        expect(ack).toHaveBeenCalledWith({ status: 'unavailable' });
+        expect(acquireLock).not.toHaveBeenCalled();
+      });
+
+      it('沒有帶 ack callback 時直接忽略', async () => {
+        socket.handlers['card:dragStart']({ projectId: 'P1', cardId: 'C1' });
+        await flushPromises();
+
+        expect(findProjectMembership).not.toHaveBeenCalled();
+        expect(acquireLock).not.toHaveBeenCalled();
+      });
+
+      it('已持有另一張卡片的鎖：先釋放舊鎖並廣播結束，再取得新鎖', async () => {
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        socket.broadcasts.length = 0;
+
+        const ack = await dragStart({ projectId: 'P1', cardId: 'C2' });
+
+        expect(releaseLock).toHaveBeenCalledWith(
+          lockKey('P1', 'C1'),
+          'socket-1',
+        );
+        expect(releaseLock.mock.invocationCallOrder[0]).toBeLessThan(
+          acquireLock.mock.invocationCallOrder[1],
+        );
+        expect(socket.broadcasts).toEqual([
+          {
+            room: 'project:P1',
+            event: 'board:cardDragEnded',
+            payload: { projectId: 'P1', cardId: 'C1' },
+          },
+          {
+            room: 'project:P1',
+            event: 'board:cardDragStarted',
+            payload: { projectId: 'P1', cardId: 'C2' },
+          },
+        ]);
+        expect(ack).toHaveBeenCalledWith({ status: 'acquired' });
+        expect(socket.data.draggingCard).toEqual({
+          projectId: 'P1',
+          cardId: 'C2',
+        });
+      });
+
+      it('舊鎖已過期（release 回 false）：不廣播舊卡片結束', async () => {
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        socket.broadcasts.length = 0;
+        releaseLock.mockResolvedValue(false);
+
+        await dragStart({ projectId: 'P1', cardId: 'C2' });
+
+        expect(socket.broadcasts.map((b) => b.event)).toEqual([
+          'board:cardDragStarted',
+        ]);
+      });
+
+      it('取鎖期間斷線：立刻釋放剛取得的鎖，不記錄、不廣播', async () => {
+        acquireLock.mockImplementation(() => {
+          socket.connected = false;
+          return Promise.resolve(true);
+        });
+
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+
+        expect(releaseLock).toHaveBeenCalledWith(
+          lockKey('P1', 'C1'),
+          'socket-1',
+        );
+        expect(socket.data.draggingCard).toBeNull();
+        expect(socket.broadcasts).toEqual([]);
+      });
+    });
+
+    describe('card:dragEnd', () => {
+      it('釋放目前持有的鎖並廣播結束', async () => {
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        socket.broadcasts.length = 0;
+
+        await dragEnd({ projectId: 'P1', cardId: 'C1' });
+
+        expect(releaseLock).toHaveBeenCalledWith(
+          lockKey('P1', 'C1'),
+          'socket-1',
+        );
+        expect(socket.data.draggingCard).toBeNull();
+        expect(socket.broadcasts).toEqual([
+          {
+            room: 'project:P1',
+            event: 'board:cardDragEnded',
+            payload: { projectId: 'P1', cardId: 'C1' },
+          },
+        ]);
+      });
+
+      it('鎖已過期或被別人取得（release 回 false）：清掉記錄，不廣播', async () => {
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        socket.broadcasts.length = 0;
+        releaseLock.mockResolvedValue(false);
+
+        await dragEnd({ projectId: 'P1', cardId: 'C1' });
+
+        expect(socket.data.draggingCard).toBeNull();
+        expect(socket.broadcasts).toEqual([]);
+      });
+
+      it('不是目前持有的卡片（例如晚到的舊事件）：不釋放、不清掉記錄', async () => {
+        await dragStart({ projectId: 'P1', cardId: 'C2' });
+
+        await dragEnd({ projectId: 'P1', cardId: 'C1' });
+
+        expect(releaseLock).not.toHaveBeenCalled();
+        expect(socket.data.draggingCard).toEqual({
+          projectId: 'P1',
+          cardId: 'C2',
+        });
+      });
+
+      it('沒有持有鎖時不呼叫 Redis', async () => {
+        await dragEnd({ projectId: 'P1', cardId: 'C1' });
+
+        expect(releaseLock).not.toHaveBeenCalled();
+      });
+
+      it('Redis 錯誤時記錄 error，不讓錯誤外漏', async () => {
+        const error = jest.spyOn(Logger.prototype, 'error');
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        releaseLock.mockRejectedValue(new Error('redis down'));
+
+        await dragEnd({ projectId: 'P1', cardId: 'C1' });
+
+        expect(error).toHaveBeenCalledWith(
+          expect.objectContaining({ event: 'socket.card_drag.lock_failed' }),
+          '釋放卡片拖曳鎖失敗',
+        );
+      });
+    });
+
+    describe('disconnect', () => {
+      it('斷線時釋放持有的鎖並廣播結束', async () => {
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        socket.broadcasts.length = 0;
+
+        socket.handlers['disconnect']();
+        await flushPromises();
+
+        expect(releaseLock).toHaveBeenCalledWith(
+          lockKey('P1', 'C1'),
+          'socket-1',
+        );
+        expect(socket.broadcasts).toEqual([
+          {
+            room: 'project:P1',
+            event: 'board:cardDragEnded',
+            payload: { projectId: 'P1', cardId: 'C1' },
+          },
+        ]);
+      });
+
+      it('沒有持有鎖時不呼叫 Redis', async () => {
+        socket.handlers['disconnect']();
+        await flushPromises();
+
+        expect(releaseLock).not.toHaveBeenCalled();
+      });
+
+      it('Redis 錯誤時記錄 error，不讓錯誤外漏', async () => {
+        const error = jest.spyOn(Logger.prototype, 'error');
+        await dragStart({ projectId: 'P1', cardId: 'C1' });
+        releaseLock.mockRejectedValue(new Error('redis down'));
+
+        socket.handlers['disconnect']();
+        await flushPromises();
+
+        expect(error).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'socket.card_drag.lock_failed',
+            userId: 'user-1',
+          }),
+          '斷線時釋放卡片拖曳鎖失敗',
+        );
+      });
     });
   });
 });
