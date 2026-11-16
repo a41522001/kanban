@@ -1,0 +1,58 @@
+meta {
+  name: MoveCard
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/board/moveCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{categoryCardId}}",
+    "toColumnId": "{{secondColumnId}}",
+    "afterCardId": null
+  }
+}
+
+script:post-response {
+  const card = res.getBody()?.data?.card;
+  if (card) {
+    bru.setVar('movedCardVersion', card.version);
+  }
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('卡片移到第二個欄位，position 為整數', () => {
+    const card = res.getBody().data.card;
+    expect(card.columnId).to.equal(bru.getVar('secondColumnId'));
+    expect(Number.isInteger(card.position)).to.equal(true);
+  });
+
+  test('回傳 boardRevision 字串', () => {
+    expect(res.getBody().data.boardRevision).to.be.a('string');
+  });
+}
+
+docs {
+  # 移動卡片（跨欄，放最上面）
+
+  - Route: `PATCH /v1/api/board/moveCard`
+  - Auth: 有效 Session，且為卡片所屬 Project 的 OWNER 或 EDITOR
+  - Body: `{ cardId, toColumnId, afterCardId }`；`afterCardId: null` 代表放在最上面，必須明確送出
+  - 成功：200 / `CardMutationResult`：`{ card, boardRevision }`；不檢查、也不改變 `version`，`boardRevision` +1
+  - `afterCardId` 已不在目標欄位（被移走或封存）：409 / CardMoveConflict (7003)（見 `MoveCardAfterArchived`）
+  - `afterCardId` 等於 `cardId`：400（見 `MoveCardAfterSelf`）
+  - 非成員、VIEWER、卡片或目標欄位不存在／已封存、目標欄位屬於別的專案：404 / ResourceNotFound (3001)
+
+  請先執行 `GetBoardColumns`（`secondColumnId`）與 `AddCardWithCategory`（`categoryCardId`）。position 由後端計算：前後兩張的中間值，放最後時為前一張 + 1024，沒有整數可用時重新編號整個欄位（Board 規格 §4.3）。
+
+  2026-11-05 Board 規格 B-1。
+}

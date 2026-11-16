@@ -8,19 +8,28 @@ import { ConfigService } from '@nestjs/config';
 import type { Server as HttpServer } from 'node:http';
 import { Server, type DefaultEventsMap, type Socket } from 'socket.io';
 import type { AppConfig } from '@/config';
-import type {
-  ServerToClientEvents,
-  ClientToServerEvents,
+import {
+  type BoardEventPayloads,
+  type ServerToClientEvents,
+  type ClientToServerEvents,
+  type CardDragPayload,
+  CARD_DRAG_LOCK_TTL_MS,
+  CardDragAckStatus,
 } from '@kanban/contracts/socket';
 import { SessionService } from '@/modules/session/session.service';
 import { AppException } from '@/common/exceptions/app.exception';
 import { ApiCode } from '@kanban/contracts/api';
 import type { PublicNotification } from '@kanban/contracts/notification';
-import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
+import { SocketRepository } from './socket.repository';
+import { RedisLockService } from '@/infrastructure/redis/redisLock.service';
+import { redisKeys } from '@/infrastructure/redis/redis.keys';
 interface SocketData {
   userId: string;
-  session: string;
+  familyId: string;
+  targetWorkspaceId: string | null;
+  targetProjectId: string | null;
+  draggingCard: { projectId: string; cardId: string } | null;
 }
 
 @Injectable()
@@ -35,7 +44,8 @@ export class SocketService implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly sessionService: SessionService,
-    private readonly workspacesService: WorkspacesService,
+    private readonly socketRepository: SocketRepository,
+    private readonly redisLockService: RedisLockService,
   ) {}
 
   // #region room
@@ -44,8 +54,11 @@ export class SocketService implements OnModuleDestroy {
   /** 取得workspace room */
   private getWorkspaceRoom = (workspaceId: string): string =>
     `workspace:${workspaceId}`;
-  /** 取得session room */
-  private getSessionRoom = (session: string) => `session:${session}`;
+  /** 取得project room */
+  private getProjectRoom = (projectId: string): string =>
+    `project:${projectId}`;
+  /** 取得family room */
+  private getFamilyRoom = (familyId: string) => `family:${familyId}`;
   // #endregion
 
   initialize(httpServer: HttpServer): void {
@@ -78,7 +91,7 @@ export class SocketService implements OnModuleDestroy {
     // 連線
     this.io.on('connection', async (socket) => {
       await socket.join(this.getUserRoom(socket.data.userId));
-      await socket.join(this.getSessionRoom(socket.data.session));
+      await socket.join(this.getFamilyRoom(socket.data.familyId));
       this.logger.log(
         {
           event: LOG_EVENTS.socketConnectionConnected,
@@ -94,8 +107,14 @@ export class SocketService implements OnModuleDestroy {
       });
       // 進入工作區
       socket.on('workspace:into', (payload) => {
+        socket.data.targetWorkspaceId = payload.workspaceId;
         void this.authenticateWorkspace(socket, payload.workspaceId)
-          .then(() => socket.join(this.getWorkspaceRoom(payload.workspaceId)))
+          .then(() => {
+            if (payload.workspaceId !== socket.data.targetWorkspaceId) {
+              return;
+            }
+            return socket.join(this.getWorkspaceRoom(payload.workspaceId));
+          })
           .catch((error: unknown) => {
             this.logger.warn(
               {
@@ -110,6 +129,37 @@ export class SocketService implements OnModuleDestroy {
       // 離開工作區
       socket.on('workspace:leave', (payload) => {
         void socket.leave(this.getWorkspaceRoom(payload.workspaceId));
+        if (socket.data.targetWorkspaceId === payload.workspaceId) {
+          socket.data.targetWorkspaceId = null;
+        }
+      });
+      // 進入專案
+      socket.on('project:into', (payload) => {
+        socket.data.targetProjectId = payload.projectId;
+        void this.authenticateProject(socket, payload.projectId)
+          .then(() => {
+            if (payload.projectId !== socket.data.targetProjectId) {
+              return;
+            }
+            return socket.join(this.getProjectRoom(payload.projectId));
+          })
+          .catch((error: unknown) => {
+            this.logger.warn(
+              {
+                event: LOG_EVENTS.socketProjectJoinRejected,
+                err: error,
+                projectId: payload.projectId,
+              },
+              '加入專案失敗',
+            );
+          });
+      });
+      // 離開專案
+      socket.on('project:leave', (payload) => {
+        void socket.leave(this.getProjectRoom(payload.projectId));
+        if (socket.data.targetProjectId === payload.projectId) {
+          socket.data.targetProjectId = null;
+        }
       });
       // 離線
       socket.on('disconnect', () => {
@@ -120,13 +170,55 @@ export class SocketService implements OnModuleDestroy {
           },
           'Socket 已斷線',
         );
+        this.releaseDraggingCard(socket).catch((error: unknown) => {
+          this.logger.error(
+            {
+              event: LOG_EVENTS.socketCardDragLockFailed,
+              err: error,
+              userId: socket.data.userId,
+            },
+            '斷線時釋放卡片拖曳鎖失敗',
+          );
+        });
+      });
+      // 拖曳卡片開始
+      socket.on('card:dragStart', (payload, ack) => {
+        if (typeof ack !== 'function') return; // 沒帶 callback 的 emit，直接忽略
+        void this.handleCardDragStart(socket, payload) // private async 方法：權限 → 釋放舊鎖 → acquire，回傳 status
+          .then((status) => ack({ status }))
+          .catch((error: unknown) => {
+            this.logger.error(
+              {
+                event: LOG_EVENTS.socketCardDragLockFailed,
+                err: error,
+                projectId: payload.projectId,
+                cardId: payload.cardId,
+              },
+              '取得卡片拖曳鎖失敗',
+            );
+            ack({ status: 'unavailable' });
+          });
+      });
+      // 拖曳卡片結束
+      socket.on('card:dragEnd', (payload) => {
+        void this.handleCardDragEnd(socket, payload).catch((error: unknown) => {
+          this.logger.error(
+            {
+              event: LOG_EVENTS.socketCardDragLockFailed,
+              err: error,
+              projectId: payload.projectId,
+              cardId: payload.cardId,
+            },
+            '釋放卡片拖曳鎖失敗',
+          );
+        });
       });
     });
   }
 
-  /** session撤銷後主動斷開socket連線 */
-  disconnectSession(sessionId: string): void {
-    this.io?.in(this.getSessionRoom(sessionId)).disconnectSockets(true);
+  /** 登出後斷開同一次登入（family）的所有 Socket，包含輪轉前建立的連線 */
+  disconnectFamily(familyId: string): void {
+    this.io?.in(this.getFamilyRoom(familyId)).disconnectSockets(true);
   }
 
   /** 推播工作區成員改變 */
@@ -152,6 +244,19 @@ export class SocketService implements OnModuleDestroy {
       .emit('notification:created', notification);
   }
 
+  /** 推播看板事件給正在看這個專案的人；room 由 payload.projectId 決定 */
+  emitToProject<E extends keyof BoardEventPayloads>(
+    event: E,
+    payload: BoardEventPayloads[E],
+  ): void {
+    if (!this.io) {
+      return;
+    }
+    this.io
+      .to(this.getProjectRoom(payload.projectId))
+      .emit(event, ...([payload] as Parameters<ServerToClientEvents[E]>));
+  }
+
   /** 驗證socket */
   private authenticateSocket = async (
     socket: Socket<
@@ -173,18 +278,21 @@ export class SocketService implements OnModuleDestroy {
       });
     }
 
-    const userId =
+    const sessionResult =
       await this.sessionService.authenticateSocketSession(sessionId);
 
-    if (!userId) {
+    if (sessionResult === null) {
       throw new AppException({
         status: HttpStatus.UNAUTHORIZED,
         code: ApiCode.Unauthenticated,
         message: '登入已失效，請重新登入',
       });
     }
-    socket.data.session = sessionId;
-    socket.data.userId = userId;
+    socket.data.familyId = sessionResult.familyId;
+    socket.data.userId = sessionResult.userId;
+    socket.data.targetWorkspaceId = null;
+    socket.data.targetProjectId = null;
+    socket.data.draggingCard = null;
   };
 
   /** 驗證工作區 */
@@ -197,15 +305,43 @@ export class SocketService implements OnModuleDestroy {
     >,
     workspaceId: string,
   ): Promise<void> => {
-    const member = await this.workspacesService.findMembership(
+    const member = await this.socketRepository.findWorkspaceMembership(
       socket.data.userId,
       workspaceId,
     );
-    if (!member || member.workspaceArchivedAt !== null) {
+    if (!member || member.workspace.archivedAt !== null) {
       throw new AppException({
         status: HttpStatus.FORBIDDEN,
         code: ApiCode.RequestError,
         message: '你沒有存取此工作區的權限',
+      });
+    }
+  };
+
+  /** 驗證專案 */
+  private authenticateProject = async (
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      DefaultEventsMap,
+      SocketData
+    >,
+    projectId: string,
+  ): Promise<void> => {
+    const member = await this.socketRepository.findProjectMembership(
+      socket.data.userId,
+      projectId,
+    );
+
+    if (
+      member === null ||
+      member.project.archivedAt !== null ||
+      member.project.workspace.archivedAt !== null
+    ) {
+      throw new AppException({
+        status: HttpStatus.FORBIDDEN,
+        code: ApiCode.RequestError,
+        message: '你沒有存取此專案的權限',
       });
     }
   };
@@ -224,6 +360,133 @@ export class SocketService implements OnModuleDestroy {
     const sessionId = sessionCookie.slice('sessionId='.length);
     return sessionId.length > 0 ? sessionId : null;
   };
+
+  /** 釋放這條連線目前持有的卡片拖曳鎖；確實刪到才廣播結束 */
+  private async releaseDraggingCard(
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      DefaultEventsMap,
+      SocketData
+    >,
+  ): Promise<void> {
+    const previous = socket.data.draggingCard;
+    if (previous !== null) {
+      socket.data.draggingCard = null;
+      const releaseKey = redisKeys.cardDrag(
+        previous.projectId,
+        previous.cardId,
+      );
+      const released = await this.redisLockService.release(
+        releaseKey,
+        socket.id,
+      );
+      if (released) {
+        socket
+          .to(this.getProjectRoom(previous.projectId))
+          .emit('board:cardDragEnded', {
+            projectId: previous.projectId,
+            cardId: previous.cardId,
+          });
+      }
+    }
+  }
+
+  /** 檢查權限後取得卡片拖曳鎖（先釋放舊鎖），成功時廣播開始；回傳 ack 狀態 */
+  private async handleCardDragStart(
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      DefaultEventsMap,
+      SocketData
+    >,
+    payload: CardDragPayload,
+  ): Promise<CardDragAckStatus> {
+    if (socket.data.targetProjectId !== payload.projectId) {
+      this.logger.warn(
+        {
+          event: LOG_EVENTS.socketCardDragRejected,
+          projectId: payload.projectId,
+          cardId: payload.cardId,
+          userId: socket.data.userId,
+        },
+        '拖曳卡片被拒絕：不是目前所在的專案',
+      );
+      return 'locked';
+    }
+    const member = await this.socketRepository.findProjectMembership(
+      socket.data.userId,
+      payload.projectId,
+    );
+
+    if (
+      member === null ||
+      member.project.archivedAt !== null ||
+      member.project.workspace.archivedAt !== null ||
+      member.role === 'VIEWER'
+    ) {
+      this.logger.warn(
+        {
+          event: LOG_EVENTS.socketCardDragRejected,
+          projectId: payload.projectId,
+          cardId: payload.cardId,
+          userId: socket.data.userId,
+        },
+        '拖曳卡片被拒絕：沒有權限',
+      );
+      return 'locked';
+    }
+
+    await this.releaseDraggingCard(socket);
+
+    const lockKey = redisKeys.cardDrag(payload.projectId, payload.cardId);
+    const owner = socket.id;
+    const acquired = await this.redisLockService.acquire(
+      lockKey,
+      owner,
+      CARD_DRAG_LOCK_TTL_MS,
+    );
+    if (!acquired) {
+      return 'locked';
+    }
+    if (!socket.connected) {
+      await this.redisLockService.release(lockKey, socket.id);
+      return 'locked';
+    }
+    socket.data.draggingCard = {
+      projectId: payload.projectId,
+      cardId: payload.cardId,
+    };
+
+    socket
+      .to(this.getProjectRoom(payload.projectId))
+      .emit('board:cardDragStarted', {
+        projectId: payload.projectId,
+        cardId: payload.cardId,
+      });
+    return 'acquired';
+  }
+
+  /** 拖曳結束：只在結束的是目前持有的卡片時才釋放鎖 */
+  private async handleCardDragEnd(
+    socket: Socket<
+      ClientToServerEvents,
+      ServerToClientEvents,
+      DefaultEventsMap,
+      SocketData
+    >,
+    payload: CardDragPayload,
+  ): Promise<void> {
+    const current = socket.data.draggingCard;
+    if (
+      current === null ||
+      current.projectId !== payload.projectId ||
+      current.cardId !== payload.cardId
+    ) {
+      return;
+    }
+    await this.releaseDraggingCard(socket);
+  }
 
   async onModuleDestroy(): Promise<void> {
     if (!this.io) {

@@ -1,0 +1,68 @@
+meta {
+  name: AddCategory
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/board/addCategory
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "projectId": "{{projectId}}",
+    "name": "  {{categoryName}}  ",
+    "colorKey": "mint"
+  }
+}
+
+script:pre-request {
+  // A fresh name each run, so this request always takes the "create" path.
+  bru.setVar('categoryName', `Cat${Date.now().toString().slice(-8)}`);
+}
+
+script:post-response {
+  // Save the result so AddCategoryExisting can check it reuses the same category.
+  const data = res.getBody()?.data;
+  if (data) {
+    bru.setVar('categoryId', data.category.id);
+    bru.setVar('categoryRevision', data.boardRevision);
+  }
+}
+
+tests {
+  test('回應 201', () => {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test('回傳 { category, boardRevision }，名稱已去掉前後空白', () => {
+    const data = res.getBody().data;
+    expect(data.boardRevision).to.be.a('string');
+    expect(data.category.name).to.equal(bru.getVar('categoryName'));
+    expect(data.category.colorKey).to.equal('mint');
+  });
+
+  test('不公開 normalizedName、projectId', () => {
+    const category = res.getBody().data.category;
+    expect(Object.keys(category).sort()).to.eql(['colorKey', 'id', 'name']);
+  });
+}
+
+docs {
+  # 建立類別
+
+  - Route: `POST /v1/api/board/addCategory`
+  - Auth: 有效 Session，且為該 Project 的 OWNER 或 EDITOR
+  - Body: `{ projectId, name, colorKey }`；name 去掉前後空白後 1–20 字，colorKey 為 contracts `CARD_CATEGORY_COLOR_KEYS` 之一
+  - 成功：201 / `AddCategoryResult`：`{ category: { id, name, colorKey }, boardRevision }`；新建立時 `boardRevision` +1
+  - 名稱已存在（trim 後不分大小寫）：同樣 201，回傳既有的那一筆，`boardRevision` 不變（見 `AddCategoryExisting`）
+  - 專案已有 50 個類別：409 / CardCategoryLimitExceeded (7002)
+  - 非成員、VIEWER、Project／Workspace 已封存：404 / ResourceNotFound (3001)
+  - DTO 錯誤：400 / ValidationError (1000)（見 `AddCategoryInvalidColor`）
+
+  每次執行會產生新的名稱 `Cat<時間>`，並把 `categoryId`、`categoryRevision` 存成 runtime 變數。
+
+  2026-11-04 Board 規格 A+1-2。
+}

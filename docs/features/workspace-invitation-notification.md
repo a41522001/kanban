@@ -82,17 +82,17 @@ Workspace View 會依目前選取的 Workspace emit `workspace:into`，後端先
 
 接受邀請並建立 WorkspaceMember 的 transaction commit 後，後端才向該 Workspace room emit `workspace:memberChanged` 與 `{ workspaceId }`。Workspace View 僅處理目前選取的 Workspace，收到事件後重新取得成員清單，不直接相信 Socket payload 作為成員資料。
 
-目前刻意保留的後續問題：Socket reconnect 後尚未自動 rejoin、快速切換時驗證與 leave／join 可能競速、成員被移除後既有 Socket 尚未強制離開 room、subscribe 失敗尚未透過 ack 回報前端；這些不影響目前接受邀請的正常流程，但尚未達到完整 lifecycle／security 驗收。
+目前刻意保留的後續問題（reconnect rejoin 與快速切換競速已於 2026-11-06 修正，見 [Socket.IO 驗證](../architecture/socketio-auth.md) §5、§6）：成員被移除後既有 Socket 尚未強制離開 room、subscribe 失敗尚未透過 ack 回報前端；這些不影響目前接受邀請的正常流程，但尚未達到完整 lifecycle／security 驗收。
 
 ## 狀態機現況
 
-| 狀態 | 目前程式是否會寫入 |
-| --- | --- |
-| PENDING | 建立邀請時預設 |
-| EXPIRED | 每分鐘排程批次更新；再次邀請遇到已到期 PENDING 時也會條件更新作為即時 fallback |
+| 狀態     | 目前程式是否會寫入                                                                     |
+| -------- | -------------------------------------------------------------------------------------- |
+| PENDING  | 建立邀請時預設                                                                         |
+| EXPIRED  | 每分鐘排程批次更新；再次邀請遇到已到期 PENDING 時也會條件更新作為即時 fallback         |
 | ACCEPTED | `POST /workspaceInvitation/accept` 條件更新，並在同一 transaction 建立 WorkspaceMember |
-| DECLINED | `POST /workspaceInvitation/decline` 條件更新，不建立 WorkspaceMember |
-| CANCELED | 僅 enum／schema 預留，尚無取消流程 |
+| DECLINED | `POST /workspaceInvitation/decline` 條件更新，不建立 WorkspaceMember                   |
+| CANCELED | 僅 enum／schema 預留，尚無取消流程                                                     |
 
 排程是 eventual consistency：邀請實體狀態最晚在下一分鐘掃描後才變為 EXPIRED，不保證時間一到立刻變更。接受與拒絕成功時都會寫入 respondedAt；CANCELED 仍未有寫入流程。
 

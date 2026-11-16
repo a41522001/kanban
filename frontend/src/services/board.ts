@@ -1,10 +1,15 @@
 import type { ApiResponse } from '@kanban/contracts/api';
 import type {
   AddCardRequest,
+  AddCategoryRequest,
+  AddCategoryResult,
   ArchiveCardRequest,
   ArchiveCardResult,
   BoardSnapshot,
   CardMutationResult,
+  MoveBoardColumnRequest,
+  MoveCardRequest,
+  MoveColumnResult,
   UpdateCardRequest,
 } from '@kanban/contracts/board';
 import api from './http';
@@ -54,6 +59,51 @@ export const archiveCardApi = async (
   const response = await api<ApiResponse<ArchiveCardResult>, ArchiveCardRequest>({
     url: '/board/archiveCard',
     method: 'patch',
+    data: payload,
+  });
+
+  return response.data;
+};
+
+/**
+ * 移動卡片到 toColumnId，放在 afterCardId 後面（null 為最上面）；position 由後端計算。
+ * afterCardId 已不在目標欄位時回 409 / CardMoveConflict。
+ */
+export const moveCardApi = async (
+  payload: MoveCardRequest,
+): Promise<ApiResponse<CardMutationResult>> => {
+  const response = await api<ApiResponse<CardMutationResult>, MoveCardRequest>({
+    url: '/board/moveCard',
+    method: 'patch',
+    data: payload,
+  });
+
+  return response.data;
+};
+
+/**
+ * 移動欄位到 afterColumnId 後面（null 為最前面），Board 規格 §8.3。
+ * 回傳專案內所有欄位的最新 position；afterColumnId 已不在專案時回 409 / ColumnMoveConflict。
+ */
+export const moveColumnApi = async (
+  payload: MoveBoardColumnRequest,
+): Promise<ApiResponse<MoveColumnResult>> => {
+  const response = await api<ApiResponse<MoveColumnResult>, MoveBoardColumnRequest>({
+    url: '/board/moveColumn',
+    method: 'patch',
+    data: payload,
+  });
+
+  return response.data;
+};
+
+/** 建立類別；名稱已存在（不分大小寫）時回傳既有的那一筆，boardRevision 不變。 */
+export const addCategoryApi = async (
+  payload: AddCategoryRequest,
+): Promise<ApiResponse<AddCategoryResult>> => {
+  const response = await api<ApiResponse<AddCategoryResult>, AddCategoryRequest>({
+    url: '/board/addCategory',
+    method: 'post',
     data: payload,
   });
 

@@ -8,18 +8,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '@/config';
 import { createClient, RedisClientType } from 'redis';
-import {
-  SESSION_SCRIPTS,
-  type SessionScripts,
-} from '@/modules/session/session.script';
 import { createNodeRedisClient, type IRedisClient } from 'bullmq';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
+import { REDIS_SCRIPTS, type RedisScripts } from './redis.scripts';
 type EmptyRedisExtensions = Record<string, never>;
 
 type AppRedisClient = RedisClientType<
   EmptyRedisExtensions,
   EmptyRedisExtensions,
-  SessionScripts
+  RedisScripts
 >;
 @Injectable()
 export class RedisService
@@ -33,7 +30,7 @@ export class RedisService
       url: configService.get('redis.url', {
         infer: true,
       }),
-      scripts: SESSION_SCRIPTS,
+      scripts: REDIS_SCRIPTS,
     });
 
     this.client.on('error', (error: Error) => {

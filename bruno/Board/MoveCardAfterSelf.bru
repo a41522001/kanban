@@ -1,0 +1,33 @@
+meta {
+  name: MoveCardAfterSelf
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/board/moveCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "cardId": "{{categoryCardId}}",
+    "toColumnId": "{{secondColumnId}}",
+    "afterCardId": "{{categoryCardId}}"
+  }
+}
+
+tests {
+  test('回應 400', () => {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
+
+docs {
+  # 移動卡片：放在自己後面（錯誤案例）
+
+  - 預期：400 / ValidationError
+
+  `afterCardId` 不可等於 `cardId`；service 在查資料庫之前就擋下。
+}

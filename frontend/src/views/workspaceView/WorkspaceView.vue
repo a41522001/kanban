@@ -462,6 +462,8 @@ import {
   emitWorkspaceLeave,
   onWorkspaceMemberChanged,
   offWorkspaceMemberChanged,
+  onReconnected,
+  offReconnected,
 } from '@/services/socket';
 
 const { t } = useI18n();
@@ -702,6 +704,14 @@ const handleWorkspaceMemberChanged = ({ workspaceId }: WorkspaceMemberChangedPay
   loadMembers(workspaceId);
 };
 
+// memberChanged events sent while disconnected are lost, so refetch after reconnecting.
+const handleReconnected = () => {
+  if (!selectedWorkspaceId.value) {
+    return;
+  }
+  void loadMembers(selectedWorkspaceId.value);
+};
+
 watch(
   selectedWorkspaceId,
   (newWorkspaceId, previousWorkspaceId) => {
@@ -741,10 +751,12 @@ watch([isDesktop, projects], ([desktop, currentProjects]) => {
 
 onMounted(() => {
   onWorkspaceMemberChanged(handleWorkspaceMemberChanged);
+  onReconnected(handleReconnected);
   void loadWorkspaces();
 });
 onUnmounted(() => {
   offWorkspaceMemberChanged(handleWorkspaceMemberChanged);
+  offReconnected(handleReconnected);
   if (selectedWorkspaceId.value) {
     emitWorkspaceLeave(selectedWorkspaceId.value);
   }

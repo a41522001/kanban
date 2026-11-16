@@ -1,0 +1,39 @@
+meta {
+  name: MoveColumnRestore
+  type: http
+  seq: 20
+}
+
+patch {
+  url: {{baseUrl}}/board/moveColumn
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "{{secondColumnId}}",
+    "afterColumnId": "{{columnId}}"
+  }
+}
+
+tests {
+  test('回應 200', () => {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test('第二個欄位放回第一個欄位後面', () => {
+    const ids = res.getBody().data.columns.map((column) => column.id);
+    expect(ids.indexOf(bru.getVar('secondColumnId'))).to.equal(
+      ids.indexOf(bru.getVar('columnId')) + 1,
+    );
+  });
+}
+
+docs {
+  # 移動欄位（放在某一欄後面）
+
+  - 預期：200 / `MoveColumnResult`
+
+  把 `MoveColumn` 移到最前面的欄位放回 `columnId` 後面，讓重複執行 collection 時欄位順序維持不變；同時驗證 `afterColumnId` 不是 null 的情況。請先執行 `MoveColumn`。
+}

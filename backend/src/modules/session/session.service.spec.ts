@@ -356,7 +356,7 @@ describe('SessionService', () => {
       ['Current', currentSession],
       ['Grace', graceSession],
     ] as const)(
-      '有效的 %s Session 回傳 userId，且不執行輪轉',
+      '有效的 %s Session 回傳 userId 與 familyId，且不執行輪轉',
       async (_state, session) => {
         // Arrange
         const getSessionSpy = jest
@@ -369,7 +369,10 @@ describe('SessionService', () => {
           await sessionService.authenticateSocketSession(sessionId);
 
         // Assert
-        expect(result).toBe(session.userId);
+        expect(result).toEqual({
+          userId: session.userId,
+          familyId: session.familyId,
+        });
         expect(getSessionSpy).toHaveBeenCalledWith(sessionIdHash);
         expect(rotateSessionSpy).not.toHaveBeenCalled();
       },
@@ -404,14 +407,15 @@ describe('SessionService', () => {
       const revokeSessionSpy = jest.spyOn(sessionRepository, 'revokeSession');
 
       // Act
-      await sessionService.revokeSession(sessionId);
+      const result = await sessionService.revokeSession(sessionId);
 
       // Assert
+      expect(result).toBeNull();
       expect(getSessionSpy).toHaveBeenCalledWith(sessionIdHash);
       expect(revokeSessionSpy).not.toHaveBeenCalled();
     });
 
-    it('查到 Session 時依 userId 與 hash 撤銷', async () => {
+    it('查到 Session 時依 userId 與 hash 撤銷，並回傳 familyId', async () => {
       // Arrange
       const session: GraceSession = {
         userId: 'user-1',
@@ -425,9 +429,10 @@ describe('SessionService', () => {
       const revokeSessionSpy = jest.spyOn(sessionRepository, 'revokeSession');
 
       // Act
-      await sessionService.revokeSession(sessionId);
+      const result = await sessionService.revokeSession(sessionId);
 
       // Assert
+      expect(result).toBe(session.familyId);
       expect(revokeSessionSpy).toHaveBeenCalledTimes(1);
       expect(revokeSessionSpy).toHaveBeenCalledWith(
         session.userId,

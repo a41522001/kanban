@@ -121,4 +121,35 @@ describe('AddCardDto', () => {
     // Assert
     expect(errorFields(errors)).toEqual(['position']);
   });
+
+  it('接受類別 UUID', async () => {
+    const { dto, errors } = await validateAddCard({
+      columnId: COLUMN_ID,
+      title: '標題',
+      categoryId: COLUMN_ID,
+    });
+
+    expect(errors).toHaveLength(0);
+    expect(dto.categoryId).toBe(COLUMN_ID);
+  });
+
+  it('類別可省略', async () => {
+    const { dto, errors } = await validateAddCard({
+      columnId: COLUMN_ID,
+      title: '標題',
+    });
+
+    expect(errors).toHaveLength(0);
+    expect(dto.categoryId).toBeUndefined();
+  });
+
+  it('類別不是 UUID 時驗證失敗', async () => {
+    const { errors } = await validateAddCard({
+      columnId: COLUMN_ID,
+      title: '標題',
+      categoryId: 'category-1',
+    });
+
+    expect(errorFields(errors)).toEqual(['categoryId']);
+  });
 });

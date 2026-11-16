@@ -1,0 +1,36 @@
+meta {
+  name: MoveColumnAfterNotFound
+  type: http
+  seq: 23
+}
+
+patch {
+  url: {{baseUrl}}/board/moveColumn
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "{{columnId}}",
+    "afterColumnId": "00000000-0000-4000-8000-000000000000"
+  }
+}
+
+tests {
+  test('回應 409', () => {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test('code 為 ColumnMoveConflict (7004)', () => {
+    expect(res.getBody().code).to.equal(7004);
+  });
+}
+
+docs {
+  # 移動欄位：afterColumnId 已不在專案（錯誤案例）
+
+  - 預期：409 / ColumnMoveConflict (7004)
+
+  用不存在的 UUID 模擬「拖曳時，前一欄已經被別人封存」（目前還沒有封存欄位的 API）。不存在、已封存、屬於別的專案都回 409，與移動卡片的 `afterCardId` 相同。transaction rollback，`boardRevision` 不增加，也不廣播。前端收到後重新載入看板。
+}

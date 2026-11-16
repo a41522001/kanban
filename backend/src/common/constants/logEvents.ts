@@ -38,6 +38,9 @@ export const LOG_EVENTS = {
   socketConnectionConnected: 'socket.connection.connected',
   socketConnectionDisconnected: 'socket.connection.disconnected',
   socketWorkspaceJoinRejected: 'socket.workspace.join_rejected',
+  socketProjectJoinRejected: 'socket.project.join_rejected',
+  socketCardDragRejected: 'socket.card_drag.rejected',
+  socketCardDragLockFailed: 'socket.card_drag.lock_failed',
 } as const;
 
 /** 所有合法 event 字串組成的型別，可用來約束 `AppException` 的 `event`。 */

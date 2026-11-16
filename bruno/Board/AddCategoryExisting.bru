@@ -1,0 +1,49 @@
+meta {
+  name: AddCategoryExisting
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/board/addCategory
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "projectId": "{{projectId}}",
+    "name": "{{categoryNameLower}}",
+    "colorKey": "coral"
+  }
+}
+
+script:pre-request {
+  // Same name as AddCategory, different case and color.
+  bru.setVar('categoryNameLower', bru.getVar('categoryName').toLowerCase());
+}
+
+tests {
+  test('回應 201', () => {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test('沿用 AddCategory 建立的類別（不分大小寫），名稱與顏色維持原本的', () => {
+    const category = res.getBody().data.category;
+    expect(category.id).to.equal(bru.getVar('categoryId'));
+    expect(category.name).to.equal(bru.getVar('categoryName'));
+    expect(category.colorKey).to.equal('mint');
+  });
+
+  test('boardRevision 不變', () => {
+    expect(res.getBody().data.boardRevision).to.equal(bru.getVar('categoryRevision'));
+  });
+}
+
+docs {
+  # 建立類別：名稱已存在
+
+  請先執行 `AddCategory`。以小寫的同一個名稱、不同顏色再送一次：回傳既有的那一筆（名稱、顏色不變），`boardRevision` 與 `AddCategory` 的回傳相同。
+
+  2026-11-04 Board 規格 A+1-2（Q5、Q14）。
+}

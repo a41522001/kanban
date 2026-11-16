@@ -7,6 +7,7 @@ import type {
   ArchiveCardRequest,
   ArchiveCardResult,
   BoardCardSnapshot,
+  CardCategorySnapshot,
   CardMutationResult,
   UpdateCardRequest,
 } from '@kanban/contracts/board';
@@ -26,6 +27,7 @@ const card: BoardCardSnapshot = {
   columnId: 'column-1',
   title: 'Session Cookie 驗證流程',
   description: '使用隨機 session id',
+  categoryId: null,
   position: 1024,
   version: 3,
   createdAt: '2026-11-03T02:42:00.000Z',
@@ -49,12 +51,46 @@ const apiError = (status: number, code: ApiCode, message: string) =>
     data: { code, data: null, message, time: '', error: null },
   });
 
+const categories: CardCategorySnapshot[] = [
+  { id: 'category-1', name: '後端', colorKey: 'mint' },
+  { id: 'category-2', name: '前端', colorKey: 'lavender' },
+];
+
+const columns = [
+  { id: 'column-1', title: '正在進行' },
+  { id: 'column-2', title: '等待檢視' },
+];
+
 const passthroughStub = { template: '<div><slot /></div>' };
-const mountDialog = (canEdit = true) =>
+// Renders each menu item as a plain button so tests can click it without the reka-ui portal.
+const menuItemStub = {
+  props: ['disabled'],
+  emits: ['select'],
+  template:
+    '<button type="button" data-testid="move-target" :disabled="disabled" @click="$emit(\'select\')"><slot /></button>',
+};
+const mountDialog = (
+  canEdit = true,
+  cardValue: BoardCardSnapshot = card,
+  columnOptions: { id: string; title: string }[] = columns,
+) =>
   mount(DialogCardDetail, {
-    props: { open: true, card, columnTitle: '正在進行', canEdit },
+    props: {
+      open: true,
+      card: cardValue,
+      columnTitle: '正在進行',
+      canEdit,
+      projectId: 'project-1',
+      categories,
+      columns: columnOptions,
+    },
     global: {
       stubs: {
+        DropdownMenu: passthroughStub,
+        DropdownMenuTrigger: passthroughStub,
+        DropdownMenuContent: passthroughStub,
+        DropdownMenuLabel: passthroughStub,
+        DropdownMenuItem: menuItemStub,
         Dialog: passthroughStub,
         DialogContent: passthroughStub,
         DialogHeader: passthroughStub,
@@ -99,6 +135,38 @@ describe('DialogCardDetail', () => {
 
     expect(titleValue(wrapper)).toBe(card.title);
     expect(wrapper.text()).toContain('位於「正在進行」');
+  });
+
+  describe('移動至…', () => {
+    it('列出所有欄位，目前所在的欄位停用並標示', () => {
+      const wrapper = mountDialog();
+      const targets = wrapper.findAll('[data-testid="move-target"]');
+
+      expect(targets.map((item) => item.text())).toEqual(['正在進行（目前位置）', '等待檢視']);
+      expect(targets[0]!.attributes('disabled')).toBeDefined();
+      expect(targets[1]!.attributes('disabled')).toBeUndefined();
+    });
+
+    it('選擇欄位時 emit move，不呼叫修改 API', async () => {
+      const wrapper = mountDialog();
+
+      await wrapper.findAll('[data-testid="move-target"]')[1]!.trigger('click');
+
+      expect(wrapper.emitted('move')).toEqual([['column-2']]);
+      expect(updateCardApi).not.toHaveBeenCalled();
+    });
+
+    it('只有一個欄位時停用「移動至…」', () => {
+      const wrapper = mountDialog(true, card, [columns[0]!]);
+
+      expect(findButton(wrapper, '移動至…').attributes('disabled')).toBeDefined();
+    });
+
+    it('VIEWER 看不到「移動至…」', () => {
+      const wrapper = mountDialog(false);
+
+      expect(wrapper.text()).not.toContain('移動至…');
+    });
   });
 
   it('只送出有變更的欄位與 expectedVersion', async () => {
@@ -159,7 +227,7 @@ describe('DialogCardDetail', () => {
     expect(wrapper.emitted('reload')).toHaveLength(1);
   });
 
-  it('重新載入拿到新版本後清除衝突並填入最新內容', async () => {
+  it('409 後按重新載入，拿到新版本時清除衝突並填入最新內容', async () => {
     vi.mocked(updateCardApi).mockRejectedValue(
       apiError(409, ApiCode.CardVersionConflict, 'conflict'),
     );
@@ -168,10 +236,69 @@ describe('DialogCardDetail', () => {
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
+    await findButton(wrapper, '重新載入').trigger('click');
     await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
 
     expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
     expect(titleValue(wrapper)).toBe('別人的修改');
+  });
+
+  describe('對話框開著時收到別人的修改（Board 規格 Q7）', () => {
+    it('還沒修改時直接換成最新內容，不顯示衝突', async () => {
+      const wrapper = mountDialog();
+
+      await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
+
+      expect(titleValue(wrapper)).toBe('別人的修改');
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+    });
+
+    it('已經修改時保留輸入內容、顯示衝突並停用儲存', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('我的修改');
+
+      await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
+
+      expect(titleValue(wrapper)).toBe('我的修改');
+      expect(wrapper.text()).toContain('這張卡片已被其他成員修改');
+      expect(findButton(wrapper, '儲存').attributes('disabled')).toBeDefined();
+    });
+
+    it('衝突時按重新載入，新版本已經在畫面上就直接換成最新內容，不再要求重新載入看板', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('我的修改');
+      await wrapper.setProps({ card: { ...card, title: '別人的修改', version: 4 } });
+
+      await findButton(wrapper, '重新載入').trigger('click');
+
+      expect(titleValue(wrapper)).toBe('別人的修改');
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+      expect(wrapper.emitted('reload')).toBeUndefined();
+    });
+
+    it('自己儲存的結果比 HTTP 回應先以事件送到時，不視為衝突', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('新標題');
+
+      await wrapper.setProps({ card: { ...card, title: '新標題', version: 4 } });
+
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+      expect(titleValue(wrapper)).toBe('新標題');
+    });
+
+    it('別人移動卡片（version 不變）只更新所在欄位，不動表單', async () => {
+      const wrapper = mountDialog();
+      await wrapper.get('#card-detail-title').setValue('我的修改');
+
+      await wrapper.setProps({
+        card: { ...card, columnId: 'column-2', position: 4096 },
+        columnTitle: '等待檢視',
+      });
+
+      expect(titleValue(wrapper)).toBe('我的修改');
+      expect(wrapper.text()).toContain('等待檢視');
+      expect(wrapper.text()).not.toContain('這張卡片已被其他成員修改');
+    });
   });
 
   it('確認封存後以 expectedVersion 封存並 emit archived', async () => {
@@ -219,5 +346,44 @@ describe('DialogCardDetail', () => {
     expect(wrapper.find('#card-detail-title').exists()).toBe(false);
     expect(wrapper.text()).toContain('檢視者 · 只能查看');
     expect(wrapper.text()).not.toContain('封存卡片');
+  });
+
+  it('改選類別時只送 categoryId', async () => {
+    const wrapper = mountDialog();
+
+    await wrapper.get('#card-category').trigger('click');
+    await wrapper.findAll('[role="option"]').find((option) => option.text() === '前端')!.trigger('click');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(updateCardApi).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      expectedVersion: 3,
+      categoryId: 'category-2',
+    });
+  });
+
+  it('選「不設定類別」時送 categoryId: null', async () => {
+    const wrapper = mountDialog(true, { ...card, categoryId: 'category-1' });
+
+    await wrapper.get('#card-category').trigger('click');
+    await wrapper.findAll('[role="option"]')[0]!.trigger('click');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(updateCardApi).toHaveBeenCalledWith({
+      cardId: 'card-1',
+      expectedVersion: 3,
+      categoryId: null,
+    });
+  });
+
+  it('VIEWER 以 chip 顯示類別，沒有類別時顯示「沒有類別」', () => {
+    const withCategory = mountDialog(false, { ...card, categoryId: 'category-1' });
+    expect(withCategory.get('[data-testid="read-only"]').text()).toContain('後端');
+    expect(withCategory.find('#card-category').exists()).toBe(false);
+
+    const withoutCategory = mountDialog(false);
+    expect(withoutCategory.get('[data-testid="read-only"]').text()).toContain('沒有類別');
   });
 });

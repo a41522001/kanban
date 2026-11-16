@@ -16,11 +16,21 @@ script:post-response {
   if (columns.length > 0) {
     bru.setVar('columnId', columns[0].id);
   }
+  // MoveCard moves a card into the second column.
+  if (columns.length > 1) {
+    bru.setVar('secondColumnId', columns[1].id);
+  }
 }
 
 tests {
   test('回應 200', () => {
     expect(res.getStatus()).to.equal(200);
+  });
+
+  test('回傳 categories 陣列，卡片帶 categoryId', () => {
+    const data = res.getBody().data;
+    expect(data.categories).to.be.an('array');
+    data.columns.forEach((column) => column.cards.forEach((card) => expect(card).to.have.property('categoryId')));
   });
 
   test('data 為 BoardSnapshot：boardRevision 字串與 columns 陣列', () => {
@@ -44,7 +54,7 @@ docs {
   - 成功：200 / `BoardSnapshot`：`{ boardRevision, columns: [{ id, title, colorKey, position, cards }] }`，只含未封存的欄位與卡片，依 `position` 排序；所有欄位都封存時 `columns` 為空陣列
   - 非成員、Project 或 Workspace 已封存：404 / ResourceNotFound (3001)，不透露 Project 是否存在（見 `GetBoardColumnsNotMember`）
 
-  `projectId` 由 `Project/ListProjects` 存入 runtime 變數，請先執行它。執行後會把第一個欄位的 id 存成 runtime 變數 `columnId`，供 `AddCard` 使用。
+  `projectId` 由 `Project/ListProjects` 存入 runtime 變數，請先執行它。執行後會把第一個欄位的 id 存成 runtime 變數 `columnId`，供 `AddCard` 使用；第二個欄位存成 `secondColumnId`，供 `MoveCard` 使用。
 
   2026-10-30 補上權限檢查：以 `project.findFirst` 的 `where`（未封存、Workspace 未封存、`members.some.userId`）一次查出權限與欄位。
 }

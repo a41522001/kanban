@@ -73,7 +73,7 @@ describe('AuthService', () => {
         {
           provide: SocketService,
           useValue: {
-            disconnectSession: jest.fn(),
+            disconnectFamily: jest.fn(),
           },
         },
         {
@@ -484,18 +484,27 @@ describe('AuthService', () => {
 
   /** 登出 */
   describe('logout', () => {
-    it('登出', async () => {
+    it('撤銷 Session 後，以它的 familyId 斷開同一次登入的 Socket', async () => {
       const sessionId = 'sessionId';
-      const deleteSession = jest.spyOn(sessionService, 'revokeSession');
-      const disconnectSessionSpy = jest.spyOn(
-        socketService,
-        'disconnectSession',
-      );
+      const revokeSessionSpy = jest
+        .spyOn(sessionService, 'revokeSession')
+        .mockResolvedValue('family-1');
+      const disconnectFamilySpy = jest.spyOn(socketService, 'disconnectFamily');
+
       await authService.logout(sessionId);
-      expect(deleteSession).toHaveBeenCalledTimes(1);
-      expect(deleteSession).toHaveBeenCalledWith(sessionId);
-      expect(disconnectSessionSpy).toHaveBeenCalledTimes(1);
-      expect(disconnectSessionSpy).toHaveBeenCalledWith(sessionId);
+
+      expect(revokeSessionSpy).toHaveBeenCalledWith(sessionId);
+      expect(disconnectFamilySpy).toHaveBeenCalledTimes(1);
+      expect(disconnectFamilySpy).toHaveBeenCalledWith('family-1');
+    });
+
+    it('Session 已不存在時不斷開任何 Socket', async () => {
+      jest.spyOn(sessionService, 'revokeSession').mockResolvedValue(null);
+      const disconnectFamilySpy = jest.spyOn(socketService, 'disconnectFamily');
+
+      await authService.logout('sessionId');
+
+      expect(disconnectFamilySpy).not.toHaveBeenCalled();
     });
   });
 });

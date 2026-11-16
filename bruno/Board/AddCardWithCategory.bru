@@ -1,0 +1,42 @@
+meta {
+  name: AddCardWithCategory
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/board/addCard
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "columnId": "{{columnId}}",
+    "title": "有類別的卡片",
+    "categoryId": "{{categoryId}}"
+  }
+}
+
+script:post-response {
+  const card = res.getBody()?.data?.card;
+  if (card) {
+    bru.setVar('categoryCardId', card.id);
+    bru.setVar('categoryCardVersion', card.version);
+  }
+}
+
+tests {
+  test('回應 201，卡片帶 AddCategory 建立的 categoryId', () => {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody().data.card.categoryId).to.equal(bru.getVar('categoryId'));
+  });
+}
+
+docs {
+  # 新增帶類別的卡片
+
+  請先執行 `GetBoardColumns`（`columnId`）與 `AddCategory`（`categoryId`）。類別必須屬於卡片所在專案；不存在或屬於別的專案時回 404 / ResourceNotFound (3001)。執行後把卡片存成 `categoryCardId`、`categoryCardVersion`，供 `UpdateCardRemoveCategory` 使用。
+
+  2026-11-04 Board 規格 A+1-3。
+}

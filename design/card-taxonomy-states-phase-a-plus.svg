@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1340" viewBox="0 0 1440 1340">
+  <defs>
+    <filter id="dialog-shadow" x="-15%" y="-12%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#111827" flood-opacity=".18"/>
+    </filter>
+    <filter id="menu-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#111827" flood-opacity=".16"/>
+    </filter>
+    <style>
+      text{font-family:"Noto Sans TC","PingFang TC",Arial,sans-serif;fill:#29324A}
+      .spec{font-size:14px;font-weight:700;letter-spacing:.1em;fill:#697287}
+      .state{font-size:16px;font-weight:700}
+      .note{font-size:12px;fill:#697287}
+      .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;fill:#697287}
+      .title{font-size:20px;font-weight:700}
+      .section{font-size:14px;font-weight:700}
+      .body{font-size:14px}
+      .small{font-size:12px;fill:#697287}
+      .tiny{font-size:11px;fill:#697287}
+      .chip{font-size:12px;font-weight:700}
+      .button{font-size:14px;font-weight:700;fill:#FFF9F4}
+      .button-secondary{font-size:14px;font-weight:700;fill:#29324A}
+    </style>
+    <g id="check-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10 4 4 8-8"/></g>
+    <g id="plus-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></g>
+    <g id="search-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><path d="m14 14 4 4"/></g>
+    <g id="x-small" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m3 3 6 6M9 3 3 9"/></g>
+    <g id="eye-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z"/><circle cx="10" cy="10" r="2.5"/></g>
+  </defs>
+
+  <!-- Flowboard / Card category + label states / Board phase A+. Each panel shows only the part that changes. -->
+  <rect width="1440" height="1340" fill="#E9ECF1"/>
+  <text x="48" y="44" class="spec">CARD CATEGORY + LABEL STATES / PHASE A+ / SPEC PAGE</text>
+
+  <!-- 1. Board card display -->
+  <g id="state-board-cards" transform="translate(48 80)">
+    <text class="state">1　看板上的卡片</text>
+    <text y="24" class="note">類別是標題上方的色塊 chip；標籤是標題下方以「·」串接的灰色小字，依名稱排序。沒有類別或標籤時不顯示那一行。</text>
+    <g transform="translate(0 48)">
+      <rect width="656" height="360" rx="16" fill="#F7F8FA" stroke="#D7DCE5"/>
+      <g transform="translate(24 24)">
+        <rect width="296" height="96" rx="10" fill="#FFF"/>
+        <rect x="16" y="16" width="48" height="20" rx="10" fill="#E3F1EC"/><text x="40" y="30" text-anchor="middle" class="chip" style="fill:#31665D">後端</text>
+        <text x="16" y="60" class="body" font-weight="700">Session Cookie 驗證流程</text>
+        <text x="16" y="82" class="small">Auth · Backend</text>
+        <text y="120" class="tiny">類別＋標籤</text>
+      </g>
+      <g transform="translate(336 24)">
+        <rect width="296" height="76" rx="10" fill="#FFF"/>
+        <rect x="16" y="16" width="48" height="20" rx="10" fill="#E9E6F7"/><text x="40" y="30" text-anchor="middle" class="chip" style="fill:#55438F">前端</text>
+        <text x="16" y="60" class="body" font-weight="700">看板卡片樣式</text>
+        <text y="100" class="tiny">只有類別</text>
+      </g>
+      <g transform="translate(24 172)">
+        <rect width="296" height="76" rx="10" fill="#FFF"/>
+        <text x="16" y="34" class="body" font-weight="700">整理 Bruno 測試順序</text>
+        <text x="16" y="58" class="small">Board · Testing</text>
+        <text y="100" class="tiny">只有標籤</text>
+      </g>
+      <g transform="translate(336 172)">
+        <rect width="296" height="56" rx="10" fill="#FFF"/>
+        <text x="16" y="34" class="body" font-weight="700">整理部署文件</text>
+        <text y="80" class="tiny">都沒有（與階段 A 相同）</text>
+      </g>
+      <text x="24" y="320" class="small">標籤太多時以單行省略（…），完整內容在卡片詳情查看。</text>
+    </g>
+  </g>
+
+  <!-- 2. Category menu open -->
+  <g id="state-category-menu" transform="translate(736 80)">
+    <text class="state">2　類別選單</text>
+    <text y="24" class="note">點類別欄位展開，可輸入文字篩選；目前選取的打勾。「不設定類別」會把類別移除（送出 categoryId: null）。</text>
+    <g transform="translate(0 48)">
+      <rect width="656" height="360" rx="16" fill="#FFF"/>
+      <g transform="translate(32 28)">
+        <text class="section">類別</text><text x="42" class="small">選填</text>
+        <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#DF6E51" stroke-width="2"/>
+        <g transform="translate(16 32)" color="#697287"><use href="#search-icon"/></g>
+        <text x="48" y="48" class="body" style="fill:#9AA2B3">搜尋或建立類別</text>
+        <g transform="translate(0 80)" filter="url(#menu-shadow)">
+          <rect width="592" height="236" rx="12" fill="#FFF" stroke="#D7DCE5"/>
+          <text x="16" y="30" class="body" style="fill:#697287">不設定類別</text>
+          <line x1="12" y1="44" x2="580" y2="44" stroke="#EEF0F4"/>
+          <rect x="16" y="56" width="48" height="20" rx="10" fill="#FCE5DF"/><text x="40" y="70" text-anchor="middle" class="chip" style="fill:#9F3F2C">企劃</text>
+          <rect x="16" y="92" width="48" height="20" rx="10" fill="#E9E6F7"/><text x="40" y="106" text-anchor="middle" class="chip" style="fill:#55438F">前端</text>
+          <rect x="8" y="120" width="576" height="40" rx="8" fill="#F7F8FA"/>
+          <rect x="16" y="130" width="48" height="20" rx="10" fill="#E3F1EC"/><text x="40" y="144" text-anchor="middle" class="chip" style="fill:#31665D">後端</text>
+          <g transform="translate(552 130)" color="#B94B36"><use href="#check-icon"/></g>
+          <rect x="16" y="172" width="48" height="20" rx="10" fill="#FFF1D8"/><text x="40" y="186" text-anchor="middle" class="chip" style="fill:#7A4D00">設計</text>
+          <text x="16" y="222" class="tiny">依名稱排序 · 共 4 個類別</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- 3. Create a new category -->
+  <g id="state-category-create" transform="translate(48 520)">
+    <text class="state">3　建立新類別</text>
+    <text y="24" class="note">輸入的名稱不存在（不分大小寫）時，最下面出現「建立」。展開 14 色，預設第一個尚未使用的顏色。名稱 trim 後 1–20 字。</text>
+    <g transform="translate(0 48)">
+      <rect width="656" height="360" rx="16" fill="#FFF"/>
+      <g transform="translate(32 28)">
+        <text class="section">類別</text><text x="42" class="small">選填</text>
+        <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#DF6E51" stroke-width="2"/>
+        <g transform="translate(16 32)" color="#697287"><use href="#search-icon"/></g>
+        <text x="48" y="48" class="body">文件</text>
+        <g transform="translate(0 80)" filter="url(#menu-shadow)">
+          <rect width="592" height="236" rx="12" fill="#FFF" stroke="#D7DCE5"/>
+          <text x="16" y="30" class="small">沒有符合「文件」的類別</text>
+          <line x1="12" y1="44" x2="580" y2="44" stroke="#EEF0F4"/>
+          <g transform="translate(16 60)" color="#B94B36"><use href="#plus-icon"/></g>
+          <text x="44" y="75" class="section" style="fill:#B94B36">建立「文件」</text>
+          <text x="16" y="108" class="small">類別色彩</text>
+          <!-- 14 swatches in contract order; coral is taken by 企劃, so rose is preselected. -->
+          <g transform="translate(16 120)">
+            <circle cx="14" cy="14" r="12" fill="#FCE5DF" stroke="#9F3F2C"/>
+            <circle cx="50" cy="14" r="15" fill="none" stroke="#29324A" stroke-width="2"/>
+            <circle cx="50" cy="14" r="12" fill="#FDE7EE" stroke="#92324E"/>
+            <circle cx="86" cy="14" r="12" fill="#FFEAD6" stroke="#934510"/>
+            <circle cx="122" cy="14" r="12" fill="#E3F1EC" stroke="#31665D"/>
+            <circle cx="158" cy="14" r="12" fill="#FFF1D8" stroke="#7A4D00"/>
+            <circle cx="194" cy="14" r="12" fill="#EDF7DB" stroke="#496D17"/>
+            <circle cx="230" cy="14" r="12" fill="#DEF3F1" stroke="#1F6868"/>
+            <circle cx="266" cy="14" r="12" fill="#E0F3F9" stroke="#216A85"/>
+            <circle cx="302" cy="14" r="12" fill="#E9E6F7" stroke="#55438F"/>
+            <circle cx="338" cy="14" r="12" fill="#E9EAFF" stroke="#45488E"/>
+            <circle cx="374" cy="14" r="12" fill="#F1E6FA" stroke="#633C95"/>
+            <circle cx="410" cy="14" r="12" fill="#FBE6F1" stroke="#923565"/>
+            <circle cx="446" cy="14" r="12" fill="#E4EEFB" stroke="#315B8F"/>
+            <circle cx="482" cy="14" r="12" fill="#E8EBF0" stroke="#465066"/>
+          </g>
+          <text x="16" y="180" class="small">預覽</text>
+          <rect x="52" y="166" width="48" height="20" rx="10" fill="#FDE7EE"/><text x="76" y="180" text-anchor="middle" class="chip" style="fill:#92324E">文件</text>
+          <g transform="translate(372 160)">
+            <rect width="96" height="40" rx="10" fill="#FFF" stroke="#CDD3DE"/><text x="48" y="25" text-anchor="middle" class="button-secondary">取消</text>
+            <rect x="108" width="96" height="40" rx="10" fill="#B94B36"/><text x="156" y="25" text-anchor="middle" class="button">建立</text>
+          </g>
+          <text x="16" y="222" class="tiny" style="fill:#C4573E">已達 50 個上限時（409 / 7002）：「這個專案的類別已達 50 個上限」</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- 4. Label suggestions -->
+  <g id="state-label-suggestions" transform="translate(736 520)">
+    <text class="state">4　標籤建議</text>
+    <text y="24" class="note">輸入時列出名稱包含文字的既有標籤；Enter 選取第一個。完全相同（不分大小寫）的名稱會沿用既有標籤，不會重複建立。</text>
+    <g transform="translate(0 48)">
+      <rect width="656" height="360" rx="16" fill="#FFF"/>
+      <g transform="translate(32 28)">
+        <text class="section">標籤</text><text x="42" class="small">選填</text>
+        <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#DF6E51" stroke-width="2"/>
+        <g transform="translate(12 28)">
+          <rect width="68" height="28" rx="8" fill="#EEF0F4"/>
+          <text x="12" y="19" class="chip">Auth</text>
+          <g transform="translate(48 8)" color="#697287"><use href="#x-small"/></g>
+        </g>
+        <text x="96" y="47" class="body">Fr</text>
+        <rect x="114" y="30" width="1.5" height="24" fill="#29324A"/>
+        <text x="592" y="88" text-anchor="end" class="tiny">1 / 5</text>
+        <g transform="translate(0 100)" filter="url(#menu-shadow)">
+          <rect width="592" height="104" rx="12" fill="#FFF" stroke="#D7DCE5"/>
+          <rect x="8" y="8" width="576" height="40" rx="8" fill="#F7F8FA"/>
+          <text x="16" y="33" class="body">Frontend</text>
+          <text x="568" y="33" text-anchor="end" class="tiny">Enter 選取</text>
+          <g transform="translate(16 64)" color="#B94B36"><use href="#plus-icon"/></g>
+          <text x="44" y="79" class="section" style="fill:#B94B36">建立「Fr」</text>
+        </g>
+        <text y="236" class="small">Backspace 在輸入框為空時移除最後一個標籤。</text>
+        <text y="260" class="small">已選的標籤不會出現在建議清單中。</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- 5. Label limit -->
+  <g id="state-label-limit" transform="translate(48 960)">
+    <text class="state">5　標籤上限與名稱錯誤</text>
+    <text y="24" class="note">一張卡片最多 5 個標籤，達到上限時隱藏輸入；名稱超過 20 字時不建立，顯示錯誤。專案 200 個上限回 409 / 7003。</text>
+    <g transform="translate(0 48)">
+      <rect width="656" height="320" rx="16" fill="#FFF"/>
+      <g transform="translate(32 28)">
+        <text class="section">標籤</text><text x="42" class="small">選填</text>
+        <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#CDD3DE"/>
+        <g transform="translate(12 28)"><rect width="68" height="28" rx="8" fill="#EEF0F4"/><text x="12" y="19" class="chip">Auth</text><g transform="translate(48 8)" color="#697287"><use href="#x-small"/></g></g>
+        <g transform="translate(88 28)"><rect width="92" height="28" rx="8" fill="#EEF0F4"/><text x="12" y="19" class="chip">Backend</text><g transform="translate(72 8)" color="#697287"><use href="#x-small"/></g></g>
+        <g transform="translate(188 28)"><rect width="76" height="28" rx="8" fill="#EEF0F4"/><text x="12" y="19" class="chip">Board</text><g transform="translate(56 8)" color="#697287"><use href="#x-small"/></g></g>
+        <g transform="translate(272 28)"><rect width="88" height="28" rx="8" fill="#EEF0F4"/><text x="12" y="19" class="chip">Testing</text><g transform="translate(68 8)" color="#697287"><use href="#x-small"/></g></g>
+        <g transform="translate(368 28)"><rect width="60" height="28" rx="8" fill="#EEF0F4"/><text x="12" y="19" class="chip">UX</text><g transform="translate(40 8)" color="#697287"><use href="#x-small"/></g></g>
+        <text y="88" class="small">已達 5 個標籤上限，移除後才能再新增。</text>
+        <text x="592" y="88" text-anchor="end" class="tiny" style="fill:#C4573E">5 / 5</text>
+
+        <g transform="translate(0 136)">
+          <text class="section">標籤</text><text x="42" class="small">選填</text>
+          <rect y="16" width="592" height="52" rx="10" fill="#FFF" stroke="#C4573E" stroke-width="2"/>
+          <text x="16" y="47" class="body">Socket handshake middleware 驗證</text>
+          <text y="88" class="small" style="fill:#C4573E">標籤名稱最多 20 字</text>
+          <text x="592" y="88" text-anchor="end" class="tiny">0 / 5</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- 6. VIEWER read-only -->
+  <g id="state-viewer-read-only" transform="translate(736 960)">
+    <text class="state">6　檢視者（VIEWER）唯讀</text>
+    <text y="24" class="note">類別與標籤以純文字呈現，沒有選單與輸入；沒有設定時顯示「沒有類別」「沒有標籤」。</text>
+    <g transform="translate(0 48)" filter="url(#dialog-shadow)">
+      <rect width="656" height="320" rx="16" fill="#FFF"/>
+      <g transform="translate(32 32)">
+        <g color="#465066">
+          <rect width="200" height="32" rx="16" fill="#E8EBF0"/>
+          <use href="#eye-icon" transform="translate(12 6)"/>
+          <text x="40" y="21" class="small" font-weight="700" style="fill:#465066">檢視者 · 只能查看</text>
+        </g>
+        <text y="72" class="title">Session Cookie 驗證流程</text>
+        <text y="112" class="section">類別</text>
+        <rect x="64" y="98" width="48" height="20" rx="10" fill="#E3F1EC"/><text x="88" y="112" text-anchor="middle" class="chip" style="fill:#31665D">後端</text>
+        <text y="148" class="section">標籤</text>
+        <text x="64" y="148" class="body">Auth · Backend</text>
+        <text y="188" class="section">描述</text>
+        <text y="214" class="body">使用隨機 session id 作為 Cookie 值；Redis 保存雜湊後的 key。</text>
+        <text y="256" class="small">建立於 2026/11/03 10:42　·　最後更新 2026/11/03 11:05</text>
+      </g>
+    </g>
+  </g>
+</svg>

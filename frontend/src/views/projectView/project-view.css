@@ -56,12 +56,74 @@
   @apply font-bold text-content-primary;
 }
 
-.board__cards {
-  @apply mb-3 flex flex-col gap-3;
+.board__cards-area {
+  @apply relative mb-3;
 }
 
+/* Shown while the Socket is disconnected; the board stays usable (Board spec Q11). */
+.board__sync-banner {
+  @apply mx-4 mt-4 flex items-center gap-2 rounded-control border border-flow-review bg-flow-review-soft px-4 py-2 text-sm text-content-primary;
+}
+
+/* min-h keeps an empty column droppable. */
+.board__cards {
+  @apply flex min-h-16 flex-col gap-3 rounded-xl transition-colors motion-reduce:transition-none;
+}
+
+.board__cards--drop-target {
+  @apply bg-flow-active-soft outline-2 outline-offset-4 outline-flow-active-strong;
+}
+
+/* Overlays the empty list so the list itself still receives the drop. */
 .board__empty-cards {
-  @apply rounded-control border border-dashed border-border px-3 py-5 text-center text-sm text-content-tertiary;
+  @apply pointer-events-none absolute inset-0 flex items-center justify-center rounded-control border border-dashed border-border px-3 text-center text-sm text-content-tertiary;
+}
+
+.board__card {
+  @apply relative rounded-xl;
+}
+
+/* Leave room for the 44 × 44 handle in the top-right corner. */
+.board__card--editable .board-card {
+  @apply pr-12;
+}
+
+.board__card-handle {
+  @apply absolute top-0 right-0 flex size-11 cursor-grab touch-manipulation items-center justify-center rounded-xl text-content-tertiary outline-none select-none hover:text-content-secondary focus-visible:ring-3 focus-visible:ring-action-primary/30;
+}
+
+.board__card--chosen .board__card-handle {
+  @apply cursor-grabbing;
+}
+
+/* Board spec §8.2: someone else is dragging this card. */
+.board__card--locked .board-card {
+  @apply opacity-60;
+}
+
+.board__card-handle:disabled {
+  @apply cursor-not-allowed text-content-tertiary/50 hover:text-content-tertiary/50;
+}
+
+/*
+ * Sits on the card's bottom edge so it never covers the title and never changes the layout:
+ * 20px tall, 10px inside the card's 16px bottom padding and 10px into the 12px gap below.
+ */
+.board__card-lock {
+  @apply pointer-events-none absolute right-3 -bottom-2.5 z-10 flex h-5 items-center gap-1 rounded-full border border-action-primary/30 bg-action-primary-soft px-2 text-xs leading-4 font-medium text-action-primary;
+}
+
+/* Placeholder left at the drop position: dashed outline, content hidden. */
+.board__card--ghost {
+  @apply border-2 border-dashed border-border-strong bg-transparent;
+}
+
+.board__card--ghost > * {
+  @apply invisible;
+}
+
+.board__card--dragging {
+  @apply rotate-1 shadow-card motion-reduce:rotate-0;
 }
 
 .board__add-card-button {
@@ -93,7 +155,7 @@
 }
 
 .board__card-button {
-  @apply cursor-pointer rounded-xl text-left outline-none ring-action-primary transition-shadow hover:ring-1 focus-visible:ring-3 focus-visible:ring-action-primary/30;
+  @apply block w-full cursor-pointer rounded-xl text-left outline-none ring-action-primary transition-shadow hover:ring-1 focus-visible:ring-3 focus-visible:ring-action-primary/30;
 }
 
 .board__card-button--selected {
