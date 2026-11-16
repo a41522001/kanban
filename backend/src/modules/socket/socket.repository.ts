@@ -13,6 +13,7 @@ export class SocketRepository {
     return this.prismaService.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },
       select: {
+        role: true,
         project: {
           select: {
             archivedAt: true,

@@ -427,6 +427,101 @@ describe('Socket.IO (e2e)', () => {
     });
   });
 
+  describe('卡片拖曳鎖（Board 規格 §8.2）', () => {
+    const lockKey = () => redisKeys.cardDrag(fixture.projectId, fixture.cardId);
+
+    const joinProject = async (client: Client) => {
+      client.emit('project:into', { projectId: fixture.projectId });
+      await waitForRoom(client, `project:${fixture.projectId}`, true);
+    };
+
+    const dragStart = (client: Client, projectId = fixture.projectId) =>
+      client
+        .timeout(3000)
+        .emitWithAck('card:dragStart', { projectId, cardId: fixture.cardId });
+
+    afterEach(async () => {
+      await redis.getClient().del(lockKey());
+    });
+
+    it('A 取得鎖 → 其他人收到開始、A 自己收不到；B 拿不到；A 結束後其他人收到結束，B 可以取得', async () => {
+      const ownerCookie = await login('owner');
+      const tabA = await connect(ownerCookie);
+      const tabB = await connect(ownerCookie);
+      const viewer = await connect(await login('viewer'));
+      await Promise.all([tabA, tabB, viewer].map(joinProject));
+      const receivedByA = recordEvents(tabA);
+
+      const started = nextEvent(viewer, 'board:cardDragStarted');
+      await expect(dragStart(tabA)).resolves.toEqual({ status: 'acquired' });
+      await expect(started).resolves.toEqual({
+        projectId: fixture.projectId,
+        cardId: fixture.cardId,
+      });
+      await expect(redis.getClient().get(lockKey())).resolves.toBe(tabA.id);
+
+      await expect(dragStart(tabB)).resolves.toEqual({ status: 'locked' });
+
+      const ended = nextEvent(viewer, 'board:cardDragEnded');
+      tabA.emit('card:dragEnd', {
+        projectId: fixture.projectId,
+        cardId: fixture.cardId,
+      });
+      await expect(ended).resolves.toEqual({
+        projectId: fixture.projectId,
+        cardId: fixture.cardId,
+      });
+      await expect(redis.getClient().exists(lockKey())).resolves.toBe(0);
+      // socket.to(room) excludes the sender: A never hears about its own drag.
+      expect(receivedByA).toEqual([]);
+
+      const startedForA = nextEvent(tabA, 'board:cardDragStarted');
+      await expect(dragStart(tabB)).resolves.toEqual({ status: 'acquired' });
+      // Same user, different tab: A is another connection, so it is notified (§8.2).
+      await expect(startedForA).resolves.toEqual({
+        projectId: fixture.projectId,
+        cardId: fixture.cardId,
+      });
+    });
+
+    it('VIEWER 拿不到鎖（Q17），其他人不會收到開始', async () => {
+      const owner = await connect(await login('owner'));
+      const viewer = await connect(await login('viewer'));
+      await Promise.all([owner, viewer].map(joinProject));
+      const receivedByOwner = recordEvents(owner);
+
+      await expect(dragStart(viewer)).resolves.toEqual({ status: 'locked' });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      expect(receivedByOwner).toEqual([]);
+      await expect(redis.getClient().exists(lockKey())).resolves.toBe(0);
+    });
+
+    it('沒有進入該專案時拿不到鎖', async () => {
+      const owner = await connect(await login('owner'));
+
+      await expect(dragStart(owner)).resolves.toEqual({ status: 'locked' });
+      await expect(redis.getClient().exists(lockKey())).resolves.toBe(0);
+    });
+
+    it('持有鎖的連線斷線：釋放鎖，其他人收到結束', async () => {
+      const ownerCookie = await login('owner');
+      const tabA = await connect(ownerCookie);
+      const viewer = await connect(await login('viewer'));
+      await Promise.all([tabA, viewer].map(joinProject));
+      await expect(dragStart(tabA)).resolves.toEqual({ status: 'acquired' });
+
+      const ended = nextEvent(viewer, 'board:cardDragEnded');
+      tabA.disconnect();
+
+      await expect(ended).resolves.toEqual({
+        projectId: fixture.projectId,
+        cardId: fixture.cardId,
+      });
+      await expect(redis.getClient().exists(lockKey())).resolves.toBe(0);
+    });
+  });
+
   describe('輪轉後登出（socketio-auth.md §7.2）', () => {
     /** Makes the next HTTP request rotate this session (normally after 15 minutes). */
     const forceRotation = async (cookie: string) => {

@@ -96,6 +96,23 @@
   @apply cursor-grabbing;
 }
 
+/* Board spec §8.2: someone else is dragging this card. */
+.board__card--locked .board-card {
+  @apply opacity-60;
+}
+
+.board__card-handle:disabled {
+  @apply cursor-not-allowed text-content-tertiary/50 hover:text-content-tertiary/50;
+}
+
+/*
+ * Sits on the card's bottom edge so it never covers the title and never changes the layout:
+ * 20px tall, 10px inside the card's 16px bottom padding and 10px into the 12px gap below.
+ */
+.board__card-lock {
+  @apply pointer-events-none absolute right-3 -bottom-2.5 z-10 flex h-5 items-center gap-1 rounded-full border border-action-primary/30 bg-action-primary-soft px-2 text-xs leading-4 font-medium text-action-primary;
+}
+
 /* Placeholder left at the drop position: dashed outline, content hidden. */
 .board__card--ghost {
   @apply border-2 border-dashed border-border-strong bg-transparent;

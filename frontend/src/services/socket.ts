@@ -1,5 +1,7 @@
 import type {
   BoardEventPayloads,
+  CardDragAckStatus,
+  CardDragPayload,
   ServerToClientEvents,
   ClientToServerEvents,
   ProjectRoomPayload,
@@ -178,5 +180,51 @@ export const offBoardEvents = (handlers: BoardEventHandlers) => {
   socket.off('board:cardArchived', handlers['board:cardArchived']);
   socket.off('board:categoryCreated', handlers['board:categoryCreated']);
   socket.off('board:columnMoved', handlers['board:columnMoved']);
+};
+// #endregion
+
+// #region card drag lock (Board spec §8.2)
+/** How long a drop waits for the dragStart ack before saving anyway (fail-open, Q10). */
+export const CARD_DRAG_ACK_TIMEOUT_MS = 2000;
+
+/**
+ * 要求卡片拖曳鎖；只有明確的 `locked` 會擋下存檔。
+ * 斷線時不送出（socket.io 會緩衝到重連後才送，屆時拖曳早已結束），直接回 `unavailable`；
+ * 逾時或其他錯誤也回 `unavailable`。
+ */
+export const emitCardDragStart = async (payload: CardDragPayload): Promise<CardDragAckStatus> => {
+  if (!socket.connected) return 'unavailable';
+  try {
+    const result = await socket
+      .timeout(CARD_DRAG_ACK_TIMEOUT_MS)
+      .emitWithAck('card:dragStart', payload);
+    return result.status;
+  } catch {
+    return 'unavailable';
+  }
+};
+
+/** 通知拖曳結束；斷線時不送，伺服器會在斷線時自行釋放鎖。 */
+export const emitCardDragEnd = (payload: CardDragPayload) => {
+  if (!socket.connected) return;
+  socket.emit('card:dragEnd', payload);
+};
+
+/** Handlers for other people's drags; these events skip the board sync queue (no revision). */
+export type CardDragEventHandlers = {
+  'board:cardDragStarted': ServerToClientEvents['board:cardDragStarted'];
+  'board:cardDragEnded': ServerToClientEvents['board:cardDragEnded'];
+};
+
+/** 監聽其他人的卡片拖曳開始／結束 */
+export const onCardDragEvents = (handlers: CardDragEventHandlers) => {
+  socket.on('board:cardDragStarted', handlers['board:cardDragStarted']);
+  socket.on('board:cardDragEnded', handlers['board:cardDragEnded']);
+};
+
+/** 移除監聽卡片拖曳開始／結束；需傳入註冊時的同一組 handlers */
+export const offCardDragEvents = (handlers: CardDragEventHandlers) => {
+  socket.off('board:cardDragStarted', handlers['board:cardDragStarted']);
+  socket.off('board:cardDragEnded', handlers['board:cardDragEnded']);
 };
 // #endregion

@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Handler = (...args: unknown[]) => void;
+
+const emitWithAck = vi.fn<(event: string, payload?: unknown) => Promise<unknown>>();
 
 const fakeSocket = {
   connected: false,
@@ -8,6 +10,9 @@ const fakeSocket = {
   on: vi.fn<(event: string, handler: Handler) => void>(),
   off: vi.fn<(event: string, handler: Handler) => void>(),
   emit: vi.fn<(event: string, payload?: unknown) => void>(),
+  emitWithAck,
+  // socket.timeout(ms) returns an emitter whose emitWithAck rejects after ms without an ack.
+  timeout: vi.fn((_ms: number) => ({ emitWithAck })),
   connect: vi.fn<() => void>(),
   disconnect: vi.fn<() => void>(),
 };
@@ -213,5 +218,87 @@ describe('socket service', () => {
 
     fakeSocket.handlers.get('disconnect')?.forEach((handler) => handler());
     expect(socket.isConnected.value).toBe(false);
+  });
+
+  describe('卡片拖曳鎖（Board 規格 §8.2）', () => {
+    const payload = { projectId: 'project-1', cardId: 'card-1' };
+
+    beforeEach(() => {
+      fakeSocket.connected = true;
+      fakeSocket.emitWithAck.mockReset();
+      fakeSocket.timeout.mockClear();
+    });
+
+    afterEach(() => {
+      fakeSocket.connected = false;
+    });
+
+    it.each(['acquired', 'locked', 'unavailable'] as const)(
+      'emitCardDragStart 帶逾時送出並回傳 ack 的 %s',
+      async (status) => {
+        const socket = await loadModule();
+        fakeSocket.emitWithAck.mockResolvedValue({ status });
+
+        await expect(socket.emitCardDragStart(payload)).resolves.toBe(status);
+
+        expect(fakeSocket.timeout).toHaveBeenCalledWith(socket.CARD_DRAG_ACK_TIMEOUT_MS);
+        expect(fakeSocket.emitWithAck).toHaveBeenCalledWith('card:dragStart', payload);
+      },
+    );
+
+    it('ack 逾時或出錯時回 unavailable（fail-open）', async () => {
+      const socket = await loadModule();
+      fakeSocket.emitWithAck.mockRejectedValue(new Error('operation has timed out'));
+
+      await expect(socket.emitCardDragStart(payload)).resolves.toBe('unavailable');
+    });
+
+    it('斷線時不送出 dragStart，直接回 unavailable（避免重連後才送出）', async () => {
+      const socket = await loadModule();
+      fakeSocket.connected = false;
+
+      await expect(socket.emitCardDragStart(payload)).resolves.toBe('unavailable');
+      expect(fakeSocket.emitWithAck).not.toHaveBeenCalled();
+    });
+
+    it('emitCardDragEnd：連線時送出，斷線時不送', async () => {
+      const socket = await loadModule();
+
+      socket.emitCardDragEnd(payload);
+      expect(fakeSocket.emit).toHaveBeenCalledExactlyOnceWith('card:dragEnd', payload);
+
+      fakeSocket.emit.mockClear();
+      fakeSocket.connected = false;
+      socket.emitCardDragEnd(payload);
+      expect(fakeSocket.emit).not.toHaveBeenCalled();
+    });
+
+    it('onCardDragEvents／offCardDragEvents 註冊與移除同一組 handlers', async () => {
+      const socket = await loadModule();
+      const handlers = {
+        'board:cardDragStarted': vi.fn(),
+        'board:cardDragEnded': vi.fn(),
+      };
+
+      socket.onCardDragEvents(handlers);
+      socket.offCardDragEvents(handlers);
+
+      expect(fakeSocket.on).toHaveBeenCalledWith(
+        'board:cardDragStarted',
+        handlers['board:cardDragStarted'],
+      );
+      expect(fakeSocket.on).toHaveBeenCalledWith(
+        'board:cardDragEnded',
+        handlers['board:cardDragEnded'],
+      );
+      expect(fakeSocket.off).toHaveBeenCalledWith(
+        'board:cardDragStarted',
+        handlers['board:cardDragStarted'],
+      );
+      expect(fakeSocket.off).toHaveBeenCalledWith(
+        'board:cardDragEnded',
+        handlers['board:cardDragEnded'],
+      );
+    });
   });
 });
