@@ -7,5 +7,6 @@ export const appConfig = registerAs('app', () => {
     nodeEnv: env.NODE_ENV,
     port: env.PORT,
     frontendUrl: env.FRONTEND_URL,
+    trustProxyHops: env.TRUST_PROXY_HOPS,
   };
 });

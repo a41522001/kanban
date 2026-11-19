@@ -10,7 +10,7 @@ import type { AppConfig } from '@/config';
 import { createClient, RedisClientType } from 'redis';
 import { createNodeRedisClient, type IRedisClient } from 'bullmq';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
-import { REDIS_SCRIPTS, type RedisScripts } from './redis.scripts';
+import { REDIS_SCRIPTS, type RedisScripts } from './scripts/redis.scripts';
 type EmptyRedisExtensions = Record<string, never>;
 
 type AppRedisClient = RedisClientType<

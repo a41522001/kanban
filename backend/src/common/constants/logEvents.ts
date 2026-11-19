@@ -17,6 +17,8 @@ export const LOG_EVENTS = {
   // Auth
   authSignupEmailEnqueueFailed: 'auth.signup.email_enqueue_failed',
   authResendEmailEnqueueFailed: 'auth.resend_verification.email_enqueue_failed',
+  authLoginRateLimited: 'auth.login.rate_limited',
+  authSignupRateLimited: 'auth.signup.rate_limited',
 
   // Avatar
   avatarUploadWriteFailed: 'avatar.upload.write_failed',

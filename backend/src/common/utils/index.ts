@@ -3,6 +3,8 @@ import bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import type { FieldErrors } from '@kanban/contracts/api';
 import type { ValidationError } from 'class-validator';
+import type { Request } from 'express';
+
 /**
  * 對密碼進行加鹽hash處理。
  * @param {string} password - 需要hash處理的純文字密碼。
@@ -106,4 +108,12 @@ export const formatValidationErrors = (
 };
 
 /** 鎖 */
-export const withLock = (lockKey: string, redis: any, callback: any) => {};
+// export const withLock = (lockKey: string, redis: any, callback: any) => {};
+
+/** 取得 trust proxy 處理後的 client IP；拿不到時丟錯，避免限流以 undefined 計數。 */
+export const getClientIp = (req: Request): string => {
+  if (!req.ip) {
+    throw new Error('客戶端IP無效');
+  }
+  return req.ip;
+};

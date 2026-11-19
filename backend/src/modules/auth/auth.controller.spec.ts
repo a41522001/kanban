@@ -8,6 +8,9 @@ import { ApiCode } from '@kanban/contracts/api';
 describe('authController', () => {
   let authService: AuthService;
   let controller: AuthController;
+  // req.ip after trust proxy; a documentation-range address (RFC 5737).
+  const ip = '203.0.113.5';
+  const request = { ip } as Request;
   const createResponse = (): {
     response: Response;
     cookieMock: jest.Mock;
@@ -68,15 +71,15 @@ describe('authController', () => {
         },
       };
       const spy = jest.spyOn(authService, 'signup').mockResolvedValue(res.data);
-      const result = await controller.signup(req);
+      const result = await controller.signup(req, request);
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(req);
+      expect(spy).toHaveBeenCalledWith(req, ip);
       expect(result).toEqual(res);
     });
     it('註冊失敗', async () => {
       const spy = jest.spyOn(authService, 'signup').mockResolvedValue(false);
       try {
-        await controller.signup(req);
+        await controller.signup(req, request);
         throw new Error('預期註冊失敗');
       } catch (error: unknown) {
         expect(error).toBeInstanceOf(AppException);
@@ -91,7 +94,7 @@ describe('authController', () => {
       }
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(req);
+      expect(spy).toHaveBeenCalledWith(req, ip);
     });
   });
 
@@ -105,9 +108,9 @@ describe('authController', () => {
       const sessionId = 'testsessionId';
       const { response, cookieMock } = createResponse();
       const spy = jest.spyOn(authService, 'login').mockResolvedValue(sessionId);
-      const result = await controller.login(req, response);
+      const result = await controller.login(req, response, request);
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(req);
+      expect(spy).toHaveBeenCalledWith(req, ip);
       expect(result).toEqual({ message: '登入成功' });
       expect(cookieMock).toHaveBeenCalledWith(
         'sessionId',
@@ -123,7 +126,7 @@ describe('authController', () => {
       const { response, cookieMock } = createResponse();
       const spy = jest.spyOn(authService, 'login').mockResolvedValue(sessionId);
       try {
-        await controller.login(req, response);
+        await controller.login(req, response, request);
         throw new Error('預期登入失敗');
       } catch (error: unknown) {
         expect(error).toBeInstanceOf(AppException);
@@ -138,7 +141,7 @@ describe('authController', () => {
       }
 
       expect(spy).toHaveBeenCalledTimes(1);
-      expect(spy).toHaveBeenCalledWith(req);
+      expect(spy).toHaveBeenCalledWith(req, ip);
       expect(cookieMock).not.toHaveBeenCalled();
     });
   });
@@ -207,11 +210,14 @@ describe('authController', () => {
     };
     jest.spyOn(authService, 'signup').mockResolvedValue(data);
     await expect(
-      controller.signup({
-        email: 'test@test.com',
-        password: 'testtest',
-        name: 'test',
-      }),
+      controller.signup(
+        {
+          email: 'test@test.com',
+          password: 'testtest',
+          name: 'test',
+        },
+        request,
+      ),
     ).resolves.toMatchObject({
       code: ApiCode.SignupEmailQueueFailed,
       data,
@@ -231,9 +237,48 @@ describe('authController', () => {
       controller.login(
         { email: 'test@test.com', password: 'testtest' },
         response,
+        request,
       ),
     ).rejects.toMatchObject({ code: ApiCode.EmailVerificationRequired });
     expect(cookieMock).not.toHaveBeenCalled();
+  });
+
+  describe('client IP', () => {
+    // req.ip is undefined once the socket is gone; counting under "undefined" would merge unrelated clients.
+    const requestWithoutIp = {} as Request;
+
+    it('登入時拿不到 IP 直接丟錯，不呼叫 service', async () => {
+      // Arrange
+      const { response, cookieMock } = createResponse();
+      const loginSpy = jest.spyOn(authService, 'login');
+
+      // Act
+      const result = controller.login(
+        { email: 'test@test.com', password: 'testtest' },
+        response,
+        requestWithoutIp,
+      );
+
+      // Assert
+      await expect(result).rejects.toThrow();
+      expect(loginSpy).not.toHaveBeenCalled();
+      expect(cookieMock).not.toHaveBeenCalled();
+    });
+
+    it('註冊時拿不到 IP 直接丟錯，不呼叫 service', async () => {
+      // Arrange
+      const signupSpy = jest.spyOn(authService, 'signup');
+
+      // Act
+      const result = controller.signup(
+        { email: 'test@test.com', password: 'testtest', name: 'test' },
+        requestWithoutIp,
+      );
+
+      // Assert
+      await expect(result).rejects.toThrow();
+      expect(signupSpy).not.toHaveBeenCalled();
+    });
   });
 
   it('無效驗證連結使用明確錯誤碼', async () => {
