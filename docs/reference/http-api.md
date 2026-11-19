@@ -17,8 +17,8 @@
 
 | Method / path | 身分與權限 | Request | 成功 status / data |
 | --- | --- | --- | --- |
-| POST `/auth/signup` | 公開 | `{ email, password, name }` | 201 / `SignupResult`；code 1 或 2007，均不建立 Session |
-| POST `/auth/login` | 公開 | `{ email, password }` | 200 / null；已驗證 LOCAL 帳號才設定 Session Cookie |
+| POST `/auth/signup` | 公開 | `{ email, password, name }` | 201 / `SignupResult`；code 1 或 2007，均不建立 Session。同一 IP 超過上限 429 / SignupRateLimited (2010) |
+| POST `/auth/login` | 公開 | `{ email, password }` | 200 / null；已驗證 LOCAL 帳號才設定 Session Cookie。失敗次數超過上限 429 / LoginRateLimited (2009) |
 | POST `/auth/logout` | 不套 Guard | 無 body；可帶 Cookie | 200 / null；撤銷本次 token 並清 Cookie |
 | PATCH `/auth/verify/:token` | 公開，不需 Session | URL token；無 body | 200 / null；消耗 token，不建立 Session |
 | POST `/auth/resend-verification-email` | 公開，不需 Session | `{ email }` | 202 / `{ retryAfterSeconds }`；條件式受理 |
@@ -61,6 +61,7 @@ Request：`{ "email": "user@example.com", "password": "example-password", "name"
 | 帳號建立、工作入列 | 201 / Success (1) | `{ accountCreated: true, emailQueued: true, retryAfterSeconds: 60 }` | 直接進入信箱提示頁，顯示已安排寄送與首次冷卻；完成驗證後前往登入 |
 | 帳號建立，但設定冷卻或入列失敗 | 201 / SignupEmailQueueFailed (2007) | `{ accountCreated: true, emailQueued: false, retryAfterSeconds: number }` | 直接進入信箱提示頁並顯示失敗 Dialog；保留後端冷卻，稍後同頁重寄，不重新註冊 |
 | Email 已存在（前置查詢） | 409 / EmailAlreadyRegistered (2002) | null | 留在表單，提供登入入口；登入未驗證時再進入重寄提示頁 |
+| 同一 IP 註冊次數超過上限 | 429 / SignupRateLimited (2010) | `AuthRateLimitedData`：`{ retryAfterSeconds: number }` | 留在表單，送出按鈕下方顯示倒數並停用送出，倒數結束後恢復 |
 | DTO 錯誤 | 400 / ValidationError (1000) | null | 以 error 顯示欄位錯誤 |
 | 建立帳號等未處理例外 | 500 / InternalError (5000) | null | 顯示服務失敗；不能從一般 500 推定帳號建立結果 |
 
@@ -87,7 +88,30 @@ Request：`{ "email": "user@example.com", "password": "example-password" }`。
 | LOCAL 帳號、密碼正確且已驗證 | 200 / Success (1) | null；建立 Session，設定 HttpOnly sessionId Cookie |
 | 帳號不存在、非 LOCAL、無密碼或密碼錯誤 | 401 / InvalidCredentials (2001) | null；不建立 Session |
 | 密碼正確但 emailVerifiedAt 為 null | 403 / EmailVerificationRequired (2005) | `{ email: "user@example.com" }`；不建立 Session、不設定登入 Cookie |
-| DTO 錯誤／服務故障 | 400 / 1000 或 500 / 5000 | null |
+| 失敗次數超過上限（任一維度） | 429 / LoginRateLimited (2009) | `AuthRateLimitedData`：`{ retryAfterSeconds: number }`；不比對密碼，正確密碼也回 429 |
+| DTO 錯誤／服務故障 | 400 / 1000 或 500 / 5000 | null；Redis 故障時限流擋下，回 500 |
+
+**Rate limit**（[規格](../features/rate-limit.md)）：檢查在查 DB 之前，所以帳號存不存在都會被擋，不會洩漏帳號是否存在。計數的是失敗（帳號不存在、非 LOCAL、密碼錯誤）；密碼正確（200 或 403 / 2005）時 `email + IP` 清空，`IP` 與 `email` 各退回 1。被擋的請求不計數。
+
+| 維度 | 預設上限／視窗 | env |
+| --- | --- | --- |
+| email + IP | 5 次／15 分鐘 | `RATE_LIMIT_LOGIN_EMAIL_IP_*` |
+| IP | 50 次／15 分鐘 | `RATE_LIMIT_LOGIN_IP_*` |
+| email | 100 次／1 小時 | `RATE_LIMIT_LOGIN_EMAIL_*` |
+
+signup 以 IP 計數，預設 20 次／1 小時（`RATE_LIMIT_SIGNUP_IP_*`），每次請求都算（含 409）、不退回。`retryAfterSeconds` 是所有超過上限的維度中剩餘時間最長者，毫秒無條件進位成秒，最小為 1；訊息固定為「嘗試次數過多，請稍後再試」，不透露是哪個維度。IP 取自 `req.ip`，由 `TRUST_PROXY_HOPS` 決定信任幾層 `X-Forwarded-For`（[規格](../features/rate-limit.md) §6）。
+
+429 範例（HTTP 429）：
+
+```json
+{
+  "code": 2009,
+  "data": { "retryAfterSeconds": 420 },
+  "message": "嘗試次數過多，請稍後再試",
+  "time": "2026-11-19T00:00:00.000Z",
+  "error": null
+}
+```
 
 前端遇到 2005 應帶回應中的 Email 前往 `/checkEmail`，清除密碼輸入；進頁本身不自動重寄。註冊 201 也會進入同頁，但使用註冊結果文案。2005 不等於 Session 失效的 2003，不應觸發全域 session-expired 清理。
 
