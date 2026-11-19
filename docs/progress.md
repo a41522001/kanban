@@ -1,6 +1,6 @@
 # 進度
 
-最後更新：2026-11-06。本文是**唯一**記錄整體狀態的地方；各功能的細部步驟寫在 `features/` 對應的文件。2026-09 至 10-06 的歷史驗收紀錄已刪除，可從 git 歷史查看 `docs/progress.md` 的舊版本。
+最後更新：2026-11-19。本文是**唯一**記錄整體狀態的地方；各功能的細部步驟寫在 `features/` 對應的文件。2026-09 至 10-06 的歷史驗收紀錄已刪除，可從 git 歷史查看 `docs/progress.md` 的舊版本。
 
 ## 分支與上線限制
 
@@ -12,13 +12,13 @@
 
 | 領域             | 狀態        | 已完成                                                                                                                                                                                                                                                                          | 未完成                                                                                                                |
 | ---------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Auth（LOCAL）    | ✅          | 註冊、登入、登出、驗證信、重寄冷卻、未驗證登入限制                                                                                                                                                                                                                              | Google OAuth、忘記密碼、修改 Email；開發環境以 `devAutoVerifyEmail` 跳過驗證信                                        |
+| Auth（LOCAL）    | ✅          | 註冊、登入、登出、驗證信、重寄冷卻、未驗證登入限制、登入與註冊 rate limit（2026-11-19，[規格](features/rate-limit.md)：login 三個維度只算失敗、signup 以 IP 計數，Redis Lua 原子檢查，前端倒數）                                                                                                                                                                                                                              | Google OAuth、忘記密碼、修改 Email；開發環境以 `devAutoVerifyEmail` 跳過驗證信                                        |
 | Session          | ✅ 核心     | HttpOnly Cookie、Redis SHA-256 hash、15 分鐘輪轉、20 秒 Grace、5 裝置上限、logout 撤銷本次 Session 與其 Previous Grace（2026-11-06）                                                                                                                                            | 以 Grace Cookie 登出時無法撤銷 Current；idle timeout                                                                  |
 | Workspace        | 🔄          | 建立、列表、切換、成員清單（含頭像）                                                                                                                                                                                                                                            | 修改、封存、成員角色調整、移除、離開                                                                                  |
 | Workspace 邀請   | 🔄          | 發送、詳情、接受、拒絕、每分鐘過期排程                                                                                                                                                                                                                                          | Owner 取消邀請；PENDING 唯一性與併發驗收                                                                              |
 | 通知             | 🔄          | 列表、未讀數、單筆／全部已讀、Socket 即時推送                                                                                                                                                                                                                                   | cursor／filters（目前只回最新 20 筆）、重連後補抓、跨分頁同步                                                         |
 | Project          | 🔄          | 建立、列表、置頂、成員清單、候選人、新增成員、成員加入通知（成員與候選人含頭像）                                                                                                                                                                                                | 詳情、編輯、封存、角色調整、移除成員                                                                                  |
-| Board            | 🔄          | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位、Card 新增／編輯／封存（階段 A）、類別、拖曳卡片並存檔（階段 B，2026-11-06：`moveCard` API、把手拖曳、「移動至…」）、多人即時同步（階段 C，2026-11-09：project room、6 種事件廣播、前端佇列與漏號重新載入、對話框衝突、斷線提示） | 見 [Board 規格](features/board.md) §9：階段 D：欄位拖曳 D-1、D-2 完成（2026-11-12），卡片拖曳鎖 D-3、D-4 完成（2026-11-16）；B-2 手機長按未實機測試                                  |
+| Board            | 🔄          | 欄位讀取（2026-10-30 補上讀取權限）、新增欄位、Card 新增／編輯／封存（階段 A）、類別、拖曳卡片並存檔（階段 B，2026-11-06：`moveCard` API、把手拖曳、「移動至…」）、多人即時同步（階段 C，2026-11-09：project room、6 種事件廣播、前端佇列與漏號重新載入、對話框衝突、斷線提示）、欄位拖曳與卡片拖曳鎖（階段 D，2026-11-16） | B-2 手機長按未實機測試；其餘見 [Board 規格](features/board.md) §9                                  |
 | 頭像             | 🔄 本機完成 | 步驟 0–10：上傳、裁切、錯誤處理、刪除、次數限制、背景 Worker 產生 sm／lg、成員清單顯示                                                                                                                                                                                          | 步驟 11 GCP Cloud Storage（2026-11-03 規格已確認，見 [頭像規格](features/avatar.md) §0.4；11-1 待實作）、步驟 12 部署 |
 | Logging          | ✅ 開發環境 | API 與 worker 共用 pino、`event` 欄位、`requestId`、5xx 由 Filter 統一記錄、Worker job 記錄、本機 Seq（[Logging 規格](architecture/logging.md)）                                                                                                                                | 正式環境的 Seq；上線前待辦見該文件 §9.1                                                                               |
 | Config Namespace | ✅          | 2026-11-03：8 個 namespace（`src/config/namespaces/`）、`getValidatedEnv()`、`ConfigService<AppConfig, true>` 點路徑讀值；19 個使用端與 7 個 spec 已遷移（含 `socket.service.ts`），新增 `namespaces.spec.ts`                                                                   | `gcs` namespace 於頭像 GCS 步驟 11-2 新增；尚未推到 `dev`                                                             |
@@ -28,10 +28,9 @@
 
 ## 下一步
 
-1. **Board 階段 A+**：類別全部完成；標籤 2026-11-05 決定取消（[Board 規格](features/board.md) §4.5、§9）。階段 B（B-1 `PATCH /board/moveCard`、B-2 前端拖曳與「移動至…」）2026-11-06 完成。階段 C 多人同步 2026-11-09 完成（C-1 project room、C-2 廣播事件、C-3 前端套用；§7、§9）。階段 D 2026-11-11 grill 確認（§8）：欄位拖曳存檔與同步、卡片拖曳建議鎖（Redis，`moveCard` 不檢查）；依 D-1 → D-4 實作。階段 A（A-0～A-6：讀取權限、Card schema、看板回傳卡片、新增、編輯、封存卡片與前端）已全部完成。
-2. **Config Namespace 推到 `dev`**：已完成（含 `socket.service.ts`），提醒另一台修改 `socket.service.ts` 前先 pull。頭像 GCS 步驟 11-2 直接使用 `avatar.*` 並新增 `gcs` namespace。
-3. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
-4. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
+1. **Rate limit 收尾**：R-1～R-7 已完成（[規格](features/rate-limit.md) §10）。部署前在 VM 的 `.env.prod` 補上 `TRUST_PROXY_HOPS=1`（[部署](operations/deployment.md)），上線後確認 log 的 `ip` 是使用者 IP 而不是 Nginx 容器的 IP。
+2. **頭像上線**：GCP Cloud Storage（[頭像規格](features/avatar.md) §0.4：11-1～11-3 可先在本機以 dev bucket 進行；11-4 Cloudflare Worker 等網域與 HTTPS），之後才能 merge 到 `main`。
+3. **部署收尾**：網域與 HTTPS、靜態 IP、`restart: unless-stopped`、logging §9.1 的上線前待辦。
 
 ## 已知缺口
 
@@ -59,7 +58,6 @@
 - Session repository、Lua 輪轉、裝置上限與 revoke 的測試不足。
 - Project create／addMember／pin 的未登入、非 OWNER、跨 Workspace、rollback 與真實併發 E2E 尚未補齊。
 - E2E 直接打無前綴路徑（global prefix 只在 `main.ts` 設定，未進 `configureApp`），與正式環境路由不一致。
-- `email-verification.spec.ts` 在 Windows 上因 Google logo 圖檔路徑而失敗（Mac 正常）。
 
 ### API 文件
 
@@ -76,6 +74,9 @@
 | 2026-11-06 | Backend socket／session／auth unit tests、ESLint、`tsc --noEmit`（7.2）                       | 7 suites、76 tests 通過；revoke Lua 以暫時 spec 對本機 Redis 驗證 3 個情境通過（spec 未保留）                                                                                                      |
 | 2026-11-06 | Backend `jest src/modules/socket`、ESLint、`tsc --noEmit`（快速切換競速）                     | 7 tests 通過；修改前的程式跑同一份 spec 為 5 failed／2 passed；ESLint、`tsc` 通過                                                                                                                  |
 | 2026-11-12 | Board service 拆分（純搬移）：board unit tests、ESLint、`tsc`、啟動 Nest、Bruno                   | `BoardService`（根目錄）與 `column/`、`card/`、`category/` 三個子資料夾的 service（DTO 留在 `dto/`）；同樣 79 個測試標題、161 tests 通過；9 個方法逐字相同、2 個只差呼叫 `cardCategoryService`；Bruno 35 個請求／56 tests 通過 |
+| 2026-11-19 | CI 修正：`rateLimit.e2e` 同時送出 20 個請求在 Linux CI 出現 `ECONNRESET`（app 只 `init()`，supertest 由第一個請求 `listen(0)` 並在結束時關閉 server）；`rateLimit`、`auth` E2E 改為 `app.listen(0)`；`email-verification.spec.ts` mock 圖檔修正 Windows 失敗 | 本機以 CI 步驟跑 backend E2E 連續 3 次皆 7 suites／51 tests 通過；Node 小程式重現同時 200 個請求時原寫法 104 個 `ECONNRESET`、修正後全部成功；CI 單元測試 520 通過；前端 `email-verification.spec.ts` 14 tests 通過 |
+| 2026-11-19 | Rate limit 前端 R-6（Windows）：Vitest、`vue-tsc`、ESLint、Chrome | 217 tests 通過（失敗為既有 `email-verification.spec.ts`；新 spec 以 `vi.mock` 圖檔避開同一問題）；Chrome 以開發後端連續登入失敗 5 次後，第 6 次顯示倒數並停用送出、無對話框，Redis IP 計數停在 5 |
+| 2026-11-19 | Rate limit 後端 R-3～R-5（Windows）：backend unit tests、E2E（隔離 PostgreSQL／Redis）、ESLint、`tsc`；3 支 Lua 以臨時 Redis 直接驗證 | 520 tests 通過、3 skipped；E2E 7 suites／51 tests 通過（新增 `rateLimit.e2e.spec.ts` 11：門檻、退回、403 退回、IP／email 維度、20 個同時送出只有 3 個進到比對密碼、signup、trust proxy 0 與 1、退回時 key 已過期）；ESLint 剩既有 `withLock` 3 個錯誤 |
 | 2026-11-16 | Board D-4 卡片拖曳鎖前端（Windows）：Vitest、`vue-tsc`、ESLint、Chrome 兩個分頁 | 197 tests 通過（失敗為既有 `email-verification.spec.ts`）；Chrome 驗證提示與停用、結束解除、開始 → 移動 → 結束順序、`locked` 恢復原位不存檔、斷線釋放 |
 | 2026-11-16 | Board D-3 卡片拖曳鎖後端（Windows）：backend unit tests、E2E（隔離 PostgreSQL／Redis）、ESLint、`tsc` | 496 tests 通過、3 skipped；E2E 6 suites／40 tests 通過（新增 `RedisLockService` 9、Socket 拖曳鎖 4）；故意改壞四處各有測試失敗 |
 | 2026-11-12 | Board D-2 欄位拖曳前端（Windows）：Vitest、`vue-tsc`、ESLint、Chrome 兩個分頁                  | 179 tests 通過（失敗為既有 `email-verification.spec.ts`）；Chrome 驗證同步、重新整理保留、重新編號、409 重新載入 |

@@ -10,7 +10,7 @@
 
 - [x] Password 只保存 bcrypt hash，不保存明文。
 - [ ] 限制並驗證 password 長度；注意 bcrypt 只處理前 72 bytes。
-- [ ] Login 與 signup 有 rate limit，並考慮 IP 與帳號兩個維度。
+- [x] Login 與 signup 有 rate limit，並考慮 IP 與帳號兩個維度（2026-11-19，[規格](../features/rate-limit.md)）：login 以 `email + IP`、`IP`、`email` 三個維度計算失敗，signup 以 IP 計算每次請求；檢查與 +1 在同一個 Redis Lua script 內，同時送出的請求無法繞過；Redis 故障時擋下。正式環境須設定 `TRUST_PROXY_HOPS=1`，否則所有人共用 Nginx 的 IP。
 - [x] Login 失敗統一回覆帳號或密碼錯誤，不洩漏帳號是否存在。
 - [x] 每次成功登入都產生新的高熵 Session ID，不接受 client 指定 ID。
 - [x] Logout 原子撤銷 Current、Previous Grace 與 ZSET member，並清除 Cookie（2026-11-06，revoke Lua）。以 Grace Cookie 登出時只能刪除 Grace 本身，見 [Socket.IO 驗證](../architecture/socketio-auth.md) 7.2。
