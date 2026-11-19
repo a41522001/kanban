@@ -123,9 +123,22 @@
           <button type="button" class="login__forgot-password">
             {{ t('auth.login.forgotPassword') }}
           </button>
-          <Button type="submit" :disabled="isSubmitDisabled" :loading="isSubmitting">
+          <Button
+            type="submit"
+            :disabled="isSubmitDisabled"
+            :loading="isSubmitting"
+            :aria-describedby="rateLimit.isActive.value ? 'login-rate-limit' : undefined"
+          >
             {{ t('auth.login.submit') }}
           </Button>
+          <p
+            v-if="rateLimit.isActive.value"
+            id="login-rate-limit"
+            class="login__rate-limit"
+            role="status"
+          >
+            {{ t('auth.common.rateLimited', { time: rateLimit.countdown.value }) }}
+          </p>
         </form>
         <div class="login__divider">
           <span class="login__divider-line"></span>
@@ -165,6 +178,7 @@ import { useAlertStore } from '@/stores/alert';
 import { useLoadingStore } from '@/stores/loading';
 import { useUserStore } from '@/stores/user';
 import { useEmailVerificationStore } from '@/stores/emailVerification';
+import { parseRetryAfterSeconds, useRetryCountdown } from '@/composables/useRetryCountdown';
 import {
   createLoginForm,
   mapLoginFieldErrors,
@@ -184,9 +198,11 @@ const verification = useEmailVerificationStore();
 const loginForm = ref(createLoginForm());
 const fieldErrors = ref<LoginFieldMessages>({});
 const isSubmitting = ref(false);
+// Counts down after a 429; the server rejects every attempt until then, even a correct password.
+const rateLimit = useRetryCountdown();
 
 const isSubmitDisabled = computed(() => {
-  return isSubmitting.value;
+  return isSubmitting.value || rateLimit.isActive.value;
 });
 
 const goSignupPage = () => {
@@ -252,6 +268,14 @@ const handleLogin = async () => {
       loginForm.value.password = '';
       verification.setEmail(data.email);
       await router.push({ name: 'checkEmail' });
+      return;
+    }
+
+    const retryAfterSeconds =
+      response?.code === ApiCode.LoginRateLimited ? parseRetryAfterSeconds(data) : null;
+    if (retryAfterSeconds !== null) {
+      // The password was not checked, so keep it for the retry after the countdown.
+      rateLimit.start(retryAfterSeconds);
       return;
     }
 

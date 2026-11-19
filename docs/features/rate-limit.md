@@ -159,5 +159,5 @@ Express 看到：[1.1.1.1, 203.0.113.5, 172.18.0.3]
 | R-3 | `redisKeys`、`rateLimit.script.ts`（hit、refund）、`RateLimitService`（`hitLogin`、`hitSignup`、`refundLogin`） | 使用者 | 完成（2026-11-19） |
 | R-4 | `auth.controller` 傳入 `req.ip`；`auth.service` login、signup 套用 §3 | 使用者 | 完成（2026-11-19） |
 | R-5 | `LOG_EVENTS`；單元測試；E2E（真 Redis：門檻、同時送出、退回時 key 已過期、trust proxy）；Bruno；`.env.e2e` 補上限流 env | Claude | 完成（2026-11-19）：單元 520、E2E 51 全部通過 |
-| R-6 | 前端：登入、註冊處理 2009／2010 與倒數 | Claude | 待實作 |
+| R-6 | 前端：登入、註冊處理 2009／2010 與倒數 | Claude | 完成（2026-11-19）：`useRetryCountdown`；前端 217 個測試通過，Chrome 實測登入第 6 次顯示倒數 |
 | R-7 | 文件：安全檢查清單、`progress.md`、`http-api.md`、`deployment.md`；新增 `backend/.env.prod.example`（全部變數，敏感值留空；正式環境特有值如 `TRUST_PROXY_HOPS=1`、`NODE_ENV=production`、DB／Redis host 用 service 名稱直接寫好），`deployment.md` 指向它 | Claude | 待實作 |

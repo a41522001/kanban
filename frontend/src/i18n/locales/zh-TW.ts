@@ -428,6 +428,7 @@ export const zhTW = {
     },
     common: {
       confirm: '確認',
+      rateLimited: '嘗試次數過多，請在 {time} 後再試。',
       divider: '或',
       googleContinue: '使用 Google 繼續',
       googleSignIn: '使用 Google 登入',
