@@ -53,7 +53,9 @@ describe('Auth + Queue + Worker (e2e)', () => {
       .useValue(emailService)
       .compile();
     app = module.createNestApplication();
-    await app.init();
+    // Listen once so concurrent supertest requests share the server; otherwise the first
+    // request to finish closes it and resets the others.
+    await app.listen(0);
     redis = app.get(RedisService);
     prisma = app.get(PrismaService);
     cooldownSeconds = app

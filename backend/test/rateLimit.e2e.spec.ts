@@ -66,7 +66,10 @@ describe('Login / signup rate limit (e2e)', () => {
       .compile();
     const app = module.createNestApplication<NestExpressApplication>();
     configureApp(app);
-    await app.init();
+    // Listen once up front. Given a server that is not listening, supertest calls listen(0)
+    // per request and closes the server when that request ends, which resets the other
+    // requests still in flight (ECONNRESET on Linux CI in the concurrent-burst test).
+    await app.listen(0);
     return app;
   };
 
