@@ -438,6 +438,7 @@ export const en = {
     },
     common: {
       confirm: 'OK',
+      rateLimited: 'Too many attempts. Try again in {time}.',
       divider: 'or',
       googleContinue: 'Continue with Google',
       googleSignIn: 'Sign in with Google',

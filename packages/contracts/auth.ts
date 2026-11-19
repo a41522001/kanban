@@ -21,6 +21,11 @@ export interface VerificationEmailCooldown {
   retryAfterSeconds: number;
 }
 
+/** 登入或註冊被擋（429 / 2009、2010）時的倒數；單位為秒，前端用來倒數並停用送出。 */
+export interface AuthRateLimitedData {
+  retryAfterSeconds: number;
+}
+
 /** 201 代表帳號已建立；emailQueued 只表示入列，不代表 SMTP 已寄出。 */
 export interface SignupResult extends VerificationEmailCooldown {
   accountCreated: true;

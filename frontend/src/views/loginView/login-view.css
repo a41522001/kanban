@@ -149,3 +149,7 @@
 .login__signup-link {
   @apply cursor-pointer font-bold text-action-primary-hover hover:text-action-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-action-primary/20;
 }
+
+.login__rate-limit {
+  @apply mt-3 text-sm leading-5.5 text-feedback-danger;
+}

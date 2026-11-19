@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import type {
+  AuthRateLimitedData,
   EmailVerificationRequiredData,
   LoginRequest,
   ResendVerificationEmailResult,
@@ -19,6 +20,7 @@ import { randomBytes } from 'crypto';
 import { RedisService } from '@/infrastructure/redis/redis.service';
 import { redisKeys } from '@/infrastructure/redis/redis.keys';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
+import { RateLimitService } from '@/infrastructure/redis/rateLimit.service';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +35,7 @@ export class AuthService {
     private readonly socketService: SocketService,
     private readonly queueService: QueueService,
     private readonly redisService: RedisService,
+    private readonly rateLimitService: RateLimitService,
   ) {
     this.rateLimitEmailVerifySeconds = this.configService.get(
       'auth.rateLimitVerifyEmailSeconds',
@@ -41,9 +44,25 @@ export class AuthService {
   }
 
   /** 註冊 */
-  async signup(data: SignupRequest): Promise<SignupResult | false> {
+  async signup(dto: SignupRequest, ip: string): Promise<SignupResult | false> {
+    const { allowed, retryAfterSeconds } =
+      await this.rateLimitService.hitSignup(ip);
+    if (!allowed) {
+      this.logger.warn(
+        { event: LOG_EVENTS.authSignupRateLimited, ip, retryAfterSeconds },
+        '註冊嘗試次數過多',
+      );
+      const data: AuthRateLimitedData = { retryAfterSeconds };
+      throw new AppException({
+        status: HttpStatus.TOO_MANY_REQUESTS,
+        code: ApiCode.SignupRateLimited,
+        message: '嘗試次數過多，請稍後再試',
+        data,
+      });
+    }
+
     const nodeEnv = this.configService.get('app.nodeEnv', { infer: true });
-    const { email, password, name } = data;
+    const { email, password, name } = dto;
     const user = await this.userService.getByEmail(email);
     if (user) {
       return false;
@@ -103,8 +122,25 @@ export class AuthService {
     }
   }
   /** 登入 */
-  async login(data: LoginRequest): Promise<string | null> {
-    const { email, password } = data;
+  async login(dto: LoginRequest, ip: string): Promise<string | null> {
+    const { email, password } = dto;
+    const { allowed, retryAfterSeconds } = await this.rateLimitService.hitLogin(
+      email,
+      ip,
+    );
+    if (!allowed) {
+      this.logger.warn(
+        { event: LOG_EVENTS.authLoginRateLimited, ip, retryAfterSeconds },
+        '登入嘗試次數過多',
+      );
+      const data: AuthRateLimitedData = { retryAfterSeconds };
+      throw new AppException({
+        status: HttpStatus.TOO_MANY_REQUESTS,
+        code: ApiCode.LoginRateLimited,
+        message: '嘗試次數過多，請稍後再試',
+        data,
+      });
+    }
     const user = await this.userService.getByEmail(email);
     if (!user) {
       return null;
@@ -114,6 +150,7 @@ export class AuthService {
     }
     const isCorrect = await decodePassword(password, user.passwordHash);
     if (isCorrect) {
+      await this.rateLimitService.refundLogin(email, ip);
       if (user.emailVerifiedAt === null) {
         const data: EmailVerificationRequiredData = { email: user.email };
         throw new AppException({

@@ -25,6 +25,10 @@ export enum ApiCode {
   SignupEmailQueueFailed = 2007,
   /** 重寄驗證信未能入列 */
   VerificationEmailQueueFailed = 2008,
+  /** 登入嘗試次數過多，暫時無法登入 */
+  LoginRateLimited = 2009,
+  /** 註冊次數過多，暫時無法註冊 */
+  SignupRateLimited = 2010,
   /** 找不到自己可存取的資源 */
   ResourceNotFound = 3001,
   /** 未被 AppException 明確分類的預期 HTTP 錯誤 */

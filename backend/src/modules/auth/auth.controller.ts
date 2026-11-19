@@ -35,6 +35,7 @@ import type {
   SignupResult,
 } from '@kanban/contracts/auth';
 import { AppException } from '@/common/exceptions/app.exception';
+import { getClientIp } from '@/common/utils';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -87,8 +88,12 @@ export class AuthController {
   @ApiConflictResponse({ description: 'Email 已被註冊' })
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  async signup(@Body() signupDto: SignupDto): Promise<ApiResult<SignupResult>> {
-    const result = await this.authService.signup(signupDto);
+  async signup(
+    @Body() signupDto: SignupDto,
+    @Req() req: Request,
+  ): Promise<ApiResult<SignupResult>> {
+    const ip = getClientIp(req);
+    const result = await this.authService.signup(signupDto, ip);
 
     if (result === false) {
       throw new AppException({
@@ -142,8 +147,10 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<ApiResult<void>> {
-    const sessionId = await this.authService.login(loginDto);
+    const ip = getClientIp(req);
+    const sessionId = await this.authService.login(loginDto, ip);
 
     if (!sessionId) {
       throw new AppException({

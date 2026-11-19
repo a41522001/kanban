@@ -189,9 +189,22 @@
               {{ fieldErrors.checkPolicy[0] }}
             </p>
           </div>
-          <Button type="submit" :disabled="isSubmitDisabled" :loading="isSubmitting">
+          <Button
+            type="submit"
+            :disabled="isSubmitDisabled"
+            :loading="isSubmitting"
+            :aria-describedby="rateLimit.isActive.value ? 'signup-rate-limit' : undefined"
+          >
             {{ t('auth.signup.submit') }}
           </Button>
+          <p
+            v-if="rateLimit.isActive.value"
+            id="signup-rate-limit"
+            class="signup__rate-limit"
+            role="status"
+          >
+            {{ t('auth.common.rateLimited', { time: rateLimit.countdown.value }) }}
+          </p>
         </form>
         <div class="signup__divider">
           <span class="signup__divider-line"></span>
@@ -230,6 +243,7 @@ import { getApiErrorResponse } from '@/services/http';
 import { useAlertStore } from '@/stores/alert';
 import { useLoadingStore } from '@/stores/loading';
 import { useEmailVerificationStore } from '@/stores/emailVerification';
+import { parseRetryAfterSeconds, useRetryCountdown } from '@/composables/useRetryCountdown';
 import {
   createSignupForm,
   mapSignupFieldErrors,
@@ -248,9 +262,11 @@ const verification = useEmailVerificationStore();
 const signupForm = ref(createSignupForm());
 const fieldErrors = ref<SignupFieldMessages>({});
 const isSubmitting = ref(false);
+// Counts down after a 429 so the user does not spend more attempts from this IP.
+const rateLimit = useRetryCountdown();
 
 const isSubmitDisabled = computed(() => {
-  return isSubmitting.value;
+  return isSubmitting.value || rateLimit.isActive.value;
 });
 
 const goLoginPage = () => {
@@ -286,7 +302,7 @@ const validatePasswordFields = () => {
 };
 
 const handleSignup = async () => {
-  if (isSubmitting.value) {
+  if (isSubmitDisabled.value) {
     return;
   }
 
@@ -324,6 +340,13 @@ const handleSignup = async () => {
     }
   } catch (error: unknown) {
     const response = getApiErrorResponse(error);
+
+    const retryAfterSeconds =
+      response?.code === ApiCode.SignupRateLimited ? parseRetryAfterSeconds(response.data) : null;
+    if (retryAfterSeconds !== null) {
+      rateLimit.start(retryAfterSeconds);
+      return;
+    }
 
     fieldErrors.value = mapSignupFieldErrors(response?.error ?? null);
     if (response?.code === ApiCode.EmailAlreadyRegistered) {

@@ -21,6 +21,8 @@ vi.mock('@/services/user', () => ({ getUserInfoApi: vi.fn() }));
 vi.mock('@/services/socket', () => ({ ensureConnected: vi.fn() }));
 vi.mock('@/views/projectView/ProjectView.vue', () => ({ default: { template: '<div />' } }));
 vi.mock('@/views/workspaceView/WorkspaceView.vue', () => ({ default: { template: '<div />' } }));
+// Vitest on Windows cannot resolve the public-folder import '/img/google-logo.png' as a file path.
+vi.mock('/img/google-logo.png', () => ({ default: 'google-logo.png' }));
 
 const response = <T>(data: T, code = ApiCode.Success): ApiResponse<T> => ({
   code,
