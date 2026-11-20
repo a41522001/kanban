@@ -1,6 +1,6 @@
 # 進度
 
-最後更新：2026-11-19。本文是**唯一**記錄整體狀態的地方；各功能的細部步驟寫在 `features/` 對應的文件。2026-09 至 10-06 的歷史驗收紀錄已刪除，可從 git 歷史查看 `docs/progress.md` 的舊版本。
+最後更新：2026-11-20。本文是**唯一**記錄整體狀態的地方；各功能的細部步驟寫在 `features/` 對應的文件。2026-09 至 10-06 的歷史驗收紀錄已刪除，可從 git 歷史查看 `docs/progress.md` 的舊版本。
 
 ## 分支與上線限制
 
@@ -37,7 +37,6 @@
 ### 正確性與併發
 
 - 邀請的前置查詢與過期更新在 transaction 外，並行發送可能產生重複的 PENDING 邀請（[邀請與通知](features/workspace-invitation-notification.md)）。
-- 過期排程的 `waitForCompletion` 只防止單一 instance 重疊；多 instance 時可能同時掃描（條件式 `updateMany` 為冪等）。修法：在 `RedisLockService` 加 `withLock(key, ttlMs, fn)`（owner 用 `randomUUID()`），排程以 `lock:cron:expireWorkspaceInvitations` 包住；2026-11-13 建議：沒拿到回 `{ acquired: false }` 而非 throw；不續期，`finally` 的 `release` 回 false 時記 warn（鎖在執行中遺失）。
 - 沒有 Socket.IO Redis adapter：多 instance 時 `socket.to(room)`／`io.to(room)` 只送到同一台的連線（所有 board 事件與拖曳提示）；拖曳鎖本身存在 Redis，多 instance 仍互斥。部署多台前加 `@socket.io/redis-adapter`。
 - 前端 User／Workspace／Notification store reset 後，尚未阻止舊的 in-flight response 回寫。
 - 過期但未讀的通知仍計入未讀數。
@@ -74,6 +73,7 @@
 | 2026-11-06 | Backend socket／session／auth unit tests、ESLint、`tsc --noEmit`（7.2）                       | 7 suites、76 tests 通過；revoke Lua 以暫時 spec 對本機 Redis 驗證 3 個情境通過（spec 未保留）                                                                                                      |
 | 2026-11-06 | Backend `jest src/modules/socket`、ESLint、`tsc --noEmit`（快速切換競速）                     | 7 tests 通過；修改前的程式跑同一份 spec 為 5 failed／2 passed；ESLint、`tsc` 通過                                                                                                                  |
 | 2026-11-12 | Board service 拆分（純搬移）：board unit tests、ESLint、`tsc`、啟動 Nest、Bruno                   | `BoardService`（根目錄）與 `column/`、`card/`、`category/` 三個子資料夾的 service（DTO 留在 `dto/`）；同樣 79 個測試標題、161 tests 通過；9 個方法逐字相同、2 個只差呼叫 `cardCategoryService`；Bruno 35 個請求／56 tests 通過 |
+| 2026-11-20 | `withLock` 與邀請過期排程（Windows）：backend unit tests、E2E（CI 步驟）、ESLint、`tsc` | 534 tests 通過、3 skipped（新增 `redisLock.service.spec` 8、`workspaceInvitation.job.spec` 6）；故意改壞兩處（`release` 錯誤未接住、只在成功時釋放）分別 2、5 個測試失敗；E2E 7 suites／55 tests 通過（新增真 Redis `withLock` 4：5 個同時呼叫只有 1 個執行且最多 1 個同時在跑、完成與丟錯後鎖被刪除、超過 TTL 不刪別人的鎖並記 warn） |
 | 2026-11-19 | CI 修正：`rateLimit.e2e` 同時送出 20 個請求在 Linux CI 出現 `ECONNRESET`（app 只 `init()`，supertest 由第一個請求 `listen(0)` 並在結束時關閉 server）；`rateLimit`、`auth` E2E 改為 `app.listen(0)`；`email-verification.spec.ts` mock 圖檔修正 Windows 失敗 | 本機以 CI 步驟跑 backend E2E 連續 3 次皆 7 suites／51 tests 通過；Node 小程式重現同時 200 個請求時原寫法 104 個 `ECONNRESET`、修正後全部成功；CI 單元測試 520 通過；前端 `email-verification.spec.ts` 14 tests 通過 |
 | 2026-11-19 | Rate limit 前端 R-6（Windows）：Vitest、`vue-tsc`、ESLint、Chrome | 217 tests 通過（失敗為既有 `email-verification.spec.ts`；新 spec 以 `vi.mock` 圖檔避開同一問題）；Chrome 以開發後端連續登入失敗 5 次後，第 6 次顯示倒數並停用送出、無對話框，Redis IP 計數停在 5 |
 | 2026-11-19 | Rate limit 後端 R-3～R-5（Windows）：backend unit tests、E2E（隔離 PostgreSQL／Redis）、ESLint、`tsc`；3 支 Lua 以臨時 Redis 直接驗證 | 520 tests 通過、3 skipped；E2E 7 suites／51 tests 通過（新增 `rateLimit.e2e.spec.ts` 11：門檻、退回、403 退回、IP／email 維度、20 個同時送出只有 3 個進到比對密碼、signup、trust proxy 0 與 1、退回時 key 已過期）；ESLint 剩既有 `withLock` 3 個錯誤 |

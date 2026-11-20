@@ -32,9 +32,14 @@ export const LOG_EVENTS = {
 
   // Workspace invitation
   workspaceInvitationExpireCompleted: 'workspace_invitation.expire.completed',
+  workspaceInvitationExpireFailed: 'workspace_invitation.expire.failed',
 
   // Redis
   redisClientError: 'redis.client.error',
+  // withLock: the lock expired or was taken while fn was still running (fn outlived the TTL).
+  redisLockLost: 'redis.lock.lost',
+  // withLock: releasing failed (e.g. Redis down); the TTL removes the lock instead.
+  redisLockReleaseFailed: 'redis.lock.release_failed',
 
   // Socket.IO
   socketConnectionConnected: 'socket.connection.connected',

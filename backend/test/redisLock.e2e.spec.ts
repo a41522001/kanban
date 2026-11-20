@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -8,6 +8,7 @@ import { configNamespaces } from '../src/config';
 import { RedisModule } from '../src/infrastructure/redis/redis.module';
 import { RedisService } from '../src/infrastructure/redis/redis.service';
 import { RedisLockService } from '../src/infrastructure/redis/redisLock.service';
+import { LOG_EVENTS } from '../src/common/constants/logEvents';
 
 /**
  * RedisLockService against a real Redis (Board spec §8.2): SET NX PX acquire and
@@ -129,6 +130,93 @@ describe('RedisLockService (e2e)', () => {
       await lock.release(key, 'owner-a');
 
       await expect(lock.acquire(key, 'owner-b', 30000)).resolves.toBe(true);
+    });
+  });
+
+  describe('withLock', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    it('5 個同時呼叫只有 1 個執行 fn，其餘立刻回 acquired: false', async () => {
+      // Arrange
+      const key = newKey();
+      let running = 0;
+      let maxRunning = 0;
+      const fn = async () => {
+        running++;
+        maxRunning = Math.max(maxRunning, running);
+        await sleep(100);
+        running--;
+        return 'done';
+      };
+
+      // Act
+      const outcomes = await Promise.all(
+        Array.from({ length: 5 }, () => lock.withLock(key, 30000, fn)),
+      );
+
+      // Assert
+      expect(outcomes.filter((outcome) => outcome.acquired)).toEqual([
+        { acquired: true, result: 'done' },
+      ]);
+      expect(outcomes.filter((outcome) => !outcome.acquired)).toHaveLength(4);
+      expect(maxRunning).toBe(1);
+    });
+
+    it('fn 執行期間鎖存在且帶 TTL，完成後被刪除', async () => {
+      // Arrange
+      const key = newKey();
+      const client = redis.getClient();
+      let ttlDuringFn = 0;
+
+      // Act
+      await lock.withLock(key, 30000, async () => {
+        ttlDuringFn = await client.pTTL(key);
+      });
+
+      // Assert
+      expect(ttlDuringFn).toBeGreaterThan(0);
+      expect(ttlDuringFn).toBeLessThanOrEqual(30000);
+      await expect(client.exists(key)).resolves.toBe(0);
+    });
+
+    it('fn 丟錯時鎖仍被刪除，錯誤原樣丟出，之後可以再取得', async () => {
+      // Arrange
+      const key = newKey();
+      const fnError = new Error('updateMany failed');
+
+      // Act
+      const result = lock.withLock(key, 30000, () => Promise.reject(fnError));
+
+      // Assert
+      await expect(result).rejects.toBe(fnError);
+      await expect(redis.getClient().exists(key)).resolves.toBe(0);
+      await expect(
+        lock.withLock(key, 30000, () => Promise.resolve(1)),
+      ).resolves.toEqual({ acquired: true, result: 1 });
+    });
+
+    it('fn 超過 TTL、鎖被別人取得時，不刪別人的鎖並記 warn redis.lock.lost', async () => {
+      // Arrange
+      const key = newKey();
+      const warn = jest
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      // Act
+      const outcome = await lock.withLock(key, 50, async () => {
+        await sleep(120);
+        // The lock expired while fn was still running; another instance takes it.
+        await lock.acquire(key, 'owner-b', 30000);
+        return 'late';
+      });
+
+      // Assert
+      expect(outcome).toEqual({ acquired: true, result: 'late' });
+      await expect(redis.getClient().get(key)).resolves.toBe('owner-b');
+      expect(warn).toHaveBeenCalledWith(
+        { event: LOG_EVENTS.redisLockLost, key },
+        '鎖在執行途中失效',
+      );
     });
   });
 });

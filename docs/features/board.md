@@ -258,7 +258,7 @@ D 不改變資料正確性的做法：正確性仍由 PostgreSQL（`boardRevisio
 
 **權限（Q17，2026-11-13）**：`card:dragStart` 時查一次 DB，只有 OWNER、EDITOR（有效成員、Project 與 Workspace 未封存）可取得鎖；其他情況（VIEWER、非成員）ack `locked` 並記 warn log。只檢查 `socket.rooms` 不夠：VIEWER 也能加入 project room，直接 emit 就能讓所有人的卡片顯示「有人正在移動」並停用把手。不把角色存在 `socket.data`：角色被降級後存的值會過期。拖曳開始的頻率低，多一次查詢的成本可忽略。
 
-**共用元件（2026-11-13）**：Redis 操作放在通用的 `infrastructure/redis` `RedisLockService`（`acquire(key, owner, ttlMs)`：`SET NX PX`；`release(key, owner)`：Lua 比對後刪除，回傳是否刪到），之後其他分布式鎖共用。底層不吞 Redis 錯誤，由呼叫端決定 fail-open（拖曳鎖）或 fail-closed。卡片拖曳鎖的取得與釋放分在兩個事件，套不進 `withLock(key, fn)`；`withLock` 等第一個使用者（邀請過期排程的多 instance 互斥）出現時再做，見 `progress.md` 待辦。
+**共用元件（2026-11-13）**：Redis 操作放在通用的 `infrastructure/redis` `RedisLockService`（`acquire(key, owner, ttlMs)`：`SET NX PX`；`release(key, owner)`：Lua 比對後刪除，回傳是否刪到），之後其他分布式鎖共用。底層不吞 Redis 錯誤，由呼叫端決定 fail-open（拖曳鎖）或 fail-closed。卡片拖曳鎖的取得與釋放分在兩個事件，套不進 `withLock(key, fn)`。`withLock(key, ttlMs, fn)`（2026-11-20）：一段程式碼內取得、執行、釋放的情況用它，回傳 `{ acquired: true, result } | { acquired: false }`，owner 為 `randomUUID()`；沒拿到鎖不執行 fn、不記 log。互斥鎖語意：`finally` 一定立刻釋放，只保證不會同時執行，不保證每個週期只執行一次（時鐘誤差時可能先後各跑一次，使用者須冪等）。不續期；`release` 回 false 記 warn `redis.lock.lost`（fn 超過 TTL）；`acquire` 的錯誤往外丟，fn 的錯誤在釋放後原樣丟出，`release` 本身的錯誤只記 warn `redis.lock.release_failed`（避免蓋掉 fn 的錯誤）。目前使用者：邀請過期排程（`lock:cron:expireWorkspaceInvitations`，TTL 30 秒，錯誤由排程記 error `workspace_invitation.expire.failed`）。
 
 **鎖的格式（Q11、Q12）**
 
