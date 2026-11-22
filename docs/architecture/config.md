@@ -1,6 +1,6 @@
 # Backend Config Namespace
 
-日期：2026-11-03。由使用者以 grill 逐項確認（Q1–Q11）。狀態：**已實作**（2026-11-03）；`gcs` namespace 於 [頭像規格](../features/avatar.md) 步驟 11-2 新增 `GCS_*` 變數時一併建立，目前為 8 個。
+日期：2026-11-03。由使用者以 grill 逐項確認（Q1–Q11）。狀態：**已實作**（2026-11-03）；2026-11-22 隨 [頭像規格](../features/avatar.md) 步驟 11-2 新增 `gcs` namespace，目前為 9 個。
 
 把目前扁平的環境變數依領域分成 namespace（`registerAs`），程式內以 `avatar.storageRoot` 這類路徑讀值，取代 `AVATAR_STORAGE_ROOT` 這類環境變數名稱。API（`app.module.ts`）與 worker（`worker/worker.module.ts`）共用同一套設定。
 
