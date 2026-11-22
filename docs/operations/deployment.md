@@ -60,7 +60,7 @@ GHCR 上的 `kanban-frontend`、`kanban-backend` 因連結到 public repo 而為
 | Secrets | `SSH_HOST`（VM 外部 IP）、`SSH_USER`、`SSH_PRIVATE_KEY`（部署專用 ed25519 金鑰，無 passphrase） |
 | VM SSH 公鑰 | 加在 VM 中繼資料，不會過期 |
 | `/app` | 由 `sudo mkdir` 建立並 `chown` 給部署帳號，部署不需 sudo |
-| `/app/backend/.env.prod` | 手動建立、`chmod 600`，不進版控與 image。DB／Redis host 使用 service 名稱 `postgres`、`redis`；`PORT=4001` 必填（未設定時預設 3000，Nginx 會連不到） |
+| `/app/backend/.env.prod` | 由 [`backend/.env.prod.example`](../../backend/.env.prod.example) 複製後填入留空的值（`FRONTEND_URL`、`POSTGRES_PASSWORD`、`DATABASE_URL`、`SMTP_USER`、`SMTP_PASSWORD`、`MAIL_FROM`），`chmod 600`，不進版控與 image。範本已寫好正式環境特有的值：DB／Redis host 使用 service 名稱 `postgres`、`redis`；`PORT=4001` 必填（未設定時預設 3000，Nginx 會連不到）；`TRUST_PROXY_HOPS=1` |
 | `/app/.env` | 由 deploy 寫入 `IMAGE_TAG`，僅供 compose 變數替換，與容器環境變數無關 |
 | Docker | 官方 apt repository 安裝；部署帳號加入 `docker` 群組 |
 
@@ -68,6 +68,7 @@ GHCR 上的 `kanban-frontend`、`kanban-backend` 因連結到 public repo 而為
 
 - VM 目前使用**臨時外部 IP**。VM 停止再啟動後 IP 會改變，需同步更新 `SSH_HOST` Secret 與 `.env.prod` 的 `FRONTEND_URL`。
 - `POSTGRES_USER`／`POSTGRES_PASSWORD` 只在 postgres volume 第一次初始化時生效，之後修改 `.env.prod` 不會變更資料庫密碼。
+- `TRUST_PROXY_HOPS` 必須等於使用者與 backend 之間自己控制的 proxy 層數，目前只有 Nginx，所以是 `1`。設成 0（或沒設定，預設 0）時 `req.ip` 都是 Nginx 容器的 IP，所有人共用同一個登入／註冊限流計數器而互相擋住；設得比實際層數多，攻擊者可偽造 `X-Forwarded-For` 繞過 IP 限制。之後在 Nginx 前面加 Cloudflare 時改成 `2`（[限流規格](../features/rate-limit.md) §6）。既有的 `.env.prod` 要手動補上這一行。
 - `email.service.ts` 寫死 `secure: true`，`SMTP_PORT` 必須使用 465；使用 587 會因 TLS 握手失敗而寄不出信。
 - 修改 `.env.prod` 後需 `docker compose up -d --force-recreate backend worker`；`restart` 不會重新讀取 `env_file`。
 
@@ -82,7 +83,7 @@ GHCR 上的 `kanban-frontend`、`kanban-backend` 因連結到 public repo 而為
 - **登入無法使用**：production Cookie 為 `secure: true`、`sameSite: 'none'`，以 `http://IP` 瀏覽時瀏覽器不會儲存 Cookie。需完成網域與 HTTPS（規劃：Cloudflare 購買網域，Proxy 搭配 Full (strict) 與 Origin Certificate），並將 `FRONTEND_URL` 改為 `https://` 網域。
 - 尚未改用靜態 IP；尚未設定 `restart: unless-stopped`，VM 重開機後容器不會自動啟動。
 - 退版只回復程式碼，不回復 migration。
-- 與下方目標設計的差異：backend 以 root 執行且 runtime 含 devDependencies（Prisma CLI 為 devDependency，migration 需要）；migration 在 backend 容器啟動時執行，非獨立 release job；無 health check、smoke test、vulnerability scan 與 deployment concurrency；Nginx 未傳遞 `X-Forwarded-*` 等 header，NestJS 未設定 trust proxy；未設定 log rotation 與資料庫備份。
+- 與下方目標設計的差異：backend 以 root 執行且 runtime 含 devDependencies（Prisma CLI 為 devDependency，migration 需要）；migration 在 backend 容器啟動時執行，非獨立 release job；無 health check、smoke test、vulnerability scan 與 deployment concurrency；Nginx 只傳遞 `X-Forwarded-For`、`X-Forwarded-Proto`（2026-11-19 為限流加入；`X-Request-ID` 未傳），NestJS 以 `TRUST_PROXY_HOPS` 設定 trust proxy，尚未在 VM 上驗證；未設定 log rotation 與資料庫備份。
 - Socket.IO 使用預設 in-memory adapter，廣播只送到同一個後端 instance。擴充成多個 backend instance 前須改用 `@socket.io/redis-adapter`（[Board 規格](../features/board.md) §7.5）。
 - scp／ssh action 未設定 `fingerprint`，尚未固定 VM 主機身分；第三方 action 以版本號釘選，未釘選 commit SHA。
 

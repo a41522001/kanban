@@ -31,4 +31,18 @@ docs {
   
   - 帳密錯誤：401 / InvalidCredentials (2001)。
   - Email 尚未驗證：403 / EmailVerificationRequired (2005)，`data.email`。
+  - 嘗試次數過多：429 / LoginRateLimited (2009)，`data.retryAfterSeconds`（秒，無條件進位）。被擋時不比對密碼，正確密碼也回 429。
+
+  ## Rate limit（docs/features/rate-limit.md）
+
+  計數的是失敗（帳號不存在、非 LOCAL 帳號、密碼錯誤），任一維度到上限就擋：
+
+  | 維度 | 預設上限 | 視窗 |
+  |---|---|---|
+  | email + IP | 5 | 15 分鐘 |
+  | IP | 50 | 15 分鐘 |
+  | email | 100 | 1 小時 |
+
+  - 密碼正確（200 或 403 / 2005）時：email + IP 清空，IP 與 email 各退回 1。
+  - 手動測試：密碼故意打錯送 5 次，第 6 次回 429。要解除可等視窗結束，或在 Redis 刪除 `rateLimit:login:*`。
 }

@@ -12,12 +12,16 @@ import { ApiCode } from '@kanban/contracts/api';
 import type { User } from '@/generated/prisma/client';
 import { AppException } from '@/common/exceptions/app.exception';
 import { LOG_EVENTS } from '@/common/constants/logEvents';
+import { RateLimitService } from '@/infrastructure/redis/rateLimit.service';
 describe('AuthService', () => {
   let authService: AuthService;
   let userService: UserService;
   let sessionService: SessionService;
   let socketService: SocketService;
   let queueService: QueueService;
+  let rateLimitService: RateLimitService;
+  // A documentation-range address (RFC 5737), as req.ip would be after trust proxy.
+  const ip = '203.0.113.5';
   const pendingUser: User = {
     id: '1',
     email: 'test@test.com',
@@ -88,6 +92,19 @@ describe('AuthService', () => {
             addVerificationEmailQueue: jest.fn(),
           },
         },
+        {
+          provide: RateLimitService,
+          useValue: {
+            // Allowed by default; rate-limit tests override per case.
+            hitLogin: jest
+              .fn()
+              .mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
+            hitSignup: jest
+              .fn()
+              .mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
+            refundLogin: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -96,6 +113,7 @@ describe('AuthService', () => {
     sessionService = module.get<SessionService>(SessionService);
     socketService = module.get<SocketService>(SocketService);
     queueService = module.get<QueueService>(QueueService);
+    rateLimitService = module.get<RateLimitService>(RateLimitService);
   });
 
   afterEach(() => {
@@ -128,7 +146,7 @@ describe('AuthService', () => {
         });
       const addJobSpy = jest.spyOn(queueService, 'addVerificationEmailQueue');
 
-      const result = await authService.signup(req);
+      const result = await authService.signup(req, ip);
       expect(result).toEqual({
         accountCreated: true,
         emailQueued: true,
@@ -172,11 +190,82 @@ describe('AuthService', () => {
           updatedAt: new Date(),
         });
       const createSpy = jest.spyOn(userService, 'createUser');
-      const result = await authService.signup(req);
+      const result = await authService.signup(req, ip);
       expect(result).toBe(false);
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
       expect(getByEmailSpy).toHaveBeenCalledTimes(1);
       expect(createSpy).not.toHaveBeenCalled();
+      // A duplicate email still counts, so signup cannot be used to probe registered emails for free.
+      expect(jest.spyOn(rateLimitService, 'hitSignup')).toHaveBeenCalledWith(
+        ip,
+      );
+    });
+
+    describe('rate limit', () => {
+      it('被擋時回 429 / SignupRateLimited 與倒數秒數，不查 DB、不建立帳號', async () => {
+        // Arrange
+        jest
+          .spyOn(rateLimitService, 'hitSignup')
+          .mockResolvedValue({ allowed: false, retryAfterSeconds: 1800 });
+        jest
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => undefined);
+        const getByEmailSpy = jest.spyOn(userService, 'getByEmail');
+        const createSpy = jest.spyOn(userService, 'createUser');
+
+        // Act
+        const result = authService.signup(req, ip);
+
+        // Assert
+        await expect(result).rejects.toMatchObject({
+          code: ApiCode.SignupRateLimited,
+          data: { retryAfterSeconds: 1800 },
+        });
+        await expect(result).rejects.toHaveProperty('status', 429);
+        expect(getByEmailSpy).not.toHaveBeenCalled();
+        expect(createSpy).not.toHaveBeenCalled();
+        expect(
+          jest.spyOn(queueService, 'addVerificationEmailQueue'),
+        ).not.toHaveBeenCalled();
+      });
+
+      it('被擋時記 warn，帶 ip 與秒數，不記 email', async () => {
+        // Arrange
+        jest
+          .spyOn(rateLimitService, 'hitSignup')
+          .mockResolvedValue({ allowed: false, retryAfterSeconds: 1800 });
+        const loggerWarn = jest
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => undefined);
+
+        // Act
+        await authService.signup(req, ip).catch(() => undefined);
+
+        // Assert
+        expect(loggerWarn).toHaveBeenCalledWith(
+          {
+            event: LOG_EVENTS.authSignupRateLimited,
+            ip,
+            retryAfterSeconds: 1800,
+          },
+          '註冊嘗試次數過多',
+        );
+        expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain(req.email);
+      });
+
+      it('Redis 故障時直接丟出（fail-closed），不建立帳號', async () => {
+        // Arrange
+        const redisError = new Error('Redis unavailable');
+        jest.spyOn(rateLimitService, 'hitSignup').mockRejectedValue(redisError);
+        const createSpy = jest.spyOn(userService, 'createUser');
+
+        // Act
+        const result = authService.signup(req, ip);
+
+        // Assert
+        await expect(result).rejects.toBe(redisError);
+        expect(createSpy).not.toHaveBeenCalled();
+      });
     });
   });
   describe('verifyEmail', () => {
@@ -252,11 +341,14 @@ describe('AuthService', () => {
     redisClient.ttl.mockResolvedValue(52);
 
     // Act
-    const result = authService.signup({
-      email: pendingUser.email,
-      password: 'testtest',
-      name: 'test',
-    });
+    const result = authService.signup(
+      {
+        email: pendingUser.email,
+        password: 'testtest',
+        name: 'test',
+      },
+      ip,
+    );
 
     // Assert
     await expect(result).resolves.toEqual({
@@ -281,11 +373,14 @@ describe('AuthService', () => {
     redisClient.set.mockRejectedValue(new Error('Redis unavailable'));
     redisClient.ttl.mockRejectedValue(new Error('Redis unavailable'));
     await expect(
-      authService.signup({
-        email: pendingUser.email,
-        password: 'testtest',
-        name: 'test',
-      }),
+      authService.signup(
+        {
+          email: pendingUser.email,
+          password: 'testtest',
+          name: 'test',
+        },
+        ip,
+      ),
     ).resolves.toEqual({
       accountCreated: true,
       emailQueued: false,
@@ -409,11 +504,15 @@ describe('AuthService', () => {
         .spyOn(userService, 'getByEmail')
         .mockResolvedValue(null);
       const saveSpy = jest.spyOn(sessionService, 'saveCurrentSession');
-      const result = await authService.login(req);
+      const result = await authService.login(req, ip);
       expect(result).toBeNull();
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
       expect(getByEmailSpy).toHaveBeenCalledTimes(1);
       expect(saveSpy).not.toHaveBeenCalled();
+      // A missing account counts as a failure, exactly like a wrong password.
+      expect(
+        jest.spyOn(rateLimitService, 'refundLogin'),
+      ).not.toHaveBeenCalled();
     });
 
     it('密碼錯誤', async () => {
@@ -432,11 +531,14 @@ describe('AuthService', () => {
           updatedAt: new Date(),
         });
       const saveSpy = jest.spyOn(sessionService, 'saveCurrentSession');
-      const result = await authService.login(req);
+      const result = await authService.login(req, ip);
       expect(result).toBeNull();
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
       expect(getByEmailSpy).toHaveBeenCalledTimes(1);
       expect(saveSpy).not.toHaveBeenCalled();
+      expect(
+        jest.spyOn(rateLimitService, 'refundLogin'),
+      ).not.toHaveBeenCalled();
     });
 
     it('登入成功', async () => {
@@ -459,12 +561,20 @@ describe('AuthService', () => {
       const saveSpy = jest
         .spyOn(sessionService, 'saveCurrentSession')
         .mockResolvedValue(sessionId);
-      const result = await authService.login(req);
+      const result = await authService.login(req, ip);
       expect(getByEmailSpy).toHaveBeenCalledWith(req.email);
       expect(getByEmailSpy).toHaveBeenCalledTimes(1);
       expect(saveSpy).toHaveBeenCalledWith(userId);
       expect(saveSpy).toHaveBeenCalledTimes(1);
       expect(result).toBe(sessionId);
+      expect(jest.spyOn(rateLimitService, 'hitLogin')).toHaveBeenCalledWith(
+        req.email,
+        ip,
+      );
+      expect(jest.spyOn(rateLimitService, 'refundLogin')).toHaveBeenCalledWith(
+        req.email,
+        ip,
+      );
     });
 
     it('密碼正確但未驗證，回傳 EmailVerificationRequired 且不建立 Session', async () => {
@@ -472,13 +582,105 @@ describe('AuthService', () => {
       jest
         .spyOn(userService, 'getByEmail')
         .mockResolvedValue({ ...pendingUser, passwordHash });
-      await expect(authService.login(req)).rejects.toMatchObject({
+      await expect(authService.login(req, ip)).rejects.toMatchObject({
         code: ApiCode.EmailVerificationRequired,
         data: { email: req.email },
       });
       expect(
         jest.spyOn(sessionService, 'saveCurrentSession'),
       ).not.toHaveBeenCalled();
+      // The password was right, so the attempt is refunded before the 403 is thrown.
+      expect(jest.spyOn(rateLimitService, 'refundLogin')).toHaveBeenCalledWith(
+        req.email,
+        ip,
+      );
+    });
+
+    describe('rate limit', () => {
+      it('被擋時回 429 / LoginRateLimited 與倒數秒數，不查 DB、不比對密碼、不退回', async () => {
+        // Arrange
+        jest
+          .spyOn(rateLimitService, 'hitLogin')
+          .mockResolvedValue({ allowed: false, retryAfterSeconds: 420 });
+        jest
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => undefined);
+        const getByEmailSpy = jest.spyOn(userService, 'getByEmail');
+
+        // Act
+        const result = authService.login(req, ip);
+
+        // Assert
+        await expect(result).rejects.toMatchObject({
+          code: ApiCode.LoginRateLimited,
+          data: { retryAfterSeconds: 420 },
+        });
+        await expect(result).rejects.toHaveProperty('status', 429);
+        // Checked before the lookup, so a blocked response never reveals whether the email exists.
+        expect(getByEmailSpy).not.toHaveBeenCalled();
+        expect(
+          jest.spyOn(rateLimitService, 'refundLogin'),
+        ).not.toHaveBeenCalled();
+        expect(
+          jest.spyOn(sessionService, 'saveCurrentSession'),
+        ).not.toHaveBeenCalled();
+      });
+
+      it('被擋時記 warn，帶 ip 與秒數，不記 email', async () => {
+        // Arrange
+        jest
+          .spyOn(rateLimitService, 'hitLogin')
+          .mockResolvedValue({ allowed: false, retryAfterSeconds: 420 });
+        const loggerWarn = jest
+          .spyOn(Logger.prototype, 'warn')
+          .mockImplementation(() => undefined);
+
+        // Act
+        await authService.login(req, ip).catch(() => undefined);
+
+        // Assert
+        expect(loggerWarn).toHaveBeenCalledWith(
+          {
+            event: LOG_EVENTS.authLoginRateLimited,
+            ip,
+            retryAfterSeconds: 420,
+          },
+          '登入嘗試次數過多',
+        );
+        expect(JSON.stringify(loggerWarn.mock.calls)).not.toContain(req.email);
+      });
+
+      it('Redis 故障時直接丟出（fail-closed），不繼續登入', async () => {
+        // Arrange
+        const redisError = new Error('Redis unavailable');
+        jest.spyOn(rateLimitService, 'hitLogin').mockRejectedValue(redisError);
+        const getByEmailSpy = jest.spyOn(userService, 'getByEmail');
+
+        // Act
+        const result = authService.login(req, ip);
+
+        // Assert
+        await expect(result).rejects.toBe(redisError);
+        expect(getByEmailSpy).not.toHaveBeenCalled();
+      });
+
+      it('非 LOCAL 帳號視為失敗，不退回', async () => {
+        // Arrange
+        jest.spyOn(userService, 'getByEmail').mockResolvedValue({
+          ...pendingUser,
+          authProvider: 'GOOGLE',
+          passwordHash: null,
+        });
+
+        // Act
+        const result = await authService.login(req, ip);
+
+        // Assert
+        expect(result).toBeNull();
+        expect(
+          jest.spyOn(rateLimitService, 'refundLogin'),
+        ).not.toHaveBeenCalled();
+      });
     });
   });
 

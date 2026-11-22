@@ -33,4 +33,6 @@ docs {
 
   - development 環境且 `devAutoVerifyEmail = true` 時會直接標記為已驗證，不寄信。
   - Email 已存在：EmailAlreadyRegistered (2002)。
+  - 嘗試次數過多：429 / SignupRateLimited (2010)，`data.retryAfterSeconds`（秒，無條件進位）。
+  - Rate limit：同一 IP 每小時 20 次（預設），每次請求都算，成功與 Email 已存在也算，不退回。要解除可在 Redis 刪除 `rateLimit:signup:ip:*`。
 }

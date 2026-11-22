@@ -39,6 +39,34 @@ export const envSchema = z.object({
     .min(1)
     .transform((v) => v.replace(/\\n/g, '\n'))
     .optional(),
+  // 登入與註冊 rate limit（docs/features/rate-limit.md §2、§7）；MAX 為視窗內上限，WINDOW 為固定視窗秒數。
+  RATE_LIMIT_LOGIN_EMAIL_IP_MAX: z.coerce.number().int().positive().default(5),
+  RATE_LIMIT_LOGIN_EMAIL_IP_WINDOW_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(900),
+  RATE_LIMIT_LOGIN_IP_MAX: z.coerce.number().int().positive().default(50),
+  RATE_LIMIT_LOGIN_IP_WINDOW_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(900),
+  RATE_LIMIT_LOGIN_EMAIL_MAX: z.coerce.number().int().positive().default(100),
+  RATE_LIMIT_LOGIN_EMAIL_WINDOW_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3600),
+  RATE_LIMIT_SIGNUP_IP_MAX: z.coerce.number().int().positive().default(20),
+  RATE_LIMIT_SIGNUP_IP_WINDOW_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3600),
+  // Client 與 API 之間自己控制的 reverse proxy 層數，決定 req.ip 取 X-Forwarded-For 的哪一段（rate-limit.md §6）。
+  // 預設 0（開發環境直連）；正式環境經 Nginx 設 1。設得比實際層數多，攻擊者就能以偽造的 header 繞過 IP 限制。
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
 });
 export type Env = z.infer<typeof envSchema>;
 

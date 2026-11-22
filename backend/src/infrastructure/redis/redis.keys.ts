@@ -4,6 +4,11 @@ export const redisKeys = {
   verifyEmail: (token: string) => `verify:email:${token}`,
   rateLimitEmailVerify: (email: string) => `rateLimit:emailVerify:${email}`,
   rateLimitAvatarUpload: (userId: string) => `rateLimit:avatarUpload:${userId}`,
+  rateLimitLoginEmailIp: (email: string, ip: string) =>
+    `rateLimit:login:emailIp:${email}:${ip}`,
+  rateLimitLoginIp: (ip: string) => `rateLimit:login:ip:${ip}`,
+  rateLimitLoginEmail: (email: string) => `rateLimit:login:email:${email}`,
+  rateLimitSignupIp: (ip: string) => `rateLimit:signup:ip:${ip}`,
   cardDrag: (projectId: string, cardId: string) =>
     `lock:cardDrag:${projectId}:${cardId}`,
 };

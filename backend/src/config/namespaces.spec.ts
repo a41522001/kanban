@@ -34,7 +34,22 @@ const baseEnv: Record<string, string> = {
   AVATAR_TEMP_ROOT: './storage/temp',
   AVATAR_PUBLIC_BASE_URL: 'http://localhost:4001/media',
   SEQ_URL: 'http://localhost:5341',
+  // Every rate-limit value is distinct, so swapping two fields fails the mapping test.
+  RATE_LIMIT_LOGIN_EMAIL_IP_MAX: '11',
+  RATE_LIMIT_LOGIN_EMAIL_IP_WINDOW_SECONDS: '12',
+  RATE_LIMIT_LOGIN_IP_MAX: '21',
+  RATE_LIMIT_LOGIN_IP_WINDOW_SECONDS: '22',
+  RATE_LIMIT_LOGIN_EMAIL_MAX: '31',
+  RATE_LIMIT_LOGIN_EMAIL_WINDOW_SECONDS: '32',
+  RATE_LIMIT_SIGNUP_IP_MAX: '41',
+  RATE_LIMIT_SIGNUP_IP_WINDOW_SECONDS: '42',
+  TRUST_PROXY_HOPS: '1',
 };
+
+const rateLimitEnvKeys = Object.keys(baseEnv).filter(
+  (key) =>
+    key.startsWith('RATE_LIMIT_LOGIN') || key.startsWith('RATE_LIMIT_SIGNUP'),
+);
 
 describe('config namespaces', () => {
   const originalEnv = process.env;
@@ -54,6 +69,7 @@ describe('config namespaces', () => {
         nodeEnv: 'test',
         port: 4001,
         frontendUrl: 'http://localhost:5173',
+        trustProxyHops: 1,
       });
       expect(databaseConfig()).toEqual({
         url: 'postgresql://user:pass@localhost:5432/kanban',
@@ -68,6 +84,12 @@ describe('config namespaces', () => {
         saltRounds: 12,
         verifyMailExpireMinute: 30,
         rateLimitVerifyEmailSeconds: 60,
+        rateLimit: {
+          loginEmailIp: { max: 11, windowSeconds: 12 },
+          loginIp: { max: 21, windowSeconds: 22 },
+          loginEmail: { max: 31, windowSeconds: 32 },
+          signupIp: { max: 41, windowSeconds: 42 },
+        },
       });
       expect(mailConfig()).toEqual({
         transport: 'smtp',
@@ -100,6 +122,41 @@ describe('config namespaces', () => {
       expect(session.expireDay).toBe(7);
       expect(auth.saltRounds).toBe(10);
       expect(avatar.storageRoot).toBe('./storage/media');
+    });
+
+    it('限流與 TRUST_PROXY_HOPS 未設定時套用規格的預設值（rate-limit.md §7）', () => {
+      // Arrange: an existing .env.prod without the new keys must still boot.
+      for (const key of rateLimitEnvKeys) delete process.env[key];
+      delete process.env.TRUST_PROXY_HOPS;
+
+      // Act
+      const auth = authConfig();
+      const app = appConfig();
+
+      // Assert
+      expect(auth.rateLimit).toEqual({
+        loginEmailIp: { max: 5, windowSeconds: 900 },
+        loginIp: { max: 50, windowSeconds: 900 },
+        loginEmail: { max: 100, windowSeconds: 3600 },
+        signupIp: { max: 20, windowSeconds: 3600 },
+      });
+      // 0 trusts no proxy header, so an unset value can never let clients spoof their IP.
+      expect(app.trustProxyHops).toBe(0);
+    });
+
+    it.each([
+      ['TRUST_PROXY_HOPS 為負數', 'TRUST_PROXY_HOPS', '-1'],
+      ['TRUST_PROXY_HOPS 不是整數', 'TRUST_PROXY_HOPS', '1.5'],
+      ['限流上限為 0', 'RATE_LIMIT_LOGIN_IP_MAX', '0'],
+      ['限流視窗不是數字', 'RATE_LIMIT_SIGNUP_IP_WINDOW_SECONDS', 'one-hour'],
+    ])('%s時 factory 丟出錯誤', (_case, key, value) => {
+      // Arrange
+      process.env[key] = value;
+
+      // Act & Assert
+      expect(() =>
+        key === 'TRUST_PROXY_HOPS' ? appConfig() : authConfig(),
+      ).toThrow();
     });
 
     it('選填的 SEQ_URL 未設定時 logger.seqUrl 為 undefined', () => {
@@ -147,6 +204,14 @@ describe('config namespaces', () => {
       expect(expireDay).toBe(7);
       expect(mail.smtpPort).toBe(465);
       expect(configService.get('app.port', { infer: true })).toBe(4001);
+      // A whole rule is read in one call and handed to RateLimitService as is.
+      expect(
+        configService.get('auth.rateLimit.loginIp', { infer: true }),
+      ).toEqual({
+        max: 21,
+        windowSeconds: 22,
+      });
+      expect(configService.get('app.trustProxyHops', { infer: true })).toBe(1);
     });
   });
 });
