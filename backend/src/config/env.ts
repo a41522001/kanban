@@ -30,6 +30,15 @@ export const envSchema = z.object({
   AVATAR_PUBLIC_BASE_URL: z.url().default('http://localhost:4001/media'),
   // 設定時 log 會同時送進 Seq；未設定則只輸出到終端機（E2E、CI、正式環境預設不設定）。
   SEQ_URL: z.url().optional(),
+  AVATAR_STORAGE_DRIVER: z.enum(['local', 'gcs']).default('local'),
+  AVATAR_MEDIA_BUCKET: z.string().min(1).optional(),
+  AVATAR_TEMP_BUCKET: z.string().min(1).optional(),
+  GCS_CLIENT_EMAIL: z.email().optional(),
+  GCS_PRIVATE_KEY: z
+    .string()
+    .min(1)
+    .transform((v) => v.replace(/\\n/g, '\n'))
+    .optional(),
 });
 export type Env = z.infer<typeof envSchema>;
 
