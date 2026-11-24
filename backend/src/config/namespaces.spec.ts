@@ -6,6 +6,7 @@ import { appConfig } from './namespaces/app.config';
 import { authConfig } from './namespaces/auth.config';
 import { avatarConfig } from './namespaces/avatar.config';
 import { databaseConfig } from './namespaces/database.config';
+import { gcsConfig } from './namespaces/gcs.config';
 import { loggerConfig } from './namespaces/logger.config';
 import { mailConfig } from './namespaces/mail.config';
 import { redisConfig } from './namespaces/redis.config';
@@ -103,6 +104,13 @@ describe('config namespaces', () => {
         storageRoot: './storage/media',
         tempRoot: './storage/temp',
         publicBaseUrl: 'http://localhost:4001/media',
+        storageDriver: 'local',
+        mediaBucket: undefined,
+        tempBucket: undefined,
+      });
+      expect(gcsConfig()).toEqual({
+        clientEmail: undefined,
+        privateKey: undefined,
       });
       expect(loggerConfig()).toEqual({ seqUrl: 'http://localhost:5341' });
     });
