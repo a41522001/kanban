@@ -3,6 +3,7 @@ import { appConfig } from './namespaces/app.config';
 import { authConfig } from './namespaces/auth.config';
 import { avatarConfig } from './namespaces/avatar.config';
 import { databaseConfig } from './namespaces/database.config';
+import { gcsConfig } from './namespaces/gcs.config';
 import { loggerConfig } from './namespaces/logger.config';
 import { mailConfig } from './namespaces/mail.config';
 import { redisConfig } from './namespaces/redis.config';
@@ -17,6 +18,7 @@ export const configNamespaces = [
   authConfig,
   mailConfig,
   avatarConfig,
+  gcsConfig,
   loggerConfig,
 ];
 
@@ -29,5 +31,6 @@ export type AppConfig = {
   auth: ConfigType<typeof authConfig>;
   mail: ConfigType<typeof mailConfig>;
   avatar: ConfigType<typeof avatarConfig>;
+  gcs: ConfigType<typeof gcsConfig>;
   logger: ConfigType<typeof loggerConfig>;
 };
