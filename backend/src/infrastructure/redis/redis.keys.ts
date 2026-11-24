@@ -11,4 +11,6 @@ export const redisKeys = {
   rateLimitSignupIp: (ip: string) => `rateLimit:signup:ip:${ip}`,
   cardDrag: (projectId: string, cardId: string) =>
     `lock:cardDrag:${projectId}:${cardId}`,
+  // One lock per scheduled job, so only one instance runs it at a time.
+  cronExpireWorkspaceInvitations: () => 'lock:cron:expireWorkspaceInvitations',
 };

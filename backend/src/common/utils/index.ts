@@ -107,9 +107,6 @@ export const formatValidationErrors = (
   return result;
 };
 
-/** 鎖 */
-// export const withLock = (lockKey: string, redis: any, callback: any) => {};
-
 /** 取得 trust proxy 處理後的 client IP；拿不到時丟錯，避免限流以 undefined 計數。 */
 export const getClientIp = (req: Request): string => {
   if (!req.ip) {
