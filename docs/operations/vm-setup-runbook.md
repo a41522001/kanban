@@ -229,7 +229,7 @@ Worker log 會印出 job 資料（含驗證 token），分享 log 前先移除 t
 | 服務帳號 | 授權（在 bucket 上設定，不在專案層級） | 用途 |
 | --- | --- | --- |
 | `kanban-app` | 兩個 prod bucket：`roles/storage.objectUser` | 正式 VM（§2：建立 VM 時選擇，scope `cloud-platform`） |
-| `kanban-dev` | 兩個 dev bucket：`roles/storage.objectUser` | 本機開發；在 Console 建立 JSON 金鑰，`client_email`、`private_key` 填入本機 `backend/.env` 的 `GCS_CLIENT_EMAIL`、`GCS_PRIVATE_KEY`，金鑰檔不放進 repo。**不可**放進 `.env.prod`（啟動驗證會失敗） |
+| `kanban-dev` | 兩個 dev bucket：`roles/storage.objectUser` | 本機開發。組織政策禁止建立金鑰，改以 gcloud ADC 模擬：啟用 IAM Service Account Credentials API；在 `kanban-dev` 上授予開發者帳號「服務帳戶憑證建立者」；`gcloud auth application-default login --impersonate-service-account kanban-dev@<專案 ID>.iam.gserviceaccount.com`。`backend/.env` 不設定 `GCS_*`（見 avatar 規格 §0.4.4） |
 
 **`.env.prod` 新增（步驟 12 部署時）**
 
