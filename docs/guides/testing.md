@@ -129,7 +129,7 @@ Notification 已開放列表、未讀數、單筆／全部已讀、Workspace inv
 - [ ] `WorkspaceInvitationExpirationJob`：固定 UTC 時間後，驗證它呼叫 service、避免重疊的設定，以及 count 大於 0 時的可觀測行為。
 - [ ] 真實 PostgreSQL：過期 PENDING 會批次轉為 EXPIRED，未過期或已回覆 invitation 不變。
 - [ ] 邀請與通知 transaction rollback 的真實 PostgreSQL integration test。
-- [ ] 並行邀請不產生重複有效邀請（目前缺少資料庫唯一性保護）。
+- [x] 並行邀請不產生重複有效邀請：部分唯一索引 + P2002 轉 409；`test/workspaceInvitation.e2e.spec.ts` 同時送出 10 個請求（2026-11-26）。
 - [ ] 重複接受、接受／拒絕競爭與回覆 API 的 integration／E2E 測試。
 - [x] E2E happy paths：發送 → 通知 → 接受 → 加入 Workspace，以及發送 → 通知 → 拒絕 → 不加入 Workspace → 再接受回 409；以 Node 24.13 驗收通過。
 
@@ -298,7 +298,7 @@ Auth、Session、authorization、idempotency、concurrency 等高風險模組要
 
 1. 補 Project pin HTTP E2E 與 Swagger contract，再補 Project 負向授權、P2002 真實併行衝突與 transaction rollback。
 2. 補預設四欄內容／順序與 rollback E2E；Card 的測試隨 [Board 規格](../features/board.md) 階段 A 一起撰寫。
-3. Workspace 邀請／通知授權、transaction rollback 與並行發送 integration／E2E。
+3. Workspace 邀請／通知授權與 transaction rollback integration／E2E（並行發送已完成）。
 4. Frontend Auth／邀請／通知的 component tests，以及登出時 in-flight request 競態。
 5. SessionService unit tests：驗證分支與 Lua reply mapping。
 6. 真實 Redis 的 create／rotate／revoke Lua integration tests，包含並行競爭。

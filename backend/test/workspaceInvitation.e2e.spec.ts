@@ -10,6 +10,7 @@ import type {
   WorkspaceListItemDto,
 } from '@kanban/contracts/workspaces';
 import type { FindByRecipientResponse } from '@kanban/contracts/notification';
+import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 
 describe('WorkspaceInvitation (e2e)', () => {
   let app: INestApplication<App>;
@@ -20,7 +21,9 @@ describe('WorkspaceInvitation (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    // Listen once so concurrent supertest requests share the server; otherwise the first
+    // request to finish closes it and resets the others.
+    await app.listen(0);
   });
 
   const inviter = {
@@ -208,6 +211,77 @@ describe('WorkspaceInvitation (e2e)', () => {
       .post('/workspaceInvitation/accept')
       .send({ invitationId })
       .expect(409);
+  });
+
+  it('同時送出多個相同邀請時，只會建立一筆 PENDING 與一則通知，其餘回 409', async () => {
+    // Arrange
+    const inviter = {
+      email: 'inviter2@gmail.com',
+      password: 'inviterinviter2',
+      name: 'inviter2',
+    };
+    const invitee = {
+      email: 'invitee2@gmail.com',
+      password: 'inviteeinvitee2',
+      name: 'invitee2',
+    };
+    const concurrency = 10;
+    const inviterAgent = request.agent(app.getHttpServer());
+    const inviteeAgent = request.agent(app.getHttpServer());
+    await inviterAgent.post('/auth/signup').send(inviter).expect(201);
+    await verifyTestUser(app, inviter.email);
+    await inviteeAgent.post('/auth/signup').send(invitee).expect(201);
+    await verifyTestUser(app, invitee.email);
+    await inviterAgent
+      .post('/auth/login')
+      .send({ email: inviter.email, password: inviter.password })
+      .expect(200);
+    const createWorkspaceResponse = await inviterAgent
+      .post('/workspaces/')
+      .send({ name: '並行邀請工作區' })
+      .expect(201);
+    const workspaceId = (
+      createWorkspaceResponse.body as ApiResponse<WorkspaceDto>
+    ).data!.id;
+
+    // Act
+    const responses = await Promise.all(
+      Array.from({ length: concurrency }, () =>
+        inviterAgent
+          .post('/workspaceInvitation/invite')
+          .send({ workspaceId, email: invitee.email }),
+      ),
+    );
+
+    // Assert
+    const statuses = responses.map((response) => response.status);
+    expect(statuses.filter((status) => status === 201)).toHaveLength(1);
+    const conflicts = responses.filter((response) => response.status === 409);
+    expect(conflicts).toHaveLength(concurrency - 1);
+    for (const response of conflicts) {
+      expect((response.body as ApiResponse<null>).message).toBe(
+        '已經邀請過此使用者',
+      );
+    }
+
+    const prisma = app.get(PrismaService);
+    await expect(
+      prisma.workspaceInvitation.count({
+        where: { workspaceId, status: 'PENDING' },
+      }),
+    ).resolves.toBe(1);
+
+    await inviteeAgent
+      .post('/auth/login')
+      .send({ email: invitee.email, password: invitee.password })
+      .expect(200);
+    const notificationsResponse = await inviteeAgent
+      .get('/notifications/')
+      .expect(200);
+    const notifications = (
+      notificationsResponse.body as ApiResponse<FindByRecipientResponse>
+    ).data!.items;
+    expect(notifications).toHaveLength(1);
   });
 
   afterAll(async () => {
