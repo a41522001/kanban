@@ -1,4 +1,6 @@
+import { HttpStatus } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { ApiCode } from '@kanban/contracts/api';
 import { WorkspaceInvitationService } from './workspaceInvitation.service';
 import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { UserService } from '@/modules/user/user.service';
@@ -6,11 +8,11 @@ import { NotificationService } from '@/modules/notification/notification.service
 import { PrismaService } from '@/infrastructure/prisma/prisma.service';
 import { WorkspaceInvitationRepository } from './workspaceInvitation.repository';
 import { FindMembershipResponse } from '@/modules/workspaces/workspaces.type';
-import type {
+import {
   Prisma,
-  User,
-  Workspace,
-  WorkspaceInvitation,
+  type User,
+  type Workspace,
+  type WorkspaceInvitation,
 } from '@/generated/prisma/client';
 import { DateTime } from 'luxon';
 import { SocketService } from '@/modules/socket/socket.service';
@@ -722,53 +724,139 @@ describe('WorkspaceInvitationService', () => {
         );
       });
 
-      it('已過期但更新狀態發生問題', async () => {
-        const expiredExpiresAt = DateTime.fromJSDate(now)
+      it('過期邀請已被其他請求標成 EXPIRED（markExpired 回傳 0）時仍建立新邀請', async () => {
+        // Arrange
+        pendingInvitation!.expiresAt = DateTime.fromJSDate(now)
           .minus({ seconds: 1 })
           .toJSDate();
-        pendingInvitation!.expiresAt = expiredExpiresAt;
-        const findMembershipSpy = jest
+        jest
           .spyOn(workspacesService, 'findMembership')
           .mockResolvedValueOnce(inviter)
           .mockResolvedValueOnce(null);
-
-        const getByEmailSpy = jest
-          .spyOn(userService, 'getByEmail')
-          .mockResolvedValue(invitee);
-
-        const findPendingByWorkspaceAndInviteeSpy = jest
+        jest.spyOn(userService, 'getByEmail').mockResolvedValue(invitee);
+        jest
           .spyOn(workspaceInvitationService, 'findPendingByWorkspaceAndInvitee')
           .mockResolvedValue(pendingInvitation);
         const markExpiredSpy = jest
           .spyOn(workspaceInvitationService, 'markExpired')
           .mockResolvedValueOnce(0);
-        await expect(
-          workspaceInvitationService.inviteMember(
-            inviterUserId,
-            workspaceId,
-            inviteeEmail,
-          ),
-        ).rejects.toThrow('邀請狀態已發生變更，請重新操作');
-        expect(findMembershipSpy).toHaveBeenCalledTimes(2);
-        expect(findMembershipSpy).toHaveBeenNthCalledWith(
-          1,
+        jest
+          .spyOn(prismaService, '$transaction')
+          .mockImplementation(async (callback) => {
+            if (typeof callback !== 'function') {
+              throw new Error('預期使用 interactive transaction');
+            }
+            return callback({} as Prisma.TransactionClient);
+          });
+        const newInvitation = { ...pendingInvitation!, id: '2' };
+        const createInvitationSpy = jest
+          .spyOn(workspaceInvitationService, 'createInvitation')
+          .mockResolvedValue(newInvitation);
+
+        // Act
+        const result = await workspaceInvitationService.inviteMember(
           inviterUserId,
           workspaceId,
+          inviteeEmail,
         );
-        expect(findMembershipSpy).toHaveBeenNthCalledWith(
-          2,
-          inviteeUserId,
-          workspaceId,
-        );
-        expect(getByEmailSpy).toHaveBeenCalledTimes(1);
-        expect(getByEmailSpy).toHaveBeenCalledWith(inviteeEmail);
-        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledTimes(1);
-        expect(findPendingByWorkspaceAndInviteeSpy).toHaveBeenCalledWith(
-          workspaceId,
-          inviteeUserId,
-        );
-        expect(markExpiredSpy).toHaveBeenCalledTimes(1);
+
+        // Assert
         expect(markExpiredSpy).toHaveBeenCalledWith(pendingInvitation!.id, now);
+        expect(createInvitationSpy).toHaveBeenCalledTimes(1);
+        expect(result).toBe(newInvitation);
+      });
+    });
+
+    describe('並行建立邀請', () => {
+      const inviterUserId = 'inviterUserId';
+      const inviteeUserId = 'inviteeUserId';
+      const inviteeEmail = 'invitee@gmail.com';
+      const workspaceId = 'workspaceId';
+      const now = new Date('2026-09-09T00:00:00.000Z');
+
+      /** Both requests passed the pre-check; this one loses at the insert. */
+      const arrangeInsertFailure = (error: Error) => {
+        jest
+          .spyOn(workspacesService, 'findMembership')
+          .mockResolvedValueOnce({
+            memberId: '1',
+            memberName: 'inviter',
+            role: 'OWNER',
+            workspaceName: '測試工作區',
+            workspaceArchivedAt: null,
+          })
+          .mockResolvedValueOnce(null);
+        jest.spyOn(userService, 'getByEmail').mockResolvedValue({
+          id: inviteeUserId,
+          email: inviteeEmail,
+          displayName: 'invitee',
+          passwordHash: 'inviteeHashPassword',
+          authProvider: 'LOCAL',
+          emailVerifiedAt: now,
+          googleSub: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+        jest
+          .spyOn(workspaceInvitationService, 'findPendingByWorkspaceAndInvitee')
+          .mockResolvedValue(null);
+        jest
+          .spyOn(prismaService, '$transaction')
+          .mockImplementation(async (callback) => {
+            if (typeof callback !== 'function') {
+              throw new Error('預期使用 interactive transaction');
+            }
+            return callback({} as Prisma.TransactionClient);
+          });
+        jest
+          .spyOn(workspaceInvitationService, 'createInvitation')
+          .mockRejectedValue(error);
+        return jest.spyOn(socketService, 'emitNotificationCreated');
+      };
+
+      it('撞到 PENDING 唯一索引（P2002）時回 409「已經邀請過此使用者」，不推播通知', async () => {
+        // Arrange
+        const emitSpy = arrangeInsertFailure(
+          new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+            code: 'P2002',
+            clientVersion: '7.9.1',
+          }),
+        );
+
+        // Act
+        const result = workspaceInvitationService.inviteMember(
+          inviterUserId,
+          workspaceId,
+          inviteeEmail,
+        );
+
+        // Assert
+        await expect(result).rejects.toMatchObject({
+          status: HttpStatus.CONFLICT,
+          code: ApiCode.RequestError,
+          message: '已經邀請過此使用者',
+        });
+        expect(emitSpy).not.toHaveBeenCalled();
+      });
+
+      it('其他資料庫錯誤原樣往外丟', async () => {
+        // Arrange
+        const dbError = new Prisma.PrismaClientKnownRequestError(
+          'Foreign key constraint failed',
+          { code: 'P2003', clientVersion: '7.9.1' },
+        );
+        const emitSpy = arrangeInsertFailure(dbError);
+
+        // Act
+        const result = workspaceInvitationService.inviteMember(
+          inviterUserId,
+          workspaceId,
+          inviteeEmail,
+        );
+
+        // Assert
+        await expect(result).rejects.toBe(dbError);
+        expect(emitSpy).not.toHaveBeenCalled();
       });
     });
 

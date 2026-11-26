@@ -224,8 +224,8 @@ WorkspaceInvitationStatus 包含 PENDING、ACCEPTED、DECLINED、CANCELED、EXPI
 
 - workspace／invitee 外鍵採 ON DELETE CASCADE，inviter 採 ON DELETE SET NULL。
 - 索引：`invitee_user_id, status, created_at DESC`、`workspace_id, status, created_at DESC`、`expires_at`。
-- 目前沒有同一工作區／受邀者的 PENDING unique constraint；並行查詢後新增可能產生重複邀請。
-- Migration：`backend/prisma/migrations/20260905163548_add_workspaec_invitation/migration.sql`（沿用實際目錄拼字）。
+- 部分唯一索引 `workspace_invitations_workspace_id_invitee_user_id_key`：`(workspace_id, invitee_user_id) WHERE status = 'PENDING'`，同一工作區對同一使用者最多一筆 PENDING（Prisma preview feature `partialIndexes`）。
+- Migration：`backend/prisma/migrations/20260905163548_add_workspaec_invitation/migration.sql`（沿用實際目錄拼字）；`20261126030057_workspace_invitation_pending_unique`（清理既有重複 PENDING 後建立部分唯一索引）。
 
 發送邀請的驗證、transaction 範圍與待辦見[邀請與通知](../features/workspace-invitation-notification.md)。
 

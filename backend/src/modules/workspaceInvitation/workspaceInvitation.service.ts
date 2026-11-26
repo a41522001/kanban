@@ -4,7 +4,7 @@ import type {
   WorkspaceInvitationDetail,
   WorkspaceInvitationStatus,
 } from '@kanban/contracts/workspaceInvitation';
-import type { Prisma } from '@/generated/prisma/client';
+import { Prisma } from '@/generated/prisma/client';
 import { CreateInvitationParams } from './workspaceInvitation.type';
 import { WorkspacesService } from '@/modules/workspaces/workspaces.service';
 import { AppException } from '@/common/exceptions/app.exception';
@@ -329,23 +329,14 @@ export class WorkspaceInvitationService {
           code: ApiCode.RequestError,
         });
       }
-      // 邀請時間已過期 改狀態為過期
-      const expiredResult = await this.markExpired(
-        pendingInvitation.id,
-        now.toJSDate(),
-      );
-      if (expiredResult !== 1) {
-        throw new AppException({
-          status: HttpStatus.CONFLICT,
-          message: '邀請狀態已發生變更，請重新操作',
-          code: ApiCode.RequestError,
-        });
-      }
+      // 邀請時間已過期 改狀態為過期，才能建立新的 PENDING（部分唯一索引只允許一筆）。
+      // 回傳 0 代表已被排程或並行的請求標成 EXPIRED：已過期的邀請無法再被接受或拒絕，結果相同，直接往下建立。
+      await this.markExpired(pendingInvitation.id, now.toJSDate());
     }
     // 創建新邀請以及新通知
     const expiresAt = now.plus({ days: 7 }).toJSDate();
-    const { newInvitation, newNotification } =
-      await this.prismaService.$transaction(async (tx) => {
+    const { newInvitation, newNotification } = await this.prismaService
+      .$transaction(async (tx) => {
         const createInvitationParams = {
           workspaceId,
           inviteeUserId,
@@ -370,6 +361,21 @@ export class WorkspaceInvitationService {
             tx,
           );
         return { newInvitation, newNotification };
+      })
+      .catch((error: unknown) => {
+        // 並行的請求同時通過上方預檢時，後寫入的會撞到 PENDING 部分唯一索引。
+        // 這個 transaction 內只有它可能觸發 P2002：邀請 id 是新的 uuid，通知的 dedupeKey 又由新邀請 id 組成。
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new AppException({
+            status: HttpStatus.CONFLICT,
+            message: '已經邀請過此使用者',
+            code: ApiCode.RequestError,
+          });
+        }
+        throw error;
       });
 
     // 推播通知

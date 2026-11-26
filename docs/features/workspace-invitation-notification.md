@@ -29,11 +29,13 @@ transaction commit 成功後，Service 呼叫 `SocketService.emitWorkspaceMember
 
 ## Transaction 與併發限制
 
-舊邀請的過期更新在新邀請／通知 transaction 外執行；若後續新增失敗，舊邀請仍會維持 EXPIRED。Owner／membership／PENDING 查詢也在 transaction 外。
+Owner／membership／PENDING 查詢在 transaction 外，只是預檢；同一組只有一筆 PENDING 由資料庫保證（2026-11-26）：
 
-目前沒有同一 workspaceId／inviteeUserId 的 PENDING 唯一索引。兩個並行請求可能都通過查詢並各自新增邀請；通知的 dedupeKey 使用新 invitation ID，因此不能防止這種重複邀請。
-
-後續應以資料庫約束與衝突處理保護業務唯一性，並加入真實 PostgreSQL 並行測試；具體 migration／重試政策尚待實作。現有 transaction 只保證邀請與通知一起建立，並不保證前置查詢不受競爭影響。
+- **部分唯一索引** `workspace_invitations_workspace_id_invitee_user_id_key`：`(workspace_id, invitee_user_id) WHERE status = 'PENDING'`，schema 以 Prisma preview feature `partialIndexes` 宣告。ACCEPTED／DECLINED／CANCELED／EXPIRED 不受限制，可重新邀請。
+- **衝突處理**：兩個並行請求都通過預檢時，後寫入的在 transaction 內撞到索引（P2002），回與預檢相同的 409「已經邀請過此使用者」。Transaction 回滾，不會多一則通知，也不推播。這個 transaction 只會因該索引觸發 P2002（邀請 id 是新 uuid、通知 dedupeKey 由新邀請 id 組成），所以不需判斷是哪個約束；其他錯誤原樣往外丟。
+- **過期的舊邀請**：預檢發現已過期的 PENDING 時，先在 transaction 外標成 EXPIRED 才建立新邀請。標記筆數為 0 代表已被排程或並行請求標成 EXPIRED（已過期的邀請無法再被接受或拒絕），直接往下建立，不再回 409；若兩個請求同時走到這裡，由上一點的索引擋下第二筆。新邀請建立失敗時舊邀請維持 EXPIRED，這本來就是正確狀態。
+- **既有資料**：migration `20261126030057_workspace_invitation_pending_unique` 在建索引前，將同一組多出來的 PENDING 只保留最新一筆（`created_at DESC, id DESC`），其餘標成 CANCELED；被作廢邀請的通知仍在，回覆時因狀態不是 PENDING 回 409。
+- **驗證**：真實 PostgreSQL E2E 同時送出 10 個相同邀請，只有 1 個 201、9 個 409，DB 只有 1 筆 PENDING、受邀者只有 1 則通知；移除索引後同一測試會出現兩個 201。
 
 ## 通知資料與讀取
 

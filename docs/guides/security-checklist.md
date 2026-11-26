@@ -47,7 +47,8 @@
 - [x] `GET /workspaces/:workspaceId/members` 已在 Service 檢查呼叫者 membership 與 archivedAt，無存取權回 404（2026-09-08 靜態核對）。
 - [x] 發送 Workspace 邀請已檢查未封存工作區的 OWNER 身分；通知讀取依 Session userId 隔離。
 - [x] 接受／拒絕邀請的條件式更新會綁定 Session userId、invitationId、PENDING status 與 expiresAt，非受邀者不會改變狀態。
-- [ ] 補邀請 PENDING 唯一性、並行發送測試，以及非受邀者／未登入回覆的顯式 E2E。
+- [x] 邀請 PENDING 唯一性由部分唯一索引保證，並以真實 PostgreSQL 並行發送 E2E 驗證（2026-11-26）。
+- [ ] 補非受邀者／未登入回覆的顯式 E2E。
 - [x] `POST /project` 只允許有效且未封存的 WorkspaceMember 建立 Project，建立者身分由 Session 取得，Project 與 OWNER membership 同 transaction。
 - [x] `POST /project/addMember` 只允許未封存 Project 的 OWNER 操作；目標必須是同 Workspace 的有效成員，角色 DTO 只允許 EDITOR／VIEWER，重複 membership 由資料庫 unique constraint 保護。
 - [x] `PATCH /project/:projectId/pin` 不接受 client userId，只以 Session userId 與 projectId 更新呼叫者自己的 ProjectMember；Service 會拒絕不存在或已封存 Project／Workspace 的 membership。
